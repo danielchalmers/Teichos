@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PageBlock - Test Page</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #667eea;
+        }
+        .section {
+            background: #f7fafc;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        code {
+            background: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .test-link {
+            display: inline-block;
+            margin: 10px 10px 10px 0;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+        }
+        .test-link:hover {
+            background: #5568d3;
+        }
+        ul {
+            margin-top: 10px;
+        }
+        li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚫 PageBlock Extension</h1>
+    <p>Welcome to the PageBlock test page! This extension allows you to block URLs using regex patterns with time-based scheduling.</p>
+
+    <div class="section">
+        <h2>Features</h2>
+        <ul>
+            <li>✅ Regex-based URL filtering</li>
+            <li>✅ Time-based scheduling with day/time restrictions</li>
+            <li>✅ Default 24/7 group for always-active filters</li>
+            <li>✅ Enable/disable individual filters</li>
+            <li>✅ Clean, intuitive options interface</li>
+            <li>✅ Instant blocking with informative blocked page</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>How to Use</h2>
+        <ol>
+            <li>Right-click the PageBlock extension icon and select "Options"</li>
+            <li>Add a new group or use the default 24/7 group</li>
+            <li>Add filters with regex patterns (e.g., <code>.*facebook\.com.*</code>)</li>
+            <li>Try navigating to a matching URL - it will be blocked!</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>Example Patterns to Try</h2>
+        <p>Add these patterns in the options page to test blocking:</p>
+        <ul>
+            <li><code>.*example\.com.*</code> - Blocks any URL containing example.com</li>
+            <li><code>.*facebook\.com.*</code> - Blocks Facebook</li>
+            <li><code>.*youtube\.com/watch.*</code> - Blocks YouTube videos</li>
+            <li><code>.*(facebook|twitter|instagram)\.com.*</code> - Blocks multiple social media sites</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Test Links</h2>
+        <p>Try clicking these links after setting up filters:</p>
+        <a href="https://www.example.com" class="test-link" target="_blank">Example.com</a>
+        <a href="https://www.facebook.com" class="test-link" target="_blank">Facebook</a>
+        <a href="https://www.youtube.com" class="test-link" target="_blank">YouTube</a>
+    </div>
+
+    <div class="section">
+        <h2>Time-Based Scheduling</h2>
+        <p>Create custom groups with specific days and times:</p>
+        <ul>
+            <li>Block social media during work hours (9 AM - 5 PM, Mon-Fri)</li>
+            <li>Block entertainment sites during study time</li>
+            <li>Set up different blocking rules for different times of day</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Technical Details</h2>
+        <ul>
+            <li><strong>Built with:</strong> TypeScript, Webpack</li>
+            <li><strong>Extension Type:</strong> Manifest V3 Web Extension</li>
+            <li><strong>Storage:</strong> Chrome Sync Storage API</li>
+            <li><strong>Blocking Method:</strong> Tab navigation interception</li>
+        </ul>
+    </div>
+</body>
+</html>
