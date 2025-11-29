@@ -6,7 +6,8 @@ module.exports = {
   entry: {
     background: './src/background.ts',
     options: './src/options.ts',
-    blocked: './src/blocked.ts'
+    blocked: './src/blocked.ts',
+    popup: './src/popup.ts'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -30,6 +31,7 @@ module.exports = {
         { from: 'src/manifest.json', to: 'manifest.json' },
         { from: 'src/options.html', to: 'options.html' },
         { from: 'src/blocked.html', to: 'blocked.html' },
+        { from: 'src/popup.html', to: 'popup.html' },
       ],
     }),
   ],

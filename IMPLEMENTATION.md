@@ -34,6 +34,10 @@ PageBlock is a TypeScript-based web extension (Manifest V3) that allows users to
   - Shows the blocked URL
   - "Go Back" button to return to previous page
   - "Manage Filters" button to open options
+- **Browser Action Popup**: Quick access popup for filter management
+  - View all filters with their patterns and groups
+  - Toggle filters on/off directly from the popup
+  - Quick access to Settings (Options page)
 
 ## Technical Architecture
 
@@ -47,6 +51,8 @@ src/
 ├── options.html      # Options page UI
 ├── blocked.ts        # Blocked page logic
 ├── blocked.html      # Blocked page UI
+├── popup.ts          # Browser action popup logic
+├── popup.html        # Browser action popup UI
 └── manifest.json     # Extension manifest (V3)
 ```
 
@@ -164,4 +170,3 @@ Potential features for future versions:
 - Whitelist support (allow certain URLs even if they match)
 - Password protection for filter management
 - Notification system
-- Browser action popup for quick filter toggle

@@ -22,6 +22,8 @@ required_files=(
     "dist/blocked.html"
     "dist/options.js"
     "dist/options.html"
+    "dist/popup.js"
+    "dist/popup.html"
 )
 
 for file in "${required_files[@]}"; do
@@ -66,6 +68,7 @@ required_sources=(
     "src/background.ts"
     "src/options.ts"
     "src/blocked.ts"
+    "src/popup.ts"
 )
 
 for file in "${required_sources[@]}"; do
