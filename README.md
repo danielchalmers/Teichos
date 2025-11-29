@@ -1,54 +1,72 @@
-# PageBlock
+# 🛡️ PageBlock
 
-A web extension to block URLs based on configurable regex filters with time-based scheduling.
+Block distracting websites with powerful regex patterns and smart scheduling.
 
-## Features
+## ✨ Features
 
-- **Regex-based URL filtering**: Block URLs using powerful regular expression patterns
-- **Whitelist support**: Allow certain URLs to bypass blocking, even if they match filter patterns
-- **Time-based scheduling**: Create groups with specific days and hours when blocking should be active
-- **Default 24/7 group**: Filters can be set to always block or assigned to custom schedules
-- **Enable/disable filters**: Easily toggle individual filters on and off
-- **Instant blocking**: Pages are blocked immediately with a clear blocked page notification
-- **Easy management**: Clean, intuitive options page to configure all settings
+- 🔍 **Regex Matching** — Block URLs with flexible pattern matching
+- ⏰ **Smart Scheduling** — Set active hours for each filter group
+- 🔄 **Easy Toggles** — Enable/disable filters instantly
+- 🚫 **Instant Blocking** — Pages blocked immediately on navigation
 
-## Installation
+## 🚀 Quick Start
 
-### From Source
+```bash
+npm install
+npm run build
+```
 
-1. Clone this repository
-2. Install dependencies: `npm install`
-3. Build the extension: `npm run build`
-4. Load the `dist` folder as an unpacked extension in Edge:
-   - Go to `edge://extensions/`, enable "Developer mode", click "Load unpacked", and select the `dist` folder
+Load in Edge:
+1. Go to `edge://extensions/`
+2. Enable **Developer mode**
+3. Click **Load unpacked** → select the `dist` folder
 
-## Usage
+## 📖 Usage
 
-1. Click the extension icon or go to the extension's options page
-2. Create filter groups with custom schedules (or use the default 24/7 group)
-3. Add filters with regex patterns to match URLs you want to block
-4. Add whitelist entries to allow specific URLs even if they match a filter
-5. Enable/disable filters and whitelist entries as needed
-6. Browse the web - matching URLs will be blocked instantly (unless whitelisted)
+### Adding Filters
 
-### Example Filters
+1. Right-click the PageBlock icon → **Options**
+2. Click **+ Add Filter**
+3. Enter a regex pattern and optional description
+4. Choose a group (or use **24/7 Always Active**)
+5. Save and browse — matching URLs are blocked!
 
-- Block Facebook: `.*facebook\.com.*`
-- Block YouTube: `.*youtube\.com.*`
-- Block social media: `.*(facebook|twitter|instagram)\.com.*`
-- Block specific path: `.*example\.com/blocked-page.*`
+### Creating Schedule Groups
 
-### Example Whitelist Entries
+Want to block sites only during work hours? Create a custom group:
 
-- Allow Facebook Workplace: `.*workplace\.facebook\.com.*`
-- Allow YouTube Music: `.*music\.youtube\.com.*`
-- Allow specific page: `.*example\.com/allowed-page.*`
+1. Click **+ Add Group**
+2. Name it (e.g., "Work Hours")
+3. Uncheck **Always Active**
+4. Add schedules with days and times
+5. Assign filters to your new group
 
-## Development
+## 🎯 Pattern Examples
 
-- `npm run build` - Build the extension for production
-- `npm run watch` - Watch for changes and rebuild automatically
+| Goal | Pattern |
+|------|---------|
+| Block Facebook | `.*facebook\.com.*` |
+| Block YouTube videos | `.*youtube\.com/watch.*` |
+| Block social media | `.*(facebook\|twitter\|instagram)\.com.*` |
+| Block news sites | `.*(cnn\|bbc\|news)\.com.*` |
 
-## License
+> 💡 **Tip:** Test patterns at [regex101.com](https://regex101.com) before adding them.
 
-MIT - See [LICENSE](LICENSE) file for details
+## 🎓 Use Cases
+
+**🖥️ Focus Mode** — Block social media and videos during work hours (9-5, Mon-Fri)
+
+**📚 Study Time** — Block gaming and streaming sites during your study schedule
+
+**🌙 Bedtime** — Wind down by blocking stimulating content in the evening
+
+## 🛠️ Development
+
+```bash
+npm run watch    # Auto-rebuild on changes
+./verify.sh      # Verify build output
+```
+
+## 📄 License
+
+[MIT](LICENSE)
