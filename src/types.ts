@@ -19,9 +19,17 @@ export interface Filter {
   description?: string;
 }
 
+export interface Whitelist {
+  id: string;
+  pattern: string; // regex pattern
+  enabled: boolean;
+  description?: string;
+}
+
 export interface StorageData {
   groups: FilterGroup[];
   filters: Filter[];
+  whitelist: Whitelist[];
 }
 
 export const DEFAULT_GROUP_ID = 'default-24x7';

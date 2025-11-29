@@ -5,6 +5,7 @@ A web extension to block URLs based on configurable regex filters with time-base
 ## Features
 
 - **Regex-based URL filtering**: Block URLs using powerful regular expression patterns
+- **Whitelist support**: Allow certain URLs to bypass blocking, even if they match filter patterns
 - **Time-based scheduling**: Create groups with specific days and hours when blocking should be active
 - **Default 24/7 group**: Filters can be set to always block or assigned to custom schedules
 - **Enable/disable filters**: Easily toggle individual filters on and off
@@ -26,8 +27,9 @@ A web extension to block URLs based on configurable regex filters with time-base
 1. Click the extension icon or go to the extension's options page
 2. Create filter groups with custom schedules (or use the default 24/7 group)
 3. Add filters with regex patterns to match URLs you want to block
-4. Enable/disable filters as needed
-5. Browse the web - matching URLs will be blocked instantly
+4. Add whitelist entries to allow specific URLs even if they match a filter
+5. Enable/disable filters and whitelist entries as needed
+6. Browse the web - matching URLs will be blocked instantly (unless whitelisted)
 
 ### Example Filters
 
@@ -35,6 +37,12 @@ A web extension to block URLs based on configurable regex filters with time-base
 - Block YouTube: `.*youtube\.com.*`
 - Block social media: `.*(facebook|twitter|instagram)\.com.*`
 - Block specific path: `.*example\.com/blocked-page.*`
+
+### Example Whitelist Entries
+
+- Allow Facebook Workplace: `.*workplace\.facebook\.com.*`
+- Allow YouTube Music: `.*music\.youtube\.com.*`
+- Allow specific page: `.*example\.com/allowed-page.*`
 
 ## Development
 

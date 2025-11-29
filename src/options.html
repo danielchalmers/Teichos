@@ -272,6 +272,13 @@
       <div id="filters-list"></div>
       <button class="button" id="add-filter-btn">+ Add Filter</button>
     </div>
+
+    <div class="section">
+      <h2>Whitelist</h2>
+      <p style="color: #718096; margin-top: 0; font-size: 0.9rem;">URLs matching whitelist patterns will never be blocked, even if they match a filter.</p>
+      <div id="whitelist-list"></div>
+      <button class="button" id="add-whitelist-btn">+ Add Whitelist Entry</button>
+    </div>
   </div>
 
   <!-- Filter Modal -->
@@ -332,6 +339,34 @@
         </div>
         <button type="submit" class="button">Save Group</button>
         <button type="button" class="button secondary" id="cancel-group">Cancel</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Whitelist Modal -->
+  <div id="whitelist-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="whitelist-modal-title">Add Whitelist Entry</h2>
+        <button class="close" id="close-whitelist-modal">&times;</button>
+      </div>
+      <form id="whitelist-form">
+        <div class="form-row">
+          <label for="whitelist-pattern">URL Pattern (Regex)</label>
+          <input type="text" id="whitelist-pattern" class="input" required placeholder="e.g., .*facebook\.com/work.*">
+        </div>
+        <div class="form-row">
+          <label for="whitelist-description">Description (Optional)</label>
+          <input type="text" id="whitelist-description" class="input" placeholder="e.g., Allow Facebook Work">
+        </div>
+        <div class="form-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="whitelist-enabled" checked>
+            Enabled
+          </label>
+        </div>
+        <button type="submit" class="button">Save Whitelist Entry</button>
+        <button type="button" class="button secondary" id="cancel-whitelist">Cancel</button>
       </form>
     </div>
   </div>
