@@ -85,8 +85,8 @@ src/
 ### Blocking Logic
 
 1. **Tab Navigation Monitoring**: 
-   - Listens to `tabs.onUpdated` for tab changes
-   - Listens to `webNavigation.onBeforeNavigate` for navigation events
+   - Listens to `chrome.tabs.onUpdated` for tab changes
+   - Listens to `chrome.webNavigation.onBeforeNavigate` for navigation events
 
 2. **URL Evaluation**:
    - Loads all filters and groups from storage
