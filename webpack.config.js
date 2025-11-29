@@ -32,6 +32,7 @@ module.exports = {
         { from: 'src/options.html', to: 'options.html' },
         { from: 'src/blocked.html', to: 'blocked.html' },
         { from: 'src/popup.html', to: 'popup.html' },
+        { from: 'src/icons', to: 'icons' },
       ],
     }),
   ],
