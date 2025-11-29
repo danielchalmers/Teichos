@@ -2,6 +2,16 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Install Dependencies",
+      "type": "npm",
+      "script": "install",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Build",
       "type": "npm",
       "script": "build",
@@ -9,6 +19,7 @@
         "kind": "build",
         "isDefault": true
       },
+      "dependsOn": ["Install Dependencies"],
       "problemMatcher": ["$tsc-watch"]
     },
     {
@@ -16,7 +27,19 @@
       "type": "npm",
       "script": "watch",
       "isBackground": true,
+      "dependsOn": ["Install Dependencies"],
       "problemMatcher": ["$tsc-watch"]
+    },
+    {
+      "label": "Test",
+      "type": "npm",
+      "script": "test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "dependsOn": ["Install Dependencies"],
+      "problemMatcher": []
     }
   ]
 }
