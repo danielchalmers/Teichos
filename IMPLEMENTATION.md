@@ -41,7 +41,7 @@ PageBlock is a TypeScript-based web extension (Manifest V3) that allows users to
 ```
 src/
 ├── types.ts          # TypeScript interfaces and utility functions
-├── storage.ts        # Chrome storage API wrapper functions
+├── storage.ts        # Browser storage API wrapper functions
 ├── background.ts     # Service worker for URL interception
 ├── options.ts        # Options page logic
 ├── options.html      # Options page UI
@@ -85,8 +85,8 @@ src/
 ### Blocking Logic
 
 1. **Tab Navigation Monitoring**: 
-   - Listens to `chrome.tabs.onUpdated` for tab changes
-   - Listens to `chrome.webNavigation.onBeforeNavigate` for navigation events
+   - Listens to `tabs.onUpdated` for tab changes
+   - Listens to `webNavigation.onBeforeNavigate` for navigation events
 
 2. **URL Evaluation**:
    - Loads all filters and groups from storage
@@ -110,16 +110,14 @@ src/
 
 ## Storage
 
-- Uses Chrome's `storage.sync` API
+- Uses browser's `storage.sync` API
 - Data syncs across devices when user is signed in
 - Single storage key: `pageblock_data`
 - Stores both groups and filters in one object
 
 ## Browser Compatibility
 
-- Chrome/Edge: Full support (Manifest V3)
-- Firefox: Compatible with minor adaptations
-- Safari: Compatible with conversion to Safari extension format
+- Microsoft Edge: Full support (Manifest V3)
 
 ## Example Use Cases
 
@@ -142,7 +140,7 @@ src/
 ## Installation Instructions
 
 1. Build the extension: `npm run build`
-2. Open Chrome/Edge and navigate to `chrome://extensions/`
+2. Open Edge and navigate to `edge://extensions/`
 3. Enable "Developer mode"
 4. Click "Load unpacked"
 5. Select the `dist` folder

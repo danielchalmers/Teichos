@@ -13,8 +13,8 @@
    ```
 
 3. **Load in browser:**
-   - Open Chrome/Edge
-   - Navigate to `chrome://extensions/`
+   - Open Edge
+   - Navigate to `edge://extensions/`
    - Enable "Developer mode" (toggle in top-right)
    - Click "Load unpacked"
    - Select the `dist` folder in this project
@@ -123,7 +123,7 @@ For development, use watch mode to automatically rebuild on changes:
 npm run watch
 ```
 
-After making changes, reload the extension in `chrome://extensions/`
+After making changes, reload the extension in `edge://extensions/`
 
 ### Verification
 Run the verification script to check the build:

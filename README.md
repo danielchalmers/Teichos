@@ -18,9 +18,8 @@ A web extension to block URLs based on configurable regex filters with time-base
 1. Clone this repository
 2. Install dependencies: `npm install`
 3. Build the extension: `npm run build`
-4. Load the `dist` folder as an unpacked extension in your browser:
-   - **Chrome/Edge**: Go to `chrome://extensions/`, enable "Developer mode", click "Load unpacked", and select the `dist` folder
-   - **Firefox**: Go to `about:debugging#/runtime/this-firefox`, click "Load Temporary Add-on", and select the `manifest.json` file in the `dist` folder
+4. Load the `dist` folder as an unpacked extension in Edge:
+   - Go to `edge://extensions/`, enable "Developer mode", click "Load unpacked", and select the `dist` folder
 
 ## Usage
 
