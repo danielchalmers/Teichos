@@ -6,10 +6,16 @@ async function init() {
   setupEventListeners();
 }
 
-function setupEventListeners() {
-  document.getElementById('open-options')!.addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
+function openOptionsPage() {
+  chrome.runtime.openOptionsPage(() => {
+    if (chrome.runtime.lastError) {
+      console.error('Failed to open options page:', chrome.runtime.lastError);
+    }
   });
+}
+
+function setupEventListeners() {
+  document.getElementById('open-options')!.addEventListener('click', openOptionsPage);
 }
 
 async function renderFilters() {
@@ -23,9 +29,7 @@ async function renderFilters() {
         <button class="add-filter-btn" id="add-first-filter">+ Add Filter</button>
       </div>
     `;
-    document.getElementById('add-first-filter')!.addEventListener('click', () => {
-      chrome.runtime.openOptionsPage();
-    });
+    document.getElementById('add-first-filter')!.addEventListener('click', openOptionsPage);
     return;
   }
 
@@ -55,7 +59,15 @@ async function renderFilters() {
     input.addEventListener('change', async (e) => {
       const checkbox = e.target as HTMLInputElement;
       const filterId = checkbox.dataset.filterId!;
-      await toggleFilter(filterId, checkbox.checked);
+      const originalState = !checkbox.checked;
+      
+      try {
+        await toggleFilter(filterId, checkbox.checked);
+      } catch (error) {
+        console.error('Failed to toggle filter:', error);
+        // Revert checkbox state on error
+        checkbox.checked = originalState;
+      }
     });
   });
 }
