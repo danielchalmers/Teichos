@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Edge with extension",
+      "type": "msedge",
+      "request": "launch",
+      "url": "edge://extensions",
+      "runtimeArgs": ["--load-extension=${workspaceFolder}/dist"],
+      "preLaunchTask": "Build"
+    }
+  ]
+}
