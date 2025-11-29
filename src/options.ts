@@ -1,13 +1,15 @@
-import { loadData, saveData, addFilter, updateFilter, deleteFilter, addGroup, updateGroup, deleteGroup } from './storage';
-import { Filter, FilterGroup, TimeSchedule, generateId, DEFAULT_GROUP_ID } from './types';
+import { loadData, saveData, addFilter, updateFilter, deleteFilter, addGroup, updateGroup, deleteGroup, addWhitelist, updateWhitelist, deleteWhitelist } from './storage';
+import { Filter, FilterGroup, Whitelist, TimeSchedule, generateId, DEFAULT_GROUP_ID } from './types';
 
 let currentEditingFilterId: string | null = null;
 let currentEditingGroupId: string | null = null;
+let currentEditingWhitelistId: string | null = null;
 let temporarySchedules: TimeSchedule[] = [];
 
 async function init() {
   await renderGroups();
   await renderFilters();
+  await renderWhitelist();
   setupEventListeners();
 }
 
@@ -20,13 +22,20 @@ function setupEventListeners() {
     openGroupModal();
   });
 
+  document.getElementById('add-whitelist-btn')!.addEventListener('click', () => {
+    openWhitelistModal();
+  });
+
   document.getElementById('close-filter-modal')!.addEventListener('click', closeFilterModal);
   document.getElementById('cancel-filter')!.addEventListener('click', closeFilterModal);
   document.getElementById('close-group-modal')!.addEventListener('click', closeGroupModal);
   document.getElementById('cancel-group')!.addEventListener('click', closeGroupModal);
+  document.getElementById('close-whitelist-modal')!.addEventListener('click', closeWhitelistModal);
+  document.getElementById('cancel-whitelist')!.addEventListener('click', closeWhitelistModal);
 
   document.getElementById('filter-form')!.addEventListener('submit', handleFilterSubmit);
   document.getElementById('group-form')!.addEventListener('submit', handleGroupSubmit);
+  document.getElementById('whitelist-form')!.addEventListener('submit', handleWhitelistSubmit);
 
   document.getElementById('group-24x7')!.addEventListener('change', (e) => {
     const is24x7 = (e.target as HTMLInputElement).checked;
@@ -264,6 +273,97 @@ async function handleGroupSubmit(e: Event) {
   await renderFilters(); // Re-render to update group names
 }
 
+async function renderWhitelist() {
+  const data = await loadData();
+  const whitelistList = document.getElementById('whitelist-list')!;
+  
+  if (data.whitelist.length === 0) {
+    whitelistList.innerHTML = '<p style="color: #a0aec0;">No whitelist entries configured. Click "Add Whitelist Entry" to get started.</p>';
+    return;
+  }
+  
+  whitelistList.innerHTML = data.whitelist.map(whitelist => {
+    return `
+      <div class="filter-item">
+        <div class="filter-header">
+          <div style="flex: 1;">
+            <div class="filter-title">${whitelist.description ? escapeHtml(whitelist.description) : 'Unnamed Whitelist Entry'}</div>
+            <div class="filter-pattern">${escapeHtml(whitelist.pattern)}</div>
+          </div>
+          <div class="actions">
+            <label class="toggle">
+              <input type="checkbox" ${whitelist.enabled ? 'checked' : ''} onchange="toggleWhitelist('${whitelist.id}', this.checked)">
+              <span class="slider"></span>
+            </label>
+            <button class="button small secondary" onclick="editWhitelist('${whitelist.id}')">Edit</button>
+            <button class="button small danger" onclick="deleteWhitelistConfirm('${whitelist.id}')">Delete</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openWhitelistModal(whitelistId?: string) {
+  currentEditingWhitelistId = whitelistId || null;
+  const modal = document.getElementById('whitelist-modal')!;
+  const title = document.getElementById('whitelist-modal-title')!;
+  const form = document.getElementById('whitelist-form') as HTMLFormElement;
+  
+  form.reset();
+  title.textContent = whitelistId ? 'Edit Whitelist Entry' : 'Add Whitelist Entry';
+  
+  if (whitelistId) {
+    loadData().then(data => {
+      const whitelist = data.whitelist.find(w => w.id === whitelistId);
+      if (whitelist) {
+        (document.getElementById('whitelist-pattern') as HTMLInputElement).value = whitelist.pattern;
+        (document.getElementById('whitelist-description') as HTMLInputElement).value = whitelist.description || '';
+        (document.getElementById('whitelist-enabled') as HTMLInputElement).checked = whitelist.enabled;
+      }
+    });
+  }
+  
+  modal.classList.add('active');
+}
+
+function closeWhitelistModal() {
+  document.getElementById('whitelist-modal')!.classList.remove('active');
+  currentEditingWhitelistId = null;
+}
+
+async function handleWhitelistSubmit(e: Event) {
+  e.preventDefault();
+  
+  const pattern = (document.getElementById('whitelist-pattern') as HTMLInputElement).value;
+  const description = (document.getElementById('whitelist-description') as HTMLInputElement).value;
+  const enabled = (document.getElementById('whitelist-enabled') as HTMLInputElement).checked;
+  
+  // Validate regex
+  try {
+    new RegExp(pattern);
+  } catch (err) {
+    alert('Invalid regex pattern: ' + (err as Error).message);
+    return;
+  }
+  
+  const whitelist: Whitelist = {
+    id: currentEditingWhitelistId || generateId(),
+    pattern,
+    description,
+    enabled,
+  };
+  
+  if (currentEditingWhitelistId) {
+    await updateWhitelist(whitelist);
+  } else {
+    await addWhitelist(whitelist);
+  }
+  
+  closeWhitelistModal();
+  await renderWhitelist();
+}
+
 // Global functions for inline event handlers
 (window as any).toggleFilter = async (filterId: string, enabled: boolean) => {
   const data = await loadData();
@@ -316,6 +416,26 @@ async function handleGroupSubmit(e: Event) {
 (window as any).removeSchedule = (scheduleIndex: number) => {
   temporarySchedules.splice(scheduleIndex, 1);
   renderSchedules();
+};
+
+(window as any).toggleWhitelist = async (whitelistId: string, enabled: boolean) => {
+  const data = await loadData();
+  const whitelist = data.whitelist.find(w => w.id === whitelistId);
+  if (whitelist) {
+    whitelist.enabled = enabled;
+    await updateWhitelist(whitelist);
+  }
+};
+
+(window as any).editWhitelist = (whitelistId: string) => {
+  openWhitelistModal(whitelistId);
+};
+
+(window as any).deleteWhitelistConfirm = async (whitelistId: string) => {
+  if (confirm('Are you sure you want to delete this whitelist entry?')) {
+    await deleteWhitelist(whitelistId);
+    await renderWhitelist();
+  }
 };
 
 function escapeHtml(text: string): string {
