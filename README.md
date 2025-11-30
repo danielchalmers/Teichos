@@ -1,4 +1,4 @@
-# 🛡️ PageBlock
+# 🛡️ Teichos: Page Blocker
 
 Block distracting websites with powerful regex patterns and smart scheduling.
 
@@ -25,7 +25,7 @@ Load in Edge:
 
 ### Adding Filters
 
-1. Right-click the PageBlock icon → **Options**
+1. Right-click the Teichos icon → **Options**
 2. Click **+ Add Filter**
 3. Enter a regex pattern and optional description
 4. Choose a group (or use **24/7 Always Active**)

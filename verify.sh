@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Simple verification script for PageBlock extension
+# Simple verification script for Teichos extension
 
-echo "PageBlock Extension Verification"
+echo "Teichos Extension Verification"
 echo "================================="
 echo ""
 
