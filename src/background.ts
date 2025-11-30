@@ -42,4 +42,4 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   }
 });
 
-console.log('PageBlock background service worker initialized');
+console.log('Teichos background service worker initialized');

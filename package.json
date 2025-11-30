@@ -1,5 +1,5 @@
 {
-  "name": "pageblock",
+  "name": "teichos",
   "version": "1.0.0",
   "description": "A web extension to block URLs based on configurable regex filters with time-based scheduling",
   "main": "index.js",
