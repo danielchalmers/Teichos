@@ -131,6 +131,7 @@ function openFilterModal(filterId?: string) {
         (document.getElementById('filter-description') as HTMLInputElement).value = filter.description || '';
         (document.getElementById('filter-group') as HTMLSelectElement).value = filter.groupId;
         (document.getElementById('filter-enabled') as HTMLInputElement).checked = filter.enabled;
+        (document.getElementById('filter-is-regex') as HTMLInputElement).checked = filter.isRegex || false;
       }
     }
   });
@@ -150,13 +151,16 @@ async function handleFilterSubmit(e: Event) {
   const description = (document.getElementById('filter-description') as HTMLInputElement).value;
   const groupId = (document.getElementById('filter-group') as HTMLSelectElement).value;
   const enabled = (document.getElementById('filter-enabled') as HTMLInputElement).checked;
+  const isRegex = (document.getElementById('filter-is-regex') as HTMLInputElement).checked;
   
-  // Validate regex
-  try {
-    new RegExp(pattern);
-  } catch (err) {
-    alert('Invalid regex pattern: ' + (err as Error).message);
-    return;
+  // Validate regex if regex mode is enabled
+  if (isRegex) {
+    try {
+      new RegExp(pattern);
+    } catch (err) {
+      alert('Invalid regex pattern: ' + (err as Error).message);
+      return;
+    }
   }
   
   const filter: Filter = {
@@ -165,6 +169,7 @@ async function handleFilterSubmit(e: Event) {
     description,
     groupId,
     enabled,
+    isRegex,
   };
   
   if (currentEditingFilterId) {
@@ -184,26 +189,29 @@ function openGroupModal(groupId?: string) {
   const modal = document.getElementById('group-modal')!;
   const title = document.getElementById('group-modal-title')!;
   const form = document.getElementById('group-form') as HTMLFormElement;
+  const schedulesContainer = document.getElementById('schedules-container')!;
+  const is24x7Checkbox = document.getElementById('group-24x7') as HTMLInputElement;
   
   form.reset();
   title.textContent = groupId ? 'Edit Group' : 'Add Group';
-  
-  document.getElementById('schedules-container')!.style.display = 'none';
   
   if (groupId && groupId !== DEFAULT_GROUP_ID) {
     loadData().then(data => {
       const group = data.groups.find(g => g.id === groupId);
       if (group) {
         (document.getElementById('group-name') as HTMLInputElement).value = group.name;
-        (document.getElementById('group-24x7') as HTMLInputElement).checked = group.is24x7;
+        is24x7Checkbox.checked = group.is24x7;
+        temporarySchedules = [...group.schedules];
         
-        if (!group.is24x7) {
-          temporarySchedules = [...group.schedules];
-          document.getElementById('schedules-container')!.style.display = 'block';
-          renderSchedules();
-        }
+        // Show/hide schedules based on is24x7
+        schedulesContainer.style.display = group.is24x7 ? 'none' : 'block';
+        renderSchedules();
       }
     });
+  } else {
+    // New group: checkbox is unchecked by default, so show schedules container
+    schedulesContainer.style.display = 'block';
+    renderSchedules();
   }
   
   modal.classList.add('active');
@@ -320,6 +328,7 @@ function openWhitelistModal(whitelistId?: string) {
         (document.getElementById('whitelist-pattern') as HTMLInputElement).value = whitelist.pattern;
         (document.getElementById('whitelist-description') as HTMLInputElement).value = whitelist.description || '';
         (document.getElementById('whitelist-enabled') as HTMLInputElement).checked = whitelist.enabled;
+        (document.getElementById('whitelist-is-regex') as HTMLInputElement).checked = whitelist.isRegex || false;
       }
     });
   }
@@ -338,13 +347,16 @@ async function handleWhitelistSubmit(e: Event) {
   const pattern = (document.getElementById('whitelist-pattern') as HTMLInputElement).value;
   const description = (document.getElementById('whitelist-description') as HTMLInputElement).value;
   const enabled = (document.getElementById('whitelist-enabled') as HTMLInputElement).checked;
+  const isRegex = (document.getElementById('whitelist-is-regex') as HTMLInputElement).checked;
   
-  // Validate regex
-  try {
-    new RegExp(pattern);
-  } catch (err) {
-    alert('Invalid regex pattern: ' + (err as Error).message);
-    return;
+  // Validate regex if regex mode is enabled
+  if (isRegex) {
+    try {
+      new RegExp(pattern);
+    } catch (err) {
+      alert('Invalid regex pattern: ' + (err as Error).message);
+      return;
+    }
   }
   
   const whitelist: Whitelist = {
@@ -352,6 +364,7 @@ async function handleWhitelistSubmit(e: Event) {
     pattern,
     description,
     enabled,
+    isRegex,
   };
   
   if (currentEditingWhitelistId) {

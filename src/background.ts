@@ -6,13 +6,13 @@ async function shouldBlockUrl(url: string): Promise<boolean> {
   
   // Check whitelist first - if URL matches any enabled whitelist pattern, don't block
   for (const whitelist of data.whitelist) {
-    if (whitelist.enabled && matchesFilter(url, whitelist.pattern)) {
+    if (whitelist.enabled && matchesFilter(url, whitelist.pattern, whitelist.isRegex)) {
       return false;
     }
   }
   
   for (const filter of data.filters) {
-    if (isFilterActive(filter, data.groups) && matchesFilter(url, filter.pattern)) {
+    if (isFilterActive(filter, data.groups) && matchesFilter(url, filter.pattern, filter.isRegex)) {
       return true;
     }
   }

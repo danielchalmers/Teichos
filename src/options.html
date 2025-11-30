@@ -254,6 +254,9 @@
     .day-checkbox input {
       margin-right: 0.25rem;
     }
+    #schedules-container {
+      margin-bottom: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -290,8 +293,14 @@
       </div>
       <form id="filter-form">
         <div class="form-row">
-          <label for="filter-pattern">URL Pattern (Regex)</label>
-          <input type="text" id="filter-pattern" class="input" required placeholder="e.g., .*facebook\.com.*">
+          <label for="filter-pattern">URL Pattern</label>
+          <input type="text" id="filter-pattern" class="input" required placeholder="e.g., facebook.com">
+        </div>
+        <div class="form-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="filter-is-regex">
+            Use Regular Expression (Regex)
+          </label>
         </div>
         <div class="form-row">
           <label for="filter-description">Description (Optional)</label>
@@ -352,8 +361,14 @@
       </div>
       <form id="whitelist-form">
         <div class="form-row">
-          <label for="whitelist-pattern">URL Pattern (Regex)</label>
-          <input type="text" id="whitelist-pattern" class="input" required placeholder="e.g., .*facebook\.com/work.*">
+          <label for="whitelist-pattern">URL Pattern</label>
+          <input type="text" id="whitelist-pattern" class="input" required placeholder="e.g., facebook.com/work">
+        </div>
+        <div class="form-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="whitelist-is-regex">
+            Use Regular Expression (Regex)
+          </label>
         </div>
         <div class="form-row">
           <label for="whitelist-description">Description (Optional)</label>

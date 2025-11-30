@@ -32,36 +32,50 @@ describe('createDefaultGroup', () => {
 });
 
 describe('matchesFilter', () => {
-  it('should match a simple URL with a matching pattern', () => {
-    expect(matchesFilter('https://example.com', 'example')).toBe(true);
+  describe('with default contains matching (isRegex=false)', () => {
+    it('should match a simple URL with a matching pattern', () => {
+      expect(matchesFilter('https://example.com', 'example')).toBe(true);
+    });
+
+    it('should not match when pattern does not match URL', () => {
+      expect(matchesFilter('https://example.com', 'notfound')).toBe(false);
+    });
+
+    it('should be case insensitive by default', () => {
+      expect(matchesFilter('https://EXAMPLE.com', 'example')).toBe(true);
+      expect(matchesFilter('https://example.com', 'EXAMPLE')).toBe(true);
+    });
+
+    it('should match substring patterns', () => {
+      expect(matchesFilter('https://www.youtube.com/watch?v=abc123', 'youtube.com/watch')).toBe(true);
+      expect(matchesFilter('https://www.youtube.com/channel/xyz', 'youtube.com/watch')).toBe(false);
+    });
   });
 
-  it('should not match when pattern does not match URL', () => {
-    expect(matchesFilter('https://example.com', 'notfound')).toBe(false);
-  });
+  describe('with regex matching (isRegex=true)', () => {
+    it('should match using regex patterns', () => {
+      expect(matchesFilter('https://example.com/path', '^https://example\\.com', true)).toBe(true);
+    });
 
-  it('should match using regex patterns', () => {
-    expect(matchesFilter('https://example.com/path', '^https://example\\.com')).toBe(true);
-  });
+    it('should handle complex regex patterns', () => {
+      expect(matchesFilter('https://www.youtube.com/watch?v=abc123', 'youtube\\.com/watch', true)).toBe(true);
+      expect(matchesFilter('https://www.youtube.com/channel/xyz', 'youtube\\.com/watch', true)).toBe(false);
+    });
 
-  it('should handle complex regex patterns', () => {
-    expect(matchesFilter('https://www.youtube.com/watch?v=abc123', 'youtube\\.com/watch')).toBe(true);
-    expect(matchesFilter('https://www.youtube.com/channel/xyz', 'youtube\\.com/watch')).toBe(false);
-  });
+    it('should return false for invalid regex patterns', () => {
+      // Invalid regex (unmatched bracket)
+      expect(matchesFilter('https://example.com', '[', true)).toBe(false);
+    });
 
-  it('should return false for invalid regex patterns', () => {
-    // Invalid regex (unmatched bracket)
-    expect(matchesFilter('https://example.com', '[')).toBe(false);
-  });
+    it('should be case sensitive with regex', () => {
+      expect(matchesFilter('https://EXAMPLE.com', 'example', true)).toBe(false);
+      expect(matchesFilter('https://example.com', 'EXAMPLE', true)).toBe(false);
+    });
 
-  it('should be case sensitive by default', () => {
-    expect(matchesFilter('https://EXAMPLE.com', 'example')).toBe(false);
-    expect(matchesFilter('https://example.com', 'EXAMPLE')).toBe(false);
-  });
-
-  it('should support case insensitive regex', () => {
-    expect(matchesFilter('https://EXAMPLE.com', '(?i)example')).toBe(false); // JS doesn't support (?i) inline
-    expect(matchesFilter('https://EXAMPLE.com', '[Ee]xample')).toBe(false); // Matches "Example" not "EXAMPLE"
+    it('should support case insensitive regex with flag', () => {
+      // JS regex with i flag using regex pattern
+      expect(matchesFilter('https://EXAMPLE.com', '[Ee][Xx][Aa][Mm][Pp][Ll][Ee]', true)).toBe(true);
+    });
   });
 });
 

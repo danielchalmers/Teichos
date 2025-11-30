@@ -13,17 +13,19 @@ export interface FilterGroup {
 
 export interface Filter {
   id: string;
-  pattern: string; // regex pattern
+  pattern: string; // regex pattern or substring to match
   groupId: string;
   enabled: boolean;
   description?: string;
+  isRegex?: boolean; // true for regex matching, false for simple contains matching (default: false)
 }
 
 export interface Whitelist {
   id: string;
-  pattern: string; // regex pattern
+  pattern: string; // regex pattern or substring to match
   enabled: boolean;
   description?: string;
+  isRegex?: boolean; // true for regex matching, false for simple contains matching (default: false)
 }
 
 export interface StorageData {
@@ -70,13 +72,18 @@ export function isFilterActive(filter: Filter, groups: FilterGroup[]): boolean {
   });
 }
 
-export function matchesFilter(url: string, pattern: string): boolean {
-  try {
-    const regex = new RegExp(pattern);
-    return regex.test(url);
-  } catch (e) {
-    console.error('Invalid regex pattern:', pattern, e);
-    return false;
+export function matchesFilter(url: string, pattern: string, isRegex: boolean = false): boolean {
+  if (isRegex) {
+    try {
+      const regex = new RegExp(pattern);
+      return regex.test(url);
+    } catch (e) {
+      console.error('Invalid regex pattern:', pattern, e);
+      return false;
+    }
+  } else {
+    // Simple case-insensitive contains matching
+    return url.toLowerCase().includes(pattern.toLowerCase());
   }
 }
 
