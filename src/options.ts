@@ -510,8 +510,8 @@ function handleSchedulesListClick(e: Event) {
         updateScheduleDay(scheduleIndex, day, input.checked);
       }
     } else if (action === 'update-schedule-time') {
-      const field = input.dataset['field'] as 'startTime' | 'endTime' | undefined;
-      if (field) {
+      const field = input.dataset['field'];
+      if (field === 'startTime' || field === 'endTime') {
         updateScheduleTime(scheduleIndex, field, input.value);
       }
     }
@@ -549,7 +549,7 @@ function updateScheduleDay(scheduleIndex: number, day: number, checked: boolean)
   if (checked) {
     if (!schedule.daysOfWeek.includes(day)) {
       schedule.daysOfWeek.push(day);
-      schedule.daysOfWeek.sort((a: number, b: number) => a - b);
+      schedule.daysOfWeek.sort((a, b) => a - b);
     }
   } else {
     schedule.daysOfWeek = schedule.daysOfWeek.filter(d => d !== day);
