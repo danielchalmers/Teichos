@@ -44,6 +44,15 @@ function setupEventListeners() {
   });
 
   document.getElementById('add-schedule-btn')!.addEventListener('click', addScheduleToModal);
+
+  // Event delegation for list item buttons
+  document.getElementById('groups-list')!.addEventListener('click', handleGroupsListClick);
+  document.getElementById('filters-list')!.addEventListener('click', handleFiltersListClick);
+  document.getElementById('filters-list')!.addEventListener('change', handleFiltersListClick);
+  document.getElementById('whitelist-list')!.addEventListener('click', handleWhitelistListClick);
+  document.getElementById('whitelist-list')!.addEventListener('change', handleWhitelistListClick);
+  document.getElementById('schedules-list')!.addEventListener('click', handleSchedulesListClick);
+  document.getElementById('schedules-list')!.addEventListener('change', handleSchedulesListClick);
 }
 
 async function renderGroups() {
@@ -65,8 +74,8 @@ async function renderGroups() {
             </div>
           </div>
           <div class="actions">
-            ${!isDefault ? `<button class="button small secondary" onclick="editGroup('${group.id}')">Edit</button>` : ''}
-            ${!isDefault ? `<button class="button small danger" onclick="deleteGroupConfirm('${group.id}')">Delete</button>` : ''}
+            ${!isDefault ? `<button class="button small secondary" data-action="edit-group" data-group-id="${group.id}">Edit</button>` : ''}
+            ${!isDefault ? `<button class="button small danger" data-action="delete-group" data-group-id="${group.id}">Delete</button>` : ''}
           </div>
         </div>
       </div>
@@ -97,11 +106,11 @@ async function renderFilters() {
           </div>
           <div class="actions">
             <label class="toggle">
-              <input type="checkbox" ${filter.enabled ? 'checked' : ''} onchange="toggleFilter('${filter.id}', this.checked)">
+              <input type="checkbox" ${filter.enabled ? 'checked' : ''} data-action="toggle-filter" data-filter-id="${filter.id}">
               <span class="slider"></span>
             </label>
-            <button class="button small secondary" onclick="editFilter('${filter.id}')">Edit</button>
-            <button class="button small danger" onclick="deleteFilterConfirm('${filter.id}')">Delete</button>
+            <button class="button small secondary" data-action="edit-filter" data-filter-id="${filter.id}">Edit</button>
+            <button class="button small danger" data-action="delete-filter" data-filter-id="${filter.id}">Delete</button>
           </div>
         </div>
       </div>
@@ -242,16 +251,16 @@ function renderSchedules() {
         ${dayNames.map((day, dayIndex) => `
           <label class="day-checkbox">
             <input type="checkbox" ${schedule.daysOfWeek.includes(dayIndex) ? 'checked' : ''} 
-              onchange="updateScheduleDay(${index}, ${dayIndex}, this.checked)">
+              data-action="update-schedule-day" data-schedule-index="${index}" data-day="${dayIndex}">
             ${day}
           </label>
         `).join('')}
       </div>
       <div class="time-inputs">
-        <input type="time" value="${schedule.startTime}" onchange="updateScheduleTime(${index}, 'startTime', this.value)" class="input">
+        <input type="time" value="${schedule.startTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="startTime" class="input">
         <span>to</span>
-        <input type="time" value="${schedule.endTime}" onchange="updateScheduleTime(${index}, 'endTime', this.value)" class="input">
-        <button type="button" class="button small danger" onclick="removeSchedule(${index})">Remove</button>
+        <input type="time" value="${schedule.endTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="endTime" class="input">
+        <button type="button" class="button small danger" data-action="remove-schedule" data-schedule-index="${index}">Remove</button>
       </div>
     </div>
   `).join('');
@@ -300,11 +309,11 @@ async function renderWhitelist() {
           </div>
           <div class="actions">
             <label class="toggle">
-              <input type="checkbox" ${whitelist.enabled ? 'checked' : ''} onchange="toggleWhitelist('${whitelist.id}', this.checked)">
+              <input type="checkbox" ${whitelist.enabled ? 'checked' : ''} data-action="toggle-whitelist" data-whitelist-id="${whitelist.id}">
               <span class="slider"></span>
             </label>
-            <button class="button small secondary" onclick="editWhitelist('${whitelist.id}')">Edit</button>
-            <button class="button small danger" onclick="deleteWhitelistConfirm('${whitelist.id}')">Delete</button>
+            <button class="button small secondary" data-action="edit-whitelist" data-whitelist-id="${whitelist.id}">Edit</button>
+            <button class="button small danger" data-action="delete-whitelist" data-whitelist-id="${whitelist.id}">Delete</button>
           </div>
         </div>
       </div>
@@ -377,40 +386,121 @@ async function handleWhitelistSubmit(e: Event) {
   await renderWhitelist();
 }
 
-// Global functions for inline event handlers
-(window as any).toggleFilter = async (filterId: string, enabled: boolean) => {
+function handleGroupsListClick(e: Event) {
+  const target = e.target as HTMLElement;
+  const button = target.closest('button[data-action]') as HTMLButtonElement;
+  
+  if (!button) return;
+  
+  const action = button.dataset.action;
+  const groupId = button.dataset.groupId;
+  
+  if (action === 'edit-group' && groupId) {
+    openGroupModal(groupId);
+  } else if (action === 'delete-group' && groupId) {
+    deleteGroupConfirm(groupId);
+  }
+}
+
+function handleFiltersListClick(e: Event) {
+  const target = e.target as HTMLElement;
+  const button = target.closest('button[data-action]') as HTMLButtonElement;
+  const input = target.closest('input[data-action]') as HTMLInputElement;
+  
+  if (button) {
+    const action = button.dataset.action;
+    const filterId = button.dataset.filterId;
+    
+    if (action === 'edit-filter' && filterId) {
+      openFilterModal(filterId);
+    } else if (action === 'delete-filter' && filterId) {
+      deleteFilterConfirm(filterId);
+    }
+  } else if (input && input.dataset.action === 'toggle-filter') {
+    const filterId = input.dataset.filterId;
+    if (filterId) {
+      toggleFilter(filterId, input.checked);
+    }
+  }
+}
+
+function handleWhitelistListClick(e: Event) {
+  const target = e.target as HTMLElement;
+  const button = target.closest('button[data-action]') as HTMLButtonElement;
+  const input = target.closest('input[data-action]') as HTMLInputElement;
+  
+  if (button) {
+    const action = button.dataset.action;
+    const whitelistId = button.dataset.whitelistId;
+    
+    if (action === 'edit-whitelist' && whitelistId) {
+      openWhitelistModal(whitelistId);
+    } else if (action === 'delete-whitelist' && whitelistId) {
+      deleteWhitelistConfirm(whitelistId);
+    }
+  } else if (input && input.dataset.action === 'toggle-whitelist') {
+    const whitelistId = input.dataset.whitelistId;
+    if (whitelistId) {
+      toggleWhitelist(whitelistId, input.checked);
+    }
+  }
+}
+
+function handleSchedulesListClick(e: Event) {
+  const target = e.target as HTMLElement;
+  const button = target.closest('button[data-action]') as HTMLButtonElement;
+  const input = target.closest('input[data-action]') as HTMLInputElement;
+  
+  if (button && button.dataset.action === 'remove-schedule') {
+    const scheduleIndex = parseInt(button.dataset.scheduleIndex || '', 10);
+    if (!isNaN(scheduleIndex)) {
+      removeSchedule(scheduleIndex);
+    }
+  } else if (input) {
+    const action = input.dataset.action;
+    const scheduleIndex = parseInt(input.dataset.scheduleIndex || '', 10);
+    
+    if (isNaN(scheduleIndex)) return;
+    
+    if (action === 'update-schedule-day') {
+      const day = parseInt(input.dataset.day || '', 10);
+      if (!isNaN(day)) {
+        updateScheduleDay(scheduleIndex, day, input.checked);
+      }
+    } else if (action === 'update-schedule-time') {
+      const field = input.dataset.field as 'startTime' | 'endTime';
+      if (field) {
+        updateScheduleTime(scheduleIndex, field, input.value);
+      }
+    }
+  }
+}
+
+async function toggleFilter(filterId: string, enabled: boolean) {
   const data = await loadData();
   const filter = data.filters.find(f => f.id === filterId);
   if (filter) {
     filter.enabled = enabled;
     await updateFilter(filter);
   }
-};
+}
 
-(window as any).editFilter = (filterId: string) => {
-  openFilterModal(filterId);
-};
-
-(window as any).deleteFilterConfirm = async (filterId: string) => {
+async function deleteFilterConfirm(filterId: string) {
   if (confirm('Are you sure you want to delete this filter?')) {
     await deleteFilter(filterId);
     await renderFilters();
   }
-};
+}
 
-(window as any).editGroup = (groupId: string) => {
-  openGroupModal(groupId);
-};
-
-(window as any).deleteGroupConfirm = async (groupId: string) => {
+async function deleteGroupConfirm(groupId: string) {
   if (confirm('Are you sure you want to delete this group? Filters in this group will be moved to the default 24/7 group.')) {
     await deleteGroup(groupId);
     await renderGroups();
     await renderFilters();
   }
-};
+}
 
-(window as any).updateScheduleDay = (scheduleIndex: number, day: number, checked: boolean) => {
+function updateScheduleDay(scheduleIndex: number, day: number, checked: boolean) {
   if (checked) {
     if (!temporarySchedules[scheduleIndex].daysOfWeek.includes(day)) {
       temporarySchedules[scheduleIndex].daysOfWeek.push(day);
@@ -420,36 +510,33 @@ async function handleWhitelistSubmit(e: Event) {
     temporarySchedules[scheduleIndex].daysOfWeek = 
       temporarySchedules[scheduleIndex].daysOfWeek.filter(d => d !== day);
   }
-};
+}
 
-(window as any).updateScheduleTime = (scheduleIndex: number, field: 'startTime' | 'endTime', value: string) => {
+function updateScheduleTime(scheduleIndex: number, field: 'startTime' | 'endTime', value: string) {
   temporarySchedules[scheduleIndex][field] = value;
-};
+}
 
-(window as any).removeSchedule = (scheduleIndex: number) => {
+function removeSchedule(scheduleIndex: number) {
   temporarySchedules.splice(scheduleIndex, 1);
   renderSchedules();
-};
+}
 
-(window as any).toggleWhitelist = async (whitelistId: string, enabled: boolean) => {
+async function toggleWhitelist(whitelistId: string, enabled: boolean) {
   const data = await loadData();
   const whitelist = data.whitelist.find(w => w.id === whitelistId);
   if (whitelist) {
     whitelist.enabled = enabled;
     await updateWhitelist(whitelist);
   }
-};
+}
 
-(window as any).editWhitelist = (whitelistId: string) => {
-  openWhitelistModal(whitelistId);
-};
-
-(window as any).deleteWhitelistConfirm = async (whitelistId: string) => {
+async function deleteWhitelistConfirm(whitelistId: string) {
   if (confirm('Are you sure you want to delete this whitelist entry?')) {
     await deleteWhitelist(whitelistId);
     await renderWhitelist();
   }
-};
+}
+
 
 function escapeHtml(text: string): string {
   const div = document.createElement('div');
