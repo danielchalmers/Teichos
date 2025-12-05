@@ -48,8 +48,11 @@ function setupEventListeners() {
   // Event delegation for list item buttons
   document.getElementById('groups-list')!.addEventListener('click', handleGroupsListClick);
   document.getElementById('filters-list')!.addEventListener('click', handleFiltersListClick);
+  document.getElementById('filters-list')!.addEventListener('change', handleFiltersListClick);
   document.getElementById('whitelist-list')!.addEventListener('click', handleWhitelistListClick);
+  document.getElementById('whitelist-list')!.addEventListener('change', handleWhitelistListClick);
   document.getElementById('schedules-list')!.addEventListener('click', handleSchedulesListClick);
+  document.getElementById('schedules-list')!.addEventListener('change', handleSchedulesListClick);
 }
 
 async function renderGroups() {
