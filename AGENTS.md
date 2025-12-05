@@ -25,7 +25,7 @@ This document outlines absolute best practices for modern, clean TypeScript brow
 ### Module System
 - **Use ES modules** (`"module": "ES2022"`) with `moduleResolution: "bundler"`
 - Configure bundler (webpack/rollup) to handle ES modules properly
-- Use `type: "module"` in manifest.json for service workers
+- Service workers use default script type in manifest.json (not ES modules)
 
 ## Data Immutability
 
@@ -291,8 +291,8 @@ This document outlines absolute best practices for modern, clean TypeScript brow
 
 ### Efficient Storage
 - **Batch storage operations** to reduce API calls
-- Use `chrome.storage.sync` for user settings (limited to 100KB)
-- Use `chrome.storage.local` for larger data
+- Use `chrome.storage.sync` for user settings (limited to 100KB total, 8KB per item, 512 items max)
+- Use `chrome.storage.local` for larger data (no size limit in most browsers)
 
 ### Event Listeners
 - **Remove event listeners** when no longer needed
