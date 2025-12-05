@@ -1,0 +1,27 @@
+{
+    "manifest_version": 3,
+    "name": "Teichos: Page Blocker",
+    "version": "1.0.0",
+    "description": "Block URLs based on configurable regex filters with time-based scheduling",
+    "permissions": [
+        "storage",
+        "tabs",
+        "webNavigation"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "background": {
+        "service_worker": "background/index.js",
+        "type": "module"
+    },
+    "action": {
+        "default_popup": "popup/index.html",
+        "default_title": "Teichos: Page Blocker - Quick Filter Toggle"
+    },
+    "options_page": "options/index.html",
+    "icons": {
+        "48": "assets/icons/icon-48.svg",
+        "96": "assets/icons/icon-96.svg"
+    }
+}

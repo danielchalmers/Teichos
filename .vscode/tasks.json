@@ -2,16 +2,6 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Install Dependencies",
-      "type": "npm",
-      "script": "install",
-      "presentation": {
-        "reveal": "silent",
-        "panel": "shared"
-      },
-      "problemMatcher": []
-    },
-    {
       "label": "Build",
       "type": "npm",
       "script": "build",
@@ -19,16 +9,23 @@
         "kind": "build",
         "isDefault": true
       },
-      "dependsOn": ["Install Dependencies"],
-      "problemMatcher": ["$tsc-watch"]
+      "problemMatcher": []
     },
     {
       "label": "Watch",
       "type": "npm",
-      "script": "watch",
+      "script": "dev",
       "isBackground": true,
-      "dependsOn": ["Install Dependencies"],
-      "problemMatcher": ["$tsc-watch"]
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Building",
+          "endsPattern": "^Watching"
+        }
+      }
     },
     {
       "label": "Test",
@@ -37,9 +34,17 @@
       "group": {
         "kind": "test",
         "isDefault": true
-      },
-      "dependsOn": ["Install Dependencies"],
-      "problemMatcher": []
+      }
+    },
+    {
+      "label": "Lint",
+      "type": "npm",
+      "script": "lint"
+    },
+    {
+      "label": "Type Check",
+      "type": "npm",
+      "script": "typecheck"
     }
   ]
 }

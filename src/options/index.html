@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teichos Options</title>
+  <link rel="stylesheet" href="styles/options.css">
+</head>
+<body>
+  <div class="container">
+    <h1>🚫 Teichos</h1>
+    <p class="subtitle">Configure URL filters and time-based blocking schedules</p>
+
+    <div class="section">
+      <h2>Groups</h2>
+      <div id="groups-list"></div>
+      <button class="button" id="add-group-btn">+ Add Group</button>
+    </div>
+
+    <div class="section">
+      <h2>Filters</h2>
+      <div id="filters-list"></div>
+      <button class="button" id="add-filter-btn">+ Add Filter</button>
+    </div>
+
+    <div class="section">
+      <h2>Whitelist</h2>
+      <p style="color: #718096; margin-top: 0; font-size: 0.9rem;">URLs matching whitelist patterns will never be blocked, even if they match a filter.</p>
+      <div id="whitelist-list"></div>
+      <button class="button" id="add-whitelist-btn">+ Add Whitelist Entry</button>
+    </div>
+  </div>
+
+  <!-- Filter Modal -->
+  <div id="filter-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="filter-modal-title">Add Filter</h2>
+        <button class="close" id="close-filter-modal">&times;</button>
+      </div>
+      <form id="filter-form">
+        <div class="form-row">
+          <label for="filter-pattern">URL Pattern</label>
+          <input type="text" id="filter-pattern" class="input" required placeholder="e.g., facebook.com">
+        </div>
+        <div class="form-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="filter-is-regex">
+            Use Regular Expression (Regex)
+          </label>
+        </div>
+        <div class="form-row">
+          <label for="filter-description">Description (Optional)</label>
+          <input type="text" id="filter-description" class="input" placeholder="e.g., Block Facebook">
+        </div>
+        <div class="form-row">
+          <label for="filter-group">Group</label>
+          <select id="filter-group" class="input" required></select>
+        </div>
+        <div class="form-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="filter-enabled" checked>
+            Enabled
+          </label>
+        </div>
+        <button type="submit" class="button">Save Filter</button>
+        <button type="button" class="button secondary" id="cancel-filter">Cancel</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Group Modal -->
+  <div id="group-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="group-modal-title">Add Group</h2>
+        <button class="close" id="close-group-modal">&times;</button>
+      </div>
+      <form id="group-form">
+        <div class="form-row">
+          <label for="group-name">Group Name</label>
+          <input type="text" id="group-name" class="input" required placeholder="e.g., Work Hours">
+        </div>
+        <div class="form-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="group-24x7">
+            Always Active (24/7)
+          </label>
+        </div>
+        <div id="schedules-container" style="display: none;">
+          <label>Schedules</label>
+          <div id="schedules-list"></div>
+          <button type="button" class="button small secondary" id="add-schedule-btn">+ Add Schedule</button>
+        </div>
+        <button type="submit" class="button">Save Group</button>
+        <button type="button" class="button secondary" id="cancel-group">Cancel</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Whitelist Modal -->
+  <div id="whitelist-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="whitelist-modal-title">Add Whitelist Entry</h2>
+        <button class="close" id="close-whitelist-modal">&times;</button>
+      </div>
+      <form id="whitelist-form">
+        <div class="form-row">
+          <label for="whitelist-pattern">URL Pattern</label>
+          <input type="text" id="whitelist-pattern" class="input" required placeholder="e.g., facebook.com/work">
+        </div>
+        <div class="form-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="whitelist-is-regex">
+            Use Regular Expression (Regex)
+          </label>
+        </div>
+        <div class="form-row">
+          <label for="whitelist-description">Description (Optional)</label>
+          <input type="text" id="whitelist-description" class="input" placeholder="e.g., Allow Facebook Work">
+        </div>
+        <div class="form-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="whitelist-enabled" checked>
+            Enabled
+          </label>
+        </div>
+        <button type="submit" class="button">Save Whitelist Entry</button>
+        <button type="button" class="button secondary" id="cancel-whitelist">Cancel</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="index.js" type="module"></script>
+</body>
+</html>

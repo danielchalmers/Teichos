@@ -2,26 +2,40 @@
   "name": "teichos",
   "version": "1.0.0",
   "description": "A web extension to block URLs based on configurable regex filters with time-based scheduling",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "build": "webpack",
-    "watch": "webpack --watch",
-    "test": "vitest run"
+    "dev": "tsx scripts/build.ts --watch --dev",
+    "build": "tsx scripts/build.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist",
+    "package": "npm run clean && npm run build && cd dist && zip -r ../teichos.zip ."
   },
   "keywords": [
     "webextension",
     "browser-extension",
-    "url-blocker"
+    "url-blocker",
+    "chrome-extension",
+    "edge-extension"
   ],
   "author": "Daniel Chalmers",
   "license": "MIT",
   "devDependencies": {
-    "@types/chrome": "^0.1.32",
-    "copy-webpack-plugin": "^13.0.1",
-    "ts-loader": "^9.5.4",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.14",
-    "webpack": "^5.102.0",
-    "webpack-cli": "^6.0.1"
+    "@eslint/js": "^9.16.0",
+    "@types/chrome": "^0.0.287",
+    "@types/node": "^22.10.1",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.16.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.17.0",
+    "vitest": "^2.1.6"
   }
 }

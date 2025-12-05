@@ -9,5 +9,11 @@
   "files.exclude": {
     "node_modules": true,
     "dist": true
+  },
+  "files.associations": {
+    "*.json": "jsonc"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   }
 }

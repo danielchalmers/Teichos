@@ -2,11 +2,16 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch Edge with extension",
+      "name": "Launch Edge with Extension",
       "type": "msedge",
       "request": "launch",
-      "url": "edge://extensions",
-      "runtimeArgs": ["--load-extension=${workspaceFolder}/dist"],
+      "url": "https://example.com",
+      "webRoot": "${workspaceFolder}",
+      "runtimeArgs": [
+        "--disable-extensions-except=${workspaceFolder}/dist",
+        "--load-extension=${workspaceFolder}/dist"
+      ],
+      "sourceMaps": true,
       "preLaunchTask": "Build"
     }
   ]
