@@ -5,7 +5,6 @@
   "description": "Block URLs based on configurable regex filters with time-based scheduling",
   "permissions": [
     "storage",
-    "webRequest",
     "tabs",
     "webNavigation"
   ],
@@ -13,7 +12,8 @@
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "action": {
     "default_popup": "popup.html",

@@ -1,12 +1,11 @@
 import { loadData, updateFilter } from './storage';
-import { Filter, FilterGroup } from './types';
 
-async function init() {
+async function init(): Promise<void> {
   await renderFilters();
   setupEventListeners();
 }
 
-function openOptionsPage() {
+function openOptionsPage(): void {
   chrome.runtime.openOptionsPage(() => {
     if (chrome.runtime.lastError) {
       console.error('Failed to open options page:', chrome.runtime.lastError);
@@ -14,13 +13,27 @@ function openOptionsPage() {
   });
 }
 
-function setupEventListeners() {
-  document.getElementById('open-options')!.addEventListener('click', openOptionsPage);
+function setupEventListeners(): void {
+  const openOptionsButton = document.getElementById('open-options');
+  if (openOptionsButton) {
+    openOptionsButton.addEventListener('click', openOptionsPage);
+  }
 }
 
-async function renderFilters() {
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+async function renderFilters(): Promise<void> {
   const data = await loadData();
-  const filterList = document.getElementById('filter-list')!;
+  const filterList = document.getElementById('filter-list');
+  
+  if (!filterList) {
+    console.error('Filter list element not found');
+    return;
+  }
 
   if (data.filters.length === 0) {
     filterList.innerHTML = `
@@ -29,14 +42,17 @@ async function renderFilters() {
         <button class="add-filter-btn" id="add-first-filter">+ Add Filter</button>
       </div>
     `;
-    document.getElementById('add-first-filter')!.addEventListener('click', openOptionsPage);
+    const addFirstFilterButton = document.getElementById('add-first-filter');
+    if (addFirstFilterButton) {
+      addFirstFilterButton.addEventListener('click', openOptionsPage);
+    }
     return;
   }
 
   filterList.innerHTML = data.filters.map(filter => {
     const group = data.groups.find(g => g.id === filter.groupId);
-    const groupName = group ? group.name : 'Unknown Group';
-    const displayName = filter.description || 'Unnamed Filter';
+    const groupName = group?.name ?? 'Unknown Group';
+    const displayName = filter.description ?? 'Unnamed Filter';
 
     return `
       <div class="filter-item">
@@ -54,11 +70,13 @@ async function renderFilters() {
   }).join('');
 
   // Add event listeners for toggle switches
-  const toggleInputs = filterList.querySelectorAll('input[type="checkbox"]');
+  const toggleInputs = filterList.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
   toggleInputs.forEach(input => {
     input.addEventListener('change', async (e) => {
       const checkbox = e.target as HTMLInputElement;
-      const filterId = checkbox.dataset.filterId!;
+      const filterId = checkbox.dataset['filterId'];
+      if (!filterId) return;
+      
       const originalState = !checkbox.checked;
       
       try {
@@ -72,19 +90,15 @@ async function renderFilters() {
   });
 }
 
-async function toggleFilter(filterId: string, enabled: boolean) {
+async function toggleFilter(filterId: string, enabled: boolean): Promise<void> {
   const data = await loadData();
   const filter = data.filters.find(f => f.id === filterId);
   if (filter) {
-    filter.enabled = enabled;
-    await updateFilter(filter);
+    const updatedFilter = { ...filter, enabled };
+    await updateFilter(updatedFilter);
   }
 }
 
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-init();
+init().catch(error => {
+  console.error('Failed to initialize popup:', error);
+});
