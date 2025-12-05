@@ -13,58 +13,66 @@ let currentEditingGroupId: string | null = null;
 let currentEditingWhitelistId: string | null = null;
 let temporarySchedules: MutableTimeSchedule[] = [];
 
-async function init() {
+async function init(): Promise<void> {
   await renderGroups();
   await renderFilters();
   await renderWhitelist();
   setupEventListeners();
 }
 
-function setupEventListeners() {
-  document.getElementById('add-filter-btn')!.addEventListener('click', () => {
+function getElement<T extends HTMLElement>(id: string): T | null {
+  return document.getElementById(id) as T | null;
+}
+
+function setupEventListeners(): void {
+  getElement('add-filter-btn')?.addEventListener('click', () => {
     openFilterModal();
   });
 
-  document.getElementById('add-group-btn')!.addEventListener('click', () => {
+  getElement('add-group-btn')?.addEventListener('click', () => {
     openGroupModal();
   });
 
-  document.getElementById('add-whitelist-btn')!.addEventListener('click', () => {
+  getElement('add-whitelist-btn')?.addEventListener('click', () => {
     openWhitelistModal();
   });
 
-  document.getElementById('close-filter-modal')!.addEventListener('click', closeFilterModal);
-  document.getElementById('cancel-filter')!.addEventListener('click', closeFilterModal);
-  document.getElementById('close-group-modal')!.addEventListener('click', closeGroupModal);
-  document.getElementById('cancel-group')!.addEventListener('click', closeGroupModal);
-  document.getElementById('close-whitelist-modal')!.addEventListener('click', closeWhitelistModal);
-  document.getElementById('cancel-whitelist')!.addEventListener('click', closeWhitelistModal);
+  getElement('close-filter-modal')?.addEventListener('click', closeFilterModal);
+  getElement('cancel-filter')?.addEventListener('click', closeFilterModal);
+  getElement('close-group-modal')?.addEventListener('click', closeGroupModal);
+  getElement('cancel-group')?.addEventListener('click', closeGroupModal);
+  getElement('close-whitelist-modal')?.addEventListener('click', closeWhitelistModal);
+  getElement('cancel-whitelist')?.addEventListener('click', closeWhitelistModal);
 
-  document.getElementById('filter-form')!.addEventListener('submit', handleFilterSubmit);
-  document.getElementById('group-form')!.addEventListener('submit', handleGroupSubmit);
-  document.getElementById('whitelist-form')!.addEventListener('submit', handleWhitelistSubmit);
+  getElement('filter-form')?.addEventListener('submit', handleFilterSubmit);
+  getElement('group-form')?.addEventListener('submit', handleGroupSubmit);
+  getElement('whitelist-form')?.addEventListener('submit', handleWhitelistSubmit);
 
-  document.getElementById('group-24x7')!.addEventListener('change', (e) => {
+  getElement('group-24x7')?.addEventListener('change', (e) => {
     const is24x7 = (e.target as HTMLInputElement).checked;
-    const schedulesContainer = document.getElementById('schedules-container')!;
-    schedulesContainer.style.display = is24x7 ? 'none' : 'block';
+    const schedulesContainer = getElement('schedules-container');
+    if (schedulesContainer) {
+      schedulesContainer.style.display = is24x7 ? 'none' : 'block';
+    }
   });
 
-  document.getElementById('add-schedule-btn')!.addEventListener('click', addScheduleToModal);
+  getElement('add-schedule-btn')?.addEventListener('click', addScheduleToModal);
 
   // Event delegation for list item buttons
-  document.getElementById('groups-list')!.addEventListener('click', handleGroupsListClick);
-  document.getElementById('filters-list')!.addEventListener('click', handleFiltersListClick);
-  document.getElementById('filters-list')!.addEventListener('change', handleFiltersListClick);
-  document.getElementById('whitelist-list')!.addEventListener('click', handleWhitelistListClick);
-  document.getElementById('whitelist-list')!.addEventListener('change', handleWhitelistListClick);
-  document.getElementById('schedules-list')!.addEventListener('click', handleSchedulesListClick);
-  document.getElementById('schedules-list')!.addEventListener('change', handleSchedulesListClick);
+  getElement('groups-list')?.addEventListener('click', handleGroupsListClick);
+  getElement('filters-list')?.addEventListener('click', handleFiltersListClick);
+  getElement('filters-list')?.addEventListener('change', handleFiltersListClick);
+  getElement('whitelist-list')?.addEventListener('click', handleWhitelistListClick);
+  getElement('whitelist-list')?.addEventListener('change', handleWhitelistListClick);
+  getElement('schedules-list')?.addEventListener('click', handleSchedulesListClick);
+  getElement('schedules-list')?.addEventListener('change', handleSchedulesListClick);
 }
 
-async function renderGroups() {
+async function renderGroups(): Promise<void> {
   const data = await loadData();
-  const groupsList = document.getElementById('groups-list')!;
+  const groupsList = getElement('groups-list');
+  
+  if (!groupsList) return;
   
   groupsList.innerHTML = data.groups.map(group => {
     const filterCount = data.filters.filter(f => f.groupId === group.id).length;
@@ -90,9 +98,11 @@ async function renderGroups() {
   }).join('');
 }
 
-async function renderFilters() {
+async function renderFilters(): Promise<void> {
   const data = await loadData();
-  const filtersList = document.getElementById('filters-list')!;
+  const filtersList = getElement('filters-list');
+  
+  if (!filtersList) return;
   
   if (data.filters.length === 0) {
     filtersList.innerHTML = '<p style="color: #a0aec0;">No filters configured. Click "Add Filter" to get started.</p>';
@@ -101,7 +111,7 @@ async function renderFilters() {
   
   filtersList.innerHTML = data.filters.map(filter => {
     const group = data.groups.find(g => g.id === filter.groupId);
-    const groupName = group ? group.name : 'Unknown Group';
+    const groupName = group?.name ?? 'Unknown Group';
     
     return `
       <div class="filter-item">
@@ -125,17 +135,21 @@ async function renderFilters() {
   }).join('');
 }
 
-function openFilterModal(filterId?: string) {
-  currentEditingFilterId = filterId || null;
-  const modal = document.getElementById('filter-modal')!;
-  const title = document.getElementById('filter-modal-title')!;
-  const form = document.getElementById('filter-form') as HTMLFormElement;
+function openFilterModal(filterId?: string): void {
+  currentEditingFilterId = filterId ?? null;
+  const modal = getElement('filter-modal');
+  const title = getElement('filter-modal-title');
+  const form = getElement<HTMLFormElement>('filter-form');
+  
+  if (!modal || !title || !form) return;
   
   form.reset();
   title.textContent = filterId ? 'Edit Filter' : 'Add Filter';
   
   loadData().then(data => {
-    const groupSelect = document.getElementById('filter-group') as HTMLSelectElement;
+    const groupSelect = getElement<HTMLSelectElement>('filter-group');
+    if (!groupSelect) return;
+    
     groupSelect.innerHTML = data.groups.map(g => 
       `<option value="${g.id}">${escapeHtml(g.name)}</option>`
     ).join('');
@@ -143,20 +157,29 @@ function openFilterModal(filterId?: string) {
     if (filterId) {
       const filter = data.filters.find(f => f.id === filterId);
       if (filter) {
-        (document.getElementById('filter-pattern') as HTMLInputElement).value = filter.pattern;
-        (document.getElementById('filter-description') as HTMLInputElement).value = filter.description || '';
-        (document.getElementById('filter-group') as HTMLSelectElement).value = filter.groupId;
-        (document.getElementById('filter-enabled') as HTMLInputElement).checked = filter.enabled;
-        (document.getElementById('filter-is-regex') as HTMLInputElement).checked = filter.isRegex || false;
+        const patternInput = getElement<HTMLInputElement>('filter-pattern');
+        const descInput = getElement<HTMLInputElement>('filter-description');
+        const groupInput = getElement<HTMLSelectElement>('filter-group');
+        const enabledInput = getElement<HTMLInputElement>('filter-enabled');
+        const regexInput = getElement<HTMLInputElement>('filter-is-regex');
+        
+        if (patternInput) patternInput.value = filter.pattern;
+        if (descInput) descInput.value = filter.description ?? '';
+        if (groupInput) groupInput.value = filter.groupId;
+        if (enabledInput) enabledInput.checked = filter.enabled;
+        if (regexInput) regexInput.checked = filter.isRegex ?? false;
       }
     }
+  }).catch(error => {
+    console.error('Failed to load data for filter modal:', error);
   });
   
   modal.classList.add('active');
 }
 
-function closeFilterModal() {
-  document.getElementById('filter-modal')!.classList.remove('active');
+function closeFilterModal(): void {
+  const modal = getElement('filter-modal');
+  modal?.classList.remove('active');
   currentEditingFilterId = null;
 }
 
@@ -167,20 +190,20 @@ async function handleFilterSubmit(e: Event) {
   const description = (document.getElementById('filter-description') as HTMLInputElement).value;
   const groupId = (document.getElementById('filter-group') as HTMLSelectElement).value;
   const enabled = (document.getElementById('filter-enabled') as HTMLInputElement).checked;
-  const isRegex = (document.getElementById('filter-is-regex') as HTMLInputElement).checked;
+  const isRegex = (getElement<HTMLInputElement>('filter-is-regex'))?.checked ?? false;
   
   // Validate regex if regex mode is enabled
   if (isRegex) {
     try {
       new RegExp(pattern);
-    } catch (err) {
-      alert('Invalid regex pattern: ' + (err as Error).message);
+    } catch (error) {
+      alert(`Invalid regex pattern: ${error instanceof Error ? error.message : String(error)}`);
       return;
     }
   }
   
   const filter: Filter = {
-    id: currentEditingFilterId || generateId(),
+    id: currentEditingFilterId ?? generateId(),
     pattern,
     description,
     groupId,
@@ -188,14 +211,19 @@ async function handleFilterSubmit(e: Event) {
     isRegex,
   };
   
-  if (currentEditingFilterId) {
-    await updateFilter(filter);
-  } else {
-    await addFilter(filter);
+  try {
+    if (currentEditingFilterId) {
+      await updateFilter(filter);
+    } else {
+      await addFilter(filter);
+    }
+    
+    closeFilterModal();
+    await renderFilters();
+  } catch (error) {
+    console.error('Failed to save filter:', error);
+    alert('Failed to save filter. Please try again.');
   }
-  
-  closeFilterModal();
-  await renderFilters();
 }
 
 function openGroupModal(groupId?: string) {
@@ -302,9 +330,11 @@ async function handleGroupSubmit(e: Event) {
   await renderFilters(); // Re-render to update group names
 }
 
-async function renderWhitelist() {
+async function renderWhitelist(): Promise<void> {
   const data = await loadData();
-  const whitelistList = document.getElementById('whitelist-list')!;
+  const whitelistList = getElement('whitelist-list');
+  
+  if (!whitelistList) return;
   
   if (data.whitelist.length === 0) {
     whitelistList.innerHTML = '<p style="color: #a0aec0;">No whitelist entries configured. Click "Add Whitelist Entry" to get started.</p>';
@@ -561,4 +591,6 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-init();
+init().catch(error => {
+  console.error('Failed to initialize options page:', error);
+});
