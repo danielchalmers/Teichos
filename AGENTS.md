@@ -521,6 +521,22 @@ Recommended `package.json` scripts:
 | `package` | Build and create .zip for submission |
 | `clean` | Remove dist/ directory |
 
+### Build Verification
+
+After running a production build, verify the build output using the verification script:
+
+```bash
+bash verify.sh
+```
+
+This script validates that:
+- All required distribution files exist
+- Manifest structure is correct
+- Required permissions are present
+- Source files are intact
+
+This is the same verification process used in the CI workflow to ensure build integrity before deployment.
+
 ---
 
 ## Store Submission
@@ -537,6 +553,7 @@ Recommended `package.json` scripts:
 **Submission Checklist:**
 - [ ] Remove all `console.log` statements (or use build to strip them)
 - [ ] Verify manifest version and description
+- [ ] Run `bash verify.sh` to verify build output
 - [ ] Test production build thoroughly
 - [ ] Prepare store listing assets
 - [ ] Write clear privacy policy if needed
