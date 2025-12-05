@@ -1,10 +1,17 @@
 import { loadData, saveData, addFilter, updateFilter, deleteFilter, addGroup, updateGroup, deleteGroup, addWhitelist, updateWhitelist, deleteWhitelist } from './storage';
 import { Filter, FilterGroup, Whitelist, TimeSchedule, generateId, DEFAULT_GROUP_ID } from './types';
 
+// Mutable version of TimeSchedule for internal use
+interface MutableTimeSchedule {
+  daysOfWeek: number[];
+  startTime: string;
+  endTime: string;
+}
+
 let currentEditingFilterId: string | null = null;
 let currentEditingGroupId: string | null = null;
 let currentEditingWhitelistId: string | null = null;
-let temporarySchedules: TimeSchedule[] = [];
+let temporarySchedules: MutableTimeSchedule[] = [];
 
 async function init() {
   await renderGroups();
@@ -210,7 +217,12 @@ function openGroupModal(groupId?: string) {
       if (group) {
         (document.getElementById('group-name') as HTMLInputElement).value = group.name;
         is24x7Checkbox.checked = group.is24x7;
-        temporarySchedules = [...group.schedules];
+        // Create mutable copies of the schedules
+        temporarySchedules = group.schedules.map(schedule => ({
+          daysOfWeek: [...schedule.daysOfWeek],
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+        }));
         
         // Show/hide schedules based on is24x7
         schedulesContainer.style.display = group.is24x7 ? 'none' : 'block';
@@ -392,8 +404,8 @@ function handleGroupsListClick(e: Event) {
   
   if (!button) return;
   
-  const action = button.dataset.action;
-  const groupId = button.dataset.groupId;
+  const action = button.dataset['action'];
+  const groupId = button.dataset['groupId'];
   
   if (action === 'edit-group' && groupId) {
     openGroupModal(groupId);
@@ -408,16 +420,16 @@ function handleFiltersListClick(e: Event) {
   const input = target.closest('input[data-action]') as HTMLInputElement;
   
   if (button) {
-    const action = button.dataset.action;
-    const filterId = button.dataset.filterId;
+    const action = button.dataset['action'];
+    const filterId = button.dataset['filterId'];
     
     if (action === 'edit-filter' && filterId) {
       openFilterModal(filterId);
     } else if (action === 'delete-filter' && filterId) {
       deleteFilterConfirm(filterId);
     }
-  } else if (input && input.dataset.action === 'toggle-filter') {
-    const filterId = input.dataset.filterId;
+  } else if (input && input.dataset['action'] === 'toggle-filter') {
+    const filterId = input.dataset['filterId'];
     if (filterId) {
       toggleFilter(filterId, input.checked);
     }
@@ -430,16 +442,16 @@ function handleWhitelistListClick(e: Event) {
   const input = target.closest('input[data-action]') as HTMLInputElement;
   
   if (button) {
-    const action = button.dataset.action;
-    const whitelistId = button.dataset.whitelistId;
+    const action = button.dataset['action'];
+    const whitelistId = button.dataset['whitelistId'];
     
     if (action === 'edit-whitelist' && whitelistId) {
       openWhitelistModal(whitelistId);
     } else if (action === 'delete-whitelist' && whitelistId) {
       deleteWhitelistConfirm(whitelistId);
     }
-  } else if (input && input.dataset.action === 'toggle-whitelist') {
-    const whitelistId = input.dataset.whitelistId;
+  } else if (input && input.dataset['action'] === 'toggle-whitelist') {
+    const whitelistId = input.dataset['whitelistId'];
     if (whitelistId) {
       toggleWhitelist(whitelistId, input.checked);
     }
@@ -451,24 +463,24 @@ function handleSchedulesListClick(e: Event) {
   const button = target.closest('button[data-action]') as HTMLButtonElement;
   const input = target.closest('input[data-action]') as HTMLInputElement;
   
-  if (button && button.dataset.action === 'remove-schedule') {
-    const scheduleIndex = parseInt(button.dataset.scheduleIndex || '', 10);
+  if (button && button.dataset['action'] === 'remove-schedule') {
+    const scheduleIndex = parseInt(button.dataset['scheduleIndex'] || '', 10);
     if (!isNaN(scheduleIndex)) {
       removeSchedule(scheduleIndex);
     }
   } else if (input) {
-    const action = input.dataset.action;
-    const scheduleIndex = parseInt(input.dataset.scheduleIndex || '', 10);
+    const action = input.dataset['action'];
+    const scheduleIndex = parseInt(input.dataset['scheduleIndex'] || '', 10);
     
     if (isNaN(scheduleIndex)) return;
     
     if (action === 'update-schedule-day') {
-      const day = parseInt(input.dataset.day || '', 10);
+      const day = parseInt(input.dataset['day'] || '', 10);
       if (!isNaN(day)) {
         updateScheduleDay(scheduleIndex, day, input.checked);
       }
     } else if (action === 'update-schedule-time') {
-      const field = input.dataset.field as 'startTime' | 'endTime';
+      const field = input.dataset['field'] as 'startTime' | 'endTime' | undefined;
       if (field) {
         updateScheduleTime(scheduleIndex, field, input.value);
       }
@@ -480,8 +492,8 @@ async function toggleFilter(filterId: string, enabled: boolean) {
   const data = await loadData();
   const filter = data.filters.find(f => f.id === filterId);
   if (filter) {
-    filter.enabled = enabled;
-    await updateFilter(filter);
+    const updatedFilter = { ...filter, enabled };
+    await updateFilter(updatedFilter);
   }
 }
 
@@ -501,19 +513,24 @@ async function deleteGroupConfirm(groupId: string) {
 }
 
 function updateScheduleDay(scheduleIndex: number, day: number, checked: boolean) {
+  const schedule = temporarySchedules[scheduleIndex];
+  if (!schedule) return;
+  
   if (checked) {
-    if (!temporarySchedules[scheduleIndex].daysOfWeek.includes(day)) {
-      temporarySchedules[scheduleIndex].daysOfWeek.push(day);
-      temporarySchedules[scheduleIndex].daysOfWeek.sort((a, b) => a - b);
+    if (!schedule.daysOfWeek.includes(day)) {
+      schedule.daysOfWeek.push(day);
+      schedule.daysOfWeek.sort((a: number, b: number) => a - b);
     }
   } else {
-    temporarySchedules[scheduleIndex].daysOfWeek = 
-      temporarySchedules[scheduleIndex].daysOfWeek.filter(d => d !== day);
+    schedule.daysOfWeek = schedule.daysOfWeek.filter(d => d !== day);
   }
 }
 
 function updateScheduleTime(scheduleIndex: number, field: 'startTime' | 'endTime', value: string) {
-  temporarySchedules[scheduleIndex][field] = value;
+  const schedule = temporarySchedules[scheduleIndex];
+  if (!schedule) return;
+  
+  schedule[field] = value;
 }
 
 function removeSchedule(scheduleIndex: number) {
@@ -525,8 +542,8 @@ async function toggleWhitelist(whitelistId: string, enabled: boolean) {
   const data = await loadData();
   const whitelist = data.whitelist.find(w => w.id === whitelistId);
   if (whitelist) {
-    whitelist.enabled = enabled;
-    await updateWhitelist(whitelist);
+    const updatedWhitelist = { ...whitelist, enabled };
+    await updateWhitelist(updatedWhitelist);
   }
 }
 

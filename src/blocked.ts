@@ -1,12 +1,21 @@
 const urlParams = new URLSearchParams(window.location.search);
-const blockedUrl = urlParams.get('url') || 'Unknown URL';
+const blockedUrl = urlParams.get('url') ?? 'Unknown URL';
 
-document.getElementById('blocked-url')!.textContent = blockedUrl;
+const blockedUrlElement = document.getElementById('blocked-url');
+if (blockedUrlElement) {
+  blockedUrlElement.textContent = blockedUrl;
+}
 
-document.getElementById('go-back')!.addEventListener('click', () => {
-  window.history.back();
-});
+const goBackButton = document.getElementById('go-back');
+if (goBackButton) {
+  goBackButton.addEventListener('click', () => {
+    window.history.back();
+  });
+}
 
-document.getElementById('open-options')!.addEventListener('click', () => {
-  chrome.runtime.openOptionsPage();
-});
+const openOptionsButton = document.getElementById('open-options');
+if (openOptionsButton) {
+  openOptionsButton.addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+  });
+}
