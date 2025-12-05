@@ -264,6 +264,178 @@ This document outlines absolute best practices for modern, clean TypeScript brow
 - **Group related functionality** together
 - **Use barrel exports** (`index.ts`) sparingly
 
+## Linting and Code Quality
+
+### ESLint Configuration
+- **Use ESLint** with TypeScript support for static code analysis:
+  ```bash
+  npm install -D eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
+  ```
+- **Configure ESLint** with recommended rules in `eslint.config.js` (flat config) or `.eslintrc.json`:
+  ```javascript
+  // eslint.config.js (modern flat config)
+  import tseslint from '@typescript-eslint/eslint-plugin';
+  import tsparser from '@typescript-eslint/parser';
+  
+  export default [
+    {
+      files: ['**/*.ts'],
+      languageOptions: {
+        parser: tsparser,
+        parserOptions: {
+          project: './tsconfig.json',
+        },
+      },
+      plugins: {
+        '@typescript-eslint': tseslint,
+      },
+      rules: {
+        ...tseslint.configs.recommended.rules,
+        '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+        '@typescript-eslint/explicit-function-return-type': 'warn',
+        '@typescript-eslint/no-explicit-any': 'error',
+      },
+    },
+  ];
+  ```
+- **Add lint script** to `package.json`:
+  ```json
+  {
+    "scripts": {
+      "lint": "eslint src/**/*.ts",
+      "lint:fix": "eslint src/**/*.ts --fix"
+    }
+  }
+  ```
+
+### Prettier Configuration
+- **Use Prettier** for consistent code formatting:
+  ```bash
+  npm install -D prettier
+  ```
+- **Configure Prettier** in `.prettierrc.json`:
+  ```json
+  {
+    "semi": true,
+    "trailingComma": "es5",
+    "singleQuote": true,
+    "printWidth": 100,
+    "tabWidth": 2,
+    "useTabs": false
+  }
+  ```
+- **Integrate with ESLint** to avoid conflicts:
+  ```bash
+  npm install -D eslint-config-prettier eslint-plugin-prettier
+  ```
+- **Add format scripts** to `package.json`:
+  ```json
+  {
+    "scripts": {
+      "format": "prettier --write 'src/**/*.{ts,js,json,html}'",
+      "format:check": "prettier --check 'src/**/*.{ts,js,json,html}'"
+    }
+  }
+  ```
+
+### VS Code Integration
+
+#### Recommended Extensions
+- Create `.vscode/extensions.json` to suggest useful extensions:
+  ```json
+  {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "ms-vscode.vscode-typescript-next"
+    ]
+  }
+  ```
+
+#### Workspace Settings
+- Configure `.vscode/settings.json` for automatic formatting and linting:
+  ```json
+  {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    },
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "typescript.enablePromptUseWorkspaceTsdk": true,
+    "files.exclude": {
+      "node_modules": true,
+      "dist": true
+    }
+  }
+  ```
+
+#### Launch Configuration
+- Set up `.vscode/launch.json` for debugging the extension:
+  ```json
+  {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Launch Extension",
+        "type": "chrome",
+        "request": "launch",
+        "url": "chrome://extensions/",
+        "webRoot": "${workspaceFolder}/dist"
+      }
+    ]
+  }
+  ```
+
+#### Build Tasks
+- Configure `.vscode/tasks.json` for quick builds:
+  ```json
+  {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Build Extension",
+        "type": "npm",
+        "script": "build",
+        "problemMatcher": ["$tsc"],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        }
+      },
+      {
+        "label": "Watch Extension",
+        "type": "npm",
+        "script": "watch",
+        "problemMatcher": ["$tsc-watch"],
+        "isBackground": true
+      }
+    ]
+  }
+  ```
+
+### Pre-commit Hooks
+- **Use Husky** for Git hooks to enforce quality checks:
+  ```bash
+  npm install -D husky lint-staged
+  npx husky init
+  ```
+- **Configure lint-staged** in `package.json`:
+  ```json
+  {
+    "lint-staged": {
+      "*.ts": ["eslint --fix", "prettier --write"],
+      "*.{json,html}": ["prettier --write"]
+    }
+  }
+  ```
+- **Add pre-commit hook** in `.husky/pre-commit`:
+  ```bash
+  #!/bin/sh
+  npx lint-staged
+  npm test
+  ```
+
 ## Browser Compatibility
 
 ### Feature Detection
@@ -355,4 +527,7 @@ When developing a browser extension, ensure:
 - ✅ HTML escaping for user-generated content
 - ✅ Minimal permissions requested
 - ✅ Production-optimized webpack configuration
+- ✅ ESLint and Prettier configured for code quality
+- ✅ VS Code workspace settings for automatic formatting
+- ✅ Pre-commit hooks for quality enforcement (optional)
 - ✅ Clear documentation and code comments
