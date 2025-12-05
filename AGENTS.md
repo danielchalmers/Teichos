@@ -25,7 +25,7 @@ This document outlines absolute best practices for modern, clean TypeScript brow
 ### Module System
 - **Use ES modules** (`"module": "ES2022"`) with `moduleResolution: "bundler"`
 - Configure bundler (webpack/rollup) to handle ES modules properly
-- Service workers use default script type in manifest.json (not ES modules)
+- Use `"type": "module"` in manifest.json background section for ES module service workers
 
 ## Data Immutability
 
