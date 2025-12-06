@@ -9,6 +9,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const rootDir = join(__dirname, '..');
 const isWatch = process.argv.includes('--watch');
 const isDev = process.argv.includes('--dev') || isWatch;
 
@@ -38,7 +39,7 @@ const buildOptions: esbuild.BuildOptions = {
  * Copy static files to dist
  */
 async function copyStaticFiles(): Promise<void> {
-  const distDir = join(__dirname, 'dist');
+  const distDir = join(rootDir, 'dist');
   
   // Ensure dist directories exist
   const dirs = [
@@ -72,16 +73,16 @@ async function copyStaticFiles(): Promise<void> {
   ];
   
   for (const { from, to } of copies) {
-    const fromPath = join(__dirname, from);
-    const toPath = join(__dirname, to);
+    const fromPath = join(rootDir, from);
+    const toPath = join(rootDir, to);
     if (existsSync(fromPath)) {
       await copyFile(fromPath, toPath);
     }
   }
   
   // Copy icons directory
-  const iconsFrom = join(__dirname, 'src/assets/icons');
-  const iconsTo = join(__dirname, 'dist/assets/icons');
+  const iconsFrom = join(rootDir, 'src/assets/icons');
+  const iconsTo = join(rootDir, 'dist/assets/icons');
   if (existsSync(iconsFrom)) {
     await cp(iconsFrom, iconsTo, { recursive: true });
   }
