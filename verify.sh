@@ -17,13 +17,13 @@ fi
 # Check for required files
 required_files=(
     "dist/manifest.json"
-    "dist/background.js"
-    "dist/blocked.js"
-    "dist/blocked.html"
-    "dist/options.js"
-    "dist/options.html"
-    "dist/popup.js"
-    "dist/popup.html"
+    "dist/background/index.js"
+    "dist/blocked/index.js"
+    "dist/blocked/index.html"
+    "dist/options/index.js"
+    "dist/options/index.html"
+    "dist/popup/index.js"
+    "dist/popup/index.html"
 )
 
 for file in "${required_files[@]}"; do
@@ -63,12 +63,12 @@ fi
 echo ""
 echo "Checking source files..."
 required_sources=(
-    "src/types.ts"
-    "src/storage.ts"
-    "src/background.ts"
-    "src/options.ts"
-    "src/blocked.ts"
-    "src/popup.ts"
+    "src/shared/types/index.ts"
+    "src/shared/api/storage.ts"
+    "src/background/index.ts"
+    "src/options/index.ts"
+    "src/blocked/index.ts"
+    "src/popup/index.ts"
 )
 
 for file in "${required_sources[@]}"; do
@@ -88,11 +88,11 @@ else
     exit 1
 fi
 
-# Check webpack config
-if [ -f "webpack.config.js" ]; then
-    echo "✓ webpack.config.js exists"
+# Check build script
+if [ -f "scripts/build.ts" ]; then
+    echo "✓ scripts/build.ts exists"
 else
-    echo "✗ webpack.config.js missing"
+    echo "✗ scripts/build.ts missing"
     exit 1
 fi
 
