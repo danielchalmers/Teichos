@@ -1,26 +1,26 @@
 # 🛡️ Teichos: Page Blocker
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/jgioiclbfmdjhonplpifidmmbadbadfa)](https://chromewebstore.google.com/detail/teichos-page-blocker/jgioiclbfmdjhonplpifidmmbadbadfa)
+[![Privacy Policy](https://img.shields.io/badge/privacy-policy-blue.svg)](PRIVACY_POLICY.md)
+[![Build Status](https://github.com/danielchalmers/Teichos/actions/workflows/ci.yml/badge.svg)](https://github.com/danielchalmers/Teichos/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/danielchalmers/Teichos)](https://github.com/danielchalmers/Teichos/releases/latest)
+
 Block distracting websites with powerful regex patterns and smart scheduling.
 
 ## ✨ Features
 
-- 🔍 **Regex Matching** — Block URLs with flexible pattern matching
-- ⏰ **Smart Scheduling** — Set active hours for each filter group
-- 🔄 **Easy Toggles** — Enable/disable filters instantly
-- 🚫 **Instant Blocking** — Pages blocked immediately on navigation
-- ✅ **Whitelist Support** — Allow specific URLs even when filters match
+🔍 **Regex Matching** — Block URLs with flexible pattern matching  
+⏰ **Smart Scheduling** — Set active hours for each filter group  
+🔄 **Easy Toggles** — Enable/disable filters instantly  
+🚫 **Instant Blocking** — Pages blocked immediately on navigation  
+✅ **Whitelist Support** — Allow specific URLs even when filters match
 
-## 🚀 Quick Start
+## 🎓 Use Cases
 
-```bash
-npm install
-npm run build
-```
-
-Load in Chrome/Edge:
-1. Go to `chrome://extensions/` or `edge://extensions/`
-2. Enable **Developer mode**
-3. Click **Load unpacked** → select the `dist` folder
+🖥️ **Focus Mode** — Block social media and videos during work hours (9-5, Mon-Fri)  
+📚 **Study Time** — Block gaming and streaming sites during your study schedule  
+🌙 **Bedtime** — Wind down by blocking stimulating content in the evening
 
 ## 📖 Usage
 
@@ -61,51 +61,6 @@ Need to allow specific URLs even when they match a filter?
 
 > 💡 **Tip:** Test regex patterns at [regex101.com](https://regex101.com) before adding them.
 
-## 🎓 Use Cases
-
-**🖥️ Focus Mode** — Block social media and videos during work hours (9-5, Mon-Fri)
-
-**📚 Study Time** — Block gaming and streaming sites during your study schedule
-
-**🌙 Bedtime** — Wind down by blocking stimulating content in the evening
-
-## 🛠️ Development
-
-```bash
-npm run dev         # Watch mode with auto-rebuild
-npm run build       # Production build
-npm run test        # Run tests
-npm run lint        # Run ESLint
-npm run typecheck   # Run TypeScript type checking
-```
-
-### Project Structure
-
-```
-src/
-├── background/      # Service worker
-│   ├── index.ts     # Entry point
-│   └── handlers/    # Event handlers
-├── popup/           # Popup UI
-│   ├── index.ts
-│   ├── index.html
-│   └── styles/
-├── options/         # Options page
-│   ├── index.ts
-│   ├── index.html
-│   └── styles/
-├── blocked/         # Blocked page
-│   ├── index.ts
-│   ├── index.html
-│   └── styles/
-├── shared/          # Shared code
-│   ├── types/       # TypeScript types
-│   ├── api/         # Chrome API wrappers
-│   └── utils/       # Utilities
-└── assets/          # Static assets
-    └── icons/
-```
-
 ## 🙏 Credits
 
 - esbuild — MIT
@@ -118,7 +73,3 @@ src/
 - rimraf — ISC
 - @types/chrome, @types/node — MIT
 - Shield icons created by Freepik - Flaticon
-
-## 📄 License
-
-[MIT](LICENSE)

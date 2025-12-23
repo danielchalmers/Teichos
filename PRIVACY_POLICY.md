@@ -1,6 +1,15 @@
 # Privacy Policy
 
-Teichos: Page Blocker does not collect, transmit, or sell personal data.
+Teichos does not collect, transmit, or sell personal data.
+
+## Permissions
+
+This extension requests only the permissions required to block pages based on your filters.
+
+- `storage` — Save filters, groups, schedules, and whitelist entries in `chrome.storage.sync`.
+- `tabs` — Read the active tab URL during navigation and redirect the tab to the blocked page when a match occurs.
+- `webNavigation` — Detect navigations as early as possible to block matching pages before they fully load.
+- Host permissions (`<all_urls>`) — Required to evaluate and block any URL you choose to configure. This is the core purpose of the extension.
 
 ## Data We Store
 
