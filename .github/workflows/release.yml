@@ -1,16 +1,11 @@
 name: Release and deploy
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version number for the app"
-        required: true
-        default: "1.x.x"
-      updateRelease:
-        description: "Update existing release"
-        required: true
-        default: "false"
+  push:
+    paths:
+      - 'manifest.json'
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -21,6 +16,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Extract version from manifest
+        id: get_version
+        run: |
+          VERSION=$(jq -r '.version' manifest.json)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -38,13 +39,13 @@ jobs:
         run: bash verify.sh
 
       - name: Create extension zip
-        run: cd dist && zip -r ../pageblock-${{ inputs.version }}.zip .
+        run: cd dist && zip -r ../pageblock-${{ steps.get_version.outputs.VERSION }}.zip .
 
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
-          tag: v${{ inputs.version }}
-          artifacts: pageblock-${{ inputs.version }}.zip
-          allowUpdates: ${{ inputs.updateRelease == 'true' }}
+          tag: v${{ steps.get_version.outputs.VERSION }}
+          artifacts: pageblock-${{ steps.get_version.outputs.VERSION }}.zip
+          allowUpdates: false
           removeArtifacts: true
           omitBodyDuringUpdate: true
