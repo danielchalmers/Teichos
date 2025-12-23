@@ -106,7 +106,19 @@ src/
     └── icons/
 ```
 
+## 🙏 Credits
+
+- esbuild — MIT
+- ESLint (@eslint/js, eslint) — MIT
+- Prettier — MIT
+- TypeScript — Apache-2.0
+- typescript-eslint — MIT
+- tsx — MIT
+- Vitest — MIT
+- rimraf — ISC
+- @types/chrome, @types/node — MIT
+- Shield icons created by Freepik - Flaticon
+
 ## 📄 License
 
 [MIT](LICENSE)
-
