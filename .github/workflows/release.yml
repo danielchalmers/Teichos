@@ -3,7 +3,7 @@ name: Release and deploy
 on:
   push:
     paths:
-      - 'manifest.json'
+      - 'public/manifest.json'
     branches:
       - main
 
@@ -20,7 +20,7 @@ jobs:
       - name: Extract version from manifest
         id: get_version
         run: |
-          VERSION=$(jq -r '.version' manifest.json)
+          VERSION=$(jq -r '.version' public/manifest.json)
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Setup Node.js
