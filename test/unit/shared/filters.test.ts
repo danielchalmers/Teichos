@@ -178,7 +178,7 @@ describe('shouldBlockUrl', () => {
       { id: 'f1', pattern: 'blocked.com', groupId: 'default', enabled: true },
     ];
     const whitelist: Whitelist[] = [
-      { id: 'w1', pattern: 'blocked.com/allowed', enabled: true },
+      { id: 'w1', pattern: 'blocked.com/allowed', groupId: 'default', enabled: true },
     ];
     expect(shouldBlockUrl('https://blocked.com/allowed', filters, groups, whitelist)).toBeUndefined();
   });
@@ -188,9 +188,28 @@ describe('shouldBlockUrl', () => {
       { id: 'f1', pattern: 'blocked.com', groupId: 'default', enabled: true },
     ];
     const whitelist: Whitelist[] = [
-      { id: 'w1', pattern: 'blocked.com/allowed', enabled: false },
+      { id: 'w1', pattern: 'blocked.com/allowed', groupId: 'default', enabled: false },
     ];
     const result = shouldBlockUrl('https://blocked.com/allowed', filters, groups, whitelist);
+    expect(result).toBeDefined();
+  });
+
+  it('should ignore whitelist entries from other groups', () => {
+    const filters: Filter[] = [
+      { id: 'f1', pattern: 'blocked.com', groupId: 'work', enabled: true },
+    ];
+    const whitelist: Whitelist[] = [
+      { id: 'w1', pattern: 'blocked.com/allowed', groupId: 'default', enabled: true },
+    ];
+    const result = shouldBlockUrl(
+      'https://blocked.com/allowed',
+      filters,
+      [
+        { id: 'default', name: '24/7', schedules: [], is24x7: true },
+        { id: 'work', name: 'Work', schedules: [], is24x7: true },
+      ],
+      whitelist
+    );
     expect(result).toBeDefined();
   });
 });

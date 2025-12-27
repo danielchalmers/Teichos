@@ -43,16 +43,17 @@ export async function loadData(): Promise<StorageData> {
     return defaultData;
   }
 
-  // Ensure whitelist array exists for backwards compatibility
   const data = storedData as StorageData;
-  if (!data.whitelist) {
-    return {
-      ...data,
-      whitelist: [],
-    };
-  }
+  const groupIds = new Set(data.groups.map((group) => group.id));
+  const whitelist = (data.whitelist ?? []).map((entry) => ({
+    ...entry,
+    groupId: entry.groupId && groupIds.has(entry.groupId) ? entry.groupId : DEFAULT_GROUP_ID,
+  }));
 
-  return data;
+  return {
+    ...data,
+    whitelist,
+  };
 }
 
 /**
@@ -95,6 +96,9 @@ export async function deleteGroup(groupId: string): Promise<void> {
     // Move filters from deleted group to default group
     filters: data.filters.map((f) =>
       f.groupId === groupId ? { ...f, groupId: DEFAULT_GROUP_ID } : f
+    ),
+    whitelist: data.whitelist.map((entry) =>
+      entry.groupId === groupId ? { ...entry, groupId: DEFAULT_GROUP_ID } : entry
     ),
   });
 }

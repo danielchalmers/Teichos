@@ -39,6 +39,14 @@ h1 {
   font-size: 1.25rem;
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
 /* Buttons */
 .button {
   padding: 8px 16px;
@@ -118,21 +126,111 @@ select {
 }
 
 /* List items */
-.filter-item,
 .group-item {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.group-header::-webkit-details-marker {
+  display: none;
+}
+
+.group-header::marker {
+  content: '';
+}
+
+.group-header::after {
+  content: '▸';
+  color: #a0aec0;
+  transition: transform 0.2s;
+}
+
+.group-item[open] .group-header::after {
+  transform: rotate(90deg);
+}
+
+.group-item[open] .group-header {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.group-header:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+.group-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.group-content {
+  padding: 1rem;
   background: #f7fafc;
+}
+
+.group-section {
+  margin-bottom: 1rem;
+}
+
+.group-section:last-child {
+  margin-bottom: 0;
+}
+
+.group-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.group-section-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #2d3748;
+}
+
+.group-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: #718096;
+}
+
+.empty-state {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: #a0aec0;
+}
+
+.filter-item {
+  background: white;
   padding: 1rem;
   margin-bottom: 0.75rem;
   border-radius: 6px;
   border: 1px solid #e2e8f0;
 }
 
-.filter-header,
-.group-header {
+.filter-item:last-child {
+  margin-bottom: 0;
+}
+
+.filter-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
 }
 
 .filter-title {
@@ -156,6 +254,7 @@ select {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 /* Toggle switch */

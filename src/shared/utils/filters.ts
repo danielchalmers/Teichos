@@ -2,7 +2,7 @@
  * Filter matching and scheduling utilities
  */
 
-import type { Filter, FilterGroup } from '../types';
+import type { Filter, FilterGroup, Whitelist } from '../types';
 import { getCurrentTimeString, getCurrentDayOfWeek } from './helpers';
 
 /**
@@ -67,30 +67,45 @@ export function isFilterActive(
  * @param url - The URL to check
  * @param filters - All filters
  * @param groups - All filter groups
- * @param whitelist - All whitelist entries
+ * @param whitelist - All whitelist entries scoped to groups
  * @returns The matching filter if blocked, undefined if not blocked
  */
 export function shouldBlockUrl(
   url: string,
   filters: readonly Filter[],
   groups: readonly FilterGroup[],
-  whitelist: readonly { pattern: string; enabled: boolean; isRegex?: boolean }[]
+  whitelist: readonly Whitelist[]
 ): Filter | undefined {
-  // Check whitelist first - if URL matches any enabled whitelist pattern, don't block
+  const whitelistByGroup = new Map<string, Whitelist[]>();
   for (const entry of whitelist) {
-    if (entry.enabled && matchesPattern(url, entry.pattern, entry.isRegex ?? false)) {
-      return undefined;
+    if (!entry.enabled) continue;
+    const groupEntries = whitelistByGroup.get(entry.groupId);
+    if (groupEntries) {
+      groupEntries.push(entry);
+    } else {
+      whitelistByGroup.set(entry.groupId, [entry]);
     }
   }
 
-  // Check filters
   for (const filter of filters) {
-    if (
-      isFilterActive(filter, groups) &&
-      matchesPattern(url, filter.pattern, filter.isRegex ?? false)
-    ) {
-      return filter;
+    if (!isFilterActive(filter, groups)) {
+      continue;
     }
+
+    if (!matchesPattern(url, filter.pattern, filter.isRegex ?? false)) {
+      continue;
+    }
+
+    const groupWhitelist = whitelistByGroup.get(filter.groupId);
+    if (
+      groupWhitelist?.some((entry) =>
+        matchesPattern(url, entry.pattern, entry.isRegex ?? false)
+      )
+    ) {
+      continue;
+    }
+
+    return filter;
   }
 
   return undefined;

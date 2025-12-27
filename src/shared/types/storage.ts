@@ -35,10 +35,11 @@ export interface Filter {
   readonly isRegex?: boolean;
 }
 
-/** Whitelist entry - URLs matching these patterns are never blocked */
+/** Whitelist entry scoped to a filter group */
 export interface Whitelist {
   readonly id: string;
   readonly pattern: string;
+  readonly groupId: string;
   readonly enabled: boolean;
   readonly description?: string;
   readonly isRegex?: boolean;

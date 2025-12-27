@@ -15,13 +15,7 @@ import {
   updateWhitelist,
   deleteWhitelist,
 } from '../shared/api';
-import type {
-  StorageData,
-  Filter,
-  FilterGroup,
-  Whitelist,
-  MutableTimeSchedule,
-} from '../shared/types';
+import type { Filter, FilterGroup, Whitelist, MutableTimeSchedule } from '../shared/types';
 import { DEFAULT_GROUP_ID } from '../shared/types';
 import { escapeHtml, generateId } from '../shared/utils';
 import { getElementByIdOrNull } from '../shared/utils/dom';
@@ -38,8 +32,6 @@ let temporarySchedules: MutableTimeSchedule[] = [];
  */
 async function init(): Promise<void> {
   await renderGroups();
-  await renderFilters();
-  await renderWhitelist();
   setupEventListeners();
 }
 
@@ -48,14 +40,8 @@ async function init(): Promise<void> {
  */
 function setupEventListeners(): void {
   // Add buttons
-  getElementByIdOrNull('add-filter-btn')?.addEventListener('click', () =>
-    openFilterModal()
-  );
   getElementByIdOrNull('add-group-btn')?.addEventListener('click', () =>
     openGroupModal()
-  );
-  getElementByIdOrNull('add-whitelist-btn')?.addEventListener('click', () =>
-    openWhitelistModal()
   );
 
   // Filter modal
@@ -82,11 +68,10 @@ function setupEventListeners(): void {
   getElementByIdOrNull('whitelist-form')?.addEventListener('submit', handleWhitelistSubmit);
 
   // Event delegation for list actions
-  getElementByIdOrNull('groups-list')?.addEventListener('click', handleGroupsListClick);
-  getElementByIdOrNull('filters-list')?.addEventListener('click', handleFiltersListClick);
-  getElementByIdOrNull('filters-list')?.addEventListener('change', handleFiltersListClick);
-  getElementByIdOrNull('whitelist-list')?.addEventListener('click', handleWhitelistListClick);
-  getElementByIdOrNull('whitelist-list')?.addEventListener('change', handleWhitelistListClick);
+  const groupsList = getElementByIdOrNull('groups-list');
+  groupsList?.addEventListener('click', handleGroupsListClick);
+  groupsList?.addEventListener('change', handleGroupsListChange);
+  groupsList?.addEventListener('toggle', handleGroupsListToggle, true);
   getElementByIdOrNull('schedules-list')?.addEventListener('click', handleSchedulesListClick);
   getElementByIdOrNull('schedules-list')?.addEventListener('change', handleSchedulesListClick);
 }
@@ -100,104 +85,145 @@ async function renderGroups(): Promise<void> {
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
 
+  const openGroupId =
+    groupsList.querySelector<HTMLDetailsElement>('details.group-item[open]')?.dataset[
+      'groupId'
+    ];
+
+  const filtersByGroup = new Map<string, Filter[]>();
+  for (const filter of data.filters) {
+    const groupFilters = filtersByGroup.get(filter.groupId);
+    if (groupFilters) {
+      groupFilters.push(filter);
+    } else {
+      filtersByGroup.set(filter.groupId, [filter]);
+    }
+  }
+
+  const whitelistByGroup = new Map<string, Whitelist[]>();
+  for (const entry of data.whitelist) {
+    const groupEntries = whitelistByGroup.get(entry.groupId);
+    if (groupEntries) {
+      groupEntries.push(entry);
+    } else {
+      whitelistByGroup.set(entry.groupId, [entry]);
+    }
+  }
+
   groupsList.innerHTML = data.groups
     .map((group) => {
-      const filterCount = data.filters.filter((f) => f.groupId === group.id).length;
+      const filters = filtersByGroup.get(group.id) ?? [];
+      const whitelist = whitelistByGroup.get(group.id) ?? [];
       const isDefault = group.id === DEFAULT_GROUP_ID;
+      const scheduleSummary = group.is24x7
+        ? 'Always Active'
+        : pluralize(group.schedules.length, 'schedule');
+      const filterSummary = pluralize(filters.length, 'filter');
+      const whitelistSummary = pluralize(whitelist.length, 'whitelist entry', 'whitelist entries');
 
       return `
-        <div class="group-item">
-          <div class="group-header">
-            <div>
+        <details class="group-item" data-group-id="${group.id}">
+          <summary class="group-header">
+            <div class="group-info">
               <div class="filter-title">${escapeHtml(group.name)}</div>
-              <div class="filter-meta">
-                ${group.is24x7 ? 'Always Active' : `${group.schedules.length} schedule(s)`} • 
-                ${filterCount} filter(s)
-              </div>
+              <div class="filter-meta">${scheduleSummary} • ${filterSummary} • ${whitelistSummary}</div>
             </div>
             <div class="actions">
               ${!isDefault ? `<button class="button small secondary" data-action="edit-group" data-group-id="${group.id}">Edit</button>` : ''}
               ${!isDefault ? `<button class="button small danger" data-action="delete-group" data-group-id="${group.id}">Delete</button>` : ''}
             </div>
+          </summary>
+          <div class="group-content">
+            <div class="group-section">
+              <div class="group-section-header">
+                <h3>Filters</h3>
+                <button class="button small" data-action="add-filter" data-group-id="${group.id}">+ Add Filter</button>
+              </div>
+              ${
+                filters.length === 0
+                  ? '<p class="empty-state">No filters in this group yet.</p>'
+                  : filters.map(renderFilterItem).join('')
+              }
+            </div>
+            <div class="group-section">
+              <div class="group-section-header">
+                <h3>Whitelist</h3>
+                <button class="button small secondary" data-action="add-whitelist" data-group-id="${group.id}">+ Add Whitelist Entry</button>
+              </div>
+              <p class="group-hint">Whitelist entries in this group override matching filters in this group.</p>
+              ${
+                whitelist.length === 0
+                  ? '<p class="empty-state">No whitelist entries in this group yet.</p>'
+                  : whitelist.map(renderWhitelistItem).join('')
+              }
+            </div>
           </div>
-        </div>
+        </details>
       `;
     })
     .join('');
-}
 
-async function renderFilters(): Promise<void> {
-  const data = await loadData();
-  const filtersList = getElementByIdOrNull('filters-list');
-  if (!filtersList) return;
-
-  if (data.filters.length === 0) {
-    filtersList.innerHTML =
-      '<p style="color: #a0aec0;">No filters configured. Click "Add Filter" to get started.</p>';
-    return;
+  let openGroup: HTMLDetailsElement | null = null;
+  if (openGroupId) {
+    openGroup = groupsList.querySelector<HTMLDetailsElement>(
+      `details.group-item[data-group-id="${openGroupId}"]`
+    );
   }
 
-  filtersList.innerHTML = data.filters
-    .map((filter) => {
-      const group = data.groups.find((g) => g.id === filter.groupId);
-      const groupName = group?.name ?? 'Unknown Group';
-
-      return `
-        <div class="filter-item">
-          <div class="filter-header">
-            <div style="flex: 1;">
-              <div class="filter-title">${filter.description ? escapeHtml(filter.description) : 'Unnamed Filter'}</div>
-              <div class="filter-pattern">${escapeHtml(filter.pattern)}</div>
-              <div class="filter-meta">Group: ${escapeHtml(groupName)}</div>
-            </div>
-            <div class="actions">
-              <label class="toggle">
-                <input type="checkbox" ${filter.enabled ? 'checked' : ''} data-action="toggle-filter" data-filter-id="${filter.id}">
-                <span class="slider"></span>
-              </label>
-              <button class="button small secondary" data-action="edit-filter" data-filter-id="${filter.id}">Edit</button>
-              <button class="button small danger" data-action="delete-filter" data-filter-id="${filter.id}">Delete</button>
-            </div>
-          </div>
-        </div>
-      `;
-    })
-    .join('');
+  if (openGroup) {
+    openGroup.open = true;
+  } else {
+    const firstGroup = groupsList.querySelector<HTMLDetailsElement>('details.group-item');
+    if (firstGroup) {
+      firstGroup.open = true;
+    }
+  }
 }
 
-async function renderWhitelist(): Promise<void> {
-  const data = await loadData();
-  const whitelistList = getElementByIdOrNull('whitelist-list');
-  if (!whitelistList) return;
-
-  if (data.whitelist.length === 0) {
-    whitelistList.innerHTML =
-      '<p style="color: #a0aec0;">No whitelist entries configured. Click "Add Whitelist Entry" to get started.</p>';
-    return;
-  }
-
-  whitelistList.innerHTML = data.whitelist
-    .map((entry) => {
-      return `
-        <div class="filter-item">
-          <div class="filter-header">
-            <div style="flex: 1;">
-              <div class="filter-title">${entry.description ? escapeHtml(entry.description) : 'Unnamed Whitelist Entry'}</div>
-              <div class="filter-pattern">${escapeHtml(entry.pattern)}</div>
-            </div>
-            <div class="actions">
-              <label class="toggle">
-                <input type="checkbox" ${entry.enabled ? 'checked' : ''} data-action="toggle-whitelist" data-whitelist-id="${entry.id}">
-                <span class="slider"></span>
-              </label>
-              <button class="button small secondary" data-action="edit-whitelist" data-whitelist-id="${entry.id}">Edit</button>
-              <button class="button small danger" data-action="delete-whitelist" data-whitelist-id="${entry.id}">Delete</button>
-            </div>
-          </div>
+function renderFilterItem(filter: Filter): string {
+  return `
+    <div class="filter-item">
+      <div class="filter-header">
+        <div style="flex: 1;">
+          <div class="filter-title">${filter.description ? escapeHtml(filter.description) : 'Unnamed Filter'}</div>
+          <div class="filter-pattern">${escapeHtml(filter.pattern)}</div>
         </div>
-      `;
-    })
-    .join('');
+        <div class="actions">
+          <label class="toggle">
+            <input type="checkbox" ${filter.enabled ? 'checked' : ''} data-action="toggle-filter" data-filter-id="${filter.id}">
+            <span class="slider"></span>
+          </label>
+          <button class="button small secondary" data-action="edit-filter" data-filter-id="${filter.id}">Edit</button>
+          <button class="button small danger" data-action="delete-filter" data-filter-id="${filter.id}">Delete</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderWhitelistItem(entry: Whitelist): string {
+  return `
+    <div class="filter-item">
+      <div class="filter-header">
+        <div style="flex: 1;">
+          <div class="filter-title">${entry.description ? escapeHtml(entry.description) : 'Unnamed Whitelist Entry'}</div>
+          <div class="filter-pattern">${escapeHtml(entry.pattern)}</div>
+        </div>
+        <div class="actions">
+          <label class="toggle">
+            <input type="checkbox" ${entry.enabled ? 'checked' : ''} data-action="toggle-whitelist" data-whitelist-id="${entry.id}">
+            <span class="slider"></span>
+          </label>
+          <button class="button small secondary" data-action="edit-whitelist" data-whitelist-id="${entry.id}">Edit</button>
+          <button class="button small danger" data-action="delete-whitelist" data-whitelist-id="${entry.id}">Delete</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function pluralize(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 function renderSchedules(): void {
@@ -235,7 +261,7 @@ function renderSchedules(): void {
 // Filter Modal
 // ============================================================================
 
-function openFilterModal(filterId?: string): void {
+function openFilterModal(filterId?: string, groupId?: string): void {
   currentEditingFilterId = filterId ?? null;
   const modal = getElementByIdOrNull('filter-modal');
   const title = getElementByIdOrNull('filter-modal-title');
@@ -254,9 +280,13 @@ function openFilterModal(filterId?: string): void {
       groupSelect.innerHTML = data.groups
         .map((g) => `<option value="${g.id}">${escapeHtml(g.name)}</option>`)
         .join('');
+      groupSelect.disabled = Boolean(groupId && !filterId);
+
+      const filter = filterId ? data.filters.find((f) => f.id === filterId) : undefined;
+      const selectedGroupId = filter?.groupId ?? groupId ?? DEFAULT_GROUP_ID;
+      groupSelect.value = selectedGroupId;
 
       if (filterId) {
-        const filter = data.filters.find((f) => f.id === filterId);
         if (filter) {
           const patternInput = getElementByIdOrNull<HTMLInputElement>('filter-pattern');
           const descInput = getElementByIdOrNull<HTMLInputElement>('filter-description');
@@ -266,7 +296,7 @@ function openFilterModal(filterId?: string): void {
 
           if (patternInput) patternInput.value = filter.pattern;
           if (descInput) descInput.value = filter.description ?? '';
-          if (groupInput) groupInput.value = filter.groupId;
+          if (groupInput) groupInput.value = selectedGroupId;
           if (enabledInput) enabledInput.checked = filter.enabled;
           if (regexInput) regexInput.checked = filter.isRegex ?? false;
         }
@@ -319,7 +349,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
       await addFilter(filter);
     }
     closeFilterModal();
-    await renderFilters();
+    await renderGroups();
   } catch (error) {
     console.error('Failed to save filter:', error);
     alert('Failed to save filter. Please try again.');
@@ -409,7 +439,6 @@ async function handleGroupSubmit(e: Event): Promise<void> {
     }
     closeGroupModal();
     await renderGroups();
-    await renderFilters();
   } catch (error) {
     console.error('Failed to save group:', error);
     alert('Failed to save group. Please try again.');
@@ -420,7 +449,7 @@ async function handleGroupSubmit(e: Event): Promise<void> {
 // Whitelist Modal
 // ============================================================================
 
-function openWhitelistModal(whitelistId?: string): void {
+function openWhitelistModal(whitelistId?: string, groupId?: string): void {
   currentEditingWhitelistId = whitelistId ?? null;
   const modal = getElementByIdOrNull('whitelist-modal');
   const title = getElementByIdOrNull('whitelist-modal-title');
@@ -431,26 +460,35 @@ function openWhitelistModal(whitelistId?: string): void {
   form.reset();
   title.textContent = whitelistId ? 'Edit Whitelist Entry' : 'Add Whitelist Entry';
 
-  if (whitelistId) {
-    loadData()
-      .then((data) => {
-        const entry = data.whitelist.find((w) => w.id === whitelistId);
-        if (entry) {
-          const patternInput = getElementByIdOrNull<HTMLInputElement>('whitelist-pattern');
-          const descInput = getElementByIdOrNull<HTMLInputElement>('whitelist-description');
-          const enabledInput = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled');
-          const regexInput = getElementByIdOrNull<HTMLInputElement>('whitelist-is-regex');
+  loadData()
+    .then((data) => {
+      const groupSelect = getElementByIdOrNull<HTMLSelectElement>('whitelist-group');
+      if (!groupSelect) return;
 
-          if (patternInput) patternInput.value = entry.pattern;
-          if (descInput) descInput.value = entry.description ?? '';
-          if (enabledInput) enabledInput.checked = entry.enabled;
-          if (regexInput) regexInput.checked = entry.isRegex ?? false;
-        }
-      })
-      .catch((error: unknown) => {
-        console.error('Failed to load whitelist data:', error);
-      });
-  }
+      groupSelect.innerHTML = data.groups
+        .map((g) => `<option value="${g.id}">${escapeHtml(g.name)}</option>`)
+        .join('');
+      groupSelect.disabled = Boolean(groupId && !whitelistId);
+
+      const entry = whitelistId ? data.whitelist.find((w) => w.id === whitelistId) : undefined;
+      const selectedGroupId = entry?.groupId ?? groupId ?? DEFAULT_GROUP_ID;
+      groupSelect.value = selectedGroupId;
+
+      if (entry) {
+        const patternInput = getElementByIdOrNull<HTMLInputElement>('whitelist-pattern');
+        const descInput = getElementByIdOrNull<HTMLInputElement>('whitelist-description');
+        const enabledInput = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled');
+        const regexInput = getElementByIdOrNull<HTMLInputElement>('whitelist-is-regex');
+
+        if (patternInput) patternInput.value = entry.pattern;
+        if (descInput) descInput.value = entry.description ?? '';
+        if (enabledInput) enabledInput.checked = entry.enabled;
+        if (regexInput) regexInput.checked = entry.isRegex ?? false;
+      }
+    })
+    .catch((error: unknown) => {
+      console.error('Failed to load whitelist data:', error);
+    });
 
   modal.classList.add('active');
 }
@@ -465,6 +503,7 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
 
   const pattern = getElementByIdOrNull<HTMLInputElement>('whitelist-pattern')?.value ?? '';
   const description = getElementByIdOrNull<HTMLInputElement>('whitelist-description')?.value ?? '';
+  const groupId = getElementByIdOrNull<HTMLSelectElement>('whitelist-group')?.value ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled')?.checked ?? true;
   const isRegex = getElementByIdOrNull<HTMLInputElement>('whitelist-is-regex')?.checked ?? false;
 
@@ -482,6 +521,7 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
     id: currentEditingWhitelistId ?? generateId(),
     pattern,
     description,
+    groupId,
     enabled,
     isRegex,
   };
@@ -493,7 +533,7 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
       await addWhitelist(entry);
     }
     closeWhitelistModal();
-    await renderWhitelist();
+    await renderGroups();
   } catch (error) {
     console.error('Failed to save whitelist entry:', error);
     alert('Failed to save whitelist entry. Please try again.');
@@ -509,58 +549,66 @@ function handleGroupsListClick(e: Event): void {
   const button = target.closest('button[data-action]') as HTMLButtonElement | null;
   if (!button) return;
 
+  if (button.closest('summary')) {
+    e.preventDefault();
+  }
+
   const action = button.dataset['action'];
   const groupId = button.dataset['groupId'];
+  const filterId = button.dataset['filterId'];
+  const whitelistId = button.dataset['whitelistId'];
 
   if (action === 'edit-group' && groupId) {
     openGroupModal(groupId);
   } else if (action === 'delete-group' && groupId) {
     deleteGroupConfirm(groupId);
+  } else if (action === 'add-filter' && groupId) {
+    openFilterModal(undefined, groupId);
+  } else if (action === 'add-whitelist' && groupId) {
+    openWhitelistModal(undefined, groupId);
+  } else if (action === 'edit-filter' && filterId) {
+    openFilterModal(filterId);
+  } else if (action === 'delete-filter' && filterId) {
+    deleteFilterConfirm(filterId);
+  } else if (action === 'edit-whitelist' && whitelistId) {
+    openWhitelistModal(whitelistId);
+  } else if (action === 'delete-whitelist' && whitelistId) {
+    deleteWhitelistConfirm(whitelistId);
   }
 }
 
-function handleFiltersListClick(e: Event): void {
+function handleGroupsListChange(e: Event): void {
   const target = e.target as HTMLElement;
-  const button = target.closest('button[data-action]') as HTMLButtonElement | null;
   const input = target.closest('input[data-action]') as HTMLInputElement | null;
 
-  if (button) {
-    const action = button.dataset['action'];
-    const filterId = button.dataset['filterId'];
+  if (!input) return;
 
-    if (action === 'edit-filter' && filterId) {
-      openFilterModal(filterId);
-    } else if (action === 'delete-filter' && filterId) {
-      deleteFilterConfirm(filterId);
-    }
-  } else if (input?.dataset['action'] === 'toggle-filter') {
+  if (input.dataset['action'] === 'toggle-filter') {
     const filterId = input.dataset['filterId'];
     if (filterId) {
       toggleFilter(filterId, input.checked);
     }
-  }
-}
-
-function handleWhitelistListClick(e: Event): void {
-  const target = e.target as HTMLElement;
-  const button = target.closest('button[data-action]') as HTMLButtonElement | null;
-  const input = target.closest('input[data-action]') as HTMLInputElement | null;
-
-  if (button) {
-    const action = button.dataset['action'];
-    const whitelistId = button.dataset['whitelistId'];
-
-    if (action === 'edit-whitelist' && whitelistId) {
-      openWhitelistModal(whitelistId);
-    } else if (action === 'delete-whitelist' && whitelistId) {
-      deleteWhitelistConfirm(whitelistId);
-    }
-  } else if (input?.dataset['action'] === 'toggle-whitelist') {
+  } else if (input.dataset['action'] === 'toggle-whitelist') {
     const whitelistId = input.dataset['whitelistId'];
     if (whitelistId) {
       toggleWhitelistEntry(whitelistId, input.checked);
     }
   }
+}
+
+function handleGroupsListToggle(e: Event): void {
+  const target = e.target as HTMLElement;
+  if (!(target instanceof HTMLDetailsElement)) return;
+  if (!target.open) return;
+
+  const groupsList = getElementByIdOrNull('groups-list');
+  if (!groupsList) return;
+
+  groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((item) => {
+    if (item !== target) {
+      item.open = false;
+    }
+  });
 }
 
 function handleSchedulesListClick(e: Event): void {
@@ -608,19 +656,18 @@ async function toggleFilter(filterId: string, enabled: boolean): Promise<void> {
 async function deleteFilterConfirm(filterId: string): Promise<void> {
   if (confirm('Are you sure you want to delete this filter?')) {
     await deleteFilter(filterId);
-    await renderFilters();
+    await renderGroups();
   }
 }
 
 async function deleteGroupConfirm(groupId: string): Promise<void> {
   if (
     confirm(
-      'Are you sure you want to delete this group? Filters in this group will be moved to the default 24/7 group.'
+      'Are you sure you want to delete this group? Filters and whitelist entries in this group will be moved to the default 24/7 group.'
     )
   ) {
     await deleteGroup(groupId);
     await renderGroups();
-    await renderFilters();
   }
 }
 
@@ -635,7 +682,7 @@ async function toggleWhitelistEntry(whitelistId: string, enabled: boolean): Prom
 async function deleteWhitelistConfirm(whitelistId: string): Promise<void> {
   if (confirm('Are you sure you want to delete this whitelist entry?')) {
     await deleteWhitelist(whitelistId);
-    await renderWhitelist();
+    await renderGroups();
   }
 }
 

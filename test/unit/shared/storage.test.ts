@@ -59,6 +59,19 @@ describe('storage', () => {
       const data = await loadData();
       expect(data.whitelist).toEqual([]);
     });
+
+    it('should assign the default group to legacy whitelist entries', async () => {
+      const testData = {
+        groups: [createDefaultGroup()],
+        filters: [],
+        whitelist: [{ id: 'legacy-whitelist', pattern: 'allowed.com', enabled: true }],
+      };
+
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, testData);
+
+      const data = await loadData();
+      expect(data.whitelist[0]?.groupId).toBe(DEFAULT_GROUP_ID);
+    });
   });
 
   describe('saveData', () => {
@@ -136,11 +149,20 @@ describe('storage', () => {
       };
       await addFilter(filter);
 
+      const whitelistEntry = {
+        id: 'test-whitelist',
+        pattern: 'allowed.com',
+        groupId: 'test-group',
+        enabled: true,
+      };
+      await addWhitelist(whitelistEntry);
+
       await deleteGroup('test-group');
 
       const data = await loadData();
       expect(data.groups).toHaveLength(1);
       expect(data.filters[0]?.groupId).toBe(DEFAULT_GROUP_ID);
+      expect(data.whitelist[0]?.groupId).toBe(DEFAULT_GROUP_ID);
     });
   });
 
@@ -209,6 +231,7 @@ describe('storage', () => {
       const entry = {
         id: 'test-whitelist',
         pattern: 'allowed.com',
+        groupId: DEFAULT_GROUP_ID,
         enabled: true,
       };
 

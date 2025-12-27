@@ -12,22 +12,11 @@
     <p class="subtitle">Configure URL filters and time-based blocking schedules</p>
 
     <div class="section">
-      <h2>Groups</h2>
+      <div class="section-header">
+        <h2>Groups</h2>
+        <button class="button" id="add-group-btn">+ Add Group</button>
+      </div>
       <div id="groups-list"></div>
-      <button class="button" id="add-group-btn">+ Add Group</button>
-    </div>
-
-    <div class="section">
-      <h2>Filters</h2>
-      <div id="filters-list"></div>
-      <button class="button" id="add-filter-btn">+ Add Filter</button>
-    </div>
-
-    <div class="section">
-      <h2>Whitelist</h2>
-      <p style="color: #718096; margin-top: 0; font-size: 0.9rem;">URLs matching whitelist patterns will never be blocked, even if they match a filter.</p>
-      <div id="whitelist-list"></div>
-      <button class="button" id="add-whitelist-btn">+ Add Whitelist Entry</button>
     </div>
   </div>
 
@@ -119,6 +108,10 @@
         <div class="form-row">
           <label for="whitelist-description">Description (Optional)</label>
           <input type="text" id="whitelist-description" class="input" placeholder="e.g., Allow Facebook Work">
+        </div>
+        <div class="form-row">
+          <label for="whitelist-group">Group</label>
+          <select id="whitelist-group" class="input" required></select>
         </div>
         <div class="form-row">
           <label class="checkbox-label">
