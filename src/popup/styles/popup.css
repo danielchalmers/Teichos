@@ -26,6 +26,17 @@ body {
   font-weight: 600;
 }
 
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-icon {
+  width: 18px;
+  height: 18px;
+}
+
 .settings-btn {
   background: rgba(255, 255, 255, 0.2);
   border: none;

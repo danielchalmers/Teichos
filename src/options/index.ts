@@ -71,9 +71,10 @@ function setupEventListeners(): void {
   const groupsList = getElementByIdOrNull('groups-list');
   groupsList?.addEventListener('click', handleGroupsListClick);
   groupsList?.addEventListener('change', handleGroupsListChange);
-  groupsList?.addEventListener('toggle', handleGroupsListToggle, true);
   getElementByIdOrNull('schedules-list')?.addEventListener('click', handleSchedulesListClick);
   getElementByIdOrNull('schedules-list')?.addEventListener('change', handleSchedulesListClick);
+
+  document.addEventListener('keydown', handleGlobalKeydown);
 }
 
 // ============================================================================
@@ -85,10 +86,14 @@ async function renderGroups(): Promise<void> {
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
 
-  const openGroupId =
-    groupsList.querySelector<HTMLDetailsElement>('details.group-item[open]')?.dataset[
-      'groupId'
-    ];
+  const hadGroups = groupsList.children.length > 0;
+  const openGroupIds = new Set(
+    Array.from(
+      groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item[open]')
+    )
+      .map((details) => details.dataset['groupId'])
+      .filter((groupId): groupId is string => Boolean(groupId))
+  );
 
   const filtersByGroup = new Map<string, Filter[]>();
   for (const filter of data.filters) {
@@ -119,14 +124,14 @@ async function renderGroups(): Promise<void> {
         ? 'Always Active'
         : pluralize(group.schedules.length, 'schedule');
       const filterSummary = pluralize(filters.length, 'filter');
-      const whitelistSummary = pluralize(whitelist.length, 'whitelist entry', 'whitelist entries');
+      const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
       return `
         <details class="group-item" data-group-id="${group.id}">
           <summary class="group-header">
             <div class="group-info">
               <div class="filter-title">${escapeHtml(group.name)}</div>
-              <div class="filter-meta">${scheduleSummary} • ${filterSummary} • ${whitelistSummary}</div>
+              <div class="filter-meta">${scheduleSummary} • ${filterSummary} • ${exceptionSummary}</div>
             </div>
             <div class="actions">
               ${!isDefault ? `<button class="button small secondary" data-action="edit-group" data-group-id="${group.id}">Edit</button>` : ''}
@@ -137,25 +142,29 @@ async function renderGroups(): Promise<void> {
             <div class="group-section">
               <div class="group-section-header">
                 <h3>Filters</h3>
-                <button class="button small" data-action="add-filter" data-group-id="${group.id}">+ Add Filter</button>
               </div>
               ${
                 filters.length === 0
                   ? '<p class="empty-state">No filters in this group yet.</p>'
                   : filters.map(renderFilterItem).join('')
               }
+              <div class="list-footer">
+                <button class="button small" data-action="add-filter" data-group-id="${group.id}">+ Add Filter</button>
+              </div>
             </div>
             <div class="group-section">
               <div class="group-section-header">
-                <h3>Whitelist</h3>
-                <button class="button small secondary" data-action="add-whitelist" data-group-id="${group.id}">+ Add Whitelist Entry</button>
+                <h3>Exceptions</h3>
               </div>
-              <p class="group-hint">Whitelist entries in this group override matching filters in this group.</p>
+              <p class="group-hint">Exceptions in this group override matching filters.</p>
               ${
                 whitelist.length === 0
-                  ? '<p class="empty-state">No whitelist entries in this group yet.</p>'
+                  ? '<p class="empty-state">No exceptions in this group yet.</p>'
                   : whitelist.map(renderWhitelistItem).join('')
               }
+              <div class="list-footer">
+                <button class="button small secondary" data-action="add-whitelist" data-group-id="${group.id}">+ Add Exception</button>
+              </div>
             </div>
           </div>
         </details>
@@ -163,16 +172,16 @@ async function renderGroups(): Promise<void> {
     })
     .join('');
 
-  let openGroup: HTMLDetailsElement | null = null;
-  if (openGroupId) {
-    openGroup = groupsList.querySelector<HTMLDetailsElement>(
-      `details.group-item[data-group-id="${openGroupId}"]`
-    );
-  }
-
-  if (openGroup) {
-    openGroup.open = true;
-  } else {
+  if (openGroupIds.size > 0) {
+    openGroupIds.forEach((groupId) => {
+      const details = groupsList.querySelector<HTMLDetailsElement>(
+        `details.group-item[data-group-id="${groupId}"]`
+      );
+      if (details) {
+        details.open = true;
+      }
+    });
+  } else if (!hadGroups) {
     const firstGroup = groupsList.querySelector<HTMLDetailsElement>('details.group-item');
     if (firstGroup) {
       firstGroup.open = true;
@@ -181,11 +190,14 @@ async function renderGroups(): Promise<void> {
 }
 
 function renderFilterItem(filter: Filter): string {
+  const description = filter.description?.trim();
+  const nameMarkup = description ? `<div class="filter-title">${escapeHtml(description)}</div>` : '';
+
   return `
     <div class="filter-item">
       <div class="filter-header">
-        <div style="flex: 1;">
-          <div class="filter-title">${filter.description ? escapeHtml(filter.description) : 'Unnamed Filter'}</div>
+        <div class="filter-details">
+          ${nameMarkup}
           <div class="filter-pattern">${escapeHtml(filter.pattern)}</div>
         </div>
         <div class="actions">
@@ -202,11 +214,14 @@ function renderFilterItem(filter: Filter): string {
 }
 
 function renderWhitelistItem(entry: Whitelist): string {
+  const description = entry.description?.trim();
+  const nameMarkup = description ? `<div class="filter-title">${escapeHtml(description)}</div>` : '';
+
   return `
     <div class="filter-item">
       <div class="filter-header">
-        <div style="flex: 1;">
-          <div class="filter-title">${entry.description ? escapeHtml(entry.description) : 'Unnamed Whitelist Entry'}</div>
+        <div class="filter-details">
+          ${nameMarkup}
           <div class="filter-pattern">${escapeHtml(entry.pattern)}</div>
         </div>
         <div class="actions">
@@ -458,7 +473,7 @@ function openWhitelistModal(whitelistId?: string, groupId?: string): void {
   if (!modal || !title || !form) return;
 
   form.reset();
-  title.textContent = whitelistId ? 'Edit Whitelist Entry' : 'Add Whitelist Entry';
+  title.textContent = whitelistId ? 'Edit Exception' : 'Add Exception';
 
   loadData()
     .then((data) => {
@@ -487,7 +502,7 @@ function openWhitelistModal(whitelistId?: string, groupId?: string): void {
       }
     })
     .catch((error: unknown) => {
-      console.error('Failed to load whitelist data:', error);
+      console.error('Failed to load exception data:', error);
     });
 
   modal.classList.add('active');
@@ -535,8 +550,8 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
     closeWhitelistModal();
     await renderGroups();
   } catch (error) {
-    console.error('Failed to save whitelist entry:', error);
-    alert('Failed to save whitelist entry. Please try again.');
+    console.error('Failed to save exception:', error);
+    alert('Failed to save exception. Please try again.');
   }
 }
 
@@ -596,21 +611,6 @@ function handleGroupsListChange(e: Event): void {
   }
 }
 
-function handleGroupsListToggle(e: Event): void {
-  const target = e.target as HTMLElement;
-  if (!(target instanceof HTMLDetailsElement)) return;
-  if (!target.open) return;
-
-  const groupsList = getElementByIdOrNull('groups-list');
-  if (!groupsList) return;
-
-  groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((item) => {
-    if (item !== target) {
-      item.open = false;
-    }
-  });
-}
-
 function handleSchedulesListClick(e: Event): void {
   const target = e.target as HTMLElement;
   const button = target.closest('button[data-action]') as HTMLButtonElement | null;
@@ -641,6 +641,22 @@ function handleSchedulesListClick(e: Event): void {
   }
 }
 
+function handleGlobalKeydown(e: KeyboardEvent): void {
+  if (e.key !== 'Escape') return;
+
+  const filterModal = getElementByIdOrNull('filter-modal');
+  const groupModal = getElementByIdOrNull('group-modal');
+  const whitelistModal = getElementByIdOrNull('whitelist-modal');
+
+  if (filterModal?.classList.contains('active')) {
+    closeFilterModal();
+  } else if (groupModal?.classList.contains('active')) {
+    closeGroupModal();
+  } else if (whitelistModal?.classList.contains('active')) {
+    closeWhitelistModal();
+  }
+}
+
 // ============================================================================
 // Helper Actions
 // ============================================================================
@@ -663,7 +679,7 @@ async function deleteFilterConfirm(filterId: string): Promise<void> {
 async function deleteGroupConfirm(groupId: string): Promise<void> {
   if (
     confirm(
-      'Are you sure you want to delete this group? Filters and whitelist entries in this group will be moved to the default 24/7 group.'
+      'Are you sure you want to delete this group? Filters and exceptions in this group will be moved to the default 24/7 group.'
     )
   ) {
     await deleteGroup(groupId);
@@ -680,7 +696,7 @@ async function toggleWhitelistEntry(whitelistId: string, enabled: boolean): Prom
 }
 
 async function deleteWhitelistConfirm(whitelistId: string): Promise<void> {
-  if (confirm('Are you sure you want to delete this whitelist entry?')) {
+  if (confirm('Are you sure you want to delete this exception?')) {
     await deleteWhitelist(whitelistId);
     await renderGroups();
   }

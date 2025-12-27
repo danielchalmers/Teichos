@@ -61,12 +61,15 @@ async function renderFilters(): Promise<void> {
     .map((filter) => {
       const group = data.groups.find((g) => g.id === filter.groupId);
       const groupName = group?.name ?? 'Unknown Group';
-      const displayName = filter.description ?? 'Unnamed Filter';
+      const description = filter.description?.trim();
+      const nameMarkup = description
+        ? `<div class="filter-name" title="${escapeHtml(description)}">${escapeHtml(description)}</div>`
+        : '';
 
       return `
       <div class="filter-item">
         <div class="filter-info">
-          <div class="filter-name" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</div>
+          ${nameMarkup}
           <div class="filter-pattern" title="${escapeHtml(filter.pattern)}">${escapeHtml(filter.pattern)}</div>
           <div class="filter-group">Group: ${escapeHtml(groupName)}</div>
         </div>
