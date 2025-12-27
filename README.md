@@ -14,7 +14,7 @@ Block distracting websites with powerful regex patterns and smart scheduling.
 ⏰ **Smart Scheduling** — Set active hours for each filter group  
 🔄 **Easy Toggles** — Enable/disable filters instantly  
 🚫 **Instant Blocking** — Pages blocked immediately on navigation  
-✅ **Whitelist Support** — Allow specific URLs even when filters match
+✅ **Exception Support** — Allow specific URLs even when filters match
 
 ## 🎓 Use Cases
 
@@ -27,7 +27,7 @@ Block distracting websites with powerful regex patterns and smart scheduling.
 ### Adding Filters
 
 1. Right-click the Teichos icon → **Options**
-2. Click **+ Add Filter**
+2. Click **New Filter**
 3. Enter a URL pattern (simple text or regex)
 4. Choose a group (or use **24/7 Always Active**)
 5. Save and browse — matching URLs are blocked!
@@ -36,19 +36,19 @@ Block distracting websites with powerful regex patterns and smart scheduling.
 
 Want to block sites only during work hours? Create a custom group:
 
-1. Click **+ Add Group**
+1. Click **New Group**
 2. Name it (e.g., "Work Hours")
 3. Uncheck **Always Active**
-4. Add schedules with days and times
+4. Click **New Schedule** to add days and times
 5. Assign filters to your new group
 
-### Whitelist Entries
+### Exception Entries
 
 Need to allow specific URLs even when they match a filter?
 
-1. Click **+ Add Whitelist Entry**
+1. Click **New Exception**
 2. Enter a URL pattern
-3. URLs matching whitelist patterns are never blocked
+3. URLs matching exception patterns are never blocked
 
 ## 🎯 Pattern Examples
 

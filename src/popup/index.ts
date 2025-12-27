@@ -43,8 +43,8 @@ async function renderFilters(): Promise<void> {
   if (data.filters.length === 0) {
     filterList.innerHTML = `
       <div class="empty-state">
-        <p>No filters configured yet.</p>
-        <button class="add-filter-btn" id="add-first-filter">+ Add Filter</button>
+        <p>No filters configured.</p>
+        <button class="add-filter-btn" id="add-first-filter">+ New Filter</button>
       </div>
     `;
 

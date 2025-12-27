@@ -2,13 +2,22 @@
   box-sizing: border-box;
 }
 
+:root {
+  --text-lg: 1rem;
+  --text-md: 0.9rem;
+  --text-sm: 0.8rem;
+  --text-xs: 0.72rem;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: system-ui, sans-serif;
   margin: 0;
   padding: 0;
   min-width: 320px;
   background: #f5f7fa;
   color: #2d3748;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .header {
@@ -22,7 +31,7 @@ body {
 
 .header h1 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 
@@ -44,7 +53,7 @@ body {
   padding: 6px 10px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 .settings-btn:hover {
@@ -79,7 +88,7 @@ body {
 
 .filter-name {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--text-md);
   color: #2d3748;
   white-space: nowrap;
   overflow: hidden;
@@ -88,7 +97,7 @@ body {
 
 .filter-pattern {
   font-family: monospace;
-  font-size: 0.75rem;
+  font-size: var(--text-sm);
   color: #718096;
   white-space: nowrap;
   overflow: hidden;
@@ -96,7 +105,7 @@ body {
 }
 
 .filter-group {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: #a0aec0;
 }
 
@@ -156,7 +165,7 @@ input:checked + .slider:before {
 
 .empty-state p {
   margin: 0 0 12px 0;
-  font-size: 0.9rem;
+  font-size: var(--text-md);
 }
 
 .add-filter-btn {
@@ -166,7 +175,7 @@ input:checked + .slider:before {
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 

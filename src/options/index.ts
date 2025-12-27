@@ -21,6 +21,21 @@ import { escapeHtml, generateId } from '../shared/utils';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 import { DAY_NAMES, DEFAULT_SCHEDULE } from '../shared/constants';
 
+const ADD_ICON_SVG =
+  '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">' +
+  '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+  '</svg>';
+const EDIT_ICON_SVG =
+  '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">' +
+  '<path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"/>' +
+  '<path d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z" fill="currentColor"/>' +
+  '</svg>';
+const DELETE_ICON_SVG =
+  '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">' +
+  '<path d="M6 3h4l1 1h3v2H2V4h3l1-1z" fill="currentColor"/>' +
+  '<path d="M4 7h8l-.6 6.5a1 1 0 0 1-1 .9H5.6a1 1 0 0 1-1-.9L4 7z" fill="currentColor"/>' +
+  '</svg>';
+
 // Modal state
 let currentEditingFilterId: string | null = null;
 let currentEditingGroupId: string | null = null;
@@ -130,12 +145,26 @@ async function renderGroups(): Promise<void> {
         <details class="group-item" data-group-id="${group.id}">
           <summary class="group-header">
             <div class="group-info">
-              <div class="filter-title">${escapeHtml(group.name)}</div>
+              <div class="group-title">${escapeHtml(group.name)}</div>
               <div class="filter-meta">${scheduleSummary} • ${filterSummary} • ${exceptionSummary}</div>
             </div>
             <div class="actions">
-              ${!isDefault ? `<button class="button small secondary" data-action="edit-group" data-group-id="${group.id}">Edit</button>` : ''}
-              ${!isDefault ? `<button class="button small danger" data-action="delete-group" data-group-id="${group.id}">Delete</button>` : ''}
+              ${
+                !isDefault
+                  ? `<button class="button small secondary" data-action="edit-group" data-group-id="${group.id}">
+                      <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
+                      Edit
+                    </button>`
+                  : ''
+              }
+              ${
+                !isDefault
+                  ? `<button class="button small danger" data-action="delete-group" data-group-id="${group.id}">
+                      <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
+                      Delete
+                    </button>`
+                  : ''
+              }
             </div>
           </summary>
           <div class="group-content">
@@ -145,25 +174,30 @@ async function renderGroups(): Promise<void> {
               </div>
               ${
                 filters.length === 0
-                  ? '<p class="empty-state">No filters in this group yet.</p>'
+                  ? '<p class="empty-state">No filters in this group.</p>'
                   : filters.map(renderFilterItem).join('')
               }
               <div class="list-footer">
-                <button class="button small" data-action="add-filter" data-group-id="${group.id}">+ Add Filter</button>
+                <button class="button small" data-action="add-filter" data-group-id="${group.id}">
+                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
+                  New Filter
+                </button>
               </div>
             </div>
             <div class="group-section">
               <div class="group-section-header">
                 <h3>Exceptions</h3>
               </div>
-              <p class="group-hint">Exceptions in this group override matching filters.</p>
               ${
                 whitelist.length === 0
-                  ? '<p class="empty-state">No exceptions in this group yet.</p>'
+                  ? '<p class="empty-state">No exceptions in this group.</p>'
                   : whitelist.map(renderWhitelistItem).join('')
               }
               <div class="list-footer">
-                <button class="button small secondary" data-action="add-whitelist" data-group-id="${group.id}">+ Add Exception</button>
+                <button class="button small secondary" data-action="add-whitelist" data-group-id="${group.id}">
+                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
+                  New Exception
+                </button>
               </div>
             </div>
           </div>
@@ -205,8 +239,14 @@ function renderFilterItem(filter: Filter): string {
             <input type="checkbox" ${filter.enabled ? 'checked' : ''} data-action="toggle-filter" data-filter-id="${filter.id}">
             <span class="slider"></span>
           </label>
-          <button class="button small secondary" data-action="edit-filter" data-filter-id="${filter.id}">Edit</button>
-          <button class="button small danger" data-action="delete-filter" data-filter-id="${filter.id}">Delete</button>
+          <button class="button small secondary" data-action="edit-filter" data-filter-id="${filter.id}">
+            <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
+            Edit
+          </button>
+          <button class="button small danger" data-action="delete-filter" data-filter-id="${filter.id}">
+            <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
+            Delete
+          </button>
         </div>
       </div>
     </div>
@@ -229,8 +269,14 @@ function renderWhitelistItem(entry: Whitelist): string {
             <input type="checkbox" ${entry.enabled ? 'checked' : ''} data-action="toggle-whitelist" data-whitelist-id="${entry.id}">
             <span class="slider"></span>
           </label>
-          <button class="button small secondary" data-action="edit-whitelist" data-whitelist-id="${entry.id}">Edit</button>
-          <button class="button small danger" data-action="delete-whitelist" data-whitelist-id="${entry.id}">Delete</button>
+          <button class="button small secondary" data-action="edit-whitelist" data-whitelist-id="${entry.id}">
+            <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
+            Edit
+          </button>
+          <button class="button small danger" data-action="delete-whitelist" data-whitelist-id="${entry.id}">
+            <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
+            Delete
+          </button>
         </div>
       </div>
     </div>
@@ -264,7 +310,10 @@ function renderSchedules(): void {
             <input type="time" value="${schedule.startTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="startTime" class="input">
             <span>to</span>
             <input type="time" value="${schedule.endTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="endTime" class="input">
-            <button type="button" class="button small danger" data-action="remove-schedule" data-schedule-index="${index}">Remove</button>
+            <button type="button" class="button small danger" data-action="remove-schedule" data-schedule-index="${index}">
+              <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
+              Delete
+            </button>
           </div>
         </div>
       `;
