@@ -15,7 +15,13 @@ import {
   updateWhitelist,
   deleteWhitelist,
 } from '../shared/api';
-import type { Filter, FilterGroup, Whitelist, MutableTimeSchedule } from '../shared/types';
+import type {
+  Filter,
+  FilterGroup,
+  FilterMatchMode,
+  Whitelist,
+  MutableTimeSchedule,
+} from '../shared/types';
 import { DEFAULT_GROUP_ID } from '../shared/types';
 import { escapeHtml, generateId } from '../shared/utils';
 import { getElementByIdOrNull } from '../shared/utils/dom';
@@ -264,6 +270,14 @@ async function renderGroups(): Promise<void> {
   }
 }
 
+function getMatchModeSelectValue(selectId: string): FilterMatchMode {
+  const value = getElementByIdOrNull<HTMLSelectElement>(selectId)?.value;
+  if (value === 'contains' || value === 'exact' || value === 'regex') {
+    return value;
+  }
+  return 'contains';
+}
+
 function renderFilterItem(filter: Filter): string {
   const description = filter.description?.trim();
   const nameMarkup = description ? `<div class="filter-title">${escapeHtml(description)}</div>` : '';
@@ -381,12 +395,12 @@ function openFilterModal(filterId?: string, groupId?: string): void {
         const patternInput = getElementByIdOrNull<HTMLInputElement>('filter-pattern');
         const descInput = getElementByIdOrNull<HTMLInputElement>('filter-description');
         const enabledInput = getElementByIdOrNull<HTMLInputElement>('filter-enabled');
-        const regexInput = getElementByIdOrNull<HTMLInputElement>('filter-is-regex');
+        const matchModeSelect = getElementByIdOrNull<HTMLSelectElement>('filter-match-mode');
 
         if (patternInput) patternInput.value = filter.pattern;
         if (descInput) descInput.value = filter.description ?? '';
         if (enabledInput) enabledInput.checked = filter.enabled;
-        if (regexInput) regexInput.checked = filter.isRegex ?? false;
+        if (matchModeSelect) matchModeSelect.value = filter.matchMode ?? 'contains';
       }
     })
     .catch((error: unknown) => {
@@ -409,10 +423,10 @@ async function handleFilterSubmit(e: Event): Promise<void> {
   const description = getElementByIdOrNull<HTMLInputElement>('filter-description')?.value ?? '';
   const groupId = currentFilterGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('filter-enabled')?.checked ?? true;
-  const isRegex = getElementByIdOrNull<HTMLInputElement>('filter-is-regex')?.checked ?? false;
+  const matchMode = getMatchModeSelectValue('filter-match-mode');
 
   // Validate regex if regex mode is enabled
-  if (isRegex) {
+  if (matchMode === 'regex') {
     try {
       new RegExp(pattern);
     } catch (error) {
@@ -427,7 +441,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     description,
     groupId,
     enabled,
-    isRegex,
+    matchMode,
   };
 
   try {
@@ -596,12 +610,12 @@ function openWhitelistModal(whitelistId?: string, groupId?: string): void {
         const patternInput = getElementByIdOrNull<HTMLInputElement>('whitelist-pattern');
         const descInput = getElementByIdOrNull<HTMLInputElement>('whitelist-description');
         const enabledInput = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled');
-        const regexInput = getElementByIdOrNull<HTMLInputElement>('whitelist-is-regex');
+        const matchModeSelect = getElementByIdOrNull<HTMLSelectElement>('whitelist-match-mode');
 
         if (patternInput) patternInput.value = entry.pattern;
         if (descInput) descInput.value = entry.description ?? '';
         if (enabledInput) enabledInput.checked = entry.enabled;
-        if (regexInput) regexInput.checked = entry.isRegex ?? false;
+        if (matchModeSelect) matchModeSelect.value = entry.matchMode ?? 'contains';
       }
     })
     .catch((error: unknown) => {
@@ -624,10 +638,10 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
   const description = getElementByIdOrNull<HTMLInputElement>('whitelist-description')?.value ?? '';
   const groupId = currentWhitelistGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled')?.checked ?? true;
-  const isRegex = getElementByIdOrNull<HTMLInputElement>('whitelist-is-regex')?.checked ?? false;
+  const matchMode = getMatchModeSelectValue('whitelist-match-mode');
 
   // Validate regex if regex mode is enabled
-  if (isRegex) {
+  if (matchMode === 'regex') {
     try {
       new RegExp(pattern);
     } catch (error) {
@@ -642,7 +656,7 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
     description,
     groupId,
     enabled,
-    isRegex,
+    matchMode,
   };
 
   try {

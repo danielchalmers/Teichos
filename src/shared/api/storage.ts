@@ -3,7 +3,7 @@
  * Promise-based utilities for storage operations
  */
 
-import type { StorageData, FilterGroup, Filter, Whitelist } from '../types';
+import type { StorageData, FilterGroup, Filter, FilterMatchMode, Whitelist } from '../types';
 import { STORAGE_KEY, DEFAULT_GROUP_ID } from '../types';
 
 /**
@@ -29,6 +29,45 @@ function createDefaultData(): StorageData {
   };
 }
 
+type LegacyFilter = Omit<Filter, 'matchMode'> & {
+  readonly matchMode?: FilterMatchMode;
+  readonly isRegex?: boolean;
+};
+
+type LegacyWhitelist = Omit<Whitelist, 'matchMode' | 'groupId'> & {
+  readonly matchMode?: FilterMatchMode;
+  readonly isRegex?: boolean;
+  readonly groupId?: string;
+};
+
+function resolveMatchMode(
+  matchMode: FilterMatchMode | undefined,
+  isRegex?: boolean
+): FilterMatchMode {
+  if (matchMode === 'contains' || matchMode === 'exact' || matchMode === 'regex') {
+    return matchMode;
+  }
+  return isRegex ? 'regex' : 'contains';
+}
+
+function normalizeFilters(filters: readonly LegacyFilter[] | undefined): Filter[] {
+  return (filters ?? []).map(({ isRegex, matchMode, ...filter }) => ({
+    ...filter,
+    matchMode: resolveMatchMode(matchMode, isRegex),
+  }));
+}
+
+function normalizeWhitelist(
+  whitelist: readonly LegacyWhitelist[] | undefined,
+  groupIds: ReadonlySet<string>
+): Whitelist[] {
+  return (whitelist ?? []).map(({ isRegex, matchMode, groupId, ...entry }) => ({
+    ...entry,
+    groupId: groupId && groupIds.has(groupId) ? groupId : DEFAULT_GROUP_ID,
+    matchMode: resolveMatchMode(matchMode, isRegex),
+  }));
+}
+
 /**
  * Load storage data from chrome.storage.sync
  * Creates default data if none exists
@@ -45,13 +84,12 @@ export async function loadData(): Promise<StorageData> {
 
   const data = storedData as StorageData;
   const groupIds = new Set(data.groups.map((group) => group.id));
-  const whitelist = (data.whitelist ?? []).map((entry) => ({
-    ...entry,
-    groupId: entry.groupId && groupIds.has(entry.groupId) ? entry.groupId : DEFAULT_GROUP_ID,
-  }));
+  const filters = normalizeFilters(data.filters as LegacyFilter[] | undefined);
+  const whitelist = normalizeWhitelist(data.whitelist as LegacyWhitelist[] | undefined, groupIds);
 
   return {
     ...data,
+    filters,
     whitelist,
   };
 }

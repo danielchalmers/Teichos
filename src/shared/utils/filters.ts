@@ -2,21 +2,21 @@
  * Filter matching and scheduling utilities
  */
 
-import type { Filter, FilterGroup, Whitelist } from '../types';
+import type { Filter, FilterGroup, FilterMatchMode, Whitelist } from '../types';
 import { getCurrentTimeString, getCurrentDayOfWeek } from './helpers';
 
 /**
  * Check if a URL matches a filter pattern
  * @param url - The URL to check
  * @param pattern - The pattern to match against
- * @param isRegex - Whether to use regex matching (default: false for contains matching)
+ * @param matchMode - Matching mode (default: contains)
  */
 export function matchesPattern(
   url: string,
   pattern: string,
-  isRegex = false
+  matchMode: FilterMatchMode = 'contains'
 ): boolean {
-  if (isRegex) {
+  if (matchMode === 'regex') {
     try {
       const regex = new RegExp(pattern);
       return regex.test(url);
@@ -24,6 +24,9 @@ export function matchesPattern(
       // Invalid regex pattern - treat as no match
       return false;
     }
+  }
+  if (matchMode === 'exact') {
+    return url.toLowerCase() === pattern.toLowerCase();
   }
   // Simple case-insensitive contains matching
   return url.toLowerCase().includes(pattern.toLowerCase());
@@ -104,15 +107,13 @@ export function shouldBlockUrl(
       continue;
     }
 
-    if (!matchesPattern(url, filter.pattern, filter.isRegex ?? false)) {
+    if (!matchesPattern(url, filter.pattern, filter.matchMode)) {
       continue;
     }
 
     const groupWhitelist = whitelistByGroup.get(filter.groupId);
     if (
-      groupWhitelist?.some((entry) =>
-        matchesPattern(url, entry.pattern, entry.isRegex ?? false)
-      )
+      groupWhitelist?.some((entry) => matchesPattern(url, entry.pattern, entry.matchMode))
     ) {
       continue;
     }

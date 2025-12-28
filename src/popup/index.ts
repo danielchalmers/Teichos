@@ -147,7 +147,7 @@ async function renderFilters(): Promise<void> {
   if (isUrlEligible && activeUrl) {
     for (const entry of data.whitelist) {
       if (!entry.enabled) continue;
-      if (matchesPattern(activeUrl, entry.pattern, entry.isRegex ?? false)) {
+      if (matchesPattern(activeUrl, entry.pattern, entry.matchMode)) {
         whitelistedGroups.add(entry.groupId);
       }
     }

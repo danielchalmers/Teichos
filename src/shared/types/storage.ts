@@ -25,14 +25,17 @@ export interface FilterGroup {
   readonly is24x7: boolean;
 }
 
+/** URL matching modes for filters and whitelist entries */
+export type FilterMatchMode = 'contains' | 'exact' | 'regex';
+
 /** URL filter pattern */
 export interface Filter {
   readonly id: string;
   readonly pattern: string;
   readonly groupId: string;
   readonly enabled: boolean;
+  readonly matchMode: FilterMatchMode;
   readonly description?: string;
-  readonly isRegex?: boolean;
 }
 
 /** Whitelist entry scoped to a filter group */
@@ -41,8 +44,8 @@ export interface Whitelist {
   readonly pattern: string;
   readonly groupId: string;
   readonly enabled: boolean;
+  readonly matchMode: FilterMatchMode;
   readonly description?: string;
-  readonly isRegex?: boolean;
 }
 
 /** Root storage schema */

@@ -38,7 +38,15 @@ describe('storage', () => {
     it('should load existing data from storage', async () => {
       const testData = {
         groups: [createDefaultGroup()],
-        filters: [{ id: 'test-filter', pattern: 'example.com', groupId: DEFAULT_GROUP_ID, enabled: true }],
+        filters: [
+          {
+            id: 'test-filter',
+            pattern: 'example.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
         whitelist: [],
       };
 
@@ -72,13 +80,62 @@ describe('storage', () => {
       const data = await loadData();
       expect(data.whitelist[0]?.groupId).toBe(DEFAULT_GROUP_ID);
     });
+
+    it('should map legacy regex filters to match mode', async () => {
+      const testData = {
+        groups: [createDefaultGroup()],
+        filters: [
+          {
+            id: 'regex-filter',
+            pattern: '^https://example\\.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            isRegex: true,
+          },
+        ],
+        whitelist: [],
+      };
+
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, testData);
+
+      const data = await loadData();
+      expect(data.filters[0]?.matchMode).toBe('regex');
+    });
+
+    it('should default whitelist match mode to contains', async () => {
+      const testData = {
+        groups: [createDefaultGroup()],
+        filters: [],
+        whitelist: [
+          {
+            id: 'legacy-whitelist',
+            pattern: 'allowed.com',
+            enabled: true,
+            groupId: DEFAULT_GROUP_ID,
+          },
+        ],
+      };
+
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, testData);
+
+      const data = await loadData();
+      expect(data.whitelist[0]?.matchMode).toBe('contains');
+    });
   });
 
   describe('saveData', () => {
     it('should save data to storage', async () => {
       const testData = {
         groups: [createDefaultGroup()],
-        filters: [{ id: 'test-filter', pattern: 'example.com', groupId: DEFAULT_GROUP_ID, enabled: true }],
+        filters: [
+          {
+            id: 'test-filter',
+            pattern: 'example.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
         whitelist: [],
       };
 
@@ -146,6 +203,7 @@ describe('storage', () => {
         pattern: 'example.com',
         groupId: 'test-group',
         enabled: true,
+        matchMode: 'contains',
       };
       await addFilter(filter);
 
@@ -154,6 +212,7 @@ describe('storage', () => {
         pattern: 'allowed.com',
         groupId: 'test-group',
         enabled: true,
+        matchMode: 'contains',
       };
       await addWhitelist(whitelistEntry);
 
@@ -175,6 +234,7 @@ describe('storage', () => {
         pattern: 'example.com',
         groupId: DEFAULT_GROUP_ID,
         enabled: true,
+        matchMode: 'contains',
       };
 
       await addFilter(filter);
@@ -194,6 +254,7 @@ describe('storage', () => {
         pattern: 'example.com',
         groupId: DEFAULT_GROUP_ID,
         enabled: true,
+        matchMode: 'contains',
       };
       await addFilter(filter);
 
@@ -214,6 +275,7 @@ describe('storage', () => {
         pattern: 'example.com',
         groupId: DEFAULT_GROUP_ID,
         enabled: true,
+        matchMode: 'contains',
       };
       await addFilter(filter);
 
@@ -233,6 +295,7 @@ describe('storage', () => {
         pattern: 'allowed.com',
         groupId: DEFAULT_GROUP_ID,
         enabled: true,
+        matchMode: 'contains',
       };
 
       await addWhitelist(entry);
