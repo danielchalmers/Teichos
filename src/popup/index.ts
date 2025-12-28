@@ -44,7 +44,7 @@ async function renderFilters(): Promise<void> {
     filterList.innerHTML = `
       <div class="empty-state">
         <p>No filters configured.</p>
-        <button class="add-filter-btn" id="add-first-filter">+ New Filter</button>
+        <button class="button" id="add-first-filter">+ New Filter</button>
       </div>
     `;
 
@@ -71,7 +71,7 @@ async function renderFilters(): Promise<void> {
         <div class="filter-info">
           ${nameMarkup}
           <div class="filter-pattern" title="${escapeHtml(filter.pattern)}">${escapeHtml(filter.pattern)}</div>
-          <div class="filter-group">Group: ${escapeHtml(groupName)}</div>
+          <div class="filter-group">Group • ${escapeHtml(groupName)}</div>
         </div>
         <label class="toggle">
           <input type="checkbox" data-filter-id="${filter.id}" ${filter.enabled ? 'checked' : ''}>

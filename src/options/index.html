@@ -8,17 +8,14 @@
 </head>
 <body>
   <div class="container">
-    <h1 class="app-title">
-      <img class="app-icon" src="../assets/icons/icon32.png" alt="" />
-      Teichos
-    </h1>
-    <p class="subtitle">Configure URL filters and time-based blocking schedules</p>
-
-    <div class="groups-header">
-      <h2>Groups</h2>
-    </div>
-    <div id="groups-list"></div>
-    <div class="list-footer">
+    <header class="page-header">
+      <div class="title-block">
+        <h1 class="app-title">
+          <img class="app-icon" src="../assets/icons/icon32.png" alt="" />
+          Teichos
+        </h1>
+        <p class="subtitle">Configure URL filters and time-based blocking schedules</p>
+      </div>
       <button class="button" id="add-group-btn">
         <span class="button-icon" aria-hidden="true">
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
@@ -27,7 +24,12 @@
         </span>
         New Group
       </button>
+    </header>
+
+    <div class="section-header">
+      <h2>Groups</h2>
     </div>
+    <div id="groups-list"></div>
   </div>
 
   <!-- Filter Modal -->

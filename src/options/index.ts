@@ -171,34 +171,30 @@ async function renderGroups(): Promise<void> {
             <div class="group-section">
               <div class="group-section-header">
                 <h3>Filters</h3>
+                <button class="button small" data-action="add-filter" data-group-id="${group.id}">
+                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
+                  New Filter
+                </button>
               </div>
               ${
                 filters.length === 0
                   ? '<p class="empty-state">No filters in this group.</p>'
                   : filters.map(renderFilterItem).join('')
               }
-              <div class="list-footer">
-                <button class="button small" data-action="add-filter" data-group-id="${group.id}">
-                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
-                  New Filter
-                </button>
-              </div>
             </div>
             <div class="group-section">
               <div class="group-section-header">
                 <h3>Exceptions</h3>
+                <button class="button small secondary" data-action="add-whitelist" data-group-id="${group.id}">
+                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
+                  New Exception
+                </button>
               </div>
               ${
                 whitelist.length === 0
                   ? '<p class="empty-state">No exceptions in this group.</p>'
                   : whitelist.map(renderWhitelistItem).join('')
               }
-              <div class="list-footer">
-                <button class="button small secondary" data-action="add-whitelist" data-group-id="${group.id}">
-                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
-                  New Exception
-                </button>
-              </div>
             </div>
           </div>
         </details>
@@ -229,25 +225,23 @@ function renderFilterItem(filter: Filter): string {
 
   return `
     <div class="filter-item">
-      <div class="filter-header">
-        <div class="filter-details">
-          ${nameMarkup}
-          <div class="filter-pattern">${escapeHtml(filter.pattern)}</div>
-        </div>
-        <div class="actions">
-          <label class="toggle">
-            <input type="checkbox" ${filter.enabled ? 'checked' : ''} data-action="toggle-filter" data-filter-id="${filter.id}">
-            <span class="slider"></span>
-          </label>
-          <button class="button small secondary" data-action="edit-filter" data-filter-id="${filter.id}">
-            <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
-            Edit
-          </button>
-          <button class="button small danger" data-action="delete-filter" data-filter-id="${filter.id}">
-            <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
-            Delete
-          </button>
-        </div>
+      <div class="filter-details">
+        ${nameMarkup}
+        <div class="filter-pattern">${escapeHtml(filter.pattern)}</div>
+      </div>
+      <div class="actions">
+        <label class="toggle">
+          <input type="checkbox" ${filter.enabled ? 'checked' : ''} data-action="toggle-filter" data-filter-id="${filter.id}">
+          <span class="slider"></span>
+        </label>
+        <button class="button small secondary" data-action="edit-filter" data-filter-id="${filter.id}">
+          <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
+          Edit
+        </button>
+        <button class="button small danger" data-action="delete-filter" data-filter-id="${filter.id}">
+          <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
+          Delete
+        </button>
       </div>
     </div>
   `;
@@ -259,25 +253,23 @@ function renderWhitelistItem(entry: Whitelist): string {
 
   return `
     <div class="filter-item">
-      <div class="filter-header">
-        <div class="filter-details">
-          ${nameMarkup}
-          <div class="filter-pattern">${escapeHtml(entry.pattern)}</div>
-        </div>
-        <div class="actions">
-          <label class="toggle">
-            <input type="checkbox" ${entry.enabled ? 'checked' : ''} data-action="toggle-whitelist" data-whitelist-id="${entry.id}">
-            <span class="slider"></span>
-          </label>
-          <button class="button small secondary" data-action="edit-whitelist" data-whitelist-id="${entry.id}">
-            <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
-            Edit
-          </button>
-          <button class="button small danger" data-action="delete-whitelist" data-whitelist-id="${entry.id}">
-            <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
-            Delete
-          </button>
-        </div>
+      <div class="filter-details">
+        ${nameMarkup}
+        <div class="filter-pattern">${escapeHtml(entry.pattern)}</div>
+      </div>
+      <div class="actions">
+        <label class="toggle">
+          <input type="checkbox" ${entry.enabled ? 'checked' : ''} data-action="toggle-whitelist" data-whitelist-id="${entry.id}">
+          <span class="slider"></span>
+        </label>
+        <button class="button small secondary" data-action="edit-whitelist" data-whitelist-id="${entry.id}">
+          <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
+          Edit
+        </button>
+        <button class="button small danger" data-action="delete-whitelist" data-whitelist-id="${entry.id}">
+          <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
+          Delete
+        </button>
       </div>
     </div>
   `;
