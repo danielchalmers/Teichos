@@ -5,7 +5,7 @@
 import { loadData, updateFilter } from '../shared/api';
 import { openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
 import { escapeHtml } from '../shared/utils';
-import { getElementById, getElementByIdOrNull } from '../shared/utils/dom';
+import { getElementByIdOrNull } from '../shared/utils/dom';
 import type { StorageData, Filter } from '../shared/types';
 
 /**
@@ -20,6 +20,8 @@ async function init(): Promise<void> {
  * Set up event listeners for popup interactions
  */
 function setupEventListeners(): void {
+  setupInfoPopover();
+
   const openOptionsButton = getElementByIdOrNull('open-options');
   openOptionsButton?.addEventListener('click', () => {
     openOptionsPage()
@@ -29,6 +31,36 @@ function setupEventListeners(): void {
       .finally(() => {
         window.close();
       });
+  });
+}
+
+function setupInfoPopover(): void {
+  const popover = document.querySelector<HTMLElement>('.info-popover');
+  if (!popover) return;
+
+  const button = popover.querySelector<HTMLButtonElement>('.info-button');
+  if (!button) return;
+
+  const setOpen = (isOpen: boolean): void => {
+    popover.classList.toggle('is-open', isOpen);
+    button.setAttribute('aria-expanded', String(isOpen));
+  };
+
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setOpen(!popover.classList.contains('is-open'));
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!popover.contains(event.target as Node)) {
+      setOpen(false);
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      setOpen(false);
+    }
   });
 }
 

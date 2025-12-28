@@ -91,6 +91,118 @@ body {
   font-size: 0.95rem;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.info-popover {
+  position: relative;
+}
+
+.info-button {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.16);
+  color: #f8fbff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.info-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.info-button:hover {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.75);
+}
+
+.info-button:active {
+  transform: scale(0.97);
+}
+
+.info-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 3px;
+}
+
+.info-panel {
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  right: 0;
+  width: 270px;
+  max-width: 70vw;
+  background: #ffffff;
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 20;
+}
+
+.info-popover.is-open .info-panel {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.info-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-family: var(--font-display);
+  color: #1e293b;
+}
+
+.info-text {
+  margin: 0.45rem 0 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.info-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-decoration: none;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.25);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.info-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.3);
+}
+
+.info-badge-icon {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+}
+
+.info-badge-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
 .section-header h2 {
   margin: 0;
   color: #1e293b;

@@ -56,6 +56,8 @@ async function init(): Promise<void> {
  * Set up all event listeners
  */
 function setupEventListeners(): void {
+  setupInfoPopover();
+
   // Add buttons
   getElementByIdOrNull('add-group-btn')?.addEventListener('click', () =>
     openGroupModal()
@@ -95,6 +97,36 @@ function setupEventListeners(): void {
   getElementByIdOrNull('schedules-list')?.addEventListener('change', handleSchedulesListClick);
 
   document.addEventListener('keydown', handleGlobalKeydown);
+}
+
+function setupInfoPopover(): void {
+  const popover = document.querySelector<HTMLElement>('.info-popover');
+  if (!popover) return;
+
+  const button = popover.querySelector<HTMLButtonElement>('.info-button');
+  if (!button) return;
+
+  const setOpen = (isOpen: boolean): void => {
+    popover.classList.toggle('is-open', isOpen);
+    button.setAttribute('aria-expanded', String(isOpen));
+  };
+
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setOpen(!popover.classList.contains('is-open'));
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!popover.contains(event.target as Node)) {
+      setOpen(false);
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      setOpen(false);
+    }
+  });
 }
 
 function openFilterFromQuery(): void {
