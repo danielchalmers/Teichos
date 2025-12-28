@@ -42,6 +42,18 @@ export function isFilterActive(
     return false;
   }
 
+  return isFilterScheduledActive(filter, groups);
+}
+
+/**
+ * Check if a filter's group schedule is currently active
+ * @param filter - The filter to check
+ * @param groups - All available filter groups
+ */
+export function isFilterScheduledActive(
+  filter: Filter,
+  groups: readonly FilterGroup[]
+): boolean {
   const group = groups.find((g) => g.id === filter.groupId);
   if (!group) {
     return false;

@@ -4,9 +4,10 @@
 
 import { loadData, updateFilter } from '../shared/api';
 import { openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
-import { escapeHtml } from '../shared/utils';
+import { getActiveTab } from '../shared/api/tabs';
+import { escapeHtml, isFilterScheduledActive, matchesPattern } from '../shared/utils';
 import { getElementByIdOrNull } from '../shared/utils/dom';
-import type { StorageData, Filter } from '../shared/types';
+import type { StorageData } from '../shared/types';
 
 /**
  * Initialize popup
@@ -82,6 +83,14 @@ function getEditIcon(): string {
   `;
 }
 
+function formatInactiveSummary(inactiveCount: number): string {
+  if (inactiveCount <= 0) {
+    return '';
+  }
+  const label = inactiveCount === 1 ? 'filter' : 'filters';
+  return `<div class="inactive-summary">${inactiveCount} more inactive ${label}</div>`;
+}
+
 async function copyText(value: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(value);
@@ -127,9 +136,39 @@ async function renderFilters(): Promise<void> {
     return;
   }
 
-  filterList.innerHTML = data.filters
-    .map((filter) => {
-      const group = data.groups.find((g) => g.id === filter.groupId);
+  const activeTab = await getActiveTab();
+  const activeUrl = activeTab?.url;
+  const isUrlEligible =
+    Boolean(activeUrl) &&
+    !activeUrl?.startsWith('chrome-extension://') &&
+    !activeUrl?.startsWith('chrome://');
+
+  const whitelistedGroups = new Set<string>();
+  if (isUrlEligible && activeUrl) {
+    for (const entry of data.whitelist) {
+      if (!entry.enabled) continue;
+      if (matchesPattern(activeUrl, entry.pattern, entry.isRegex ?? false)) {
+        whitelistedGroups.add(entry.groupId);
+      }
+    }
+  }
+
+  const visibleFilters = data.filters.filter((filter) => {
+    if (!isFilterScheduledActive(filter, data.groups)) {
+      return false;
+    }
+    if (isUrlEligible && whitelistedGroups.has(filter.groupId)) {
+      return false;
+    }
+    return true;
+  });
+  const inactiveCount = data.filters.length - visibleFilters.length;
+  const groupsById = new Map(data.groups.map((group) => [group.id, group]));
+
+  filterList.innerHTML =
+    visibleFilters
+      .map((filter) => {
+      const group = groupsById.get(filter.groupId);
       const groupName = group?.name ?? 'Unknown Group';
       const description = filter.description?.trim();
       const nameMarkup = description
@@ -159,8 +198,8 @@ async function renderFilters(): Promise<void> {
         </div>
       </div>
     `;
-    })
-    .join('');
+      })
+      .join('') + formatInactiveSummary(inactiveCount);
 
   const copyButtons = filterList.querySelectorAll<HTMLButtonElement>(
     'button[data-action="copy-url"]'
@@ -209,6 +248,7 @@ async function renderFilters(): Promise<void> {
 
       try {
         await toggleFilter(data, filterId, checkbox.checked);
+        await renderFilters();
       } catch (error) {
         console.error('Failed to toggle filter:', error);
         checkbox.checked = originalState;
