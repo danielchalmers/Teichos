@@ -2,6 +2,12 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  background-color: var(--bg);
+  overflow-x: hidden;
+}
+
 :root {
   --font-sans: "Avenir Next", "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Noto Sans", sans-serif;
   --font-display: "Space Grotesk", "Avenir Next", "SF Pro Display", "Segoe UI Variable", "Segoe UI",
@@ -12,9 +18,9 @@
   --bg: #f2f4fb;
   --surface: #ffffff;
   --border: #e2e8f0;
-  --accent: #5b8def;
-  --accent-strong: #7a4ae5;
-  --accent-deep: #4c2fbf;
+  --accent: #6f9af2;
+  --accent-strong: #7f86ea;
+  --accent-deep: #6e73d9;
   --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.08);
   --radius-md: 12px;
   --radius-sm: 10px;
@@ -25,17 +31,20 @@ body {
   margin: 0;
   padding: 0;
   min-width: 320px;
+  overflow-x: hidden;
   background:
-    radial-gradient(500px 200px at 20% -10%, rgba(91, 141, 239, 0.18), transparent 60%),
-    radial-gradient(380px 160px at 90% -10%, rgba(122, 74, 229, 0.16), transparent 55%),
+    radial-gradient(520px 220px at 20% -10%, rgba(111, 154, 242, 0.14), transparent 65%),
+    radial-gradient(420px 180px at 90% -10%, rgba(139, 125, 220, 0.12), transparent 60%),
     var(--bg);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--text-primary);
   font-size: 14px;
   line-height: 1.45;
 }
 
 .header {
-  background: linear-gradient(135deg, #5b8def 0%, #7a4ae5 55%, #9b5de5 100%);
+  background: linear-gradient(135deg, #6f9af2 0%, #7e89ec 50%, #8b7fda 100%);
   color: white;
   padding: 14px 16px;
   display: flex;
@@ -80,7 +89,6 @@ body {
 }
 
 .button:hover {
-  transform: translateY(-1px);
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
 }
 
@@ -106,6 +114,7 @@ body {
 .filter-list {
   max-height: 320px;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -121,11 +130,16 @@ body {
   align-items: center;
   gap: 0.75rem;
   box-shadow: var(--shadow-sm);
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .filter-info {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
@@ -138,15 +152,22 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
+  width: 100%;
 }
 
 .filter-pattern {
   font-family: "SFMono-Regular", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 0.78rem;
   color: var(--text-secondary);
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
+  max-width: 100%;
+  width: 100%;
 }
 
 .filter-group {
@@ -218,11 +239,6 @@ input:checked + .slider:before {
 }
 
 @media (max-width: 360px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
   .filter-item {
     flex-direction: column;
     align-items: flex-start;

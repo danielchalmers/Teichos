@@ -2,6 +2,12 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  overflow-y: scroll;
+  background-color: var(--bg);
+}
+
 :root {
   --font-sans: "Avenir Next", "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Noto Sans", sans-serif;
   --font-display: "Space Grotesk", "Avenir Next", "SF Pro Display", "Segoe UI Variable", "Segoe UI",
@@ -13,9 +19,9 @@
   --surface: #ffffff;
   --surface-muted: #f6f7ff;
   --border: #e2e8f0;
-  --accent: #5b8def;
-  --accent-strong: #7a4ae5;
-  --accent-deep: #4c2fbf;
+  --accent: #6f9af2;
+  --accent-strong: #7f86ea;
+  --accent-deep: #6e73d9;
   --danger: #ef4444;
   --shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.08);
   --shadow-lg: 0 18px 45px rgba(20, 24, 64, 0.2);
@@ -27,11 +33,14 @@
 body {
   font-family: var(--font-sans);
   margin: 0;
-  padding: 28px 24px 48px;
+  padding: 28px 24px 72px;
+  min-height: 100vh;
   background:
-    radial-gradient(900px 500px at 10% 0%, rgba(91, 141, 239, 0.18), transparent 60%),
-    radial-gradient(700px 400px at 90% 0%, rgba(122, 74, 229, 0.16), transparent 55%),
+    radial-gradient(900px 520px at 10% -5%, rgba(111, 154, 242, 0.14), transparent 65%),
+    radial-gradient(760px 420px at 92% -10%, rgba(139, 125, 220, 0.12), transparent 60%),
     var(--bg);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--text-primary);
   font-size: 16px;
   line-height: 1.5;
@@ -43,7 +52,7 @@ body {
 }
 
 .page-header {
-  background: linear-gradient(135deg, #5b8def 0%, #7a4ae5 55%, #9b5de5 100%);
+  background: linear-gradient(135deg, #6f9af2 0%, #7e89ec 50%, #8b7fda 100%);
   color: #f8fbff;
   border-radius: var(--radius-lg);
   padding: 1.5rem 1.75rem;
@@ -94,6 +103,16 @@ body {
   margin-bottom: 1rem;
 }
 
+.list-footer {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.8rem;
+}
+
+.group-section .list-footer {
+  margin-top: 0.65rem;
+}
+
 /* Buttons */
 .button {
   font-family: var(--font-sans);
@@ -127,7 +146,6 @@ form .button + .button {
 }
 
 .button:hover {
-  transform: translateY(-1px);
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
 }
 
@@ -157,6 +175,36 @@ form .button + .button {
   box-shadow: none;
 }
 
+.icon-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid #d7dbe7;
+  background: transparent;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.icon-button.small {
+  width: 28px;
+  height: 28px;
+}
+
+.icon-button:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #334155;
+}
+
+.icon-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .button-icon {
   display: inline-flex;
   width: 14px;
@@ -166,6 +214,28 @@ form .button + .button {
 .button-icon svg {
   width: 100%;
   height: 100%;
+}
+
+.icon-button .button-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-button.small .button-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  white-space: nowrap;
 }
 
 /* Form elements */
@@ -242,7 +312,7 @@ label {
   content: '▾';
   color: #94a3b8;
   transition: transform 0.2s;
-  font-size: 1rem;
+  font-size: 1.3rem;
   line-height: 1;
   margin-left: 0.75rem;
 }
@@ -345,6 +415,10 @@ label {
   font-family: "SFMono-Regular", "Menlo", "Consolas", "Liberation Mono", monospace;
   color: var(--text-secondary);
   font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .filter-meta {
@@ -454,6 +528,19 @@ input:checked + .slider:before {
   font-size: 1.15rem;
 }
 
+.modal-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.modal-actions .button.danger {
+  margin-right: auto;
+}
+
 .close {
   font-size: 1.5rem;
   cursor: pointer;
@@ -509,18 +596,24 @@ input:checked + .slider:before {
 }
 
 .day-checkboxes {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-  gap: 0.35rem 0.8rem;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.5rem;
+  align-items: center;
   margin-bottom: 0.6rem;
 }
 
 .day-checkbox {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
   gap: 0.35rem;
   font-weight: 500;
   color: var(--text-secondary);
+  font-size: 0.75rem;
 }
 
 .day-checkbox input {
@@ -529,6 +622,11 @@ input:checked + .slider:before {
 
 #schedules-container {
   margin-bottom: 0.5rem;
+}
+
+.required-marker {
+  color: #ef4444;
+  font-weight: 600;
 }
 
 @media (max-width: 720px) {

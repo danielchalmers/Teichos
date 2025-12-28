@@ -16,6 +16,13 @@
         </h1>
         <p class="subtitle">Configure URL filters and time-based blocking schedules</p>
       </div>
+    </header>
+
+    <div class="section-header">
+      <h2>Groups</h2>
+    </div>
+    <div id="groups-list"></div>
+    <div class="list-footer">
       <button class="button" id="add-group-btn">
         <span class="button-icon" aria-hidden="true">
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
@@ -24,12 +31,7 @@
         </span>
         New Group
       </button>
-    </header>
-
-    <div class="section-header">
-      <h2>Groups</h2>
     </div>
-    <div id="groups-list"></div>
   </div>
 
   <!-- Filter Modal -->
@@ -41,7 +43,7 @@
       </div>
       <form id="filter-form">
         <div class="form-row">
-          <label for="filter-pattern">URL Pattern</label>
+          <label for="filter-pattern">URL Pattern <span class="required-marker" aria-hidden="true">*</span></label>
           <input type="text" id="filter-pattern" class="input" required placeholder="e.g., facebook.com">
         </div>
         <div class="form-row">
@@ -55,17 +57,16 @@
           <input type="text" id="filter-description" class="input" placeholder="e.g., Block Facebook">
         </div>
         <div class="form-row">
-          <label for="filter-group">Group</label>
-          <select id="filter-group" class="input" required></select>
-        </div>
-        <div class="form-row">
           <label class="checkbox-label">
             <input type="checkbox" id="filter-enabled" checked>
             Enabled
           </label>
         </div>
-        <button type="submit" class="button">Save</button>
-        <button type="button" class="button secondary" id="cancel-filter">Cancel</button>
+        <div class="modal-actions">
+          <button type="button" class="button danger" id="delete-filter">Delete</button>
+          <button type="button" class="button secondary" id="cancel-filter">Cancel</button>
+          <button type="submit" class="button">Save</button>
+        </div>
       </form>
     </div>
   </div>
@@ -79,7 +80,7 @@
       </div>
       <form id="group-form">
         <div class="form-row">
-          <label for="group-name">Group Name</label>
+          <label for="group-name">Group Name <span class="required-marker" aria-hidden="true">*</span></label>
           <input type="text" id="group-name" class="input" required placeholder="e.g., Work Hours">
         </div>
         <div class="form-row">
@@ -89,8 +90,10 @@
           </label>
         </div>
         <div id="schedules-container" style="display: none;">
-          <label>Schedules</label>
-          <div id="schedules-list"></div>
+          <div class="form-row">
+            <label>Schedules</label>
+            <div id="schedules-list"></div>
+          </div>
           <button type="button" class="button small secondary" id="add-schedule-btn">
             <span class="button-icon" aria-hidden="true">
               <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
@@ -100,8 +103,11 @@
             New Schedule
           </button>
         </div>
-        <button type="submit" class="button">Save</button>
-        <button type="button" class="button secondary" id="cancel-group">Cancel</button>
+        <div class="modal-actions">
+          <button type="button" class="button danger" id="delete-group">Delete</button>
+          <button type="button" class="button secondary" id="cancel-group">Cancel</button>
+          <button type="submit" class="button">Save</button>
+        </div>
       </form>
     </div>
   </div>
@@ -115,7 +121,7 @@
       </div>
       <form id="whitelist-form">
         <div class="form-row">
-          <label for="whitelist-pattern">URL Pattern</label>
+          <label for="whitelist-pattern">URL Pattern <span class="required-marker" aria-hidden="true">*</span></label>
           <input type="text" id="whitelist-pattern" class="input" required placeholder="e.g., facebook.com/work">
         </div>
         <div class="form-row">
@@ -129,17 +135,16 @@
           <input type="text" id="whitelist-description" class="input" placeholder="e.g., Allow Facebook Work">
         </div>
         <div class="form-row">
-          <label for="whitelist-group">Group</label>
-          <select id="whitelist-group" class="input" required></select>
-        </div>
-        <div class="form-row">
           <label class="checkbox-label">
             <input type="checkbox" id="whitelist-enabled" checked>
             Enabled
           </label>
         </div>
-        <button type="submit" class="button">Save</button>
-        <button type="button" class="button secondary" id="cancel-whitelist">Cancel</button>
+        <div class="modal-actions">
+          <button type="button" class="button danger" id="delete-whitelist">Delete</button>
+          <button type="button" class="button secondary" id="cancel-whitelist">Cancel</button>
+          <button type="submit" class="button">Save</button>
+        </div>
       </form>
     </div>
   </div>

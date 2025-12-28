@@ -4,7 +4,7 @@
 
 export const EXTENSION_NAME = 'Teichos' as const;
 
-export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+export const DAY_NAMES = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const;
 
 export const DEFAULT_SCHEDULE = {
   daysOfWeek: [1, 2, 3, 4, 5], // Monday-Friday

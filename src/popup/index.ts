@@ -22,9 +22,13 @@ async function init(): Promise<void> {
 function setupEventListeners(): void {
   const openOptionsButton = getElementByIdOrNull('open-options');
   openOptionsButton?.addEventListener('click', () => {
-    openOptionsPage().catch((error: unknown) => {
-      console.error('Failed to open options page:', error);
-    });
+    openOptionsPage()
+      .catch((error: unknown) => {
+        console.error('Failed to open options page:', error);
+      })
+      .finally(() => {
+        window.close();
+      });
   });
 }
 

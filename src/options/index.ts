@@ -30,16 +30,17 @@ const EDIT_ICON_SVG =
   '<path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"/>' +
   '<path d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z" fill="currentColor"/>' +
   '</svg>';
-const DELETE_ICON_SVG =
+const MINUS_ICON_SVG =
   '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">' +
-  '<path d="M6 3h4l1 1h3v2H2V4h3l1-1z" fill="currentColor"/>' +
-  '<path d="M4 7h8l-.6 6.5a1 1 0 0 1-1 .9H5.6a1 1 0 0 1-1-.9L4 7z" fill="currentColor"/>' +
+  '<path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
   '</svg>';
 
 // Modal state
 let currentEditingFilterId: string | null = null;
 let currentEditingGroupId: string | null = null;
 let currentEditingWhitelistId: string | null = null;
+let currentFilterGroupId: string | null = null;
+let currentWhitelistGroupId: string | null = null;
 let temporarySchedules: MutableTimeSchedule[] = [];
 
 /**
@@ -63,11 +64,13 @@ function setupEventListeners(): void {
   getElementByIdOrNull('close-filter-modal')?.addEventListener('click', closeFilterModal);
   getElementByIdOrNull('cancel-filter')?.addEventListener('click', closeFilterModal);
   getElementByIdOrNull('filter-form')?.addEventListener('submit', handleFilterSubmit);
+  getElementByIdOrNull('delete-filter')?.addEventListener('click', handleFilterDelete);
 
   // Group modal
   getElementByIdOrNull('close-group-modal')?.addEventListener('click', closeGroupModal);
   getElementByIdOrNull('cancel-group')?.addEventListener('click', closeGroupModal);
   getElementByIdOrNull('group-form')?.addEventListener('submit', handleGroupSubmit);
+  getElementByIdOrNull('delete-group')?.addEventListener('click', handleGroupDelete);
   getElementByIdOrNull('add-schedule-btn')?.addEventListener('click', addScheduleToModal);
   getElementByIdOrNull('group-24x7')?.addEventListener('change', (e: Event) => {
     const is24x7 = (e.target as HTMLInputElement).checked;
@@ -81,6 +84,7 @@ function setupEventListeners(): void {
   getElementByIdOrNull('close-whitelist-modal')?.addEventListener('click', closeWhitelistModal);
   getElementByIdOrNull('cancel-whitelist')?.addEventListener('click', closeWhitelistModal);
   getElementByIdOrNull('whitelist-form')?.addEventListener('submit', handleWhitelistSubmit);
+  getElementByIdOrNull('delete-whitelist')?.addEventListener('click', handleWhitelistDelete);
 
   // Event delegation for list actions
   const groupsList = getElementByIdOrNull('groups-list');
@@ -157,44 +161,40 @@ async function renderGroups(): Promise<void> {
                     </button>`
                   : ''
               }
-              ${
-                !isDefault
-                  ? `<button class="button small danger" data-action="delete-group" data-group-id="${group.id}">
-                      <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
-                      Delete
-                    </button>`
-                  : ''
-              }
             </div>
           </summary>
           <div class="group-content">
             <div class="group-section">
               <div class="group-section-header">
                 <h3>Filters</h3>
-                <button class="button small" data-action="add-filter" data-group-id="${group.id}">
-                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
-                  New Filter
-                </button>
               </div>
               ${
                 filters.length === 0
                   ? '<p class="empty-state">No filters in this group.</p>'
                   : filters.map(renderFilterItem).join('')
               }
+              <div class="list-footer">
+                <button class="button small" data-action="add-filter" data-group-id="${group.id}">
+                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
+                  New Filter
+                </button>
+              </div>
             </div>
             <div class="group-section">
               <div class="group-section-header">
                 <h3>Exceptions</h3>
-                <button class="button small secondary" data-action="add-whitelist" data-group-id="${group.id}">
-                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
-                  New Exception
-                </button>
               </div>
               ${
                 whitelist.length === 0
                   ? '<p class="empty-state">No exceptions in this group.</p>'
                   : whitelist.map(renderWhitelistItem).join('')
               }
+              <div class="list-footer">
+                <button class="button small secondary" data-action="add-whitelist" data-group-id="${group.id}">
+                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
+                  New Exception
+                </button>
+              </div>
             </div>
           </div>
         </details>
@@ -238,10 +238,6 @@ function renderFilterItem(filter: Filter): string {
           <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
           Edit
         </button>
-        <button class="button small danger" data-action="delete-filter" data-filter-id="${filter.id}">
-          <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
-          Delete
-        </button>
       </div>
     </div>
   `;
@@ -265,10 +261,6 @@ function renderWhitelistItem(entry: Whitelist): string {
         <button class="button small secondary" data-action="edit-whitelist" data-whitelist-id="${entry.id}">
           <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
           Edit
-        </button>
-        <button class="button small danger" data-action="delete-whitelist" data-whitelist-id="${entry.id}">
-          <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
-          Delete
         </button>
       </div>
     </div>
@@ -302,9 +294,9 @@ function renderSchedules(): void {
             <input type="time" value="${schedule.startTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="startTime" class="input">
             <span>to</span>
             <input type="time" value="${schedule.endTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="endTime" class="input">
-            <button type="button" class="button small danger" data-action="remove-schedule" data-schedule-index="${index}">
-              <span class="button-icon" aria-hidden="true">${DELETE_ICON_SVG}</span>
-              Delete
+            <button type="button" class="icon-button small" data-action="remove-schedule" data-schedule-index="${index}" aria-label="Delete" title="Delete">
+              <span class="button-icon" aria-hidden="true">${MINUS_ICON_SVG}</span>
+              <span class="sr-only">Delete</span>
             </button>
           </div>
         </div>
@@ -319,43 +311,37 @@ function renderSchedules(): void {
 
 function openFilterModal(filterId?: string, groupId?: string): void {
   currentEditingFilterId = filterId ?? null;
+  currentFilterGroupId = groupId ?? DEFAULT_GROUP_ID;
   const modal = getElementByIdOrNull('filter-modal');
   const title = getElementByIdOrNull('filter-modal-title');
   const form = getElementByIdOrNull<HTMLFormElement>('filter-form');
+  const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-filter');
 
   if (!modal || !title || !form) return;
 
   form.reset();
   title.textContent = filterId ? 'Edit Filter' : 'Add Filter';
+  if (deleteButton) {
+    deleteButton.style.display = filterId ? 'inline-flex' : 'none';
+    deleteButton.disabled = !filterId;
+  }
 
   loadData()
     .then((data) => {
-      const groupSelect = getElementByIdOrNull<HTMLSelectElement>('filter-group');
-      if (!groupSelect) return;
-
-      groupSelect.innerHTML = data.groups
-        .map((g) => `<option value="${g.id}">${escapeHtml(g.name)}</option>`)
-        .join('');
-      groupSelect.disabled = Boolean(groupId && !filterId);
-
       const filter = filterId ? data.filters.find((f) => f.id === filterId) : undefined;
       const selectedGroupId = filter?.groupId ?? groupId ?? DEFAULT_GROUP_ID;
-      groupSelect.value = selectedGroupId;
+      currentFilterGroupId = selectedGroupId;
 
-      if (filterId) {
-        if (filter) {
-          const patternInput = getElementByIdOrNull<HTMLInputElement>('filter-pattern');
-          const descInput = getElementByIdOrNull<HTMLInputElement>('filter-description');
-          const groupInput = getElementByIdOrNull<HTMLSelectElement>('filter-group');
-          const enabledInput = getElementByIdOrNull<HTMLInputElement>('filter-enabled');
-          const regexInput = getElementByIdOrNull<HTMLInputElement>('filter-is-regex');
+      if (filter) {
+        const patternInput = getElementByIdOrNull<HTMLInputElement>('filter-pattern');
+        const descInput = getElementByIdOrNull<HTMLInputElement>('filter-description');
+        const enabledInput = getElementByIdOrNull<HTMLInputElement>('filter-enabled');
+        const regexInput = getElementByIdOrNull<HTMLInputElement>('filter-is-regex');
 
-          if (patternInput) patternInput.value = filter.pattern;
-          if (descInput) descInput.value = filter.description ?? '';
-          if (groupInput) groupInput.value = selectedGroupId;
-          if (enabledInput) enabledInput.checked = filter.enabled;
-          if (regexInput) regexInput.checked = filter.isRegex ?? false;
-        }
+        if (patternInput) patternInput.value = filter.pattern;
+        if (descInput) descInput.value = filter.description ?? '';
+        if (enabledInput) enabledInput.checked = filter.enabled;
+        if (regexInput) regexInput.checked = filter.isRegex ?? false;
       }
     })
     .catch((error: unknown) => {
@@ -368,6 +354,7 @@ function openFilterModal(filterId?: string, groupId?: string): void {
 function closeFilterModal(): void {
   getElementByIdOrNull('filter-modal')?.classList.remove('active');
   currentEditingFilterId = null;
+  currentFilterGroupId = null;
 }
 
 async function handleFilterSubmit(e: Event): Promise<void> {
@@ -375,7 +362,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
 
   const pattern = getElementByIdOrNull<HTMLInputElement>('filter-pattern')?.value ?? '';
   const description = getElementByIdOrNull<HTMLInputElement>('filter-description')?.value ?? '';
-  const groupId = getElementByIdOrNull<HTMLSelectElement>('filter-group')?.value ?? DEFAULT_GROUP_ID;
+  const groupId = currentFilterGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('filter-enabled')?.checked ?? true;
   const isRegex = getElementByIdOrNull<HTMLInputElement>('filter-is-regex')?.checked ?? false;
 
@@ -412,6 +399,19 @@ async function handleFilterSubmit(e: Event): Promise<void> {
   }
 }
 
+async function handleFilterDelete(): Promise<void> {
+  if (!currentEditingFilterId) return;
+
+  try {
+    await deleteFilter(currentEditingFilterId);
+    closeFilterModal();
+    await renderGroups();
+  } catch (error) {
+    console.error('Failed to delete filter:', error);
+    alert('Failed to delete filter. Please try again.');
+  }
+}
+
 // ============================================================================
 // Group Modal
 // ============================================================================
@@ -425,11 +425,17 @@ function openGroupModal(groupId?: string): void {
   const form = getElementByIdOrNull<HTMLFormElement>('group-form');
   const schedulesContainer = getElementByIdOrNull('schedules-container');
   const is24x7Checkbox = getElementByIdOrNull<HTMLInputElement>('group-24x7');
+  const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-group');
 
   if (!modal || !title || !form || !schedulesContainer || !is24x7Checkbox) return;
 
   form.reset();
   title.textContent = groupId ? 'Edit Group' : 'Add Group';
+  if (deleteButton) {
+    const allowDelete = Boolean(groupId && groupId !== DEFAULT_GROUP_ID);
+    deleteButton.style.display = allowDelete ? 'inline-flex' : 'none';
+    deleteButton.disabled = !allowDelete;
+  }
 
   if (groupId && groupId !== DEFAULT_GROUP_ID) {
     loadData()
@@ -501,34 +507,45 @@ async function handleGroupSubmit(e: Event): Promise<void> {
   }
 }
 
+async function handleGroupDelete(): Promise<void> {
+  if (!currentEditingGroupId || currentEditingGroupId === DEFAULT_GROUP_ID) return;
+
+  try {
+    await deleteGroup(currentEditingGroupId);
+    closeGroupModal();
+    await renderGroups();
+  } catch (error) {
+    console.error('Failed to delete group:', error);
+    alert('Failed to delete group. Please try again.');
+  }
+}
+
 // ============================================================================
 // Whitelist Modal
 // ============================================================================
 
 function openWhitelistModal(whitelistId?: string, groupId?: string): void {
   currentEditingWhitelistId = whitelistId ?? null;
+  currentWhitelistGroupId = groupId ?? DEFAULT_GROUP_ID;
   const modal = getElementByIdOrNull('whitelist-modal');
   const title = getElementByIdOrNull('whitelist-modal-title');
   const form = getElementByIdOrNull<HTMLFormElement>('whitelist-form');
+  const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-whitelist');
 
   if (!modal || !title || !form) return;
 
   form.reset();
   title.textContent = whitelistId ? 'Edit Exception' : 'Add Exception';
+  if (deleteButton) {
+    deleteButton.style.display = whitelistId ? 'inline-flex' : 'none';
+    deleteButton.disabled = !whitelistId;
+  }
 
   loadData()
     .then((data) => {
-      const groupSelect = getElementByIdOrNull<HTMLSelectElement>('whitelist-group');
-      if (!groupSelect) return;
-
-      groupSelect.innerHTML = data.groups
-        .map((g) => `<option value="${g.id}">${escapeHtml(g.name)}</option>`)
-        .join('');
-      groupSelect.disabled = Boolean(groupId && !whitelistId);
-
       const entry = whitelistId ? data.whitelist.find((w) => w.id === whitelistId) : undefined;
       const selectedGroupId = entry?.groupId ?? groupId ?? DEFAULT_GROUP_ID;
-      groupSelect.value = selectedGroupId;
+      currentWhitelistGroupId = selectedGroupId;
 
       if (entry) {
         const patternInput = getElementByIdOrNull<HTMLInputElement>('whitelist-pattern');
@@ -552,6 +569,7 @@ function openWhitelistModal(whitelistId?: string, groupId?: string): void {
 function closeWhitelistModal(): void {
   getElementByIdOrNull('whitelist-modal')?.classList.remove('active');
   currentEditingWhitelistId = null;
+  currentWhitelistGroupId = null;
 }
 
 async function handleWhitelistSubmit(e: Event): Promise<void> {
@@ -559,7 +577,7 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
 
   const pattern = getElementByIdOrNull<HTMLInputElement>('whitelist-pattern')?.value ?? '';
   const description = getElementByIdOrNull<HTMLInputElement>('whitelist-description')?.value ?? '';
-  const groupId = getElementByIdOrNull<HTMLSelectElement>('whitelist-group')?.value ?? DEFAULT_GROUP_ID;
+  const groupId = currentWhitelistGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled')?.checked ?? true;
   const isRegex = getElementByIdOrNull<HTMLInputElement>('whitelist-is-regex')?.checked ?? false;
 
@@ -593,6 +611,19 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
   } catch (error) {
     console.error('Failed to save exception:', error);
     alert('Failed to save exception. Please try again.');
+  }
+}
+
+async function handleWhitelistDelete(): Promise<void> {
+  if (!currentEditingWhitelistId) return;
+
+  try {
+    await deleteWhitelist(currentEditingWhitelistId);
+    closeWhitelistModal();
+    await renderGroups();
+  } catch (error) {
+    console.error('Failed to delete exception:', error);
+    alert('Failed to delete exception. Please try again.');
   }
 }
 
