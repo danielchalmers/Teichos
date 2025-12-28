@@ -46,6 +46,4 @@ jobs:
         with:
           tag: v${{ steps.get_version.outputs.VERSION }}
           artifacts: pageblock-${{ steps.get_version.outputs.VERSION }}.zip
-          allowUpdates: false
-          removeArtifacts: true
-          omitBodyDuringUpdate: true
+          skipIfReleaseExists: true
