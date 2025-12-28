@@ -25,6 +25,28 @@ export function openOptionsPage(): Promise<void> {
 }
 
 /**
+ * Open the extension's options page with query params
+ */
+export function openOptionsPageWithParams(
+  params: Record<string, string>
+): Promise<chrome.tabs.Tab | undefined> {
+  const url = new URL(getExtensionUrl('options/index.html'));
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+
+  return new Promise((resolve, reject) => {
+    chrome.tabs.create({ url: url.toString() }, (tab) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+      } else {
+        resolve(tab);
+      }
+    });
+  });
+}
+
+/**
  * Get the extension's unique ID
  */
 export function getExtensionId(): string {

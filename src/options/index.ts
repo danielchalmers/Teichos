@@ -49,6 +49,7 @@ let temporarySchedules: MutableTimeSchedule[] = [];
 async function init(): Promise<void> {
   await renderGroups();
   setupEventListeners();
+  openFilterFromQuery();
 }
 
 /**
@@ -94,6 +95,18 @@ function setupEventListeners(): void {
   getElementByIdOrNull('schedules-list')?.addEventListener('change', handleSchedulesListClick);
 
   document.addEventListener('keydown', handleGlobalKeydown);
+}
+
+function openFilterFromQuery(): void {
+  const params = new URLSearchParams(window.location.search);
+  const filterId = params.get('editFilter');
+  if (!filterId) return;
+
+  openFilterModal(filterId);
+
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.delete('editFilter');
+  history.replaceState({}, document.title, nextUrl.toString());
 }
 
 // ============================================================================

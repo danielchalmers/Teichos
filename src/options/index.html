@@ -43,6 +43,10 @@
       </div>
       <form id="filter-form">
         <div class="form-row">
+          <label for="filter-description">Name</label>
+          <input type="text" id="filter-description" class="input" placeholder="e.g., Block Facebook">
+        </div>
+        <div class="form-row">
           <label for="filter-pattern">URL Pattern <span class="required-marker" aria-hidden="true">*</span></label>
           <input type="text" id="filter-pattern" class="input" required placeholder="e.g., facebook.com">
         </div>
@@ -51,10 +55,6 @@
             <input type="checkbox" id="filter-is-regex">
             Use Regular Expression (Regex)
           </label>
-        </div>
-        <div class="form-row">
-          <label for="filter-description">Description (Optional)</label>
-          <input type="text" id="filter-description" class="input" placeholder="e.g., Block Facebook">
         </div>
         <div class="form-row">
           <label class="checkbox-label">
@@ -121,6 +121,10 @@
       </div>
       <form id="whitelist-form">
         <div class="form-row">
+          <label for="whitelist-description">Name</label>
+          <input type="text" id="whitelist-description" class="input" placeholder="e.g., Allow Facebook Work">
+        </div>
+        <div class="form-row">
           <label for="whitelist-pattern">URL Pattern <span class="required-marker" aria-hidden="true">*</span></label>
           <input type="text" id="whitelist-pattern" class="input" required placeholder="e.g., facebook.com/work">
         </div>
@@ -129,10 +133,6 @@
             <input type="checkbox" id="whitelist-is-regex">
             Use Regular Expression (Regex)
           </label>
-        </div>
-        <div class="form-row">
-          <label for="whitelist-description">Description (Optional)</label>
-          <input type="text" id="whitelist-description" class="input" placeholder="e.g., Allow Facebook Work">
         </div>
         <div class="form-row">
           <label class="checkbox-label">

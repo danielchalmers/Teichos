@@ -126,8 +126,9 @@ body {
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
   gap: 0.75rem;
   box-shadow: var(--shadow-sm);
   width: 100%;
@@ -173,6 +174,53 @@ body {
 .filter-group {
   font-size: 0.7rem;
   color: var(--text-muted);
+}
+
+.quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.quick-actions.right {
+  margin-left: auto;
+}
+
+.quick-actions-bottom {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.icon-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-button:hover {
+  color: var(--text-primary);
+  border-color: rgba(111, 154, 242, 0.6);
+  background: #eef2ff;
+}
+
+.icon-button:active {
+  transform: scale(0.96);
 }
 
 /* Toggle switch */
