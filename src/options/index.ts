@@ -40,6 +40,8 @@ const MINUS_ICON_SVG =
   '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">' +
   '<path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
   '</svg>';
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 // Modal state
 let currentEditingFilterId: string | null = null;
@@ -48,6 +50,8 @@ let currentEditingWhitelistId: string | null = null;
 let currentFilterGroupId: string | null = null;
 let currentWhitelistGroupId: string | null = null;
 let temporarySchedules: MutableTimeSchedule[] = [];
+let activeModal: HTMLElement | null = null;
+let lastFocusedElement: HTMLElement | null = null;
 
 /**
  * Initialize options page
@@ -110,12 +114,24 @@ function setupInfoPopover(): void {
   if (!popover) return;
 
   const button = popover.querySelector<HTMLButtonElement>('.info-button');
-  if (!button) return;
+  const panel = popover.querySelector<HTMLElement>('.info-panel');
+  if (!button || !panel) return;
 
-  const setOpen = (isOpen: boolean): void => {
+  const setOpen = (isOpen: boolean, returnFocus = false): void => {
     popover.classList.toggle('is-open', isOpen);
     button.setAttribute('aria-expanded', String(isOpen));
+    panel.setAttribute('aria-hidden', String(!isOpen));
+    if (isOpen) {
+      panel.removeAttribute('inert');
+    } else {
+      panel.setAttribute('inert', '');
+      if (returnFocus) {
+        button.focus();
+      }
+    }
   };
+
+  setOpen(popover.classList.contains('is-open'));
 
   button.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -129,8 +145,9 @@ function setupInfoPopover(): void {
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      setOpen(false);
+    if (event.key === 'Escape' && popover.classList.contains('is-open')) {
+      const shouldReturnFocus = popover.contains(document.activeElement);
+      setOpen(false, shouldReturnFocus);
     }
   });
 }
@@ -148,6 +165,115 @@ function openFilterFromQuery(): void {
 }
 
 // ============================================================================
+// Accessibility Helpers
+// ============================================================================
+
+function setMainInert(isInert: boolean): void {
+  const container = document.querySelector<HTMLElement>('.container');
+  if (!container) return;
+
+  if (isInert) {
+    container.setAttribute('aria-hidden', 'true');
+    container.setAttribute('inert', '');
+  } else {
+    container.removeAttribute('aria-hidden');
+    container.removeAttribute('inert');
+  }
+}
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+}
+
+function focusModal(modal: HTMLElement, preferredSelector?: string): void {
+  if (preferredSelector) {
+    const preferredElement = modal.querySelector<HTMLElement>(preferredSelector);
+    if (preferredElement) {
+      preferredElement.focus();
+      return;
+    }
+  }
+
+  const focusableElements = getFocusableElements(modal);
+  if (focusableElements.length > 0) {
+    focusableElements[0].focus();
+    return;
+  }
+
+  const fallback = modal.querySelector<HTMLElement>('.modal-content');
+  fallback?.focus();
+}
+
+function getFocusRestoreSelector(element: HTMLElement): string | null {
+  const action = element.getAttribute('data-action');
+  if (!action) return null;
+
+  const filterId = element.getAttribute('data-filter-id');
+  if (filterId) {
+    return `[data-action="${action}"][data-filter-id="${filterId}"]`;
+  }
+
+  const whitelistId = element.getAttribute('data-whitelist-id');
+  if (whitelistId) {
+    return `[data-action="${action}"][data-whitelist-id="${whitelistId}"]`;
+  }
+
+  const groupId = element.getAttribute('data-group-id');
+  if (groupId) {
+    return `[data-action="${action}"][data-group-id="${groupId}"]`;
+  }
+
+  return `[data-action="${action}"]`;
+}
+
+function trapFocus(event: KeyboardEvent, modal: HTMLElement): void {
+  const focusableElements = getFocusableElements(modal);
+  if (focusableElements.length === 0) {
+    event.preventDefault();
+    return;
+  }
+
+  const first = focusableElements[0];
+  const last = focusableElements[focusableElements.length - 1];
+  const active = document.activeElement as HTMLElement | null;
+
+  if (!active || !modal.contains(active)) {
+    event.preventDefault();
+    first.focus();
+    return;
+  }
+
+  if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function activateModal(modal: HTMLElement, preferredSelector?: string): void {
+  lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  activeModal = modal;
+  modal.setAttribute('aria-hidden', 'false');
+  setMainInert(true);
+  window.requestAnimationFrame(() => {
+    focusModal(modal, preferredSelector);
+  });
+}
+
+function deactivateModal(modal: HTMLElement): void {
+  if (activeModal !== modal) return;
+  modal.setAttribute('aria-hidden', 'true');
+  setMainInert(false);
+  activeModal = null;
+  if (lastFocusedElement) {
+    lastFocusedElement.focus();
+    lastFocusedElement = null;
+  }
+}
+
+// ============================================================================
 // Rendering Functions
 // ============================================================================
 
@@ -155,6 +281,12 @@ async function renderGroups(): Promise<void> {
   const data = await loadData();
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
+
+  const focusTarget = document.activeElement as HTMLElement | null;
+  const focusSelector =
+    focusTarget && groupsList.contains(focusTarget)
+      ? getFocusRestoreSelector(focusTarget)
+      : null;
 
   const hadGroups = groupsList.children.length > 0;
   const openGroupIds = new Set(
@@ -268,6 +400,11 @@ async function renderGroups(): Promise<void> {
       firstGroup.open = true;
     }
   }
+
+  if (focusSelector) {
+    const restored = groupsList.querySelector<HTMLElement>(focusSelector);
+    restored?.focus();
+  }
 }
 
 function getMatchModeSelectValue(selectId: string): FilterMatchMode {
@@ -281,6 +418,9 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
 function renderFilterItem(filter: Filter): string {
   const description = filter.description?.trim();
   const nameMarkup = description ? `<div class="filter-title">${escapeHtml(description)}</div>` : '';
+  const toggleLabel = description
+    ? `Toggle filter ${description}`
+    : `Toggle filter for ${filter.pattern}`;
 
   return `
     <div class="filter-item">
@@ -290,7 +430,7 @@ function renderFilterItem(filter: Filter): string {
       </div>
       <div class="actions">
         <label class="toggle">
-          <input type="checkbox" ${filter.enabled ? 'checked' : ''} data-action="toggle-filter" data-filter-id="${filter.id}">
+          <input type="checkbox" ${filter.enabled ? 'checked' : ''} data-action="toggle-filter" data-filter-id="${filter.id}" aria-label="${escapeHtml(toggleLabel)}">
           <span class="slider"></span>
         </label>
         <button class="button small secondary" data-action="edit-filter" data-filter-id="${filter.id}">
@@ -305,6 +445,9 @@ function renderFilterItem(filter: Filter): string {
 function renderWhitelistItem(entry: Whitelist): string {
   const description = entry.description?.trim();
   const nameMarkup = description ? `<div class="filter-title">${escapeHtml(description)}</div>` : '';
+  const toggleLabel = description
+    ? `Toggle exception ${description}`
+    : `Toggle exception for ${entry.pattern}`;
 
   return `
     <div class="filter-item">
@@ -314,7 +457,7 @@ function renderWhitelistItem(entry: Whitelist): string {
       </div>
       <div class="actions">
         <label class="toggle">
-          <input type="checkbox" ${entry.enabled ? 'checked' : ''} data-action="toggle-whitelist" data-whitelist-id="${entry.id}">
+          <input type="checkbox" ${entry.enabled ? 'checked' : ''} data-action="toggle-whitelist" data-whitelist-id="${entry.id}" aria-label="${escapeHtml(toggleLabel)}">
           <span class="slider"></span>
         </label>
         <button class="button small secondary" data-action="edit-whitelist" data-whitelist-id="${entry.id}">
@@ -336,6 +479,7 @@ function renderSchedules(): void {
 
   schedulesList.innerHTML = temporarySchedules
     .map((schedule, index) => {
+      const scheduleNumber = index + 1;
       return `
         <div class="schedule-item">
           <div class="day-checkboxes">
@@ -350,10 +494,10 @@ function renderSchedules(): void {
             ).join('')}
           </div>
           <div class="time-inputs">
-            <input type="time" value="${schedule.startTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="startTime" class="input">
+            <input type="time" value="${schedule.startTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="startTime" class="input" aria-label="Start time for schedule ${scheduleNumber}">
             <span>to</span>
-            <input type="time" value="${schedule.endTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="endTime" class="input">
-            <button type="button" class="icon-button small" data-action="remove-schedule" data-schedule-index="${index}" aria-label="Delete" title="Delete">
+            <input type="time" value="${schedule.endTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="endTime" class="input" aria-label="End time for schedule ${scheduleNumber}">
+            <button type="button" class="icon-button small" data-action="remove-schedule" data-schedule-index="${index}" aria-label="Delete schedule ${scheduleNumber}" title="Delete schedule ${scheduleNumber}">
               <span class="button-icon" aria-hidden="true">${MINUS_ICON_SVG}</span>
               <span class="sr-only">Delete</span>
             </button>
@@ -408,10 +552,15 @@ function openFilterModal(filterId?: string, groupId?: string): void {
     });
 
   modal.classList.add('active');
+  activateModal(modal, '#filter-pattern');
 }
 
 function closeFilterModal(): void {
-  getElementByIdOrNull('filter-modal')?.classList.remove('active');
+  const modal = getElementByIdOrNull('filter-modal');
+  if (modal?.classList.contains('active')) {
+    modal.classList.remove('active');
+    deactivateModal(modal);
+  }
   currentEditingFilterId = null;
   currentFilterGroupId = null;
 }
@@ -522,10 +671,15 @@ function openGroupModal(groupId?: string): void {
   }
 
   modal.classList.add('active');
+  activateModal(modal, '#group-name');
 }
 
 function closeGroupModal(): void {
-  getElementByIdOrNull('group-modal')?.classList.remove('active');
+  const modal = getElementByIdOrNull('group-modal');
+  if (modal?.classList.contains('active')) {
+    modal.classList.remove('active');
+    deactivateModal(modal);
+  }
   currentEditingGroupId = null;
   temporarySchedules = [];
 }
@@ -623,10 +777,15 @@ function openWhitelistModal(whitelistId?: string, groupId?: string): void {
     });
 
   modal.classList.add('active');
+  activateModal(modal, '#whitelist-pattern');
 }
 
 function closeWhitelistModal(): void {
-  getElementByIdOrNull('whitelist-modal')?.classList.remove('active');
+  const modal = getElementByIdOrNull('whitelist-modal');
+  if (modal?.classList.contains('active')) {
+    modal.classList.remove('active');
+    deactivateModal(modal);
+  }
   currentEditingWhitelistId = null;
   currentWhitelistGroupId = null;
 }
@@ -773,6 +932,11 @@ function handleSchedulesListClick(e: Event): void {
 }
 
 function handleGlobalKeydown(e: KeyboardEvent): void {
+  if (activeModal && e.key === 'Tab') {
+    trapFocus(e, activeModal);
+    return;
+  }
+
   if (e.key !== 'Escape') return;
 
   const filterModal = getElementByIdOrNull('filter-modal');

@@ -7,14 +7,14 @@
   <link rel="stylesheet" href="styles/blocked.css">
 </head>
 <body>
-  <div class="container">
-    <div class="icon">🛡️</div>
+  <div class="container" role="main">
+    <div class="icon" aria-hidden="true">🛡️</div>
     <h1>Page Blocked</h1>
     <p>This page has been blocked by Teichos based on your filter settings.</p>
-    <div class="url" id="blocked-url"></div>
+    <div class="url" id="blocked-url" role="status" aria-label="Blocked URL"></div>
     <div class="actions">
-      <button class="button" id="go-back">Go Back</button>
-      <button class="button secondary" id="open-options">Manage Filters</button>
+      <button class="button" id="go-back" type="button">Go Back</button>
+      <button class="button secondary" id="open-options" type="button">Manage Filters</button>
     </div>
   </div>
   <script src="index.js" type="module"></script>

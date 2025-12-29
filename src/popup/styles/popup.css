@@ -204,6 +204,12 @@ body {
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
 }
 
+.button:focus-visible,
+.icon-button:focus-visible {
+  outline: 2px solid rgba(111, 154, 242, 0.7);
+  outline-offset: 2px;
+}
+
 .button.ghost {
   background: rgba(255, 255, 255, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -342,6 +348,10 @@ body {
   inset: 0;
 }
 
+.toggle input:focus-visible + .slider {
+  box-shadow: 0 0 0 3px rgba(111, 154, 242, 0.35);
+}
+
 .slider {
   position: absolute;
   inset: 0;
@@ -384,4 +394,16 @@ input:checked + .slider:before {
 .empty-state p {
   margin: 0 0 12px 0;
   font-size: 0.9rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  white-space: nowrap;
 }

@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles/options.css">
 </head>
 <body>
-  <div class="container">
+  <div class="container" role="main">
     <header class="page-header">
       <div class="title-block">
         <h1 class="app-title">
@@ -24,6 +24,7 @@
             aria-label="About Teichos"
             aria-expanded="false"
             aria-controls="info-panel-options"
+            title="About Teichos"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
@@ -31,9 +32,17 @@
               <circle cx="12" cy="7" r="1.2" fill="currentColor" />
             </svg>
           </button>
-          <div class="info-panel" id="info-panel-options" aria-label="Teichos project information">
-            <div class="info-title">About Teichos</div>
-            <p class="info-text">
+          <div
+            class="info-panel"
+            id="info-panel-options"
+            role="region"
+            aria-hidden="true"
+            aria-labelledby="info-title-options"
+            aria-describedby="info-description-options"
+            inert
+          >
+            <div class="info-title" id="info-title-options">About Teichos</div>
+            <p class="info-text" id="info-description-options">
               Teichos is a lightweight blocker that groups sites and schedules to help you stay focused.
             </p>
             <a
@@ -74,11 +83,11 @@
   </div>
 
   <!-- Filter Modal -->
-  <div id="filter-modal" class="modal">
-    <div class="modal-content">
+  <div id="filter-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="filter-modal-title" aria-hidden="true">
+    <div class="modal-content" tabindex="-1">
       <div class="modal-header">
         <h2 id="filter-modal-title">Add Filter</h2>
-        <button class="close" id="close-filter-modal">&times;</button>
+        <button class="close" id="close-filter-modal" type="button" aria-label="Close filter dialog" title="Close filter dialog">&times;</button>
       </div>
       <form id="filter-form">
         <div class="form-row">
@@ -113,11 +122,11 @@
   </div>
 
   <!-- Group Modal -->
-  <div id="group-modal" class="modal">
-    <div class="modal-content">
+  <div id="group-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="group-modal-title" aria-hidden="true">
+    <div class="modal-content" tabindex="-1">
       <div class="modal-header">
         <h2 id="group-modal-title">Add Group</h2>
-        <button class="close" id="close-group-modal">&times;</button>
+        <button class="close" id="close-group-modal" type="button" aria-label="Close group dialog" title="Close group dialog">&times;</button>
       </div>
       <form id="group-form">
         <div class="form-row">
@@ -154,11 +163,11 @@
   </div>
 
   <!-- Whitelist Modal -->
-  <div id="whitelist-modal" class="modal">
-    <div class="modal-content">
+  <div id="whitelist-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="whitelist-modal-title" aria-hidden="true">
+    <div class="modal-content" tabindex="-1">
       <div class="modal-header">
         <h2 id="whitelist-modal-title">Add Exception</h2>
-        <button class="close" id="close-whitelist-modal">&times;</button>
+        <button class="close" id="close-whitelist-modal" type="button" aria-label="Close exception dialog" title="Close exception dialog">&times;</button>
       </div>
       <form id="whitelist-form">
         <div class="form-row">

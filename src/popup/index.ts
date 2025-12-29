@@ -40,12 +40,24 @@ function setupInfoPopover(): void {
   if (!popover) return;
 
   const button = popover.querySelector<HTMLButtonElement>('.info-button');
-  if (!button) return;
+  const panel = popover.querySelector<HTMLElement>('.info-panel');
+  if (!button || !panel) return;
 
-  const setOpen = (isOpen: boolean): void => {
+  const setOpen = (isOpen: boolean, returnFocus = false): void => {
     popover.classList.toggle('is-open', isOpen);
     button.setAttribute('aria-expanded', String(isOpen));
+    panel.setAttribute('aria-hidden', String(!isOpen));
+    if (isOpen) {
+      panel.removeAttribute('inert');
+    } else {
+      panel.setAttribute('inert', '');
+      if (returnFocus) {
+        button.focus();
+      }
+    }
   };
+
+  setOpen(popover.classList.contains('is-open'));
 
   button.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -59,8 +71,9 @@ function setupInfoPopover(): void {
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      setOpen(false);
+    if (event.key === 'Escape' && popover.classList.contains('is-open')) {
+      const shouldReturnFocus = popover.contains(document.activeElement);
+      setOpen(false, shouldReturnFocus);
     }
   });
 }
@@ -88,7 +101,16 @@ function formatInactiveSummary(inactiveCount: number): string {
     return '';
   }
   const label = inactiveCount === 1 ? 'filter' : 'filters';
-  return `<div class="inactive-summary">${inactiveCount} more inactive ${label}</div>`;
+  return `<div class="inactive-summary" role="listitem">${inactiveCount} more inactive ${label}</div>`;
+}
+
+function announceStatus(message: string): void {
+  const status = getElementByIdOrNull('status-message');
+  if (!status) return;
+  status.textContent = '';
+  window.setTimeout(() => {
+    status.textContent = message;
+  }, 0);
 }
 
 async function copyText(value: string): Promise<void> {
@@ -121,7 +143,7 @@ async function renderFilters(): Promise<void> {
 
   if (data.filters.length === 0) {
     filterList.innerHTML = `
-      <div class="empty-state">
+      <div class="empty-state" role="listitem">
         <p>No filters configured.</p>
         <button class="button" id="add-first-filter">+ New Filter</button>
       </div>
@@ -174,9 +196,12 @@ async function renderFilters(): Promise<void> {
       const nameMarkup = description
         ? `<div class="filter-name" title="${escapeHtml(description)}">${escapeHtml(description)}</div>`
         : '';
+      const toggleLabel = description
+        ? `Toggle filter ${description}`
+        : `Toggle filter for ${filter.pattern}`;
 
       return `
-      <div class="filter-item">
+      <div class="filter-item" role="listitem">
         <div class="filter-info">
           ${nameMarkup}
           <div class="filter-pattern" title="${escapeHtml(filter.pattern)}">${escapeHtml(filter.pattern)}</div>
@@ -184,7 +209,7 @@ async function renderFilters(): Promise<void> {
         </div>
         <div class="quick-actions-bottom">
           <label class="toggle">
-            <input type="checkbox" data-filter-id="${filter.id}" ${filter.enabled ? 'checked' : ''}>
+            <input type="checkbox" data-filter-id="${filter.id}" ${filter.enabled ? 'checked' : ''} aria-label="${escapeHtml(toggleLabel)}">
             <span class="slider"></span>
           </label>
           <div class="quick-actions right">
@@ -210,8 +235,10 @@ async function renderFilters(): Promise<void> {
       if (!pattern) return;
       try {
         await copyText(pattern);
+        announceStatus('Copied URL pattern to clipboard.');
       } catch (error) {
         console.error('Failed to copy URL:', error);
+        announceStatus('Failed to copy URL pattern.');
       }
     });
   });
@@ -249,6 +276,10 @@ async function renderFilters(): Promise<void> {
       try {
         await toggleFilter(data, filterId, checkbox.checked);
         await renderFilters();
+        const refreshedToggle = document.querySelector<HTMLInputElement>(
+          `input[type="checkbox"][data-filter-id="${filterId}"]`
+        );
+        refreshedToggle?.focus();
       } catch (error) {
         console.error('Failed to toggle filter:', error);
         checkbox.checked = originalState;

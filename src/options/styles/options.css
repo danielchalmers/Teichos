@@ -261,6 +261,13 @@ form .button + .button {
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
 }
 
+.button:focus-visible,
+.icon-button:focus-visible,
+.close:focus-visible {
+  outline: 2px solid rgba(91, 141, 239, 0.7);
+  outline-offset: 2px;
+}
+
 .button.secondary {
   background: #eef2ff;
   color: #334155;
@@ -562,6 +569,10 @@ label {
   opacity: 0;
   width: 0;
   height: 0;
+}
+
+.toggle input:focus-visible + .slider {
+  box-shadow: 0 0 0 3px rgba(91, 141, 239, 0.25);
 }
 
 .slider {

@@ -21,6 +21,7 @@
           aria-label="About Teichos"
           aria-expanded="false"
           aria-controls="info-panel-popup"
+          title="About Teichos"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
@@ -28,9 +29,17 @@
             <circle cx="12" cy="7" r="1.2" fill="currentColor" />
           </svg>
         </button>
-        <div class="info-panel" id="info-panel-popup" aria-label="Teichos project information">
-          <div class="info-title">About Teichos</div>
-          <p class="info-text">
+        <div
+          class="info-panel"
+          id="info-panel-popup"
+          role="region"
+          aria-hidden="true"
+          aria-labelledby="info-title-popup"
+          aria-describedby="info-description-popup"
+          inert
+        >
+          <div class="info-title" id="info-title-popup">About Teichos</div>
+          <p class="info-text" id="info-description-popup">
             Teichos is a lightweight blocker that groups sites and schedules to help you stay focused.
           </p>
           <a
@@ -54,8 +63,9 @@
     </div>
   </header>
   <main class="content">
-    <div class="filter-list" id="filter-list"></div>
+    <div class="filter-list" id="filter-list" role="list" aria-label="Active filters"></div>
   </main>
+  <div id="status-message" class="sr-only" role="status"></div>
   <script src="index.js" type="module"></script>
 </body>
 </html>
