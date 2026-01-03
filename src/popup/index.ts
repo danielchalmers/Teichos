@@ -5,7 +5,7 @@
 import { loadData, updateFilter } from '../shared/api';
 import { openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
 import { getActiveTab } from '../shared/api/tabs';
-import { MessageType } from '../shared/types';
+import { MessageType, STORAGE_KEY } from '../shared/types';
 import { escapeHtml, isFilterScheduledActive, matchesPattern } from '../shared/utils';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 import type { StorageData } from '../shared/types';
@@ -16,6 +16,7 @@ import type { StorageData } from '../shared/types';
 async function init(): Promise<void> {
   await renderFilters();
   setupEventListeners();
+  setupStorageSync();
 }
 
 /**
@@ -42,6 +43,16 @@ function setupEventListeners(): void {
       .finally(() => {
         window.close();
       });
+  });
+}
+
+function setupStorageSync(): void {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'sync') return;
+    if (!changes[STORAGE_KEY]) return;
+    void renderFilters().catch((error: unknown) => {
+      console.error('Failed to refresh filters:', error);
+    });
   });
 }
 

@@ -22,7 +22,7 @@ import type {
   Whitelist,
   MutableTimeSchedule,
 } from '../shared/types';
-import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage } from '../shared/types';
+import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../shared/types';
 import { escapeHtml, generateId } from '../shared/utils';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 import { DAY_NAMES, DEFAULT_SCHEDULE } from '../shared/constants';
@@ -60,6 +60,7 @@ let setInfoPopoverOpen: ((isOpen: boolean) => void) | null = null;
 async function init(): Promise<void> {
   await renderGroups();
   setupEventListeners();
+  setupStorageSync();
   populateInfoPanel();
   openFilterFromQuery();
   openInfoFromQuery();
@@ -120,6 +121,16 @@ function setupEventListeners(): void {
   getElementByIdOrNull('schedules-list')?.addEventListener('change', handleSchedulesListClick);
 
   document.addEventListener('keydown', handleGlobalKeydown);
+}
+
+function setupStorageSync(): void {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'sync') return;
+    if (!changes[STORAGE_KEY]) return;
+    void renderGroups().catch((error: unknown) => {
+      console.error('Failed to refresh groups:', error);
+    });
+  });
 }
 
 function setupInfoPopover(): ((isOpen: boolean) => void) | null {
