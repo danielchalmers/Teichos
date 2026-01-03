@@ -5,6 +5,7 @@
 import { loadData, updateFilter } from '../shared/api';
 import { openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
 import { getActiveTab } from '../shared/api/tabs';
+import { MessageType } from '../shared/types';
 import { escapeHtml, isFilterScheduledActive, matchesPattern } from '../shared/utils';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 import type { StorageData } from '../shared/types';
@@ -21,10 +22,9 @@ async function init(): Promise<void> {
  * Set up event listeners for popup interactions
  */
 function setupEventListeners(): void {
-  setupInfoPopover();
-
   const openOptionsButton = getElementByIdOrNull('open-options');
   openOptionsButton?.addEventListener('click', () => {
+    void chrome.runtime.sendMessage({ type: MessageType.CLOSE_INFO_PANEL });
     openOptionsPage()
       .catch((error: unknown) => {
         console.error('Failed to open options page:', error);
@@ -33,48 +33,15 @@ function setupEventListeners(): void {
         window.close();
       });
   });
-}
-
-function setupInfoPopover(): void {
-  const popover = document.querySelector<HTMLElement>('.info-popover');
-  if (!popover) return;
-
-  const button = popover.querySelector<HTMLButtonElement>('.info-button');
-  const panel = popover.querySelector<HTMLElement>('.info-panel');
-  if (!button || !panel) return;
-
-  const setOpen = (isOpen: boolean, returnFocus = false): void => {
-    popover.classList.toggle('is-open', isOpen);
-    button.setAttribute('aria-expanded', String(isOpen));
-    panel.setAttribute('aria-hidden', String(!isOpen));
-    if (isOpen) {
-      panel.removeAttribute('inert');
-    } else {
-      panel.setAttribute('inert', '');
-      if (returnFocus) {
-        button.focus();
-      }
-    }
-  };
-
-  setOpen(popover.classList.contains('is-open'));
-
-  button.addEventListener('click', (event) => {
-    event.stopPropagation();
-    setOpen(!popover.classList.contains('is-open'));
-  });
-
-  document.addEventListener('click', (event) => {
-    if (!popover.contains(event.target as Node)) {
-      setOpen(false);
-    }
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && popover.classList.contains('is-open')) {
-      const shouldReturnFocus = popover.contains(document.activeElement);
-      setOpen(false, shouldReturnFocus);
-    }
+  const openInfoButton = getElementByIdOrNull('open-info');
+  openInfoButton?.addEventListener('click', () => {
+    openOptionsPageWithParams({ info: '1' })
+      .catch((error: unknown) => {
+        console.error('Failed to open about panel:', error);
+      })
+      .finally(() => {
+        window.close();
+      });
   });
 }
 
@@ -193,9 +160,9 @@ async function renderFilters(): Promise<void> {
       const group = groupsById.get(filter.groupId);
       const groupName = group?.name ?? 'Unknown Group';
       const description = filter.description?.trim();
-      const nameMarkup = description
+      const primaryMarkup = description
         ? `<div class="filter-name" title="${escapeHtml(description)}">${escapeHtml(description)}</div>`
-        : '';
+        : `<div class="filter-name" title="${escapeHtml(filter.pattern)}">${escapeHtml(filter.pattern)}</div>`;
       const toggleLabel = description
         ? `Toggle filter ${description}`
         : `Toggle filter for ${filter.pattern}`;
@@ -203,22 +170,23 @@ async function renderFilters(): Promise<void> {
       return `
       <div class="filter-item" role="listitem">
         <div class="filter-info">
-          ${nameMarkup}
-          <div class="filter-pattern" title="${escapeHtml(filter.pattern)}">${escapeHtml(filter.pattern)}</div>
-          <div class="filter-group">Group • ${escapeHtml(groupName)}</div>
+          ${primaryMarkup}
         </div>
-        <div class="quick-actions-bottom">
-          <label class="toggle">
-            <input type="checkbox" data-filter-id="${filter.id}" ${filter.enabled ? 'checked' : ''} aria-label="${escapeHtml(toggleLabel)}">
-            <span class="slider"></span>
-          </label>
-          <div class="quick-actions right">
-            <button class="icon-button" type="button" data-action="copy-url" data-pattern="${escapeHtml(filter.pattern)}" aria-label="Copy URL" title="Copy URL">
-              ${getCopyIcon()}
-            </button>
-            <button class="icon-button" type="button" data-action="edit-filter" data-filter-id="${filter.id}" aria-label="Edit Filter" title="Edit Filter">
-              ${getEditIcon()}
-            </button>
+        <div class="filter-footer">
+          <div class="filter-group" title="${escapeHtml(groupName)}">${escapeHtml(groupName)}</div>
+          <div class="quick-actions-bottom">
+            <label class="toggle">
+              <input type="checkbox" data-filter-id="${filter.id}" ${filter.enabled ? 'checked' : ''} aria-label="${escapeHtml(toggleLabel)}">
+              <span class="slider"></span>
+            </label>
+            <div class="quick-actions">
+              <button class="icon-button" type="button" data-action="copy-url" data-pattern="${escapeHtml(filter.pattern)}" aria-label="Copy URL" title="Copy URL">
+                ${getCopyIcon()}
+              </button>
+              <button class="icon-button" type="button" data-action="edit-filter" data-filter-id="${filter.id}" aria-label="Edit Filter" title="Edit Filter">
+                ${getEditIcon()}
+              </button>
+            </div>
           </div>
         </div>
       </div>

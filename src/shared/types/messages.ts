@@ -11,6 +11,7 @@ export const MessageType = {
   DATA_UPDATED: 'DATA_UPDATED',
   CHECK_URL: 'CHECK_URL',
   URL_BLOCKED: 'URL_BLOCKED',
+  CLOSE_INFO_PANEL: 'CLOSE_INFO_PANEL',
 } as const;
 
 export type MessageTypeValue = (typeof MessageType)[keyof typeof MessageType];
@@ -47,12 +48,17 @@ export interface UrlBlockedMessage {
   readonly filter: Filter;
 }
 
+export interface CloseInfoPanelMessage {
+  readonly type: typeof MessageType.CLOSE_INFO_PANEL;
+}
+
 // Discriminated union of all messages
 export type ExtensionMessage =
   | GetDataMessage
   | CheckUrlMessage
   | DataUpdatedMessage
-  | UrlBlockedMessage;
+  | UrlBlockedMessage
+  | CloseInfoPanelMessage;
 
 // Response type mapping
 export type MessageResponse<T extends ExtensionMessage> =
@@ -101,5 +107,14 @@ export function isUrlBlockedMessage(msg: unknown): msg is UrlBlockedMessage {
     msg.type === MessageType.URL_BLOCKED &&
     'url' in msg &&
     'filter' in msg
+  );
+}
+
+export function isCloseInfoPanelMessage(msg: unknown): msg is CloseInfoPanelMessage {
+  return (
+    typeof msg === 'object' &&
+    msg !== null &&
+    'type' in msg &&
+    msg.type === MessageType.CLOSE_INFO_PANEL
   );
 }

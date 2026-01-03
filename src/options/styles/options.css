@@ -138,12 +138,12 @@ body {
   position: absolute;
   top: calc(100% + 0.55rem);
   right: 0;
-  width: 270px;
-  max-width: 70vw;
+  width: 360px;
+  max-width: 90vw;
   background: #ffffff;
   color: var(--text-primary);
   border-radius: var(--radius-md);
-  padding: 0.9rem 1rem;
+  padding: 1rem 1.1rem;
   box-shadow: var(--shadow-lg);
   opacity: 0;
   transform: translateY(-6px);
@@ -166,10 +166,53 @@ body {
 }
 
 .info-text {
-  margin: 0.45rem 0 0.75rem;
+  margin: 0.45rem 0 0.6rem;
   color: var(--text-secondary);
   font-size: 0.88rem;
   line-height: 1.4;
+}
+
+.info-meta {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.info-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.info-label {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.info-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.info-links {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.info-links .info-badge {
+  flex: 1 1 0;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .info-badge {

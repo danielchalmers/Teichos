@@ -22,7 +22,7 @@ import type {
   Whitelist,
   MutableTimeSchedule,
 } from '../shared/types';
-import { DEFAULT_GROUP_ID } from '../shared/types';
+import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage } from '../shared/types';
 import { escapeHtml, generateId } from '../shared/utils';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 import { DAY_NAMES, DEFAULT_SCHEDULE } from '../shared/constants';
@@ -52,6 +52,7 @@ let currentWhitelistGroupId: string | null = null;
 let temporarySchedules: MutableTimeSchedule[] = [];
 let activeModal: HTMLElement | null = null;
 let lastFocusedElement: HTMLElement | null = null;
+let setInfoPopoverOpen: ((isOpen: boolean) => void) | null = null;
 
 /**
  * Initialize options page
@@ -59,14 +60,26 @@ let lastFocusedElement: HTMLElement | null = null;
 async function init(): Promise<void> {
   await renderGroups();
   setupEventListeners();
+  populateInfoPanel();
   openFilterFromQuery();
+  openInfoFromQuery();
 }
 
 /**
  * Set up all event listeners
  */
 function setupEventListeners(): void {
-  setupInfoPopover();
+  setInfoPopoverOpen = setupInfoPopover();
+
+  chrome.runtime.onMessage.addListener((message, sender) => {
+    if (sender.id !== chrome.runtime.id) {
+      return;
+    }
+
+    if (isCloseInfoPanelMessage(message)) {
+      setInfoPopoverOpen?.(false);
+    }
+  });
 
   // Add buttons
   getElementByIdOrNull('add-group-btn')?.addEventListener('click', () =>
@@ -109,13 +122,13 @@ function setupEventListeners(): void {
   document.addEventListener('keydown', handleGlobalKeydown);
 }
 
-function setupInfoPopover(): void {
+function setupInfoPopover(): ((isOpen: boolean) => void) | null {
   const popover = document.querySelector<HTMLElement>('.info-popover');
-  if (!popover) return;
+  if (!popover) return null;
 
   const button = popover.querySelector<HTMLButtonElement>('.info-button');
   const panel = popover.querySelector<HTMLElement>('.info-panel');
-  if (!button || !panel) return;
+  if (!button || !panel) return null;
 
   const setOpen = (isOpen: boolean, returnFocus = false): void => {
     popover.classList.toggle('is-open', isOpen);
@@ -150,6 +163,8 @@ function setupInfoPopover(): void {
       setOpen(false, shouldReturnFocus);
     }
   });
+
+  return setOpen;
 }
 
 function openFilterFromQuery(): void {
@@ -162,6 +177,31 @@ function openFilterFromQuery(): void {
   const nextUrl = new URL(window.location.href);
   nextUrl.searchParams.delete('editFilter');
   history.replaceState({}, document.title, nextUrl.toString());
+}
+
+function openInfoFromQuery(): void {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('info')) return;
+
+  setInfoPopoverOpen?.(true);
+
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.delete('info');
+  history.replaceState({}, document.title, nextUrl.toString());
+}
+
+function populateInfoPanel(): void {
+  const manifest = chrome.runtime.getManifest();
+  const versionElement = getElementByIdOrNull('info-version');
+  if (versionElement) {
+    versionElement.textContent = manifest.version;
+  }
+
+  const year = new Date().getFullYear();
+  const copyrightElement = getElementByIdOrNull('info-copyright');
+  if (copyrightElement) {
+    copyrightElement.textContent = `(c) ${year} Daniel Chalmers`;
+  }
 }
 
 // ============================================================================
