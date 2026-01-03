@@ -7,6 +7,7 @@ import { loadData } from '../../shared/api';
 import { shouldBlockUrl } from '../../shared/utils';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { updateTabUrl } from '../../shared/api/tabs';
+import { setLastAllowedUrl } from '../../shared/api/session';
 import { PAGES } from '../../shared/constants';
 
 /**
@@ -60,5 +61,8 @@ async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
   if (blockingFilter) {
     const blockedUrl = `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(url)}`;
     await updateTabUrl(tabId, blockedUrl);
+    return;
   }
+
+  await setLastAllowedUrl(tabId, url);
 }
