@@ -8,23 +8,12 @@
  * - Use chrome.storage instead of localStorage
  */
 
-import {
-  handleTabUpdate,
-  handleBeforeNavigate,
-  handleMessage,
-} from './handlers';
+import { handleBeforeNavigate, handleMessage } from './handlers';
 
 // Register all event listeners synchronously at top level
 // This is critical for MV3 service workers
 
-// Tab navigation events
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  handleTabUpdate(tabId, changeInfo, tab).catch((error: unknown) => {
-    console.error('[Teichos] Error handling tab update:', error);
-  });
-});
-
-// Web navigation events - catches navigation earlier than tabs.onUpdated
+// Web navigation events - handle main frame navigations
 chrome.webNavigation.onBeforeNavigate.addListener((details) => {
   handleBeforeNavigate(details).catch((error: unknown) => {
     console.error('[Teichos] Error handling navigation:', error);

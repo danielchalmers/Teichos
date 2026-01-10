@@ -23,7 +23,7 @@ import type {
   MutableTimeSchedule,
 } from '../shared/types';
 import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../shared/types';
-import { escapeHtml, generateId } from '../shared/utils';
+import { escapeHtml, generateId, getRegexValidationError } from '../shared/utils';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 import { DAY_NAMES, DEFAULT_SCHEDULE } from '../shared/constants';
 
@@ -466,6 +466,20 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
   return 'contains';
 }
 
+function ensureValidRegex(pattern: string, matchMode: FilterMatchMode): boolean {
+  if (matchMode !== 'regex') {
+    return true;
+  }
+
+  const error = getRegexValidationError(pattern);
+  if (!error) {
+    return true;
+  }
+
+  alert(`Invalid regex pattern: ${error}`);
+  return false;
+}
+
 function renderFilterItem(filter: Filter): string {
   const description = filter.description?.trim();
   const nameMarkup = description ? `<div class="filter-title">${escapeHtml(description)}</div>` : '';
@@ -625,14 +639,8 @@ async function handleFilterSubmit(e: Event): Promise<void> {
   const enabled = getElementByIdOrNull<HTMLInputElement>('filter-enabled')?.checked ?? true;
   const matchMode = getMatchModeSelectValue('filter-match-mode');
 
-  // Validate regex if regex mode is enabled
-  if (matchMode === 'regex') {
-    try {
-      new RegExp(pattern);
-    } catch (error) {
-      alert(`Invalid regex pattern: ${error instanceof Error ? error.message : String(error)}`);
-      return;
-    }
+  if (!ensureValidRegex(pattern, matchMode)) {
+    return;
   }
 
   const filter: Filter = {
@@ -850,14 +858,8 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
   const enabled = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled')?.checked ?? true;
   const matchMode = getMatchModeSelectValue('whitelist-match-mode');
 
-  // Validate regex if regex mode is enabled
-  if (matchMode === 'regex') {
-    try {
-      new RegExp(pattern);
-    } catch (error) {
-      alert(`Invalid regex pattern: ${error instanceof Error ? error.message : String(error)}`);
-      return;
-    }
+  if (!ensureValidRegex(pattern, matchMode)) {
+    return;
   }
 
   const entry: Whitelist = {

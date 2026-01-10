@@ -3,14 +3,12 @@
  * Processes messages from popup, options, and content scripts
  */
 
-import { loadData } from '../../shared/api';
 import { shouldBlockUrl } from '../../shared/utils';
 import {
-  type ExtensionMessage,
-  type MessageResponse,
   isGetDataMessage,
   isCheckUrlMessage,
 } from '../../shared/types';
+import { getStorageSnapshot } from '../storageCache';
 
 /**
  * Handle incoming messages from other extension contexts
@@ -42,7 +40,7 @@ export function handleMessage(
 async function handleGetData(
   sendResponse: (response: unknown) => void
 ): Promise<void> {
-  const data = await loadData();
+  const { data } = await getStorageSnapshot();
   sendResponse({ success: true, data });
 }
 
@@ -50,7 +48,13 @@ async function handleCheckUrl(
   url: string,
   sendResponse: (response: unknown) => void
 ): Promise<void> {
-  const data = await loadData();
-  const blocked = shouldBlockUrl(url, data.filters, data.groups, data.whitelist);
+  const { data, whitelistByGroup } = await getStorageSnapshot();
+  const blocked = shouldBlockUrl(
+    url,
+    data.filters,
+    data.groups,
+    data.whitelist,
+    whitelistByGroup
+  );
   sendResponse({ blocked: blocked !== undefined });
 }

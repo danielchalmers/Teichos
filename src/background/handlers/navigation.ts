@@ -1,30 +1,14 @@
 /**
- * Handler for tab update events
+ * Handler for navigation events
  * Checks if navigated URL should be blocked
  */
 
-import { loadData } from '../../shared/api';
 import { shouldBlockUrl } from '../../shared/utils';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { updateTabUrl } from '../../shared/api/tabs';
 import { setLastAllowedUrl } from '../../shared/api/session';
 import { PAGES } from '../../shared/constants';
-
-/**
- * Handle tab URL updates - check if the URL should be blocked
- */
-export async function handleTabUpdate(
-  tabId: number,
-  changeInfo: { status?: string | undefined },
-  tab: chrome.tabs.Tab
-): Promise<void> {
-  // Only check when status is loading and we have a URL
-  if (changeInfo.status !== 'loading' || !tab.url) {
-    return;
-  }
-
-  await checkAndBlockUrl(tabId, tab.url);
-}
+import { getStorageSnapshot } from '../storageCache';
 
 /**
  * Handle web navigation before navigate event
@@ -50,12 +34,13 @@ async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
     return;
   }
 
-  const data = await loadData();
+  const { data, whitelistByGroup } = await getStorageSnapshot();
   const blockingFilter = shouldBlockUrl(
     url,
     data.filters,
     data.groups,
-    data.whitelist
+    data.whitelist,
+    whitelistByGroup
   );
 
   if (blockingFilter) {

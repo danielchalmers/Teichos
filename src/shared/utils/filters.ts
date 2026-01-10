@@ -5,6 +5,17 @@
 import type { Filter, FilterGroup, FilterMatchMode, Whitelist } from '../types';
 import { getCurrentTimeString, getCurrentDayOfWeek } from './helpers';
 
+export type WhitelistByGroup = ReadonlyMap<string, readonly Whitelist[]>;
+
+export function getRegexValidationError(pattern: string): string | null {
+  try {
+    new RegExp(pattern);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
 /**
  * Check if a URL matches a filter pattern
  * @param url - The URL to check
@@ -30,6 +41,24 @@ export function matchesPattern(
   }
   // Simple case-insensitive contains matching
   return url.toLowerCase().includes(pattern.toLowerCase());
+}
+
+export function buildWhitelistByGroup(
+  whitelist: readonly Whitelist[]
+): WhitelistByGroup {
+  const whitelistByGroup = new Map<string, Whitelist[]>();
+  for (const entry of whitelist) {
+    if (!entry.enabled) {
+      continue;
+    }
+    const groupEntries = whitelistByGroup.get(entry.groupId);
+    if (groupEntries) {
+      groupEntries.push(entry);
+    } else {
+      whitelistByGroup.set(entry.groupId, [entry]);
+    }
+  }
+  return whitelistByGroup;
 }
 
 /**
@@ -89,19 +118,9 @@ export function shouldBlockUrl(
   url: string,
   filters: readonly Filter[],
   groups: readonly FilterGroup[],
-  whitelist: readonly Whitelist[]
+  whitelist: readonly Whitelist[],
+  whitelistByGroup: WhitelistByGroup = buildWhitelistByGroup(whitelist)
 ): Filter | undefined {
-  const whitelistByGroup = new Map<string, Whitelist[]>();
-  for (const entry of whitelist) {
-    if (!entry.enabled) continue;
-    const groupEntries = whitelistByGroup.get(entry.groupId);
-    if (groupEntries) {
-      groupEntries.push(entry);
-    } else {
-      whitelistByGroup.set(entry.groupId, [entry]);
-    }
-  }
-
   for (const filter of filters) {
     if (!isFilterActive(filter, groups)) {
       continue;
