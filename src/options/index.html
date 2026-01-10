@@ -114,6 +114,131 @@
     </div>
   </div>
 
+  <template id="options-group-template">
+    <details class="group-item">
+      <summary class="group-header">
+        <div class="group-info">
+          <div class="group-title" data-role="group-title"></div>
+          <div class="filter-meta" data-role="group-meta"></div>
+        </div>
+        <div class="actions" data-role="group-actions"></div>
+      </summary>
+      <div class="group-content">
+        <div class="group-section">
+          <div class="group-section-header">
+            <h3>Filters</h3>
+          </div>
+          <div data-role="filter-list"></div>
+          <div class="list-footer">
+            <button class="button small" type="button" data-action="add-filter">
+              <span class="button-icon" aria-hidden="true">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+                  <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                </svg>
+              </span>
+              New Filter
+            </button>
+          </div>
+        </div>
+        <div class="group-section">
+          <div class="group-section-header">
+            <h3>Exceptions</h3>
+          </div>
+          <div data-role="whitelist-list"></div>
+          <div class="list-footer">
+            <button class="button small secondary" type="button" data-action="add-whitelist">
+              <span class="button-icon" aria-hidden="true">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+                  <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                </svg>
+              </span>
+              New Exception
+            </button>
+          </div>
+        </div>
+      </div>
+    </details>
+  </template>
+
+  <template id="options-group-edit-button-template">
+    <button class="button small secondary" type="button" data-action="edit-group">
+      <span class="button-icon" aria-hidden="true">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+          <path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"></path>
+          <path d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z" fill="currentColor"></path>
+        </svg>
+      </span>
+      Edit
+    </button>
+  </template>
+
+  <template id="options-filter-item-template">
+    <div class="filter-item">
+      <div class="filter-details">
+        <div class="filter-title" data-role="filter-title"></div>
+        <div class="filter-pattern" data-role="filter-pattern"></div>
+      </div>
+      <div class="actions">
+        <label class="toggle">
+          <input type="checkbox" data-action="toggle-filter">
+          <span class="slider"></span>
+        </label>
+        <button class="button small secondary" type="button" data-action="edit-filter">
+          <span class="button-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+              <path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"></path>
+              <path d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z" fill="currentColor"></path>
+            </svg>
+          </span>
+          Edit
+        </button>
+      </div>
+    </div>
+  </template>
+
+  <template id="options-whitelist-item-template">
+    <div class="filter-item">
+      <div class="filter-details">
+        <div class="filter-title" data-role="whitelist-title"></div>
+        <div class="filter-pattern" data-role="whitelist-pattern"></div>
+      </div>
+      <div class="actions">
+        <label class="toggle">
+          <input type="checkbox" data-action="toggle-whitelist">
+          <span class="slider"></span>
+        </label>
+        <button class="button small secondary" type="button" data-action="edit-whitelist">
+          <span class="button-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+              <path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"></path>
+              <path d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z" fill="currentColor"></path>
+            </svg>
+          </span>
+          Edit
+        </button>
+      </div>
+    </div>
+  </template>
+
+  <template id="options-schedule-item-template">
+    <div class="schedule-item">
+      <div class="day-checkboxes" data-role="day-checkboxes"></div>
+      <div class="time-inputs">
+        <input type="time" class="input" data-action="update-schedule-time" data-field="startTime">
+        <span>to</span>
+        <input type="time" class="input" data-action="update-schedule-time" data-field="endTime">
+        <button type="button" class="icon-button small" data-action="remove-schedule">
+          <span class="button-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+              <path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+            </svg>
+          </span>
+          <span class="sr-only">Delete</span>
+        </button>
+      </div>
+    </div>
+  </template>
+
   <!-- Filter Modal -->
   <div id="filter-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="filter-modal-title" aria-hidden="true">
     <div class="modal-content" tabindex="-1">

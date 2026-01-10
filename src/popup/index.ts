@@ -6,9 +6,11 @@ import { loadData, updateFilter } from '../shared/api';
 import { openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
 import { getActiveTab } from '../shared/api/tabs';
 import { MessageType, STORAGE_KEY } from '../shared/types';
-import { escapeHtml, isFilterScheduledActive, matchesPattern } from '../shared/utils';
-import { getElementByIdOrNull } from '../shared/utils/dom';
+import { isFilterScheduledActive, matchesPattern } from '../shared/utils';
+import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
 import type { StorageData } from '../shared/types';
+
+let cachedData: StorageData | null = null;
 
 /**
  * Initialize popup
@@ -44,6 +46,7 @@ function setupEventListeners(): void {
         window.close();
       });
   });
+  setupFilterListEvents();
 }
 
 function setupStorageSync(): void {
@@ -54,32 +57,6 @@ function setupStorageSync(): void {
       console.error('Failed to refresh filters:', error);
     });
   });
-}
-
-function getCopyIcon(): string {
-  return `
-    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-      <path d="M6 6.5h6v7H6z" fill="none" stroke="currentColor" stroke-width="1.5" />
-      <path d="M4 9.5H3.5A1.5 1.5 0 0 1 2 8V3.5A1.5 1.5 0 0 1 3.5 2H8a1.5 1.5 0 0 1 1.5 1.5V4" fill="none" stroke="currentColor" stroke-width="1.5" />
-    </svg>
-  `;
-}
-
-function getEditIcon(): string {
-  return `
-    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-      <path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="none" stroke="currentColor" stroke-width="1.5" />
-      <path d="M9.5 4.5l1.5-1.5 1.5 1.5-1.5 1.5-1.5-1.5z" fill="none" stroke="currentColor" stroke-width="1.5" />
-    </svg>
-  `;
-}
-
-function formatInactiveSummary(inactiveCount: number): string {
-  if (inactiveCount <= 0) {
-    return '';
-  }
-  const label = inactiveCount === 1 ? 'filter' : 'filters';
-  return `<div class="inactive-summary" role="listitem">${inactiveCount} more inactive ${label}</div>`;
 }
 
 function announceStatus(message: string): void {
@@ -107,11 +84,100 @@ async function copyText(value: string): Promise<void> {
   textarea.remove();
 }
 
+function setupFilterListEvents(): void {
+  const filterList = getElementByIdOrNull('filter-list');
+  if (!filterList) return;
+
+  filterList.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement;
+    const button = target.closest<HTMLButtonElement>('button[data-action]');
+    if (!button) return;
+
+    const action = button.dataset['action'];
+    if (action === 'copy-url') {
+      const pattern = button.dataset['pattern'] ?? '';
+      if (!pattern) return;
+      void handleCopyPattern(pattern);
+      return;
+    }
+
+    if (action === 'edit-filter') {
+      const filterId = button.dataset['filterId'];
+      if (!filterId) return;
+      openOptionsPageWithParams({ editFilter: filterId })
+        .catch((error: unknown) => {
+          console.error('Failed to open filter edit view:', error);
+        })
+        .finally(() => {
+          window.close();
+        });
+      return;
+    }
+
+    if (action === 'add-first-filter') {
+      openOptionsPage().catch((error: unknown) => {
+        console.error('Failed to open options page:', error);
+      });
+    }
+  });
+
+  filterList.addEventListener('change', (event) => {
+    const target = event.target as HTMLElement;
+    const checkbox = target.closest<HTMLInputElement>(
+      'input[type="checkbox"][data-filter-id]'
+    );
+    if (!checkbox) return;
+    void handleToggleFilter(checkbox);
+  });
+}
+
+async function handleCopyPattern(pattern: string): Promise<void> {
+  try {
+    await copyText(pattern);
+    announceStatus('Copied URL pattern to clipboard.');
+  } catch (error) {
+    console.error('Failed to copy URL:', error);
+    announceStatus('Failed to copy URL pattern.');
+  }
+}
+
+async function handleToggleFilter(checkbox: HTMLInputElement): Promise<void> {
+  const filterId = checkbox.dataset['filterId'];
+  if (!filterId) return;
+
+  const originalState = !checkbox.checked;
+
+  try {
+    const data = cachedData ?? (await loadData());
+    await toggleFilter(data, filterId, checkbox.checked);
+    await renderFilters();
+    const refreshedToggle = document.querySelector<HTMLInputElement>(
+      `input[type="checkbox"][data-filter-id="${filterId}"]`
+    );
+    refreshedToggle?.focus();
+  } catch (error) {
+    console.error('Failed to toggle filter:', error);
+    checkbox.checked = originalState;
+  }
+}
+
+function createInactiveSummary(inactiveCount: number): HTMLElement | null {
+  if (inactiveCount <= 0) {
+    return null;
+  }
+
+  const summary = cloneTemplate<HTMLDivElement>('popup-inactive-summary-template');
+  const label = inactiveCount === 1 ? 'filter' : 'filters';
+  summary.textContent = `${inactiveCount} more inactive ${label}`;
+  return summary;
+}
+
 /**
  * Render the filter list in the popup
  */
 async function renderFilters(): Promise<void> {
   const data = await loadData();
+  cachedData = data;
   const filterList = getElementByIdOrNull('filter-list');
 
   if (!filterList) {
@@ -120,19 +186,8 @@ async function renderFilters(): Promise<void> {
   }
 
   if (data.filters.length === 0) {
-    filterList.innerHTML = `
-      <div class="empty-state" role="listitem">
-        <p>No filters configured.</p>
-        <button class="button" id="add-first-filter">+ New Filter</button>
-      </div>
-    `;
-
-    const addFirstFilterButton = getElementByIdOrNull('add-first-filter');
-    addFirstFilterButton?.addEventListener('click', () => {
-      openOptionsPage().catch((error: unknown) => {
-        console.error('Failed to open options page:', error);
-      });
-    });
+    const emptyState = cloneTemplate<HTMLDivElement>('popup-empty-state-template');
+    filterList.replaceChildren(emptyState);
     return;
   }
 
@@ -165,106 +220,44 @@ async function renderFilters(): Promise<void> {
   const inactiveCount = data.filters.length - visibleFilters.length;
   const groupsById = new Map(data.groups.map((group) => [group.id, group]));
 
-  filterList.innerHTML =
-    visibleFilters
-      .map((filter) => {
-      const group = groupsById.get(filter.groupId);
-      const groupName = group?.name ?? 'Unknown Group';
-      const description = filter.description?.trim();
-      const primaryMarkup = description
-        ? `<div class="filter-name" title="${escapeHtml(description)}">${escapeHtml(description)}</div>`
-        : `<div class="filter-name" title="${escapeHtml(filter.pattern)}">${escapeHtml(filter.pattern)}</div>`;
-      const toggleLabel = description
-        ? `Toggle filter ${description}`
-        : `Toggle filter for ${filter.pattern}`;
+  const fragment = document.createDocumentFragment();
+  for (const filter of visibleFilters) {
+    const group = groupsById.get(filter.groupId);
+    const groupName = group?.name ?? 'Unknown Group';
+    const description = filter.description?.trim();
+    const displayName = description || filter.pattern;
+    const toggleLabel = description
+      ? `Toggle filter ${description}`
+      : `Toggle filter for ${filter.pattern}`;
 
-      return `
-      <div class="filter-item" role="listitem">
-        <div class="filter-info">
-          ${primaryMarkup}
-        </div>
-        <div class="filter-footer">
-          <div class="filter-group" title="${escapeHtml(groupName)}">${escapeHtml(groupName)}</div>
-          <div class="quick-actions-bottom">
-            <label class="toggle">
-              <input type="checkbox" data-filter-id="${filter.id}" ${filter.enabled ? 'checked' : ''} aria-label="${escapeHtml(toggleLabel)}">
-              <span class="slider"></span>
-            </label>
-            <div class="quick-actions">
-              <button class="icon-button" type="button" data-action="copy-url" data-pattern="${escapeHtml(filter.pattern)}" aria-label="Copy URL" title="Copy URL">
-                ${getCopyIcon()}
-              </button>
-              <button class="icon-button" type="button" data-action="edit-filter" data-filter-id="${filter.id}" aria-label="Edit Filter" title="Edit Filter">
-                ${getEditIcon()}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-      })
-      .join('') + formatInactiveSummary(inactiveCount);
+    const item = cloneTemplate<HTMLDivElement>('popup-filter-item-template');
+    const nameElement = querySelector<HTMLElement>('.filter-name', item);
+    const groupElement = querySelector<HTMLElement>('.filter-group', item);
+    const toggleInput = querySelector<HTMLInputElement>('input[type="checkbox"]', item);
+    const copyButton = querySelector<HTMLButtonElement>('button[data-action="copy-url"]', item);
+    const editButton = querySelector<HTMLButtonElement>('button[data-action="edit-filter"]', item);
 
-  const copyButtons = filterList.querySelectorAll<HTMLButtonElement>(
-    'button[data-action="copy-url"]'
-  );
-  copyButtons.forEach((button) => {
-    button.addEventListener('click', async () => {
-      const pattern = button.dataset['pattern'] ?? '';
-      if (!pattern) return;
-      try {
-        await copyText(pattern);
-        announceStatus('Copied URL pattern to clipboard.');
-      } catch (error) {
-        console.error('Failed to copy URL:', error);
-        announceStatus('Failed to copy URL pattern.');
-      }
-    });
-  });
+    nameElement.textContent = displayName;
+    nameElement.title = displayName;
+    groupElement.textContent = groupName;
+    groupElement.title = groupName;
 
-  const editButtons = filterList.querySelectorAll<HTMLButtonElement>(
-    'button[data-action="edit-filter"]'
-  );
-  editButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const filterId = button.dataset['filterId'];
-      if (!filterId) return;
-      openOptionsPageWithParams({ editFilter: filterId })
-        .catch((error: unknown) => {
-          console.error('Failed to open filter edit view:', error);
-        })
-        .finally(() => {
-          window.close();
-        });
-    });
-  });
+    toggleInput.checked = filter.enabled;
+    toggleInput.dataset.filterId = filter.id;
+    toggleInput.setAttribute('aria-label', toggleLabel);
 
-  // Add event listeners for toggle switches
-  const toggleInputs = filterList.querySelectorAll<HTMLInputElement>(
-    'input[type="checkbox"]'
-  );
+    copyButton.dataset.pattern = filter.pattern;
+    editButton.dataset.filterId = filter.id;
 
-  toggleInputs.forEach((input) => {
-    input.addEventListener('change', async (e: Event) => {
-      const checkbox = e.target as HTMLInputElement;
-      const filterId = checkbox.dataset['filterId'];
-      if (!filterId) return;
+    fragment.appendChild(item);
+  }
 
-      const originalState = !checkbox.checked;
+  const inactiveSummary = createInactiveSummary(inactiveCount);
+  if (inactiveSummary) {
+    fragment.appendChild(inactiveSummary);
+  }
 
-      try {
-        await toggleFilter(data, filterId, checkbox.checked);
-        await renderFilters();
-        const refreshedToggle = document.querySelector<HTMLInputElement>(
-          `input[type="checkbox"][data-filter-id="${filterId}"]`
-        );
-        refreshedToggle?.focus();
-      } catch (error) {
-        console.error('Failed to toggle filter:', error);
-        checkbox.checked = originalState;
-      }
-    });
-  });
+  filterList.replaceChildren(fragment);
 }
 
 /**

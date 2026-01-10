@@ -23,23 +23,10 @@ import type {
   MutableTimeSchedule,
 } from '../shared/types';
 import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../shared/types';
-import { escapeHtml, generateId, getRegexValidationError } from '../shared/utils';
-import { getElementByIdOrNull } from '../shared/utils/dom';
+import { generateId, getRegexValidationError } from '../shared/utils';
+import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
 import { DAY_NAMES, DEFAULT_SCHEDULE } from '../shared/constants';
 
-const ADD_ICON_SVG =
-  '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">' +
-  '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-  '</svg>';
-const EDIT_ICON_SVG =
-  '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">' +
-  '<path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"/>' +
-  '<path d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z" fill="currentColor"/>' +
-  '</svg>';
-const MINUS_ICON_SVG =
-  '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">' +
-  '<path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-  '</svg>';
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -367,74 +354,14 @@ async function renderGroups(): Promise<void> {
       whitelistByGroup.set(entry.groupId, [entry]);
     }
   }
+  const fragment = document.createDocumentFragment();
+  for (const group of data.groups) {
+    const filters = filtersByGroup.get(group.id) ?? [];
+    const whitelist = whitelistByGroup.get(group.id) ?? [];
+    fragment.appendChild(renderGroup(group, filters, whitelist));
+  }
 
-  groupsList.innerHTML = data.groups
-    .map((group) => {
-      const filters = filtersByGroup.get(group.id) ?? [];
-      const whitelist = whitelistByGroup.get(group.id) ?? [];
-      const isDefault = group.id === DEFAULT_GROUP_ID;
-      const scheduleSummary = group.is24x7
-        ? 'Always Active'
-        : pluralize(group.schedules.length, 'schedule');
-      const filterSummary = pluralize(filters.length, 'filter');
-      const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
-
-      return `
-        <details class="group-item" data-group-id="${group.id}">
-          <summary class="group-header">
-            <div class="group-info">
-              <div class="group-title">${escapeHtml(group.name)}</div>
-              <div class="filter-meta">${scheduleSummary} • ${filterSummary} • ${exceptionSummary}</div>
-            </div>
-            <div class="actions">
-              ${
-                !isDefault
-                  ? `<button class="button small secondary" data-action="edit-group" data-group-id="${group.id}">
-                      <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
-                      Edit
-                    </button>`
-                  : ''
-              }
-            </div>
-          </summary>
-          <div class="group-content">
-            <div class="group-section">
-              <div class="group-section-header">
-                <h3>Filters</h3>
-              </div>
-              ${
-                filters.length === 0
-                  ? '<p class="empty-state">No filters in this group.</p>'
-                  : filters.map(renderFilterItem).join('')
-              }
-              <div class="list-footer">
-                <button class="button small" data-action="add-filter" data-group-id="${group.id}">
-                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
-                  New Filter
-                </button>
-              </div>
-            </div>
-            <div class="group-section">
-              <div class="group-section-header">
-                <h3>Exceptions</h3>
-              </div>
-              ${
-                whitelist.length === 0
-                  ? '<p class="empty-state">No exceptions in this group.</p>'
-                  : whitelist.map(renderWhitelistItem).join('')
-              }
-              <div class="list-footer">
-                <button class="button small secondary" data-action="add-whitelist" data-group-id="${group.id}">
-                  <span class="button-icon" aria-hidden="true">${ADD_ICON_SVG}</span>
-                  New Exception
-                </button>
-              </div>
-            </div>
-          </div>
-        </details>
-      `;
-    })
-    .join('');
+  groupsList.replaceChildren(fragment);
 
   if (openGroupIds.size > 0) {
     openGroupIds.forEach((groupId) => {
@@ -456,6 +383,77 @@ async function renderGroups(): Promise<void> {
     const restored = groupsList.querySelector<HTMLElement>(focusSelector);
     restored?.focus();
   }
+}
+
+function renderGroup(
+  group: FilterGroup,
+  filters: readonly Filter[],
+  whitelist: readonly Whitelist[]
+): HTMLDetailsElement {
+  const isDefault = group.id === DEFAULT_GROUP_ID;
+  const scheduleSummary = group.is24x7
+    ? 'Always Active'
+    : pluralize(group.schedules.length, 'schedule');
+  const filterSummary = pluralize(filters.length, 'filter');
+  const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
+
+  const groupElement = cloneTemplate<HTMLDetailsElement>('options-group-template');
+  groupElement.dataset.groupId = group.id;
+
+  querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent =
+    group.name;
+  querySelector<HTMLElement>('[data-role="group-meta"]', groupElement).textContent =
+    `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
+
+  const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
+  if (!isDefault) {
+    const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
+    editButton.dataset.groupId = group.id;
+    actions.appendChild(editButton);
+  }
+
+  const filterList = querySelector<HTMLElement>('[data-role="filter-list"]', groupElement);
+  const whitelistList = querySelector<HTMLElement>('[data-role="whitelist-list"]', groupElement);
+  const addFilterButton = querySelector<HTMLButtonElement>(
+    'button[data-action="add-filter"]',
+    groupElement
+  );
+  const addWhitelistButton = querySelector<HTMLButtonElement>(
+    'button[data-action="add-whitelist"]',
+    groupElement
+  );
+
+  addFilterButton.dataset.groupId = group.id;
+  addWhitelistButton.dataset.groupId = group.id;
+
+  if (filters.length === 0) {
+    filterList.appendChild(createEmptyState('No filters in this group.'));
+  } else {
+    const filterFragment = document.createDocumentFragment();
+    for (const filter of filters) {
+      filterFragment.appendChild(renderFilterItem(filter));
+    }
+    filterList.appendChild(filterFragment);
+  }
+
+  if (whitelist.length === 0) {
+    whitelistList.appendChild(createEmptyState('No exceptions in this group.'));
+  } else {
+    const whitelistFragment = document.createDocumentFragment();
+    for (const entry of whitelist) {
+      whitelistFragment.appendChild(renderWhitelistItem(entry));
+    }
+    whitelistList.appendChild(whitelistFragment);
+  }
+
+  return groupElement;
+}
+
+function createEmptyState(message: string): HTMLParagraphElement {
+  const element = document.createElement('p');
+  element.className = 'empty-state';
+  element.textContent = message;
+  return element;
 }
 
 function getMatchModeSelectValue(selectId: string): FilterMatchMode {
@@ -480,58 +478,70 @@ function ensureValidRegex(pattern: string, matchMode: FilterMatchMode): boolean 
   return false;
 }
 
-function renderFilterItem(filter: Filter): string {
+function renderFilterItem(filter: Filter): HTMLElement {
   const description = filter.description?.trim();
-  const nameMarkup = description ? `<div class="filter-title">${escapeHtml(description)}</div>` : '';
   const toggleLabel = description
     ? `Toggle filter ${description}`
     : `Toggle filter for ${filter.pattern}`;
 
-  return `
-    <div class="filter-item">
-      <div class="filter-details">
-        ${nameMarkup}
-        <div class="filter-pattern">${escapeHtml(filter.pattern)}</div>
-      </div>
-      <div class="actions">
-        <label class="toggle">
-          <input type="checkbox" ${filter.enabled ? 'checked' : ''} data-action="toggle-filter" data-filter-id="${filter.id}" aria-label="${escapeHtml(toggleLabel)}">
-          <span class="slider"></span>
-        </label>
-        <button class="button small secondary" data-action="edit-filter" data-filter-id="${filter.id}">
-          <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
-          Edit
-        </button>
-      </div>
-    </div>
-  `;
+  const item = cloneTemplate<HTMLDivElement>('options-filter-item-template');
+  const titleElement = querySelector<HTMLElement>('[data-role="filter-title"]', item);
+  const patternElement = querySelector<HTMLElement>('[data-role="filter-pattern"]', item);
+  const toggleInput = querySelector<HTMLInputElement>(
+    'input[data-action="toggle-filter"]',
+    item
+  );
+  const editButton = querySelector<HTMLButtonElement>(
+    'button[data-action="edit-filter"]',
+    item
+  );
+
+  if (description) {
+    titleElement.textContent = description;
+  } else {
+    titleElement.remove();
+  }
+
+  patternElement.textContent = filter.pattern;
+  toggleInput.checked = filter.enabled;
+  toggleInput.dataset.filterId = filter.id;
+  toggleInput.setAttribute('aria-label', toggleLabel);
+  editButton.dataset.filterId = filter.id;
+
+  return item;
 }
 
-function renderWhitelistItem(entry: Whitelist): string {
+function renderWhitelistItem(entry: Whitelist): HTMLElement {
   const description = entry.description?.trim();
-  const nameMarkup = description ? `<div class="filter-title">${escapeHtml(description)}</div>` : '';
   const toggleLabel = description
     ? `Toggle exception ${description}`
     : `Toggle exception for ${entry.pattern}`;
 
-  return `
-    <div class="filter-item">
-      <div class="filter-details">
-        ${nameMarkup}
-        <div class="filter-pattern">${escapeHtml(entry.pattern)}</div>
-      </div>
-      <div class="actions">
-        <label class="toggle">
-          <input type="checkbox" ${entry.enabled ? 'checked' : ''} data-action="toggle-whitelist" data-whitelist-id="${entry.id}" aria-label="${escapeHtml(toggleLabel)}">
-          <span class="slider"></span>
-        </label>
-        <button class="button small secondary" data-action="edit-whitelist" data-whitelist-id="${entry.id}">
-          <span class="button-icon" aria-hidden="true">${EDIT_ICON_SVG}</span>
-          Edit
-        </button>
-      </div>
-    </div>
-  `;
+  const item = cloneTemplate<HTMLDivElement>('options-whitelist-item-template');
+  const titleElement = querySelector<HTMLElement>('[data-role="whitelist-title"]', item);
+  const patternElement = querySelector<HTMLElement>('[data-role="whitelist-pattern"]', item);
+  const toggleInput = querySelector<HTMLInputElement>(
+    'input[data-action="toggle-whitelist"]',
+    item
+  );
+  const editButton = querySelector<HTMLButtonElement>(
+    'button[data-action="edit-whitelist"]',
+    item
+  );
+
+  if (description) {
+    titleElement.textContent = description;
+  } else {
+    titleElement.remove();
+  }
+
+  patternElement.textContent = entry.pattern;
+  toggleInput.checked = entry.enabled;
+  toggleInput.dataset.whitelistId = entry.id;
+  toggleInput.setAttribute('aria-label', toggleLabel);
+  editButton.dataset.whitelistId = entry.id;
+
+  return item;
 }
 
 function pluralize(count: number, singular: string, plural = `${singular}s`): string {
@@ -542,35 +552,54 @@ function renderSchedules(): void {
   const schedulesList = getElementByIdOrNull('schedules-list');
   if (!schedulesList) return;
 
-  schedulesList.innerHTML = temporarySchedules
-    .map((schedule, index) => {
-      const scheduleNumber = index + 1;
-      return `
-        <div class="schedule-item">
-          <div class="day-checkboxes">
-            ${DAY_NAMES.map(
-              (day, dayIndex) => `
-              <label class="day-checkbox">
-                <input type="checkbox" ${schedule.daysOfWeek.includes(dayIndex) ? 'checked' : ''} 
-                  data-action="update-schedule-day" data-schedule-index="${index}" data-day="${dayIndex}">
-                ${day}
-              </label>
-            `
-            ).join('')}
-          </div>
-          <div class="time-inputs">
-            <input type="time" value="${schedule.startTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="startTime" class="input" aria-label="Start time for schedule ${scheduleNumber}">
-            <span>to</span>
-            <input type="time" value="${schedule.endTime}" data-action="update-schedule-time" data-schedule-index="${index}" data-field="endTime" class="input" aria-label="End time for schedule ${scheduleNumber}">
-            <button type="button" class="icon-button small" data-action="remove-schedule" data-schedule-index="${index}" aria-label="Delete schedule ${scheduleNumber}" title="Delete schedule ${scheduleNumber}">
-              <span class="button-icon" aria-hidden="true">${MINUS_ICON_SVG}</span>
-              <span class="sr-only">Delete</span>
-            </button>
-          </div>
-        </div>
-      `;
-    })
-    .join('');
+  const fragment = document.createDocumentFragment();
+  for (const [index, schedule] of temporarySchedules.entries()) {
+    const scheduleNumber = index + 1;
+    const item = cloneTemplate<HTMLDivElement>('options-schedule-item-template');
+    const dayContainer = querySelector<HTMLElement>('[data-role="day-checkboxes"]', item);
+    const startInput = querySelector<HTMLInputElement>(
+      'input[data-field="startTime"]',
+      item
+    );
+    const endInput = querySelector<HTMLInputElement>(
+      'input[data-field="endTime"]',
+      item
+    );
+    const removeButton = querySelector<HTMLButtonElement>(
+      'button[data-action="remove-schedule"]',
+      item
+    );
+
+    for (const [dayIndex, day] of DAY_NAMES.entries()) {
+      const label = document.createElement('label');
+      label.className = 'day-checkbox';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = schedule.daysOfWeek.includes(dayIndex);
+      input.dataset.action = 'update-schedule-day';
+      input.dataset.scheduleIndex = String(index);
+      input.dataset.day = String(dayIndex);
+      label.appendChild(input);
+      label.append(day);
+      dayContainer.appendChild(label);
+    }
+
+    startInput.value = schedule.startTime;
+    startInput.dataset.scheduleIndex = String(index);
+    startInput.setAttribute('aria-label', `Start time for schedule ${scheduleNumber}`);
+
+    endInput.value = schedule.endTime;
+    endInput.dataset.scheduleIndex = String(index);
+    endInput.setAttribute('aria-label', `End time for schedule ${scheduleNumber}`);
+
+    removeButton.dataset.scheduleIndex = String(index);
+    removeButton.setAttribute('aria-label', `Delete schedule ${scheduleNumber}`);
+    removeButton.title = `Delete schedule ${scheduleNumber}`;
+
+    fragment.appendChild(item);
+  }
+
+  schedulesList.replaceChildren(fragment);
 }
 
 // ============================================================================

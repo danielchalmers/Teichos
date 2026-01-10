@@ -23,6 +23,15 @@ export function getElementByIdOrNull<T extends HTMLElement>(
   return document.getElementById(id) as T | null;
 }
 
+export function cloneTemplate<T extends HTMLElement>(id: string): T {
+  const template = getElementById<HTMLTemplateElement>(id);
+  const element = template.content.firstElementChild;
+  if (!element) {
+    throw new Error(`Template "${id}" has no root element`);
+  }
+  return element.cloneNode(true) as T;
+}
+
 /**
  * Query selector with type safety
  * @throws Error if element not found
