@@ -2,6 +2,25 @@
  * Shared utility functions
  */
 
+const INTERNAL_URL_PREFIXES = [
+  'chrome-extension://',
+  'chrome://',
+  'chrome-untrusted://',
+  'chrome-search://',
+  'devtools://',
+  'edge://',
+  'edge-extension://',
+  'edge-devtools://',
+  'about:',
+  'moz-extension://',
+  'safari-extension://',
+  'opera://',
+  'brave://',
+  'vivaldi://',
+  'extension://',
+  'view-source:',
+] as const;
+
 /**
  * Generate a unique ID
  * Uses crypto.randomUUID() if available, otherwise fallback
@@ -47,4 +66,15 @@ export function getCurrentTimeString(): string {
  */
 export function getCurrentDayOfWeek(): number {
   return new Date().getDay();
+}
+
+/**
+ * Check if a URL is a browser/internal page that should not be filtered
+ */
+export function isInternalUrl(url: string): boolean {
+  if (!url) {
+    return false;
+  }
+  const normalizedUrl = url.toLowerCase();
+  return INTERNAL_URL_PREFIXES.some((prefix) => normalizedUrl.startsWith(prefix));
 }

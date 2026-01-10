@@ -3,7 +3,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { generateId, escapeHtml, formatTime, getCurrentTimeString } from '../../../src/shared/utils/helpers';
+import {
+  generateId,
+  escapeHtml,
+  formatTime,
+  getCurrentTimeString,
+  isInternalUrl,
+} from '../../../src/shared/utils/helpers';
 
 describe('generateId', () => {
   it('should generate a unique ID', () => {
@@ -60,5 +66,21 @@ describe('getCurrentTimeString', () => {
   it('should return a string in HH:MM format', () => {
     const time = getCurrentTimeString();
     expect(time).toMatch(/^\d{2}:\d{2}$/);
+  });
+});
+
+describe('isInternalUrl', () => {
+  it('should detect browser internal URLs', () => {
+    expect(isInternalUrl('chrome://extensions')).toBe(true);
+    expect(isInternalUrl('chrome-extension://abc123/popup.html')).toBe(true);
+    expect(isInternalUrl('edge://settings')).toBe(true);
+    expect(isInternalUrl('about:blank')).toBe(true);
+    expect(isInternalUrl('moz-extension://abc123/index.html')).toBe(true);
+    expect(isInternalUrl('extension://example')).toBe(true);
+  });
+
+  it('should return false for normal web URLs', () => {
+    expect(isInternalUrl('https://example.com')).toBe(false);
+    expect(isInternalUrl('http://localhost:3000')).toBe(false);
   });
 });

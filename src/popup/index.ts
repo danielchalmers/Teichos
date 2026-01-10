@@ -6,7 +6,7 @@ import { loadData, updateFilter } from '../shared/api';
 import { openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
 import { getActiveTab } from '../shared/api/tabs';
 import { MessageType, STORAGE_KEY } from '../shared/types';
-import { isFilterScheduledActive, matchesPattern } from '../shared/utils';
+import { isFilterScheduledActive, isInternalUrl, matchesPattern } from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
 import type { StorageData } from '../shared/types';
 
@@ -194,9 +194,7 @@ async function renderFilters(): Promise<void> {
   const activeTab = await getActiveTab();
   const activeUrl = activeTab?.url;
   const isUrlEligible =
-    Boolean(activeUrl) &&
-    !activeUrl?.startsWith('chrome-extension://') &&
-    !activeUrl?.startsWith('chrome://');
+    Boolean(activeUrl) && activeUrl ? !isInternalUrl(activeUrl) : false;
 
   const whitelistedGroups = new Set<string>();
   if (isUrlEligible && activeUrl) {

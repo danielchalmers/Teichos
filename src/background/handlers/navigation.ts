@@ -3,7 +3,7 @@
  * Checks if navigated URL should be blocked
  */
 
-import { shouldBlockUrl } from '../../shared/utils';
+import { isInternalUrl, shouldBlockUrl } from '../../shared/utils';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { updateTabUrl } from '../../shared/api/tabs';
 import { setLastAllowedUrl } from '../../shared/api/session';
@@ -29,8 +29,8 @@ export async function handleBeforeNavigate(
  * Check URL against filters and redirect to blocked page if needed
  */
 async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
-  // Don't check extension pages
-  if (url.startsWith('chrome-extension://') || url.startsWith('chrome://')) {
+  // Don't check internal pages
+  if (isInternalUrl(url)) {
     return;
   }
 
