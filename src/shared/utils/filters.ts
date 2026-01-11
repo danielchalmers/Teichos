@@ -5,7 +5,35 @@
 import type { Filter, FilterGroup, FilterMatchMode, Whitelist } from '../types';
 import { getCurrentTimeString, getCurrentDayOfWeek } from './helpers';
 
-export type WhitelistByGroup = ReadonlyMap<string, readonly Whitelist[]>;
+export type WhitelistByGroup<T extends Whitelist = Whitelist> = ReadonlyMap<
+  string,
+  readonly T[]
+>;
+export type GroupById = ReadonlyMap<string, FilterGroup>;
+export type GroupLookup = GroupById | readonly FilterGroup[];
+export type ScheduleContext = {
+  readonly dayOfWeek: number;
+  readonly time: string;
+};
+export type PreparedPattern = {
+  readonly pattern: string;
+  readonly matchMode: FilterMatchMode;
+  readonly patternLower?: string;
+  readonly regex?: RegExp | null;
+};
+export type PreparedFilter = Filter & {
+  readonly patternLower?: string;
+  readonly regex?: RegExp | null;
+};
+export type PreparedWhitelist = Whitelist & {
+  readonly patternLower?: string;
+  readonly regex?: RegExp | null;
+};
+export type BlockingIndex = {
+  readonly groupsById: GroupById;
+  readonly filters: readonly PreparedFilter[];
+  readonly whitelistByGroup: WhitelistByGroup<PreparedWhitelist>;
+};
 
 export function getRegexValidationError(pattern: string): string | null {
   try {
@@ -16,6 +44,17 @@ export function getRegexValidationError(pattern: string): string | null {
   }
 }
 
+export function getScheduleContext(): ScheduleContext {
+  return {
+    dayOfWeek: getCurrentDayOfWeek(),
+    time: getCurrentTimeString(),
+  };
+}
+
+export function buildGroupById(groups: readonly FilterGroup[]): GroupById {
+  return new Map(groups.map((group) => [group.id, group]));
+}
+
 /**
  * Check if a URL matches a filter pattern
  * @param url - The URL to check
@@ -24,29 +63,53 @@ export function getRegexValidationError(pattern: string): string | null {
  */
 export function matchesPattern(
   url: string,
-  pattern: string,
-  matchMode: FilterMatchMode = 'contains'
+  pattern: string | PreparedPattern,
+  matchMode: FilterMatchMode = 'contains',
+  urlLower?: string
 ): boolean {
-  if (matchMode === 'regex') {
-    try {
-      const regex = new RegExp(pattern);
-      return regex.test(url);
-    } catch {
-      // Invalid regex pattern - treat as no match
+  let resolvedPattern: string;
+  let resolvedMode: FilterMatchMode;
+  let patternLower: string | undefined;
+  let regex: RegExp | null | undefined;
+
+  if (typeof pattern === 'string') {
+    resolvedPattern = pattern;
+    resolvedMode = matchMode;
+  } else {
+    resolvedPattern = pattern.pattern;
+    resolvedMode = pattern.matchMode;
+    patternLower = pattern.patternLower;
+    regex = pattern.regex;
+  }
+
+  if (resolvedMode === 'regex') {
+    if (regex === null) {
       return false;
     }
+    const resolvedRegex = regex ?? compileRegex(resolvedPattern);
+    if (!resolvedRegex) {
+      return false;
+    }
+    return resolvedRegex.test(url);
   }
-  if (matchMode === 'exact') {
-    return url.toLowerCase() === pattern.toLowerCase();
+
+  const normalizedUrl = urlLower ?? url.toLowerCase();
+  const normalizedPattern = patternLower ?? resolvedPattern.toLowerCase();
+
+  if (resolvedMode === 'exact') {
+    return normalizedUrl === normalizedPattern;
   }
-  // Simple case-insensitive contains matching
-  return url.toLowerCase().includes(pattern.toLowerCase());
+
+  return normalizedUrl.includes(normalizedPattern);
 }
 
 export function buildWhitelistByGroup(
   whitelist: readonly Whitelist[]
-): WhitelistByGroup {
-  const whitelistByGroup = new Map<string, Whitelist[]>();
+): WhitelistByGroup;
+export function buildWhitelistByGroup<T extends Whitelist>(
+  whitelist: readonly T[]
+): WhitelistByGroup<T> {
+  const whitelistByGroup = new Map<string, T[]>();
   for (const entry of whitelist) {
     if (!entry.enabled) {
       continue;
@@ -61,6 +124,43 @@ export function buildWhitelistByGroup(
   return whitelistByGroup;
 }
 
+export function buildBlockingIndex(
+  filters: readonly Filter[],
+  groups: readonly FilterGroup[],
+  whitelist: readonly Whitelist[]
+): BlockingIndex {
+  const groupsById = buildGroupById(groups);
+  const preparedFilters: PreparedFilter[] = [];
+  for (const filter of filters) {
+    if (!filter.enabled) {
+      continue;
+    }
+    if (!groupsById.has(filter.groupId)) {
+      continue;
+    }
+    preparedFilters.push(prepareFilter(filter));
+  }
+
+  const whitelistByGroup = new Map<string, PreparedWhitelist[]>();
+  for (const entry of whitelist) {
+    if (!entry.enabled) {
+      continue;
+    }
+    if (!groupsById.has(entry.groupId)) {
+      continue;
+    }
+    const preparedEntry = prepareWhitelist(entry);
+    const groupEntries = whitelistByGroup.get(entry.groupId);
+    if (groupEntries) {
+      groupEntries.push(preparedEntry);
+    } else {
+      whitelistByGroup.set(entry.groupId, [preparedEntry]);
+    }
+  }
+
+  return { groupsById, filters: preparedFilters, whitelistByGroup };
+}
+
 /**
  * Check if a filter is currently active based on its group's schedule
  * @param filter - The filter to check
@@ -68,13 +168,14 @@ export function buildWhitelistByGroup(
  */
 export function isFilterActive(
   filter: Filter,
-  groups: readonly FilterGroup[]
+  groups: GroupLookup,
+  context: ScheduleContext = getScheduleContext()
 ): boolean {
   if (!filter.enabled) {
     return false;
   }
 
-  return isFilterScheduledActive(filter, groups);
+  return isFilterScheduledActive(filter, groups, context);
 }
 
 /**
@@ -84,26 +185,59 @@ export function isFilterActive(
  */
 export function isFilterScheduledActive(
   filter: Filter,
-  groups: readonly FilterGroup[]
+  groups: GroupLookup,
+  context: ScheduleContext = getScheduleContext()
 ): boolean {
-  const group = groups.find((g) => g.id === filter.groupId);
+  const group = getGroupFromLookup(filter.groupId, groups);
   if (!group) {
     return false;
   }
 
-  if (group.is24x7) {
-    return true;
+  return isGroupScheduleActive(group, context);
+}
+
+export function shouldBlockUrlWithIndex(
+  url: string,
+  blockingIndex: BlockingIndex,
+  context: ScheduleContext = getScheduleContext()
+): PreparedFilter | undefined {
+  if (blockingIndex.filters.length === 0) {
+    return undefined;
   }
 
-  const currentDay = getCurrentDayOfWeek();
-  const currentTime = getCurrentTimeString();
+  const urlLower = url.toLowerCase();
+  const activeGroupStatus = new Map<string, boolean>();
+  const whitelistStatus = new Map<string, boolean>();
 
-  return group.schedules.some((schedule) => {
-    if (!schedule.daysOfWeek.includes(currentDay)) {
-      return false;
+  for (const filter of blockingIndex.filters) {
+    let isActive = activeGroupStatus.get(filter.groupId);
+    if (isActive === undefined) {
+      const group = blockingIndex.groupsById.get(filter.groupId);
+      isActive = group ? isGroupScheduleActive(group, context) : false;
+      activeGroupStatus.set(filter.groupId, isActive);
     }
-    return currentTime >= schedule.startTime && currentTime <= schedule.endTime;
-  });
+    if (!isActive) {
+      continue;
+    }
+
+    let isWhitelisted = whitelistStatus.get(filter.groupId);
+    if (isWhitelisted === undefined) {
+      const groupWhitelist = blockingIndex.whitelistByGroup.get(filter.groupId);
+      isWhitelisted = groupWhitelist
+        ? groupWhitelist.some((entry) => matchesPattern(url, entry, undefined, urlLower))
+        : false;
+      whitelistStatus.set(filter.groupId, isWhitelisted);
+    }
+    if (isWhitelisted) {
+      continue;
+    }
+
+    if (matchesPattern(url, filter, undefined, urlLower)) {
+      return filter;
+    }
+  }
+
+  return undefined;
 }
 
 /**
@@ -118,27 +252,63 @@ export function shouldBlockUrl(
   url: string,
   filters: readonly Filter[],
   groups: readonly FilterGroup[],
-  whitelist: readonly Whitelist[],
-  whitelistByGroup: WhitelistByGroup = buildWhitelistByGroup(whitelist)
+  whitelist: readonly Whitelist[]
 ): Filter | undefined {
-  for (const filter of filters) {
-    if (!isFilterActive(filter, groups)) {
-      continue;
-    }
+  const blockingIndex = buildBlockingIndex(filters, groups, whitelist);
+  return shouldBlockUrlWithIndex(url, blockingIndex);
+}
 
-    if (!matchesPattern(url, filter.pattern, filter.matchMode)) {
-      continue;
-    }
+function compileRegex(pattern: string): RegExp | null {
+  try {
+    return new RegExp(pattern);
+  } catch {
+    return null;
+  }
+}
 
-    const groupWhitelist = whitelistByGroup.get(filter.groupId);
-    if (
-      groupWhitelist?.some((entry) => matchesPattern(url, entry.pattern, entry.matchMode))
-    ) {
-      continue;
-    }
+function preparePattern(
+  pattern: string,
+  matchMode: FilterMatchMode
+): Pick<PreparedPattern, 'patternLower' | 'regex'> {
+  if (matchMode === 'regex') {
+    return { regex: compileRegex(pattern) };
+  }
+  return { patternLower: pattern.toLowerCase() };
+}
 
-    return filter;
+function prepareFilter(filter: Filter): PreparedFilter {
+  return {
+    ...filter,
+    ...preparePattern(filter.pattern, filter.matchMode),
+  };
+}
+
+function prepareWhitelist(entry: Whitelist): PreparedWhitelist {
+  return {
+    ...entry,
+    ...preparePattern(entry.pattern, entry.matchMode),
+  };
+}
+
+function getGroupFromLookup(
+  groupId: string,
+  groups: GroupLookup
+): FilterGroup | undefined {
+  if (groups instanceof Map) {
+    return groups.get(groupId);
+  }
+  return groups.find((group) => group.id === groupId);
+}
+
+function isGroupScheduleActive(group: FilterGroup, context: ScheduleContext): boolean {
+  if (group.is24x7) {
+    return true;
   }
 
-  return undefined;
+  return group.schedules.some((schedule) => {
+    if (!schedule.daysOfWeek.includes(context.dayOfWeek)) {
+      return false;
+    }
+    return context.time >= schedule.startTime && context.time <= schedule.endTime;
+  });
 }

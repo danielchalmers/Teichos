@@ -3,7 +3,7 @@
  * Processes messages from popup, options, and content scripts
  */
 
-import { shouldBlockUrl } from '../../shared/utils';
+import { shouldBlockUrlWithIndex } from '../../shared/utils';
 import {
   isGetDataMessage,
   isCheckUrlMessage,
@@ -48,13 +48,7 @@ async function handleCheckUrl(
   url: string,
   sendResponse: (response: unknown) => void
 ): Promise<void> {
-  const { data, whitelistByGroup } = await getStorageSnapshot();
-  const blocked = shouldBlockUrl(
-    url,
-    data.filters,
-    data.groups,
-    data.whitelist,
-    whitelistByGroup
-  );
+  const { blockingIndex } = await getStorageSnapshot();
+  const blocked = shouldBlockUrlWithIndex(url, blockingIndex);
   sendResponse({ blocked: blocked !== undefined });
 }

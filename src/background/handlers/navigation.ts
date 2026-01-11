@@ -3,7 +3,7 @@
  * Checks if navigated URL should be blocked
  */
 
-import { isInternalUrl, shouldBlockUrl } from '../../shared/utils';
+import { isInternalUrl, shouldBlockUrlWithIndex } from '../../shared/utils';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { updateTabUrl } from '../../shared/api/tabs';
 import { setLastAllowedUrl } from '../../shared/api/session';
@@ -34,14 +34,8 @@ async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
     return;
   }
 
-  const { data, whitelistByGroup } = await getStorageSnapshot();
-  const blockingFilter = shouldBlockUrl(
-    url,
-    data.filters,
-    data.groups,
-    data.whitelist,
-    whitelistByGroup
-  );
+  const { blockingIndex } = await getStorageSnapshot();
+  const blockingFilter = shouldBlockUrlWithIndex(url, blockingIndex);
 
   if (blockingFilter) {
     const blockedUrl = `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(url)}`;

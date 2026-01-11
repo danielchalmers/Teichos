@@ -2,6 +2,8 @@
  * Typed wrapper for chrome.runtime API
  */
 
+import { createTab, queryTabs, removeTabs, updateTab } from './tabs';
+
 /**
  * Get the full URL for an extension resource
  */
@@ -41,66 +43,11 @@ function getOptionsPageUrl(): string {
   return getExtensionUrl('options/index.html');
 }
 
-function queryAllTabs(): Promise<chrome.tabs.Tab[]> {
-  return new Promise((resolve, reject) => {
-    chrome.tabs.query({}, (tabs) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
-        resolve(tabs);
-      }
-    });
-  });
-}
-
-function updateTab(
-  tabId: number,
-  updateProps: chrome.tabs.UpdateProperties
-): Promise<chrome.tabs.Tab> {
-  return new Promise((resolve, reject) => {
-    chrome.tabs.update(tabId, updateProps, (tab) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
-        resolve(tab);
-      }
-    });
-  });
-}
-
-function createTab(createProps: chrome.tabs.CreateProperties): Promise<chrome.tabs.Tab> {
-  return new Promise((resolve, reject) => {
-    chrome.tabs.create(createProps, (tab) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
-        resolve(tab);
-      }
-    });
-  });
-}
-
-function removeTabs(tabIds: number[]): Promise<void> {
-  if (tabIds.length === 0) {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve, reject) => {
-    chrome.tabs.remove(tabIds, () => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
 async function openOrFocusOptionsPage(
   targetUrl?: string
 ): Promise<chrome.tabs.Tab | undefined> {
   const optionsUrl = getOptionsPageUrl();
-  const tabs = await queryAllTabs();
+  const tabs = await queryTabs({});
   const optionsTabs = tabs.filter((tab) => tab.url?.startsWith(optionsUrl));
 
   if (optionsTabs.length > 0) {

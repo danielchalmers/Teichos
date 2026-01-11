@@ -5,11 +5,11 @@
 import { loadData } from '../shared/api';
 import { STORAGE_KEY } from '../shared/types';
 import type { StorageData } from '../shared/types';
-import { buildWhitelistByGroup, type WhitelistByGroup } from '../shared/utils';
+import { buildBlockingIndex, type BlockingIndex } from '../shared/utils';
 
 export type StorageSnapshot = {
   data: StorageData;
-  whitelistByGroup: WhitelistByGroup;
+  blockingIndex: BlockingIndex;
 };
 
 let cachedSnapshot: StorageSnapshot | null = null;
@@ -19,7 +19,7 @@ let cacheEpoch = 0;
 function buildSnapshot(data: StorageData): StorageSnapshot {
   return {
     data,
-    whitelistByGroup: buildWhitelistByGroup(data.whitelist),
+    blockingIndex: buildBlockingIndex(data.filters, data.groups, data.whitelist),
   };
 }
 

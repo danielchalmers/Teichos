@@ -6,7 +6,13 @@ import { loadData, updateFilter } from '../shared/api';
 import { openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
 import { getActiveTab } from '../shared/api/tabs';
 import { MessageType, STORAGE_KEY } from '../shared/types';
-import { isFilterScheduledActive, isInternalUrl, matchesPattern } from '../shared/utils';
+import {
+  buildGroupById,
+  getScheduleContext,
+  isFilterScheduledActive,
+  isInternalUrl,
+  matchesPattern,
+} from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
 import type { StorageData } from '../shared/types';
 
@@ -196,18 +202,21 @@ async function renderFilters(): Promise<void> {
   const isUrlEligible =
     Boolean(activeUrl) && activeUrl ? !isInternalUrl(activeUrl) : false;
 
+  const groupsById = buildGroupById(data.groups);
+  const scheduleContext = getScheduleContext();
   const whitelistedGroups = new Set<string>();
   if (isUrlEligible && activeUrl) {
+    const activeUrlLower = activeUrl.toLowerCase();
     for (const entry of data.whitelist) {
       if (!entry.enabled) continue;
-      if (matchesPattern(activeUrl, entry.pattern, entry.matchMode)) {
+      if (matchesPattern(activeUrl, entry.pattern, entry.matchMode, activeUrlLower)) {
         whitelistedGroups.add(entry.groupId);
       }
     }
   }
 
   const visibleFilters = data.filters.filter((filter) => {
-    if (!isFilterScheduledActive(filter, data.groups)) {
+    if (!isFilterScheduledActive(filter, groupsById, scheduleContext)) {
       return false;
     }
     if (isUrlEligible && whitelistedGroups.has(filter.groupId)) {
@@ -216,7 +225,6 @@ async function renderFilters(): Promise<void> {
     return true;
   });
   const inactiveCount = data.filters.length - visibleFilters.length;
-  const groupsById = new Map(data.groups.map((group) => [group.id, group]));
 
   const fragment = document.createDocumentFragment();
   for (const filter of visibleFilters) {
