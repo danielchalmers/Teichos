@@ -446,16 +446,18 @@ async function renderFilters(): Promise<void> {
     nameElement.title = displayName;
     const remainingMs = getTemporaryFilterRemainingMs(filter);
     if (metaElement) {
-      if (remainingMs === null) {
-        metaElement.remove();
-      } else if (remainingMs <= 0) {
-        metaElement.textContent = 'Temporary filter expired';
+      metaElement.remove();
+    }
+    let groupLabel = groupName;
+    if (remainingMs !== null) {
+      if (remainingMs <= 0) {
+        groupLabel = 'Temporary expired';
       } else {
-        metaElement.textContent = `Temporary - ${formatDuration(remainingMs)} left`;
+        groupLabel = `Temporary - ${formatDuration(remainingMs)} left`;
       }
     }
-    groupElement.textContent = groupName;
-    groupElement.title = groupName;
+    groupElement.textContent = groupLabel;
+    groupElement.title = groupLabel;
 
     toggleInput.checked = filter.enabled;
     toggleInput.dataset.filterId = filter.id;
