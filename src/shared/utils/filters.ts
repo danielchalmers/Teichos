@@ -35,6 +35,22 @@ export type BlockingIndex = {
   readonly whitelistByGroup: WhitelistByGroup<PreparedWhitelist>;
 };
 
+export function isTemporaryFilter(filter: Filter): boolean {
+  return typeof filter.expiresAt === 'number' && Number.isFinite(filter.expiresAt);
+}
+
+export function getTemporaryFilterRemainingMs(filter: Filter, now = Date.now()): number | null {
+  if (!isTemporaryFilter(filter)) {
+    return null;
+  }
+  return filter.expiresAt - now;
+}
+
+export function isTemporaryFilterExpired(filter: Filter, now = Date.now()): boolean {
+  const remaining = getTemporaryFilterRemainingMs(filter, now);
+  return remaining !== null && remaining <= 0;
+}
+
 export function getRegexValidationError(pattern: string): string | null {
   try {
     new RegExp(pattern);
@@ -188,6 +204,10 @@ export function isFilterScheduledActive(
   groups: GroupLookup,
   context: ScheduleContext = getScheduleContext()
 ): boolean {
+  if (isTemporaryFilterExpired(filter)) {
+    return false;
+  }
+
   const group = getGroupFromLookup(filter.groupId, groups);
   if (!group) {
     return false;
@@ -206,10 +226,15 @@ export function shouldBlockUrlWithIndex(
   }
 
   const urlLower = url.toLowerCase();
+  const now = Date.now();
   const activeGroupStatus = new Map<string, boolean>();
   const whitelistStatus = new Map<string, boolean>();
 
   for (const filter of blockingIndex.filters) {
+    if (isTemporaryFilterExpired(filter, now)) {
+      continue;
+    }
+
     let isActive = activeGroupStatus.get(filter.groupId);
     if (isActive === undefined) {
       const group = blockingIndex.groupsById.get(filter.groupId);
@@ -220,16 +245,18 @@ export function shouldBlockUrlWithIndex(
       continue;
     }
 
-    let isWhitelisted = whitelistStatus.get(filter.groupId);
-    if (isWhitelisted === undefined) {
-      const groupWhitelist = blockingIndex.whitelistByGroup.get(filter.groupId);
-      isWhitelisted = groupWhitelist
-        ? groupWhitelist.some((entry) => matchesPattern(url, entry, undefined, urlLower))
-        : false;
-      whitelistStatus.set(filter.groupId, isWhitelisted);
-    }
-    if (isWhitelisted) {
-      continue;
+    if (!isTemporaryFilter(filter)) {
+      let isWhitelisted = whitelistStatus.get(filter.groupId);
+      if (isWhitelisted === undefined) {
+        const groupWhitelist = blockingIndex.whitelistByGroup.get(filter.groupId);
+        isWhitelisted = groupWhitelist
+          ? groupWhitelist.some((entry) => matchesPattern(url, entry, undefined, urlLower))
+          : false;
+        whitelistStatus.set(filter.groupId, isWhitelisted);
+      }
+      if (isWhitelisted) {
+        continue;
+      }
     }
 
     if (matchesPattern(url, filter, undefined, urlLower)) {

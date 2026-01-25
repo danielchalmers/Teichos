@@ -187,6 +187,36 @@ describe('isFilterActive', () => {
     ];
     expect(isFilterActive(filter, groups)).toBe(false);
   });
+
+  it('should return false when a temporary filter is expired', () => {
+    const filter: Filter = {
+      id: 'filter-1',
+      pattern: 'example',
+      groupId: 'group-1',
+      enabled: true,
+      matchMode: 'contains',
+      expiresAt: mockDate.getTime() - 1_000,
+    };
+    const groups: FilterGroup[] = [
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true },
+    ];
+    expect(isFilterActive(filter, groups)).toBe(false);
+  });
+
+  it('should return true when a temporary filter is still active', () => {
+    const filter: Filter = {
+      id: 'filter-1',
+      pattern: 'example',
+      groupId: 'group-1',
+      enabled: true,
+      matchMode: 'contains',
+      expiresAt: mockDate.getTime() + 60_000,
+    };
+    const groups: FilterGroup[] = [
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true },
+    ];
+    expect(isFilterActive(filter, groups)).toBe(true);
+  });
 });
 
 describe('shouldBlockUrl', () => {
@@ -312,5 +342,58 @@ describe('shouldBlockUrl', () => {
       whitelist
     );
     expect(result).toBeDefined();
+  });
+
+  it('should ignore whitelist entries for temporary filters', () => {
+    const now = new Date(2025, 0, 15, 10, 30, 0).getTime();
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const filters: Filter[] = [
+      {
+        id: 'f1',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+        expiresAt: now + 60_000,
+      },
+    ];
+    const whitelist: Whitelist[] = [
+      {
+        id: 'w1',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
+    ];
+
+    const result = shouldBlockUrl('https://blocked.com', filters, groups, whitelist);
+    expect(result).toBeDefined();
+
+    vi.useRealTimers();
+  });
+
+  it('should not block when temporary filters have expired', () => {
+    const now = new Date(2025, 0, 15, 10, 30, 0).getTime();
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const filters: Filter[] = [
+      {
+        id: 'f1',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+        expiresAt: now - 1,
+      },
+    ];
+
+    const result = shouldBlockUrl('https://blocked.com', filters, groups, []);
+    expect(result).toBeUndefined();
+
+    vi.useRealTimers();
   });
 });

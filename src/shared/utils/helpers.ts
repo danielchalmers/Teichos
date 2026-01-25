@@ -62,6 +62,26 @@ export function getCurrentTimeString(): string {
 }
 
 /**
+ * Format a duration in milliseconds into a compact label.
+ */
+export function formatDuration(ms: number): string {
+  const totalMinutes = Math.max(1, Math.ceil(ms / 60000));
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+  if (totalHours < 24) {
+    return remainingMinutes ? `${totalHours}h ${remainingMinutes}m` : `${totalHours}h`;
+  }
+
+  const totalDays = Math.floor(totalHours / 24);
+  const remainingHours = totalHours % 24;
+  return remainingHours ? `${totalDays}d ${remainingHours}h` : `${totalDays}d`;
+}
+
+/**
  * Get current day of week (0-6, Sunday-Saturday)
  */
 export function getCurrentDayOfWeek(): number {

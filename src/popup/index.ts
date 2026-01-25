@@ -2,19 +2,24 @@
  * Popup Entry Point
  */
 
-import { loadData, updateFilter } from '../shared/api';
-import { openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
-import { getActiveTab } from '../shared/api/tabs';
-import { MessageType, STORAGE_KEY } from '../shared/types';
+import { addFilter, loadData, updateFilter } from '../shared/api';
+import { getExtensionUrl, openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
+import { getActiveTab, updateTabUrl } from '../shared/api/tabs';
+import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../shared/types';
 import {
   buildGroupById,
+  formatDuration,
+  generateId,
   getScheduleContext,
+  getTemporaryFilterRemainingMs,
   isFilterScheduledActive,
   isInternalUrl,
+  isTemporaryFilter,
   matchesPattern,
 } from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
 import type { StorageData } from '../shared/types';
+import { PAGES } from '../shared/constants';
 
 let cachedData: StorageData | null = null;
 
@@ -52,6 +57,7 @@ function setupEventListeners(): void {
         window.close();
       });
   });
+  setupQuickAdd();
   setupFilterListEvents();
 }
 
@@ -121,7 +127,7 @@ function setupFilterListEvents(): void {
     }
 
     if (action === 'add-first-filter') {
-      openOptionsPage().catch((error: unknown) => {
+      openOptionsPageWithParams({ modal: 'filter' }).catch((error: unknown) => {
         console.error('Failed to open options page:', error);
       });
     }
@@ -135,6 +141,198 @@ function setupFilterListEvents(): void {
     if (!checkbox) return;
     void handleToggleFilter(checkbox);
   });
+}
+
+function setupQuickAdd(): void {
+  const openButton = getElementByIdOrNull('open-quick-add');
+  const popover = getElementByIdOrNull('quick-add');
+  const form = getElementByIdOrNull<HTMLFormElement>('quick-add-form');
+  const patternInput = getElementByIdOrNull<HTMLInputElement>('quick-add-pattern');
+  const durationInput = getElementByIdOrNull<HTMLInputElement>('quick-add-duration');
+  const unitSelect = getElementByIdOrNull<HTMLSelectElement>('quick-add-unit');
+
+  if (!openButton || !popover || !form || !patternInput || !durationInput || !unitSelect) {
+    return;
+  }
+
+  const setOpen = (isOpen: boolean, returnFocus = false): void => {
+    popover.classList.toggle('is-open', isOpen);
+    popover.setAttribute('aria-hidden', String(!isOpen));
+    openButton.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) {
+      popover.removeAttribute('inert');
+    } else {
+      popover.setAttribute('inert', '');
+      if (returnFocus) {
+        openButton.focus();
+      }
+    }
+  };
+
+  const ensureDefaults = (): void => {
+    if (!durationInput.value) {
+      durationInput.value = '30';
+    }
+    if (!unitSelect.value) {
+      unitSelect.value = 'minutes';
+    }
+  };
+
+  const openQuickAdd = async (): Promise<void> => {
+    setOpen(true);
+    ensureDefaults();
+    const suggestion = await getSuggestedPattern();
+    if (suggestion) {
+      patternInput.value = suggestion;
+    }
+    patternInput.focus();
+    patternInput.select();
+  };
+
+  openButton.addEventListener('click', () => {
+    if (popover.classList.contains('is-open')) {
+      setOpen(false, true);
+      return;
+    }
+    void openQuickAdd();
+  });
+
+  popover.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement;
+    const action = target.closest<HTMLElement>('[data-action]')?.dataset['action'];
+    if (action === 'close-quick-add') {
+      setOpen(false, true);
+      return;
+    }
+    if (action === 'open-full-editor') {
+      openOptionsPageWithParams({ modal: 'filter' })
+        .catch((error: unknown) => {
+          console.error('Failed to open full editor:', error);
+        })
+        .finally(() => {
+          window.close();
+        });
+      return;
+    }
+
+    const presetButton = target.closest<HTMLButtonElement>('button[data-duration][data-unit]');
+    if (presetButton) {
+      durationInput.value = presetButton.dataset['duration'] ?? durationInput.value;
+      unitSelect.value = presetButton.dataset['unit'] ?? unitSelect.value;
+      return;
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && popover.classList.contains('is-open')) {
+      setOpen(false, true);
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!popover.classList.contains('is-open')) {
+      return;
+    }
+    const target = event.target as Node;
+    if (popover.contains(target) || openButton.contains(target)) {
+      return;
+    }
+    setOpen(false);
+  });
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void handleQuickAddSubmit(patternInput, durationInput, unitSelect, () => {
+      setOpen(false, true);
+    });
+  });
+}
+
+async function handleQuickAddSubmit(
+  patternInput: HTMLInputElement,
+  durationInput: HTMLInputElement,
+  unitSelect: HTMLSelectElement,
+  onClose: () => void
+): Promise<void> {
+  const pattern = patternInput.value.trim();
+  if (!pattern) {
+    announceStatus('Enter a site or pattern to block.');
+    patternInput.focus();
+    return;
+  }
+
+  const durationValue = Number(durationInput.value);
+  if (!Number.isFinite(durationValue) || durationValue <= 0) {
+    announceStatus('Enter a valid duration.');
+    durationInput.focus();
+    return;
+  }
+
+  const unit = unitSelect.value;
+  const unitToMs: Record<string, number> = {
+    minutes: 60_000,
+    hours: 3_600_000,
+    days: 86_400_000,
+  };
+  const durationMs = Math.round(durationValue * (unitToMs[unit] ?? 0));
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    announceStatus('Enter a valid duration.');
+    durationInput.focus();
+    return;
+  }
+
+  const expiresAt = Date.now() + durationMs;
+  const filter = {
+    id: generateId(),
+    pattern,
+    groupId: DEFAULT_GROUP_ID,
+    enabled: true,
+    matchMode: 'contains' as const,
+    expiresAt,
+  };
+  try {
+    await addFilter(filter);
+    await blockActiveTabIfMatched(filter);
+    announceStatus(`Temporary filter added for ${formatDuration(durationMs)}.`);
+    patternInput.value = '';
+    await renderFilters();
+    onClose();
+  } catch (error) {
+    console.error('Failed to add temporary filter:', error);
+    announceStatus('Failed to add temporary filter.');
+  }
+}
+
+async function getSuggestedPattern(): Promise<string | null> {
+  const activeTab = await getActiveTab();
+  const url = activeTab?.url;
+  if (!url || isInternalUrl(url)) {
+    return null;
+  }
+
+  return url;
+}
+
+async function blockActiveTabIfMatched(filter: {
+  readonly pattern: string;
+  readonly matchMode: 'contains' | 'exact' | 'regex';
+}): Promise<void> {
+  const activeTab = await getActiveTab();
+  if (!activeTab?.id || !activeTab.url) {
+    return;
+  }
+
+  const url = activeTab.url;
+  if (isInternalUrl(url)) {
+    return;
+  }
+
+  if (!matchesPattern(url, filter.pattern, filter.matchMode)) {
+    return;
+  }
+
+  const blockedUrl = `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(url)}`;
+  await updateTabUrl(activeTab.id, blockedUrl);
 }
 
 async function handleCopyPattern(pattern: string): Promise<void> {
@@ -219,7 +417,7 @@ async function renderFilters(): Promise<void> {
     if (!isFilterScheduledActive(filter, groupsById, scheduleContext)) {
       return false;
     }
-    if (isUrlEligible && whitelistedGroups.has(filter.groupId)) {
+    if (!isTemporaryFilter(filter) && isUrlEligible && whitelistedGroups.has(filter.groupId)) {
       return false;
     }
     return true;
@@ -238,6 +436,7 @@ async function renderFilters(): Promise<void> {
 
     const item = cloneTemplate<HTMLDivElement>('popup-filter-item-template');
     const nameElement = querySelector<HTMLElement>('.filter-name', item);
+    const metaElement = item.querySelector<HTMLElement>('.filter-meta');
     const groupElement = querySelector<HTMLElement>('.filter-group', item);
     const toggleInput = querySelector<HTMLInputElement>('input[type="checkbox"]', item);
     const copyButton = querySelector<HTMLButtonElement>('button[data-action="copy-url"]', item);
@@ -245,6 +444,16 @@ async function renderFilters(): Promise<void> {
 
     nameElement.textContent = displayName;
     nameElement.title = displayName;
+    const remainingMs = getTemporaryFilterRemainingMs(filter);
+    if (metaElement) {
+      if (remainingMs === null) {
+        metaElement.remove();
+      } else if (remainingMs <= 0) {
+        metaElement.textContent = 'Temporary filter expired';
+      } else {
+        metaElement.textContent = `Temporary - ${formatDuration(remainingMs)} left`;
+      }
+    }
     groupElement.textContent = groupName;
     groupElement.title = groupName;
 

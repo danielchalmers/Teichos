@@ -588,6 +588,15 @@ label {
   color: var(--text-muted);
 }
 
+.filter-meta.is-temporary {
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+.filter-meta.is-expired {
+  color: #b45309;
+}
+
 .actions {
   display: flex;
   gap: 0.5rem;

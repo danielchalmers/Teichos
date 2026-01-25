@@ -13,6 +13,20 @@
       Teichos
     </h1>
     <div class="header-actions">
+      <button
+        class="header-icon-button"
+        id="open-quick-add"
+        type="button"
+        aria-label="Add temporary filter"
+        aria-haspopup="dialog"
+        aria-expanded="false"
+        aria-controls="quick-add"
+        title="Quick block"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      </button>
       <button class="header-icon-button" id="open-info" type="button" aria-label="About Teichos" title="About Teichos">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
@@ -36,6 +50,74 @@
   </header>
   <main class="content">
     <div class="filter-list" id="filter-list" role="list" aria-label="Active filters"></div>
+    <div class="quick-add" id="quick-add" aria-hidden="true" inert>
+      <div class="quick-add-backdrop" data-action="close-quick-add" aria-hidden="true"></div>
+      <div
+        class="quick-add-panel"
+        role="dialog"
+        aria-labelledby="quick-add-title"
+        aria-describedby="quick-add-subtitle"
+      >
+        <div class="quick-add-header">
+          <div>
+            <div class="quick-add-eyebrow">Quick Block</div>
+            <div class="quick-add-title" id="quick-add-title">Temporary filter</div>
+            <div class="quick-add-subtitle" id="quick-add-subtitle">Starts now in the 24/7 group, ignores exceptions, and expires automatically.</div>
+          </div>
+          <button class="icon-button" type="button" data-action="close-quick-add" aria-label="Close quick add" title="Close">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+              <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+        <form id="quick-add-form" class="quick-add-form">
+          <div class="quick-add-row">
+            <label class="form-label" for="quick-add-pattern">Site or pattern</label>
+            <input
+              class="input"
+              type="text"
+              id="quick-add-pattern"
+              name="pattern"
+              placeholder="e.g., youtube.com"
+              required
+            >
+          </div>
+          <div class="quick-add-row">
+            <label class="form-label" for="quick-add-duration">Block for</label>
+            <div class="quick-add-duration">
+              <input
+                class="input"
+                type="number"
+                id="quick-add-duration"
+                name="duration"
+                min="1"
+                step="1"
+                inputmode="numeric"
+                required
+              >
+              <select class="input select" id="quick-add-unit" name="unit">
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+              </select>
+            </div>
+            <div class="quick-add-presets" role="list">
+              <button class="pill-button" type="button" data-duration="15" data-unit="minutes" role="listitem">15m</button>
+              <button class="pill-button" type="button" data-duration="30" data-unit="minutes" role="listitem">30m</button>
+              <button class="pill-button" type="button" data-duration="1" data-unit="hours" role="listitem">1h</button>
+              <button class="pill-button" type="button" data-duration="2" data-unit="hours" role="listitem">2h</button>
+            </div>
+          </div>
+          <div class="quick-add-actions">
+            <button class="button" type="submit">Start block</button>
+            <button class="button ghost" type="button" data-action="close-quick-add">Cancel</button>
+          </div>
+          <button class="text-link" type="button" data-action="open-full-editor">
+            Need a full filter or exception? Open the full editor
+          </button>
+        </form>
+      </div>
+    </div>
   </main>
   <div id="status-message" class="sr-only" role="status"></div>
   <template id="popup-empty-state-template">
@@ -48,6 +130,7 @@
     <div class="filter-item" role="listitem">
       <div class="filter-info">
         <div class="filter-name"></div>
+        <div class="filter-meta"></div>
       </div>
       <div class="filter-footer">
         <div class="filter-group"></div>

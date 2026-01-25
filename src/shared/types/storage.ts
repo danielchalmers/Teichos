@@ -36,6 +36,7 @@ export interface Filter {
   readonly enabled: boolean;
   readonly matchMode: FilterMatchMode;
   readonly description?: string;
+  readonly expiresAt?: number; // Epoch ms when a temporary filter expires
 }
 
 /** Whitelist entry scoped to a filter group */

@@ -23,7 +23,12 @@ import type {
   MutableTimeSchedule,
 } from '../shared/types';
 import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../shared/types';
-import { generateId, getRegexValidationError } from '../shared/utils';
+import {
+  formatDuration,
+  generateId,
+  getRegexValidationError,
+  getTemporaryFilterRemainingMs,
+} from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
 import { DAY_NAMES, DEFAULT_SCHEDULE } from '../shared/constants';
 
@@ -168,12 +173,28 @@ function setupInfoPopover(): ((isOpen: boolean) => void) | null {
 function openFilterFromQuery(): void {
   const params = new URLSearchParams(window.location.search);
   const filterId = params.get('editFilter');
-  if (!filterId) return;
+  const modal = params.get('modal');
+  let handled = false;
 
-  openFilterModal(filterId);
+  if (filterId) {
+    openFilterModal(filterId);
+    handled = true;
+  } else if (modal === 'filter') {
+    openFilterModal();
+    handled = true;
+  } else if (modal === 'whitelist') {
+    openWhitelistModal();
+    handled = true;
+  } else if (modal === 'group') {
+    openGroupModal();
+    handled = true;
+  }
+
+  if (!handled) return;
 
   const nextUrl = new URL(window.location.href);
   nextUrl.searchParams.delete('editFilter');
+  nextUrl.searchParams.delete('modal');
   history.replaceState({}, document.title, nextUrl.toString());
 }
 
@@ -487,6 +508,7 @@ function renderFilterItem(filter: Filter): HTMLElement {
   const item = cloneTemplate<HTMLDivElement>('options-filter-item-template');
   const titleElement = querySelector<HTMLElement>('[data-role="filter-title"]', item);
   const patternElement = querySelector<HTMLElement>('[data-role="filter-pattern"]', item);
+  const metaElement = item.querySelector<HTMLElement>('[data-role="filter-meta"]');
   const toggleInput = querySelector<HTMLInputElement>(
     'input[data-action="toggle-filter"]',
     item
@@ -503,6 +525,18 @@ function renderFilterItem(filter: Filter): HTMLElement {
   }
 
   patternElement.textContent = filter.pattern;
+  const remainingMs = getTemporaryFilterRemainingMs(filter);
+  if (metaElement) {
+    if (remainingMs === null) {
+      metaElement.remove();
+    } else if (remainingMs <= 0) {
+      metaElement.textContent = 'Temporary (expired)';
+      metaElement.classList.add('is-temporary', 'is-expired');
+    } else {
+      metaElement.textContent = `Temporary (${formatDuration(remainingMs)} left)`;
+      metaElement.classList.add('is-temporary');
+    }
+  }
   toggleInput.checked = filter.enabled;
   toggleInput.dataset.filterId = filter.id;
   toggleInput.setAttribute('aria-label', toggleLabel);
@@ -672,7 +706,13 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     return;
   }
 
-  const filter: Filter = {
+  let expiresAt: number | undefined;
+  if (currentEditingFilterId) {
+    const data = await loadData();
+    expiresAt = data.filters.find((filter) => filter.id === currentEditingFilterId)?.expiresAt;
+  }
+
+  const baseFilter: Filter = {
     id: currentEditingFilterId ?? generateId(),
     pattern,
     description,
@@ -680,6 +720,8 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     enabled,
     matchMode,
   };
+  const filter: Filter =
+    typeof expiresAt === 'number' ? { ...baseFilter, expiresAt } : baseFilter;
 
   try {
     if (currentEditingFilterId) {
