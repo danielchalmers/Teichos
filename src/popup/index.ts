@@ -117,6 +117,26 @@ async function copyText(value: string): Promise<void> {
   textarea.remove();
 }
 
+const copyFeedbackTimers = new WeakMap<HTMLButtonElement, number>();
+
+function showCopyFeedback(button: HTMLButtonElement): void {
+  const existingTimer = copyFeedbackTimers.get(button);
+  if (existingTimer) {
+    window.clearTimeout(existingTimer);
+  }
+
+  button.classList.remove('is-copied');
+  void button.offsetWidth;
+  button.classList.add('is-copied');
+
+  const timeoutId = window.setTimeout(() => {
+    button.classList.remove('is-copied');
+    copyFeedbackTimers.delete(button);
+  }, 900);
+
+  copyFeedbackTimers.set(button, timeoutId);
+}
+
 function setupFilterListEvents(): void {
   const filterList = getElementByIdOrNull('filter-list');
   if (!filterList) return;
@@ -130,7 +150,7 @@ function setupFilterListEvents(): void {
     if (action === 'copy-url') {
       const pattern = button.dataset['pattern'] ?? '';
       if (!pattern) return;
-      void handleCopyPattern(pattern);
+      void handleCopyPattern(pattern, button);
       return;
     }
 
@@ -363,10 +383,14 @@ async function blockActiveTabIfMatched(filter: {
   await updateTabUrl(activeTab.id, blockedUrl);
 }
 
-async function handleCopyPattern(pattern: string): Promise<void> {
+async function handleCopyPattern(
+  pattern: string,
+  button: HTMLButtonElement
+): Promise<void> {
   try {
     await copyText(pattern);
     announceStatus('Copied URL pattern to clipboard.');
+    showCopyFeedback(button);
   } catch (error) {
     console.error('Failed to copy URL:', error);
     announceStatus('Failed to copy URL pattern.');
@@ -482,9 +506,11 @@ async function renderFilters(): Promise<void> {
     const toggleInput = toggleWrapper?.querySelector<HTMLInputElement>('input[type="checkbox"]') ?? null;
     const copyButton = querySelector<HTMLButtonElement>('button[data-action="copy-url"]', item);
     const editButton = querySelector<HTMLButtonElement>('button[data-action="edit-filter"]', item);
+    const deleteButton = querySelector<HTMLButtonElement>('button[data-action="delete-filter"]', item);
 
     nameElement.textContent = displayName;
     nameElement.title = displayName;
+    const isTemporary = isTemporaryFilter(filter);
     const remainingMs = getTemporaryFilterRemainingMs(filter);
     if (metaElement) {
       metaElement.remove();
@@ -500,26 +526,22 @@ async function renderFilters(): Promise<void> {
     groupElement.textContent = groupLabel;
     groupElement.title = groupLabel;
 
-    if (isTemporaryFilter(filter)) {
+    editButton.hidden = isTemporary;
+    deleteButton.hidden = !isTemporary;
+
+    if (isTemporary) {
       toggleWrapper?.remove();
-      editButton.dataset.action = 'delete-filter';
-      editButton.classList.add('is-delete');
-      editButton.setAttribute('aria-label', 'Delete temporary filter');
-      editButton.title = 'Delete temporary filter';
     } else {
       if (toggleInput) {
         toggleInput.checked = filter.enabled;
-        toggleInput.dataset.filterId = filter.id;
+        toggleInput.dataset['filterId'] = filter.id;
         toggleInput.setAttribute('aria-label', toggleLabel);
       }
-      editButton.dataset.action = 'edit-filter';
-      editButton.classList.remove('is-delete');
-      editButton.setAttribute('aria-label', 'Edit Filter');
-      editButton.title = 'Edit Filter';
     }
 
-    copyButton.dataset.pattern = filter.pattern;
-    editButton.dataset.filterId = filter.id;
+    copyButton.dataset['pattern'] = filter.pattern;
+    editButton.dataset['filterId'] = filter.id;
+    deleteButton.dataset['filterId'] = filter.id;
 
     fragment.appendChild(item);
   }
