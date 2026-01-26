@@ -8,6 +8,7 @@ import {
   addFilter,
   updateFilter,
   deleteFilter,
+  saveData,
   addGroup,
   updateGroup,
   deleteGroup,
@@ -19,15 +20,16 @@ import type {
   Filter,
   FilterGroup,
   FilterMatchMode,
+  StorageData,
   Whitelist,
   MutableTimeSchedule,
 } from '../shared/types';
 import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../shared/types';
 import {
-  formatDuration,
   generateId,
   getRegexValidationError,
-  getTemporaryFilterRemainingMs,
+  isTemporaryFilter,
+  isTemporaryFilterExpired,
 } from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
 import { DAY_NAMES, DEFAULT_SCHEDULE } from '../shared/constants';
@@ -336,8 +338,24 @@ function deactivateModal(modal: HTMLElement): void {
 // Rendering Functions
 // ============================================================================
 
+async function purgeExpiredTemporaryFilters(data: StorageData): Promise<StorageData> {
+  const now = Date.now();
+  const remainingFilters = data.filters.filter(
+    (filter) => !isTemporaryFilterExpired(filter, now)
+  );
+
+  if (remainingFilters.length === data.filters.length) {
+    return data;
+  }
+
+  const updated = { ...data, filters: remainingFilters };
+  await saveData(updated);
+  return updated;
+}
+
 async function renderGroups(): Promise<void> {
-  const data = await loadData();
+  let data = await loadData();
+  data = await purgeExpiredTemporaryFilters(data);
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
 
@@ -358,6 +376,9 @@ async function renderGroups(): Promise<void> {
 
   const filtersByGroup = new Map<string, Filter[]>();
   for (const filter of data.filters) {
+    if (isTemporaryFilter(filter)) {
+      continue;
+    }
     const groupFilters = filtersByGroup.get(filter.groupId);
     if (groupFilters) {
       groupFilters.push(filter);
@@ -508,7 +529,6 @@ function renderFilterItem(filter: Filter): HTMLElement {
   const item = cloneTemplate<HTMLDivElement>('options-filter-item-template');
   const titleElement = querySelector<HTMLElement>('[data-role="filter-title"]', item);
   const patternElement = querySelector<HTMLElement>('[data-role="filter-pattern"]', item);
-  const metaElement = item.querySelector<HTMLElement>('[data-role="filter-meta"]');
   const toggleInput = querySelector<HTMLInputElement>(
     'input[data-action="toggle-filter"]',
     item
@@ -525,18 +545,6 @@ function renderFilterItem(filter: Filter): HTMLElement {
   }
 
   patternElement.textContent = filter.pattern;
-  const remainingMs = getTemporaryFilterRemainingMs(filter);
-  if (metaElement) {
-    if (remainingMs === null) {
-      metaElement.remove();
-    } else if (remainingMs <= 0) {
-      metaElement.textContent = 'Temporary (expired)';
-      metaElement.classList.add('is-temporary', 'is-expired');
-    } else {
-      metaElement.textContent = `Temporary (${formatDuration(remainingMs)} left)`;
-      metaElement.classList.add('is-temporary');
-    }
-  }
   toggleInput.checked = filter.enabled;
   toggleInput.dataset.filterId = filter.id;
   toggleInput.setAttribute('aria-label', toggleLabel);

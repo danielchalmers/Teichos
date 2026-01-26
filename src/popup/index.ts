@@ -2,7 +2,7 @@
  * Popup Entry Point
  */
 
-import { addFilter, loadData, updateFilter } from '../shared/api';
+import { addFilter, deleteFilter, loadData, saveData, updateFilter } from '../shared/api';
 import { getExtensionUrl, openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
 import { getActiveTab, updateTabUrl } from '../shared/api/tabs';
 import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../shared/types';
@@ -15,6 +15,7 @@ import {
   isFilterScheduledActive,
   isInternalUrl,
   isTemporaryFilter,
+  isTemporaryFilterExpired,
   matchesPattern,
 } from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
@@ -22,6 +23,26 @@ import type { StorageData } from '../shared/types';
 import { PAGES } from '../shared/constants';
 
 let cachedData: StorageData | null = null;
+
+async function disableExpiredTemporaryFilters(data: StorageData): Promise<StorageData> {
+  const now = Date.now();
+  let didUpdate = false;
+  const filters = data.filters.map((filter) => {
+    if (isTemporaryFilterExpired(filter, now) && filter.enabled) {
+      didUpdate = true;
+      return { ...filter, enabled: false };
+    }
+    return filter;
+  });
+
+  if (!didUpdate) {
+    return data;
+  }
+
+  const updated = { ...data, filters };
+  await saveData(updated);
+  return updated;
+}
 
 /**
  * Initialize popup
@@ -122,7 +143,14 @@ function setupFilterListEvents(): void {
         })
         .finally(() => {
           window.close();
-        });
+      });
+      return;
+    }
+
+    if (action === 'delete-filter') {
+      const filterId = button.dataset['filterId'];
+      if (!filterId) return;
+      void handleDeleteFilter(filterId);
       return;
     }
 
@@ -365,6 +393,17 @@ async function handleToggleFilter(checkbox: HTMLInputElement): Promise<void> {
   }
 }
 
+async function handleDeleteFilter(filterId: string): Promise<void> {
+  try {
+    await deleteFilter(filterId);
+    await renderFilters();
+    announceStatus('Temporary filter deleted.');
+  } catch (error) {
+    console.error('Failed to delete filter:', error);
+    announceStatus('Failed to delete filter.');
+  }
+}
+
 function createInactiveSummary(inactiveCount: number): HTMLElement | null {
   if (inactiveCount <= 0) {
     return null;
@@ -380,7 +419,8 @@ function createInactiveSummary(inactiveCount: number): HTMLElement | null {
  * Render the filter list in the popup
  */
 async function renderFilters(): Promise<void> {
-  const data = await loadData();
+  let data = await loadData();
+  data = await disableExpiredTemporaryFilters(data);
   cachedData = data;
   const filterList = getElementByIdOrNull('filter-list');
 
@@ -438,7 +478,8 @@ async function renderFilters(): Promise<void> {
     const nameElement = querySelector<HTMLElement>('.filter-name', item);
     const metaElement = item.querySelector<HTMLElement>('.filter-meta');
     const groupElement = querySelector<HTMLElement>('.filter-group', item);
-    const toggleInput = querySelector<HTMLInputElement>('input[type="checkbox"]', item);
+    const toggleWrapper = item.querySelector<HTMLLabelElement>('label.toggle');
+    const toggleInput = toggleWrapper?.querySelector<HTMLInputElement>('input[type="checkbox"]') ?? null;
     const copyButton = querySelector<HTMLButtonElement>('button[data-action="copy-url"]', item);
     const editButton = querySelector<HTMLButtonElement>('button[data-action="edit-filter"]', item);
 
@@ -459,9 +500,23 @@ async function renderFilters(): Promise<void> {
     groupElement.textContent = groupLabel;
     groupElement.title = groupLabel;
 
-    toggleInput.checked = filter.enabled;
-    toggleInput.dataset.filterId = filter.id;
-    toggleInput.setAttribute('aria-label', toggleLabel);
+    if (isTemporaryFilter(filter)) {
+      toggleWrapper?.remove();
+      editButton.dataset.action = 'delete-filter';
+      editButton.classList.add('is-delete');
+      editButton.setAttribute('aria-label', 'Delete temporary filter');
+      editButton.title = 'Delete temporary filter';
+    } else {
+      if (toggleInput) {
+        toggleInput.checked = filter.enabled;
+        toggleInput.dataset.filterId = filter.id;
+        toggleInput.setAttribute('aria-label', toggleLabel);
+      }
+      editButton.dataset.action = 'edit-filter';
+      editButton.classList.remove('is-delete');
+      editButton.setAttribute('aria-label', 'Edit Filter');
+      editButton.title = 'Edit Filter';
+    }
 
     copyButton.dataset.pattern = filter.pattern;
     editButton.dataset.filterId = filter.id;

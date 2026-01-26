@@ -463,6 +463,18 @@ body {
   height: 16px;
 }
 
+.icon-button .icon-delete {
+  display: none;
+}
+
+.icon-button.is-delete .icon-edit {
+  display: none;
+}
+
+.icon-button.is-delete .icon-delete {
+  display: block;
+}
+
 .icon-button:hover {
   color: var(--text-primary);
   border-color: rgba(111, 154, 242, 0.6);
