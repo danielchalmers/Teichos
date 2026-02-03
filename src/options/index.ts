@@ -415,10 +415,11 @@ async function renderGroups(): Promise<void> {
       }
     });
   } else if (!hadGroups) {
-    const firstGroup = groupsList.querySelector<HTMLDetailsElement>('details.group-item');
-    if (firstGroup) {
-      firstGroup.open = true;
-    }
+    groupsList
+      .querySelectorAll<HTMLDetailsElement>('details.group-item')
+      .forEach((details) => {
+        details.open = true;
+      });
   }
 
   if (focusSelector) {
