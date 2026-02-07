@@ -51,6 +51,24 @@ export function isTemporaryFilterExpired(filter: Filter, now = Date.now()): bool
   return remaining !== null && remaining <= 0;
 }
 
+/**
+ * Return a new array with temporary filters first while preserving relative order.
+ */
+export function sortFiltersTemporaryFirst<T extends Filter>(filters: readonly T[]): T[] {
+  const temporary: T[] = [];
+  const nonTemporary: T[] = [];
+
+  for (const filter of filters) {
+    if (isTemporaryFilter(filter)) {
+      temporary.push(filter);
+    } else {
+      nonTemporary.push(filter);
+    }
+  }
+
+  return [...temporary, ...nonTemporary];
+}
+
 export function getRegexValidationError(pattern: string): string | null {
   try {
     new RegExp(pattern);

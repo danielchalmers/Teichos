@@ -3,7 +3,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { matchesPattern, isFilterActive, shouldBlockUrl } from '../../../src/shared/utils/filters';
+import {
+  matchesPattern,
+  isFilterActive,
+  shouldBlockUrl,
+  sortFiltersTemporaryFirst,
+} from '../../../src/shared/utils/filters';
 import type { Filter, FilterGroup, Whitelist } from '../../../src/shared/types';
 
 describe('matchesPattern', () => {
@@ -216,6 +221,52 @@ describe('isFilterActive', () => {
       { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true },
     ];
     expect(isFilterActive(filter, groups)).toBe(true);
+  });
+});
+
+describe('sortFiltersTemporaryFirst', () => {
+  it('should place temporary filters before non-temporary filters', () => {
+    const filters: Filter[] = [
+      { id: 'f1', pattern: 'first', groupId: 'default', enabled: true, matchMode: 'contains' },
+      {
+        id: 'f2',
+        pattern: 'temp',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+        expiresAt: Date.now() + 60_000,
+      },
+      { id: 'f3', pattern: 'second', groupId: 'default', enabled: true, matchMode: 'contains' },
+    ];
+
+    const sorted = sortFiltersTemporaryFirst(filters);
+    expect(sorted.map((filter) => filter.id)).toEqual(['f2', 'f1', 'f3']);
+  });
+
+  it('should preserve relative order within temporary and non-temporary filters', () => {
+    const filters: Filter[] = [
+      {
+        id: 'f1',
+        pattern: 'temp 1',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+        expiresAt: Date.now() + 120_000,
+      },
+      { id: 'f2', pattern: 'normal 1', groupId: 'default', enabled: true, matchMode: 'contains' },
+      {
+        id: 'f3',
+        pattern: 'temp 2',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+        expiresAt: Date.now() + 180_000,
+      },
+      { id: 'f4', pattern: 'normal 2', groupId: 'default', enabled: true, matchMode: 'contains' },
+    ];
+
+    const sorted = sortFiltersTemporaryFirst(filters);
+    expect(sorted.map((filter) => filter.id)).toEqual(['f1', 'f3', 'f2', 'f4']);
   });
 });
 

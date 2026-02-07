@@ -17,6 +17,7 @@ import {
   isTemporaryFilter,
   isTemporaryFilterExpired,
   matchesPattern,
+  sortFiltersTemporaryFirst,
 } from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
 import type { StorageData } from '../shared/types';
@@ -488,8 +489,10 @@ async function renderFilters(): Promise<void> {
   });
   const inactiveCount = data.filters.length - visibleFilters.length;
 
+  const orderedFilters = sortFiltersTemporaryFirst(visibleFilters);
+
   const fragment = document.createDocumentFragment();
-  for (const filter of visibleFilters) {
+  for (const filter of orderedFilters) {
     const group = groupsById.get(filter.groupId);
     const groupName = group?.name ?? 'Unknown Group';
     const description = filter.description?.trim();
