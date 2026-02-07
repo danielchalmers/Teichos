@@ -7,6 +7,7 @@ import { getExtensionUrl, openOptionsPage, openOptionsPageWithParams } from '../
 import { getActiveTab, updateTabUrl } from '../shared/api/tabs';
 import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../shared/types';
 import {
+  buildBlockingIndex,
   buildGroupById,
   formatDuration,
   generateId,
@@ -17,6 +18,7 @@ import {
   isTemporaryFilter,
   isTemporaryFilterExpired,
   matchesPattern,
+  shouldBlockUrlWithIndex,
   sortFiltersTemporaryFirst,
 } from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
@@ -407,6 +409,17 @@ async function handleToggleFilter(checkbox: HTMLInputElement): Promise<void> {
   try {
     const data = cachedData ?? (await loadData());
     await toggleFilter(data, filterId, checkbox.checked);
+    const latestData = await loadData();
+    cachedData = latestData;
+    if (checkbox.checked) {
+      await blockActiveTabIfNowBlocked(latestData).catch((error: unknown) => {
+        console.error('Failed to block active page:', error);
+      });
+    } else {
+      await restoreBlockedPageIfUnblocked(latestData).catch((error: unknown) => {
+        console.error('Failed to restore blocked page:', error);
+      });
+    }
     await renderFilters();
     const refreshedToggle = document.querySelector<HTMLInputElement>(
       `input[type="checkbox"][data-filter-id="${filterId}"]`
@@ -421,6 +434,11 @@ async function handleToggleFilter(checkbox: HTMLInputElement): Promise<void> {
 async function handleDeleteFilter(filterId: string): Promise<void> {
   try {
     await deleteFilter(filterId);
+    const latestData = await loadData();
+    cachedData = latestData;
+    await restoreBlockedPageIfUnblocked(latestData).catch((error: unknown) => {
+      console.error('Failed to restore blocked page:', error);
+    });
     await renderFilters();
     announceStatus('Temporary filter deleted.');
   } catch (error) {
@@ -564,11 +582,74 @@ async function toggleFilter(
   data: StorageData,
   filterId: string,
   enabled: boolean
-): Promise<void> {
-  const filter = data.filters.find((f) => f.id === filterId);
-  if (filter) {
-    await updateFilter({ ...filter, enabled });
+): Promise<StorageData> {
+  const filters = data.filters.map((filter) =>
+    filter.id === filterId ? { ...filter, enabled } : filter
+  );
+  const updated = { ...data, filters };
+
+  const updatedFilter = filters.find((filter) => filter.id === filterId);
+  if (updatedFilter) {
+    await updateFilter(updatedFilter);
   }
+
+  return updated;
+}
+
+function getBlockedTargetUrl(tabUrl: string): string | null {
+  const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
+  if (!tabUrl.startsWith(blockedPageUrl)) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(tabUrl);
+    const blockedTargetUrl = parsedUrl.searchParams.get('url');
+    return blockedTargetUrl && !isInternalUrl(blockedTargetUrl) ? blockedTargetUrl : null;
+  } catch {
+    return null;
+  }
+}
+
+async function restoreBlockedPageIfUnblocked(data: StorageData): Promise<void> {
+  const activeTab = await getActiveTab();
+  if (!activeTab?.id || !activeTab.url) {
+    return;
+  }
+
+  const blockedTargetUrl = getBlockedTargetUrl(activeTab.url);
+  if (!blockedTargetUrl) {
+    return;
+  }
+
+  const blockingIndex = buildBlockingIndex(data.filters, data.groups, data.whitelist);
+  const blockingFilter = shouldBlockUrlWithIndex(blockedTargetUrl, blockingIndex);
+  if (blockingFilter) {
+    return;
+  }
+
+  await updateTabUrl(activeTab.id, blockedTargetUrl);
+}
+
+async function blockActiveTabIfNowBlocked(data: StorageData): Promise<void> {
+  const activeTab = await getActiveTab();
+  if (!activeTab?.id || !activeTab.url) {
+    return;
+  }
+
+  const activeUrl = activeTab.url;
+  if (getBlockedTargetUrl(activeUrl) || isInternalUrl(activeUrl)) {
+    return;
+  }
+
+  const blockingIndex = buildBlockingIndex(data.filters, data.groups, data.whitelist);
+  const blockingFilter = shouldBlockUrlWithIndex(activeUrl, blockingIndex);
+  if (!blockingFilter) {
+    return;
+  }
+
+  const blockedUrl = `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(activeUrl)}`;
+  await updateTabUrl(activeTab.id, blockedUrl);
 }
 
 // Initialize on load
