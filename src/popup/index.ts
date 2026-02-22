@@ -71,16 +71,6 @@ function setupEventListeners(): void {
         window.close();
       });
   });
-  const openInfoButton = getElementByIdOrNull('open-info');
-  openInfoButton?.addEventListener('click', () => {
-    openOptionsPageWithParams({ info: '1' })
-      .catch((error: unknown) => {
-        console.error('Failed to open about panel:', error);
-      })
-      .finally(() => {
-        window.close();
-      });
-  });
   setupQuickAdd();
   setupFilterListEvents();
 }
