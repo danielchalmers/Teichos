@@ -28,8 +28,8 @@ import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../share
 import {
   generateId,
   getRegexValidationError,
-  isTemporaryFilter,
   isTemporaryFilterExpired,
+  sortFiltersTemporaryFirst,
 } from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
 import { DAY_NAMES, DEFAULT_SCHEDULE } from '../shared/constants';
@@ -376,9 +376,6 @@ async function renderGroups(): Promise<void> {
 
   const filtersByGroup = new Map<string, Filter[]>();
   for (const filter of data.filters) {
-    if (isTemporaryFilter(filter)) {
-      continue;
-    }
     const groupFilters = filtersByGroup.get(filter.groupId);
     if (groupFilters) {
       groupFilters.push(filter);
@@ -398,7 +395,7 @@ async function renderGroups(): Promise<void> {
   }
   const fragment = document.createDocumentFragment();
   for (const group of data.groups) {
-    const filters = filtersByGroup.get(group.id) ?? [];
+    const filters = sortFiltersTemporaryFirst(filtersByGroup.get(group.id) ?? []);
     const whitelist = whitelistByGroup.get(group.id) ?? [];
     fragment.appendChild(renderGroup(group, filters, whitelist));
   }
