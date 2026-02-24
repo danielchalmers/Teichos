@@ -37,13 +37,16 @@
         <div class="snooze-dialog" id="snooze-dialog" aria-hidden="true" inert>
           <div class="snooze-dialog-backdrop" data-action="close-snooze-dialog" aria-hidden="true"></div>
           <div
-            class="snooze-dialog-panel"
+            class="snooze-dialog-panel dialog-panel"
             role="dialog"
             aria-labelledby="snooze-dialog-title"
             aria-describedby="snooze-status-text"
           >
-            <div class="snooze-dialog-header">
-              <div class="snooze-dialog-title" id="snooze-dialog-title">Snooze Filtering</div>
+            <div class="snooze-dialog-header dialog-header">
+              <div class="dialog-heading">
+                <div class="snooze-dialog-title dialog-title" id="snooze-dialog-title">Snooze filtering</div>
+                <div class="dialog-subtitle">Pause all filtering for a set time.</div>
+              </div>
               <button
                 class="icon-button"
                 type="button"
@@ -56,20 +59,20 @@
                 </svg>
               </button>
             </div>
-            <div class="snooze-status" id="snooze-status-text">Filtering is active.</div>
-            <div class="snooze-section" role="group" aria-label="Quick snooze durations">
-              <div class="snooze-section-title">Quick durations</div>
+            <div class="snooze-status dialog-status" id="snooze-status-text">Filtering is active.</div>
+            <div class="snooze-section dialog-section" role="group" aria-label="Quick snooze durations">
+              <div class="snooze-section-title dialog-section-title">Quick durations</div>
               <div class="snooze-options">
-                <button class="snooze-option" type="button" data-snooze-minutes="15">15m</button>
-                <button class="snooze-option" type="button" data-snooze-minutes="30">30m</button>
-                <button class="snooze-option" type="button" data-snooze-minutes="60">1h</button>
-                <button class="snooze-option" type="button" data-snooze-minutes="120">2h</button>
-                <button class="snooze-option" type="button" data-snooze-minutes="240">4h</button>
-                <button class="snooze-option" type="button" data-snooze-minutes="480">8h</button>
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="15">15m</button>
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="30">30m</button>
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="60">1h</button>
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="120">2h</button>
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="240">4h</button>
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="480">8h</button>
               </div>
             </div>
-            <div class="snooze-section" role="group" aria-label="Custom snooze duration">
-              <div class="snooze-section-title">Custom duration</div>
+            <div class="snooze-section dialog-section" role="group" aria-label="Custom snooze duration">
+              <div class="snooze-section-title dialog-section-title">Custom duration</div>
               <div class="snooze-custom">
                 <input
                   class="snooze-custom-input"
@@ -86,12 +89,12 @@
                   <option value="hours">Hours</option>
                   <option value="days">Days</option>
                 </select>
-                <button class="snooze-custom-apply" type="button" data-action="apply-custom-snooze">Apply</button>
+                <button class="snooze-custom-apply" type="button" data-action="apply-custom-snooze">Set</button>
               </div>
             </div>
-            <div class="snooze-dialog-actions">
-              <button class="snooze-option" type="button" data-snooze="always">Always</button>
-              <button class="snooze-resume" type="button" data-action="resume-snooze">Resume filtering now</button>
+            <div class="snooze-dialog-actions dialog-actions">
+              <button class="snooze-option dialog-chip" type="button" data-snooze="always">Always on pause</button>
+              <button class="snooze-resume button ghost" type="button" data-action="resume-snooze">Resume filtering</button>
             </div>
           </div>
         </div>
@@ -129,15 +132,15 @@
     <div class="quick-add" id="quick-add" aria-hidden="true" inert>
       <div class="quick-add-backdrop" data-action="close-quick-add" aria-hidden="true"></div>
       <div
-        class="quick-add-panel"
+        class="quick-add-panel dialog-panel"
         role="dialog"
         aria-labelledby="quick-add-title"
         aria-describedby="quick-add-subtitle"
       >
-        <div class="quick-add-header">
-          <div>
-            <div class="quick-add-title" id="quick-add-title">Temporary filter</div>
-            <div class="quick-add-subtitle" id="quick-add-subtitle">Ignores exceptions and expires automatically.</div>
+        <div class="quick-add-header dialog-header">
+          <div class="dialog-heading">
+            <div class="quick-add-title dialog-title" id="quick-add-title">Temporary filter</div>
+            <div class="quick-add-subtitle dialog-subtitle" id="quick-add-subtitle">Create a short-lived block that expires automatically.</div>
           </div>
           <button class="icon-button" type="button" data-action="close-quick-add" aria-label="Close quick add" title="Close">
             <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
@@ -145,9 +148,9 @@
             </svg>
           </button>
         </div>
-        <form id="quick-add-form" class="quick-add-form">
-          <div class="quick-add-row">
-            <label class="form-label" for="quick-add-pattern">Site or pattern</label>
+        <form id="quick-add-form" class="quick-add-form dialog-form">
+          <div class="quick-add-row dialog-section">
+            <label class="form-label dialog-section-title" for="quick-add-pattern">Site or pattern</label>
             <input
               class="input"
               type="text"
@@ -157,8 +160,8 @@
               required
             >
           </div>
-          <div class="quick-add-row">
-            <label class="form-label" for="quick-add-duration">Block for</label>
+          <div class="quick-add-row dialog-section">
+            <label class="form-label dialog-section-title" for="quick-add-duration">Block for</label>
             <div class="quick-add-duration">
               <input
                 class="input"
@@ -177,13 +180,13 @@
               </select>
             </div>
             <div class="quick-add-presets" role="list">
-              <button class="pill-button" type="button" data-duration="15" data-unit="minutes" role="listitem">15m</button>
-              <button class="pill-button" type="button" data-duration="30" data-unit="minutes" role="listitem">30m</button>
-              <button class="pill-button" type="button" data-duration="1" data-unit="hours" role="listitem">1h</button>
-              <button class="pill-button" type="button" data-duration="2" data-unit="hours" role="listitem">2h</button>
+              <button class="pill-button dialog-chip" type="button" data-duration="15" data-unit="minutes" role="listitem">15m</button>
+              <button class="pill-button dialog-chip" type="button" data-duration="30" data-unit="minutes" role="listitem">30m</button>
+              <button class="pill-button dialog-chip" type="button" data-duration="1" data-unit="hours" role="listitem">1h</button>
+              <button class="pill-button dialog-chip" type="button" data-duration="2" data-unit="hours" role="listitem">2h</button>
             </div>
           </div>
-          <div class="quick-add-actions">
+          <div class="quick-add-actions dialog-actions">
             <button class="button" type="submit">Start block</button>
             <button class="button ghost" type="button" data-action="close-quick-add">Cancel</button>
           </div>
