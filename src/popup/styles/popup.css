@@ -267,6 +267,16 @@ body {
   outline-offset: 2px;
 }
 
+.header-icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.header-icon-button:disabled:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .button {
   font-family: var(--font-sans);
   padding: 0.45rem 0.9rem;
