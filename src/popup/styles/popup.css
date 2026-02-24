@@ -504,31 +504,26 @@ body {
   overflow-x: hidden;
 }
 
-.filter-list.is-snoozed {
-  position: relative;
-}
-
-.filter-list.is-snoozed > * {
+.content.is-snoozed .filter-list > * {
   position: relative;
   z-index: 1;
 }
 
-.filter-list.is-snoozed .filter-item,
-.filter-list.is-snoozed .inactive-summary,
-.filter-list.is-snoozed .empty-state {
+.content.is-snoozed .filter-item,
+.content.is-snoozed .inactive-summary,
+.content.is-snoozed .empty-state {
   opacity: 0.62;
 }
 
-.filter-list.is-snoozed::after {
+.content.is-snoozed::after {
   content: "";
   position: absolute;
-  inset: 0.4rem;
-  border-radius: 14px;
+  inset: 0;
   background: rgba(148, 163, 184, 0.34);
   backdrop-filter: saturate(0.7);
   pointer-events: auto;
   cursor: not-allowed;
-  z-index: 2;
+  z-index: 4;
 }
 
 .filter-list::-webkit-scrollbar {

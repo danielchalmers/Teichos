@@ -199,8 +199,8 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
     option.classList.toggle('is-active', isActive && isAlwaysOption && getSnoozeRemainingMs(snooze) === null);
   });
 
-  const filterList = getElementByIdOrNull('filter-list');
-  filterList?.classList.toggle('is-snoozed', isActive);
+  const content = document.querySelector<HTMLElement>('.content');
+  content?.classList.toggle('is-snoozed', isActive);
 }
 
 function setupSnoozePopover(): void {
