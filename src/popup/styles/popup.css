@@ -168,8 +168,9 @@ body {
 .snooze-menu {
   position: absolute;
   top: calc(100% + 0.45rem);
-  left: 0;
+  right: 0;
   width: 220px;
+  max-width: calc(100vw - 1rem);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: #ffffff;
