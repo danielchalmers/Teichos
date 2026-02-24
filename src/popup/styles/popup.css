@@ -237,6 +237,10 @@ body {
   text-align: center;
 }
 
+.snooze-option[data-snooze="always"] {
+  grid-column: 1 / -1;
+}
+
 .snooze-option:hover {
   border-color: rgba(111, 154, 242, 0.45);
   background: #eef2ff;
