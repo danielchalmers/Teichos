@@ -253,6 +253,41 @@ body {
   background: #e2e8ff;
 }
 
+.snooze-custom {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) auto;
+  gap: 0.35rem;
+}
+
+.snooze-custom-input,
+.snooze-custom-unit,
+.snooze-custom-apply {
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-size: 0.73rem;
+}
+
+.snooze-custom-input,
+.snooze-custom-unit {
+  background: #f8fafc;
+  color: var(--text-secondary);
+  padding: 0.36rem 0.45rem;
+}
+
+.snooze-custom-apply {
+  background: #eef2ff;
+  color: #1f2d64;
+  padding: 0.36rem 0.6rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.snooze-custom-apply:hover {
+  border-color: rgba(111, 154, 242, 0.55);
+  background: #e2e8ff;
+}
+
 .header-icon-button:hover {
   background: rgba(255, 255, 255, 0.28);
   border-color: rgba(255, 255, 255, 0.75);

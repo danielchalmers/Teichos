@@ -229,6 +229,8 @@ function setupSnoozePopover(): void {
   const popover = getElementByIdOrNull('snooze-popover');
   const trigger = getElementByIdOrNull<HTMLButtonElement>('open-snooze');
   const menu = getElementByIdOrNull('snooze-menu');
+  const customDurationInput = getElementByIdOrNull<HTMLInputElement>('snooze-custom-duration');
+  const customUnitSelect = getElementByIdOrNull<HTMLSelectElement>('snooze-custom-unit');
 
   if (!popover || !trigger || !menu) {
     return;
@@ -248,6 +250,26 @@ function setupSnoozePopover(): void {
     }
   };
 
+  const resolveCustomMinutes = (): number | null => {
+    const durationValue = customDurationInput ? Number(customDurationInput.value) : Number.NaN;
+    if (!Number.isFinite(durationValue) || durationValue <= 0) {
+      return null;
+    }
+
+    const unit = customUnitSelect?.value ?? 'minutes';
+    const minutesByUnit: Record<string, number> = {
+      minutes: 1,
+      hours: 60,
+      days: 1_440,
+    };
+    const minutes = Math.round(durationValue * (minutesByUnit[unit] ?? 0));
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      return null;
+    }
+
+    return minutes;
+  };
+
   trigger.addEventListener('click', (event) => {
     event.stopPropagation();
     setOpen(!popover.classList.contains('is-open'));
@@ -262,6 +284,18 @@ function setupSnoozePopover(): void {
 
     if (actionButton.dataset['action'] === 'resume-snooze') {
       void applySnoozeSelection('off', () => setOpen(false, true));
+      return;
+    }
+
+    if (actionButton.dataset['action'] === 'apply-custom-snooze') {
+      const minutes = resolveCustomMinutes();
+      if (!minutes) {
+        announceStatus('Enter a valid snooze duration.');
+        customDurationInput?.focus();
+        return;
+      }
+
+      void applySnoozeSelection(minutes, () => setOpen(false, true));
       return;
     }
 

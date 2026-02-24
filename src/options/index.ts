@@ -244,6 +244,12 @@ function setupSnoozePopover(): ((isOpen: boolean) => void) | null {
   const popover = getElementByIdOrNull('snooze-popover-options');
   const button = getElementByIdOrNull<HTMLButtonElement>('open-snooze-options');
   const panel = getElementByIdOrNull('snooze-menu-options');
+  const customDurationInput = getElementByIdOrNull<HTMLInputElement>(
+    'snooze-custom-duration-options'
+  );
+  const customUnitSelect = getElementByIdOrNull<HTMLSelectElement>(
+    'snooze-custom-unit-options'
+  );
   if (!popover || !button || !panel) return null;
 
   const setOpen = (isOpen: boolean, returnFocus = false): void => {
@@ -258,6 +264,26 @@ function setupSnoozePopover(): ((isOpen: boolean) => void) | null {
         button.focus();
       }
     }
+  };
+
+  const resolveCustomMinutes = (): number | null => {
+    const durationValue = customDurationInput ? Number(customDurationInput.value) : Number.NaN;
+    if (!Number.isFinite(durationValue) || durationValue <= 0) {
+      return null;
+    }
+
+    const unit = customUnitSelect?.value ?? 'minutes';
+    const minutesByUnit: Record<string, number> = {
+      minutes: 1,
+      hours: 60,
+      days: 1_440,
+    };
+    const minutes = Math.round(durationValue * (minutesByUnit[unit] ?? 0));
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      return null;
+    }
+
+    return minutes;
   };
 
   setOpen(popover.classList.contains('is-open'));
@@ -278,6 +304,24 @@ function setupSnoozePopover(): ((isOpen: boolean) => void) | null {
 
     if (actionButton.dataset['action'] === 'resume-snooze-options') {
       void applySnoozeSelection('off')
+        .then(() => {
+          setOpen(false, true);
+        })
+        .catch((error: unknown) => {
+          console.error('Failed to update snooze state:', error);
+        });
+      return;
+    }
+
+    if (actionButton.dataset['action'] === 'apply-custom-snooze-options') {
+      const minutes = resolveCustomMinutes();
+      if (!minutes) {
+        alert('Enter a valid snooze duration.');
+        customDurationInput?.focus();
+        return;
+      }
+
+      void applySnoozeSelection(minutes)
         .then(() => {
           setOpen(false, true);
         })

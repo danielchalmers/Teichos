@@ -46,6 +46,24 @@
             <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="480">8 hours</button>
             <button class="snooze-option" type="button" role="menuitem" data-snooze="always">Always</button>
           </div>
+          <div class="snooze-custom" role="group" aria-label="Custom snooze duration">
+            <input
+              class="snooze-custom-input"
+              type="number"
+              id="snooze-custom-duration"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              value="30"
+              aria-label="Custom snooze duration"
+            >
+            <select class="snooze-custom-unit" id="snooze-custom-unit" aria-label="Custom snooze unit">
+              <option value="minutes">Minutes</option>
+              <option value="hours">Hours</option>
+              <option value="days">Days</option>
+            </select>
+            <button class="snooze-custom-apply" type="button" data-action="apply-custom-snooze">Apply</button>
+          </div>
         </div>
       </div>
       <button
