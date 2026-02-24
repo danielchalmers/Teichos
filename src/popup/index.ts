@@ -265,24 +265,23 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
 }
 
 function setupSnoozePopover(): void {
-  const popover = getElementByIdOrNull('snooze-popover');
   const trigger = getElementByIdOrNull<HTMLButtonElement>('open-snooze');
-  const menu = getElementByIdOrNull('snooze-menu');
+  const dialog = getElementByIdOrNull('snooze-dialog');
   const customDurationInput = getElementByIdOrNull<HTMLInputElement>('snooze-custom-duration');
   const customUnitSelect = getElementByIdOrNull<HTMLSelectElement>('snooze-custom-unit');
 
-  if (!popover || !trigger || !menu) {
+  if (!trigger || !dialog) {
     return;
   }
 
   const setOpen = (isOpen: boolean, returnFocus = false): void => {
-    popover.classList.toggle('is-open', isOpen);
+    dialog.classList.toggle('is-open', isOpen);
     trigger.setAttribute('aria-expanded', String(isOpen));
-    menu.setAttribute('aria-hidden', String(!isOpen));
+    dialog.setAttribute('aria-hidden', String(!isOpen));
     if (isOpen) {
-      menu.removeAttribute('inert');
+      dialog.removeAttribute('inert');
     } else {
-      menu.setAttribute('inert', '');
+      dialog.setAttribute('inert', '');
       if (returnFocus) {
         trigger.focus();
       }
@@ -311,11 +310,17 @@ function setupSnoozePopover(): void {
 
   trigger.addEventListener('click', (event) => {
     event.stopPropagation();
-    setOpen(!popover.classList.contains('is-open'));
+    setOpen(!dialog.classList.contains('is-open'));
   });
 
-  menu.addEventListener('click', (event) => {
+  dialog.addEventListener('click', (event) => {
     const target = event.target as HTMLElement;
+    const closeAction = target.closest<HTMLElement>('[data-action="close-snooze-dialog"]');
+    if (closeAction) {
+      setOpen(false, true);
+      return;
+    }
+
     const actionButton = target.closest<HTMLButtonElement>('button[data-action], button[data-snooze], button[data-snooze-minutes]');
     if (!actionButton) {
       return;
@@ -351,21 +356,11 @@ function setupSnoozePopover(): void {
     }
   });
 
-  document.addEventListener('click', (event) => {
-    if (!popover.classList.contains('is-open')) {
-      return;
-    }
-    if (popover.contains(event.target as Node)) {
-      return;
-    }
-    setOpen(false);
-  });
-
   document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || !popover.classList.contains('is-open')) {
+    if (event.key !== 'Escape' || !dialog.classList.contains('is-open')) {
       return;
     }
-    const returnFocus = popover.contains(document.activeElement);
+    const returnFocus = dialog.contains(document.activeElement);
     setOpen(false, returnFocus);
   });
 }

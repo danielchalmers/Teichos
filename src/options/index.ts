@@ -282,7 +282,7 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
 function setupSnoozePopover(): ((isOpen: boolean) => void) | null {
   const popover = getElementByIdOrNull('snooze-popover-options');
   const button = getElementByIdOrNull<HTMLButtonElement>('open-snooze-options');
-  const panel = getElementByIdOrNull('snooze-menu-options');
+  const panel = getElementByIdOrNull('snooze-dialog-options');
   const customDurationInput = getElementByIdOrNull<HTMLInputElement>(
     'snooze-custom-duration-options'
   );
@@ -349,6 +349,11 @@ function setupSnoozePopover(): ((isOpen: boolean) => void) | null {
         .catch((error: unknown) => {
           console.error('Failed to update snooze state:', error);
         });
+      return;
+    }
+
+    if (actionButton.dataset['action'] === 'close-snooze-dialog-options') {
+      setOpen(false, true);
       return;
     }
 

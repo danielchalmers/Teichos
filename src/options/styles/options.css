@@ -163,21 +163,11 @@ body {
   display: block;
 }
 
-.snooze-menu {
+.snooze-dialog {
   position: absolute;
   top: calc(100% + 0.55rem);
-  left: 0;
-  width: 270px;
-  max-width: 90vw;
-  background: #ffffff;
-  color: var(--text-primary);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-lg);
-  padding: 0.7rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  right: 0;
+  width: min(340px, 90vw);
   opacity: 0;
   transform: translateY(-6px);
   pointer-events: none;
@@ -185,15 +175,47 @@ body {
   z-index: 22;
 }
 
-.snooze-popover.is-open .snooze-menu {
+.snooze-popover.is-open .snooze-dialog {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
 }
 
+.snooze-dialog-panel {
+  background: #ffffff;
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.snooze-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.snooze-dialog-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #1e293b;
+  font-family: var(--font-display);
+}
+
+.snooze-dialog-header .icon-button {
+  width: 30px;
+  height: 30px;
+}
+
 .snooze-status {
   font-size: 0.8rem;
   color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 .snooze-resume {
@@ -236,7 +258,7 @@ body {
   text-align: center;
 }
 
-.snooze-option[data-snooze="always"] {
+.snooze-options .snooze-option[data-snooze="always"] {
   grid-column: 1 / -1;
 }
 
@@ -250,6 +272,20 @@ body {
   border-color: rgba(111, 154, 242, 0.55);
   background: #e2e8ff;
   color: #1f2d64;
+}
+
+.snooze-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+}
+
+.snooze-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .snooze-custom {
@@ -286,6 +322,12 @@ body {
 .snooze-custom-apply:hover {
   border-color: rgba(111, 154, 242, 0.6);
   background: #e2e8ff;
+}
+
+.snooze-dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .info-popover {
@@ -1024,7 +1066,7 @@ input:checked + .slider:before {
     align-items: flex-start;
   }
 
-  .snooze-menu {
+  .snooze-dialog {
     left: 0;
     right: auto;
   }

@@ -19,9 +19,9 @@
           id="open-snooze"
           type="button"
           aria-label="Snooze filtering"
-          aria-haspopup="menu"
+          aria-haspopup="dialog"
           aria-expanded="false"
-          aria-controls="snooze-menu"
+          aria-controls="snooze-dialog"
           title="Snooze filtering"
         >
           <svg class="snooze-icon snooze-icon-off" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -34,35 +34,65 @@
           </svg>
           <span class="snooze-trigger-text" id="snooze-label">Active</span>
         </button>
-        <div class="snooze-menu" id="snooze-menu" role="menu" aria-hidden="true" inert>
-          <div class="snooze-status" id="snooze-status-text">Filtering is active.</div>
-          <button class="snooze-resume" type="button" data-action="resume-snooze">Resume filtering now</button>
-          <div class="snooze-options" role="group" aria-label="Snooze durations">
-            <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="15">15 minutes</button>
-            <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="30">30 minutes</button>
-            <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="60">1 hour</button>
-            <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="120">2 hours</button>
-            <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="240">4 hours</button>
-            <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="480">8 hours</button>
-            <button class="snooze-option" type="button" role="menuitem" data-snooze="always">Always</button>
-          </div>
-          <div class="snooze-custom" role="group" aria-label="Custom snooze duration">
-            <input
-              class="snooze-custom-input"
-              type="number"
-              id="snooze-custom-duration"
-              min="1"
-              step="1"
-              inputmode="numeric"
-              value="30"
-              aria-label="Custom snooze duration"
-            >
-            <select class="snooze-custom-unit" id="snooze-custom-unit" aria-label="Custom snooze unit">
-              <option value="minutes">Minutes</option>
-              <option value="hours">Hours</option>
-              <option value="days">Days</option>
-            </select>
-            <button class="snooze-custom-apply" type="button" data-action="apply-custom-snooze">Apply</button>
+        <div class="snooze-dialog" id="snooze-dialog" aria-hidden="true" inert>
+          <div class="snooze-dialog-backdrop" data-action="close-snooze-dialog" aria-hidden="true"></div>
+          <div
+            class="snooze-dialog-panel"
+            role="dialog"
+            aria-labelledby="snooze-dialog-title"
+            aria-describedby="snooze-status-text"
+          >
+            <div class="snooze-dialog-header">
+              <div class="snooze-dialog-title" id="snooze-dialog-title">Snooze Filtering</div>
+              <button
+                class="icon-button"
+                type="button"
+                data-action="close-snooze-dialog"
+                aria-label="Close snooze dialog"
+                title="Close"
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+                  <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div class="snooze-status" id="snooze-status-text">Filtering is active.</div>
+            <div class="snooze-section" role="group" aria-label="Quick snooze durations">
+              <div class="snooze-section-title">Quick durations</div>
+              <div class="snooze-options">
+                <button class="snooze-option" type="button" data-snooze-minutes="15">15m</button>
+                <button class="snooze-option" type="button" data-snooze-minutes="30">30m</button>
+                <button class="snooze-option" type="button" data-snooze-minutes="60">1h</button>
+                <button class="snooze-option" type="button" data-snooze-minutes="120">2h</button>
+                <button class="snooze-option" type="button" data-snooze-minutes="240">4h</button>
+                <button class="snooze-option" type="button" data-snooze-minutes="480">8h</button>
+              </div>
+            </div>
+            <div class="snooze-section" role="group" aria-label="Custom snooze duration">
+              <div class="snooze-section-title">Custom duration</div>
+              <div class="snooze-custom">
+                <input
+                  class="snooze-custom-input"
+                  type="number"
+                  id="snooze-custom-duration"
+                  min="1"
+                  step="1"
+                  inputmode="numeric"
+                  value="30"
+                  aria-label="Custom snooze duration"
+                >
+                <select class="snooze-custom-unit" id="snooze-custom-unit" aria-label="Custom snooze unit">
+                  <option value="minutes">Minutes</option>
+                  <option value="hours">Hours</option>
+                  <option value="days">Days</option>
+                </select>
+                <button class="snooze-custom-apply" type="button" data-action="apply-custom-snooze">Apply</button>
+              </div>
+            </div>
+            <div class="snooze-dialog-actions">
+              <button class="snooze-option" type="button" data-snooze="always">Always</button>
+              <button class="snooze-resume" type="button" data-action="resume-snooze">Resume filtering now</button>
+            </div>
           </div>
         </div>
       </div>
