@@ -214,7 +214,6 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
   const quickAddPopover = getElementByIdOrNull('quick-add');
   const statusElement = getElementByIdOrNull('snooze-status-text');
   const resumeButton = document.querySelector<HTMLButtonElement>('button[data-action="resume-snooze"]');
-  const snoozeOptions = document.querySelectorAll<HTMLButtonElement>('button[data-snooze]');
 
   if (snoozeTrigger) {
     const statusLabel = describeSnoozeStatus(snooze);
@@ -254,11 +253,6 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
   if (resumeButton) {
     resumeButton.hidden = !isActive;
   }
-
-  snoozeOptions.forEach((option) => {
-    const isAlwaysOption = option.dataset['snooze'] === 'always';
-    option.classList.toggle('is-active', isActive && isAlwaysOption && getSnoozeRemainingMs(snooze) === null);
-  });
 
   const content = document.querySelector<HTMLElement>('.content');
   content?.classList.toggle('is-snoozed', isActive);
@@ -321,7 +315,7 @@ function setupSnoozePopover(): void {
       return;
     }
 
-    const actionButton = target.closest<HTMLButtonElement>('button[data-action], button[data-snooze], button[data-snooze-minutes]');
+    const actionButton = target.closest<HTMLButtonElement>('button[data-action], button[data-snooze-minutes]');
     if (!actionButton) {
       return;
     }
@@ -343,12 +337,6 @@ function setupSnoozePopover(): void {
       return;
     }
 
-    const snoozeType = actionButton.dataset['snooze'];
-    if (snoozeType === 'always') {
-      void applySnoozeSelection('always', () => setOpen(false, true));
-      return;
-    }
-
     const minutesRaw = actionButton.dataset['snoozeMinutes'];
     const minutes = minutesRaw ? Number.parseInt(minutesRaw, 10) : Number.NaN;
     if (Number.isFinite(minutes) && minutes > 0) {
@@ -366,14 +354,12 @@ function setupSnoozePopover(): void {
 }
 
 async function applySnoozeSelection(
-  value: number | 'always' | 'off',
+  value: number | 'off',
   onComplete: () => void
 ): Promise<void> {
   try {
     if (value === 'off') {
       await clearSnooze();
-    } else if (value === 'always') {
-      await setSnooze({ active: true });
     } else {
       await setSnooze({ active: true, until: Date.now() + value * 60_000 });
     }

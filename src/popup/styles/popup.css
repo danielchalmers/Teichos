@@ -295,10 +295,6 @@ body {
   transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.2s;
 }
 
-.snooze-options .snooze-option[data-snooze="always"] {
-  grid-column: 1 / -1;
-}
-
 .snooze-option:hover {
   border-color: rgba(111, 154, 242, 0.45);
   background: #eef2ff;
@@ -377,6 +373,10 @@ body {
 .dialog-actions > * {
   flex: 1 1 calc(50% - 0.25rem);
   min-width: 0;
+}
+
+.dialog-actions > .dialog-action-full {
+  flex-basis: 100%;
 }
 
 .dialog-actions .button.ghost {
