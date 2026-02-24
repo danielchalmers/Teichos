@@ -253,17 +253,6 @@ body {
   height: 28px;
 }
 
-.dialog-status,
-.snooze-status {
-  font-size: 0.74rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  padding: 0.5rem 0.58rem;
-  border: 1px solid rgba(111, 154, 242, 0.24);
-  background: linear-gradient(180deg, #f8fbff 0%, #f2f6ff 100%);
-  border-radius: 10px;
-}
-
 .snooze-resume {
   font-family: inherit;
   font-size: 0.72rem;

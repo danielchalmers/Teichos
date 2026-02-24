@@ -212,7 +212,6 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
   const snoozeLabel = getElementByIdOrNull('snooze-label');
   const quickAddButton = getElementByIdOrNull<HTMLButtonElement>('open-quick-add');
   const quickAddPopover = getElementByIdOrNull('quick-add');
-  const statusElement = getElementByIdOrNull('snooze-status-text');
   const resumeButton = document.querySelector<HTMLButtonElement>('button[data-action="resume-snooze"]');
 
   if (snoozeTrigger) {
@@ -244,10 +243,6 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
     if (quickAddButton) {
       quickAddButton.setAttribute('aria-expanded', 'false');
     }
-  }
-
-  if (statusElement) {
-    statusElement.textContent = describeSnoozeStatus(snooze);
   }
 
   if (resumeButton) {
