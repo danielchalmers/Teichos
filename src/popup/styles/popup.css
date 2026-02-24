@@ -21,6 +21,9 @@ html {
   --accent: #6f9af2;
   --accent-strong: #7f86ea;
   --accent-deep: #6e73d9;
+  --snooze-bg: rgba(249, 196, 122, 0.28);
+  --snooze-border: rgba(255, 244, 214, 0.82);
+  --snooze-text: #fff9ed;
   --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.08);
   --radius-md: 12px;
   --radius-sm: 10px;
@@ -65,6 +68,51 @@ body {
   gap: 0.4rem;
 }
 
+.snooze-popover {
+  position: relative;
+}
+
+.snooze-button {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #f8fbff;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.36rem 0.62rem;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.snooze-button .snooze-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.snooze-trigger-text {
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.snooze-button:hover {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.75);
+}
+
+.snooze-button:active {
+  transform: scale(0.96);
+}
+
+.snooze-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 2px;
+}
+
 .app-title {
   margin: 0;
   font-size: 1.2rem;
@@ -97,6 +145,107 @@ body {
 .header-icon-button svg {
   width: 16px;
   height: 16px;
+}
+
+.snooze-trigger .snooze-icon-on {
+  display: none;
+}
+
+.snooze-trigger.is-snoozed {
+  background: var(--snooze-bg);
+  border-color: var(--snooze-border);
+  color: var(--snooze-text);
+}
+
+.snooze-trigger.is-snoozed .snooze-icon-off {
+  display: none;
+}
+
+.snooze-trigger.is-snoozed .snooze-icon-on {
+  display: block;
+}
+
+.snooze-menu {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 0;
+  width: 220px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: #ffffff;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.22);
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  opacity: 0;
+  transform: translateY(-5px);
+  pointer-events: none;
+  transition: opacity 0.17s ease, transform 0.17s ease;
+  z-index: 7;
+}
+
+.snooze-popover.is-open .snooze-menu {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.snooze-status {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.snooze-resume {
+  font-family: inherit;
+  font-size: 0.74rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: #f8fafc;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.snooze-resume:hover {
+  background: #eef2ff;
+  color: var(--text-primary);
+  border-color: rgba(111, 154, 242, 0.4);
+}
+
+.snooze-resume[hidden] {
+  display: none;
+}
+
+.snooze-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.snooze-option {
+  font-family: inherit;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: var(--text-secondary);
+  border-radius: 9px;
+  font-size: 0.73rem;
+  padding: 0.36rem 0.45rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.snooze-option:hover {
+  border-color: rgba(111, 154, 242, 0.45);
+  background: #eef2ff;
+  color: var(--text-primary);
+}
+
+.snooze-option.is-active {
+  border-color: rgba(111, 154, 242, 0.55);
+  color: #1f2d64;
+  background: #e2e8ff;
 }
 
 .header-icon-button:hover {
@@ -352,6 +501,33 @@ body {
   min-height: 0;
   overflow-y: overlay;
   overflow-x: hidden;
+}
+
+.filter-list.is-snoozed {
+  position: relative;
+}
+
+.filter-list.is-snoozed > * {
+  position: relative;
+  z-index: 1;
+}
+
+.filter-list.is-snoozed .filter-item,
+.filter-list.is-snoozed .inactive-summary,
+.filter-list.is-snoozed .empty-state {
+  opacity: 0.62;
+}
+
+.filter-list.is-snoozed::after {
+  content: "";
+  position: absolute;
+  inset: 0.4rem;
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.34);
+  backdrop-filter: saturate(0.7);
+  pointer-events: auto;
+  cursor: not-allowed;
+  z-index: 2;
 }
 
 .filter-list::-webkit-scrollbar {

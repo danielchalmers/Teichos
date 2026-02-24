@@ -3,7 +3,14 @@
  * Promise-based utilities for storage operations
  */
 
-import type { StorageData, FilterGroup, Filter, FilterMatchMode, Whitelist } from '../types';
+import type {
+  StorageData,
+  FilterGroup,
+  Filter,
+  FilterMatchMode,
+  Whitelist,
+  SnoozeState,
+} from '../types';
 import { STORAGE_KEY, DEFAULT_GROUP_ID } from '../types';
 
 /**
@@ -26,6 +33,7 @@ function createDefaultData(): StorageData {
     groups: [createDefaultGroup()],
     filters: [],
     whitelist: [],
+    snooze: { active: false },
   };
 }
 
@@ -38,6 +46,16 @@ type LegacyWhitelist = Omit<Whitelist, 'matchMode' | 'groupId'> & {
   readonly matchMode?: FilterMatchMode;
   readonly isRegex?: boolean;
   readonly groupId?: string;
+};
+
+type LegacyStorageData = {
+  readonly groups?: readonly FilterGroup[];
+  readonly filters?: readonly LegacyFilter[];
+  readonly whitelist?: readonly LegacyWhitelist[];
+  readonly snooze?: {
+    readonly active?: boolean;
+    readonly until?: number;
+  };
 };
 
 function resolveMatchMode(
@@ -68,6 +86,18 @@ function normalizeWhitelist(
   }));
 }
 
+function normalizeSnooze(snooze: LegacyStorageData['snooze']): SnoozeState {
+  if (!snooze?.active) {
+    return { active: false };
+  }
+
+  if (typeof snooze.until === 'number' && Number.isFinite(snooze.until)) {
+    return { active: true, until: snooze.until };
+  }
+
+  return { active: true };
+}
+
 /**
  * Load storage data from chrome.storage.sync
  * Creates default data if none exists
@@ -82,15 +112,20 @@ export async function loadData(): Promise<StorageData> {
     return defaultData;
   }
 
-  const data = storedData as StorageData;
-  const groupIds = new Set(data.groups.map((group) => group.id));
-  const filters = normalizeFilters(data.filters as LegacyFilter[] | undefined);
-  const whitelist = normalizeWhitelist(data.whitelist as LegacyWhitelist[] | undefined, groupIds);
+  const data = storedData as LegacyStorageData;
+  const groups =
+    data.groups && data.groups.length > 0 ? data.groups : [createDefaultGroup()];
+  const groupIds = new Set(groups.map((group) => group.id));
+  const filters = normalizeFilters(data.filters);
+  const whitelist = normalizeWhitelist(data.whitelist, groupIds);
+  const snooze = normalizeSnooze(data.snooze);
 
   return {
     ...data,
+    groups,
     filters,
     whitelist,
+    snooze,
   };
 }
 
@@ -197,4 +232,16 @@ export async function deleteWhitelist(whitelistId: string): Promise<void> {
     ...data,
     whitelist: data.whitelist.filter((w) => w.id !== whitelistId),
   });
+}
+
+export async function setSnooze(snooze: SnoozeState): Promise<void> {
+  const data = await loadData();
+  await saveData({
+    ...data,
+    snooze,
+  });
+}
+
+export async function clearSnooze(): Promise<void> {
+  await setSnooze({ active: false });
 }

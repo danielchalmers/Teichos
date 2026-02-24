@@ -17,6 +17,41 @@
         <p class="subtitle">Configure URL filters and time-based blocking schedules</p>
       </div>
       <div class="header-actions">
+        <div class="snooze-popover" id="snooze-popover-options">
+          <button
+            class="snooze-button"
+            id="open-snooze-options"
+            type="button"
+            aria-expanded="false"
+            aria-haspopup="menu"
+            aria-controls="snooze-menu-options"
+          >
+            <span class="snooze-button-icon" aria-hidden="true">
+              <svg class="icon-off" viewBox="0 0 24 24" focusable="false">
+                <path d="M12 7.25v4.8l3.4 2.15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="2" />
+              </svg>
+              <svg class="icon-on" viewBox="0 0 24 24" focusable="false">
+                <path d="M9.25 12.2l2.1 2.15 3.4-4.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="2" />
+              </svg>
+            </span>
+            <span class="snooze-button-text" id="snooze-label-options">Active</span>
+          </button>
+          <div class="snooze-menu" id="snooze-menu-options" role="menu" aria-hidden="true" inert>
+            <div class="snooze-status" id="snooze-status-options">Filtering is active.</div>
+            <button class="snooze-resume" type="button" data-action="resume-snooze-options">Resume filtering now</button>
+            <div class="snooze-options" role="group" aria-label="Snooze durations">
+              <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="15">15 minutes</button>
+              <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="30">30 minutes</button>
+              <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="60">1 hour</button>
+              <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="120">2 hours</button>
+              <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="240">4 hours</button>
+              <button class="snooze-option" type="button" role="menuitem" data-snooze-minutes="480">8 hours</button>
+              <button class="snooze-option" type="button" role="menuitem" data-snooze="always">Always</button>
+            </div>
+          </div>
+        </div>
         <div class="info-popover">
           <button
             class="info-button"

@@ -16,6 +16,18 @@ interface ChromeMock {
     sync: MockStorage;
     local: MockStorage;
     session: MockStorage;
+    onChanged: {
+      addListener: ReturnType<typeof vi.fn>;
+      removeListener: ReturnType<typeof vi.fn>;
+    };
+  };
+  alarms: {
+    create: ReturnType<typeof vi.fn>;
+    clear: ReturnType<typeof vi.fn>;
+    onAlarm: {
+      addListener: ReturnType<typeof vi.fn>;
+      removeListener: ReturnType<typeof vi.fn>;
+    };
   };
   tabs: {
     update: ReturnType<typeof vi.fn>;
@@ -75,6 +87,18 @@ export function createChromeMock(): ChromeMock {
       sync: createMockStorage(),
       local: createMockStorage(),
       session: createMockStorage(),
+      onChanged: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+    },
+    alarms: {
+      create: vi.fn(),
+      clear: vi.fn().mockResolvedValue(true),
+      onAlarm: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
     },
     tabs: {
       update: vi.fn().mockResolvedValue({}),

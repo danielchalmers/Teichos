@@ -3,7 +3,7 @@
  * Processes messages from popup, options, and content scripts
  */
 
-import { shouldBlockUrlWithIndex } from '../../shared/utils';
+import { isSnoozeActive, shouldBlockUrlWithIndex } from '../../shared/utils';
 import {
   isGetDataMessage,
   isCheckUrlMessage,
@@ -48,7 +48,12 @@ async function handleCheckUrl(
   url: string,
   sendResponse: (response: unknown) => void
 ): Promise<void> {
-  const { blockingIndex } = await getStorageSnapshot();
+  const { data, blockingIndex } = await getStorageSnapshot();
+  if (isSnoozeActive(data.snooze)) {
+    sendResponse({ blocked: false });
+    return;
+  }
+
   const blocked = shouldBlockUrlWithIndex(url, blockingIndex);
   sendResponse({ blocked: blocked !== undefined });
 }

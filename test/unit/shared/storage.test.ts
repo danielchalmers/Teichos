@@ -33,6 +33,7 @@ describe('storage', () => {
       expect(data.groups[0]?.id).toBe(DEFAULT_GROUP_ID);
       expect(data.filters).toEqual([]);
       expect(data.whitelist).toEqual([]);
+      expect(data.snooze).toEqual({ active: false });
     });
 
     it('should load existing data from storage', async () => {
@@ -48,6 +49,7 @@ describe('storage', () => {
           },
         ],
         whitelist: [],
+        snooze: { active: false },
       };
 
       getChromeMock().storage.sync._data.set(STORAGE_KEY, testData);
@@ -66,6 +68,7 @@ describe('storage', () => {
 
       const data = await loadData();
       expect(data.whitelist).toEqual([]);
+      expect(data.snooze).toEqual({ active: false });
     });
 
     it('should assign the default group to legacy whitelist entries', async () => {
@@ -94,6 +97,7 @@ describe('storage', () => {
           },
         ],
         whitelist: [],
+        snooze: { active: false },
       };
 
       getChromeMock().storage.sync._data.set(STORAGE_KEY, testData);
@@ -121,6 +125,20 @@ describe('storage', () => {
       const data = await loadData();
       expect(data.whitelist[0]?.matchMode).toBe('contains');
     });
+
+    it('should preserve active snooze state', async () => {
+      const testData = {
+        groups: [createDefaultGroup()],
+        filters: [],
+        whitelist: [],
+        snooze: { active: true, until: Date.now() + 60_000 },
+      };
+
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, testData);
+
+      const data = await loadData();
+      expect(data.snooze).toEqual(testData.snooze);
+    });
   });
 
   describe('saveData', () => {
@@ -137,6 +155,7 @@ describe('storage', () => {
           },
         ],
         whitelist: [],
+        snooze: { active: false },
       };
 
       await saveData(testData);

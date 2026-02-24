@@ -9,6 +9,7 @@
  */
 
 import { handleBeforeNavigate, handleMessage } from './handlers';
+import { registerSnoozeHandlers } from './snooze';
 
 // Register all event listeners synchronously at top level
 // This is critical for MV3 service workers
@@ -22,6 +23,7 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
 
 // Message handling from other extension contexts
 chrome.runtime.onMessage.addListener(handleMessage);
+registerSnoozeHandlers();
 
 // Log initialization (will be stripped in production build)
 console.log('[Teichos] Background service worker initialized');

@@ -3,7 +3,7 @@
  * Checks if navigated URL should be blocked
  */
 
-import { isInternalUrl, shouldBlockUrlWithIndex } from '../../shared/utils';
+import { isInternalUrl, isSnoozeActive, shouldBlockUrlWithIndex } from '../../shared/utils';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { updateTabUrl } from '../../shared/api/tabs';
 import { setLastAllowedUrl } from '../../shared/api/session';
@@ -34,7 +34,12 @@ async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
     return;
   }
 
-  const { blockingIndex } = await getStorageSnapshot();
+  const { data, blockingIndex } = await getStorageSnapshot();
+  if (isSnoozeActive(data.snooze)) {
+    await setLastAllowedUrl(tabId, url);
+    return;
+  }
+
   const blockingFilter = shouldBlockUrlWithIndex(url, blockingIndex);
 
   if (blockingFilter) {

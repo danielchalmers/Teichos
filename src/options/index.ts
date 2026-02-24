@@ -5,10 +5,12 @@
 
 import {
   loadData,
+  clearSnooze,
   addFilter,
   updateFilter,
   deleteFilter,
   saveData,
+  setSnooze,
   addGroup,
   updateGroup,
   deleteGroup,
@@ -20,14 +22,18 @@ import type {
   Filter,
   FilterGroup,
   FilterMatchMode,
+  SnoozeState,
   StorageData,
   Whitelist,
   MutableTimeSchedule,
 } from '../shared/types';
 import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../shared/types';
 import {
+  formatDuration,
   generateId,
   getRegexValidationError,
+  getSnoozeRemainingMs,
+  isSnoozeActive,
   isTemporaryFilterExpired,
   sortFiltersTemporaryFirst,
 } from '../shared/utils';
@@ -65,6 +71,7 @@ async function init(): Promise<void> {
  */
 function setupEventListeners(): void {
   setInfoPopoverOpen = setupInfoPopover();
+  setupSnoozePopover();
 
   chrome.runtime.onMessage.addListener((message, sender) => {
     if (sender.id !== chrome.runtime.id) {
@@ -170,6 +177,167 @@ function setupInfoPopover(): ((isOpen: boolean) => void) | null {
   });
 
   return setOpen;
+}
+
+function describeSnoozeStatus(snooze: SnoozeState): string {
+  if (!isSnoozeActive(snooze)) {
+    return 'Filtering is active.';
+  }
+
+  const remainingMs = getSnoozeRemainingMs(snooze);
+  if (remainingMs === null) {
+    return 'Snoozed until you resume filtering.';
+  }
+
+  return `Snoozed for ${formatDuration(remainingMs)} more.`;
+}
+
+function describeSnoozeButtonLabel(snooze: SnoozeState): string {
+  if (!isSnoozeActive(snooze)) {
+    return 'Active';
+  }
+
+  const remainingMs = getSnoozeRemainingMs(snooze);
+  if (remainingMs === null) {
+    return 'Snoozed: Always';
+  }
+
+  return `Snoozed: ${formatDuration(remainingMs)}`;
+}
+
+function applySnoozeVisualState(snooze: SnoozeState): void {
+  const isActive = isSnoozeActive(snooze);
+  const trigger = getElementByIdOrNull<HTMLButtonElement>('open-snooze-options');
+  const label = getElementByIdOrNull('snooze-label-options');
+  const status = getElementByIdOrNull('snooze-status-options');
+  const resumeButton = document.querySelector<HTMLButtonElement>('button[data-action="resume-snooze-options"]');
+  const alwaysOptions = document.querySelectorAll<HTMLButtonElement>('button[data-snooze="always"]');
+
+  if (trigger) {
+    const statusLabel = describeSnoozeStatus(snooze);
+    trigger.classList.toggle('is-snoozed', isActive);
+    trigger.setAttribute('aria-label', statusLabel);
+    trigger.title = statusLabel;
+  }
+
+  if (label) {
+    label.textContent = describeSnoozeButtonLabel(snooze);
+  }
+
+  if (status) {
+    status.textContent = describeSnoozeStatus(snooze);
+  }
+
+  if (resumeButton) {
+    resumeButton.hidden = !isActive;
+  }
+
+  alwaysOptions.forEach((option) => {
+    option.classList.toggle(
+      'is-active',
+      isActive && getSnoozeRemainingMs(snooze) === null
+    );
+  });
+}
+
+function setupSnoozePopover(): ((isOpen: boolean) => void) | null {
+  const popover = getElementByIdOrNull('snooze-popover-options');
+  const button = getElementByIdOrNull<HTMLButtonElement>('open-snooze-options');
+  const panel = getElementByIdOrNull('snooze-menu-options');
+  if (!popover || !button || !panel) return null;
+
+  const setOpen = (isOpen: boolean, returnFocus = false): void => {
+    popover.classList.toggle('is-open', isOpen);
+    button.setAttribute('aria-expanded', String(isOpen));
+    panel.setAttribute('aria-hidden', String(!isOpen));
+    if (isOpen) {
+      panel.removeAttribute('inert');
+    } else {
+      panel.setAttribute('inert', '');
+      if (returnFocus) {
+        button.focus();
+      }
+    }
+  };
+
+  setOpen(popover.classList.contains('is-open'));
+
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setOpen(!popover.classList.contains('is-open'));
+  });
+
+  panel.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement;
+    const actionButton = target.closest<HTMLButtonElement>(
+      'button[data-action], button[data-snooze], button[data-snooze-minutes]'
+    );
+    if (!actionButton) {
+      return;
+    }
+
+    if (actionButton.dataset['action'] === 'resume-snooze-options') {
+      void applySnoozeSelection('off')
+        .then(() => {
+          setOpen(false, true);
+        })
+        .catch((error: unknown) => {
+          console.error('Failed to update snooze state:', error);
+        });
+      return;
+    }
+
+    const snoozeType = actionButton.dataset['snooze'];
+    if (snoozeType === 'always') {
+      void applySnoozeSelection('always')
+        .then(() => {
+          setOpen(false, true);
+        })
+        .catch((error: unknown) => {
+          console.error('Failed to update snooze state:', error);
+        });
+      return;
+    }
+
+    const minutesRaw = actionButton.dataset['snoozeMinutes'];
+    const minutes = minutesRaw ? Number.parseInt(minutesRaw, 10) : Number.NaN;
+    if (Number.isFinite(minutes) && minutes > 0) {
+      void applySnoozeSelection(minutes)
+        .then(() => {
+          setOpen(false, true);
+        })
+        .catch((error: unknown) => {
+          console.error('Failed to update snooze state:', error);
+        });
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!popover.contains(event.target as Node)) {
+      setOpen(false);
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && popover.classList.contains('is-open')) {
+      const shouldReturnFocus = popover.contains(document.activeElement);
+      setOpen(false, shouldReturnFocus);
+    }
+  });
+
+  return setOpen;
+}
+
+async function applySnoozeSelection(value: number | 'always' | 'off'): Promise<void> {
+  if (value === 'off') {
+    await clearSnooze();
+  } else if (value === 'always') {
+    await setSnooze({ active: true });
+  } else {
+    await setSnooze({ active: true, until: Date.now() + value * 60_000 });
+  }
+
+  await renderGroups();
 }
 
 function openFilterFromQuery(): void {
@@ -356,6 +524,7 @@ async function purgeExpiredTemporaryFilters(data: StorageData): Promise<StorageD
 async function renderGroups(): Promise<void> {
   let data = await loadData();
   data = await purgeExpiredTemporaryFilters(data);
+  applySnoozeVisualState(data.snooze);
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
 
@@ -394,10 +563,11 @@ async function renderGroups(): Promise<void> {
     }
   }
   const fragment = document.createDocumentFragment();
+  const snoozeActive = isSnoozeActive(data.snooze);
   for (const group of data.groups) {
     const filters = sortFiltersTemporaryFirst(filtersByGroup.get(group.id) ?? []);
     const whitelist = whitelistByGroup.get(group.id) ?? [];
-    fragment.appendChild(renderGroup(group, filters, whitelist));
+    fragment.appendChild(renderGroup(group, filters, whitelist, snoozeActive));
   }
 
   groupsList.replaceChildren(fragment);
@@ -428,7 +598,8 @@ async function renderGroups(): Promise<void> {
 function renderGroup(
   group: FilterGroup,
   filters: readonly Filter[],
-  whitelist: readonly Whitelist[]
+  whitelist: readonly Whitelist[],
+  snoozeActive: boolean
 ): HTMLDetailsElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
   const scheduleSummary = group.is24x7
@@ -446,6 +617,8 @@ function renderGroup(
     `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
 
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
+  const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
+  groupContent.classList.toggle('is-snoozed', snoozeActive);
   if (!isDefault) {
     const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
     editButton.dataset.groupId = group.id;
