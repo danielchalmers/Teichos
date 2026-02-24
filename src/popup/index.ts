@@ -36,6 +36,44 @@ import type { SnoozeState, StorageData } from '../shared/types';
 import { PAGES } from '../shared/constants';
 
 let cachedData: StorageData | null = null;
+let snoozeTickerId: number | null = null;
+let lastSnoozeActive = false;
+
+function updateSnoozeCountdownTick(): void {
+  const snooze = cachedData?.snooze;
+  if (!snooze) {
+    return;
+  }
+
+  const wasActive = lastSnoozeActive;
+  const isActive = isSnoozeActive(snooze);
+  applySnoozeVisualState(snooze);
+  lastSnoozeActive = isActive;
+
+  if (wasActive && !isActive) {
+    void renderFilters().catch((error: unknown) => {
+      console.error('Failed to refresh filters after snooze expired:', error);
+    });
+  }
+}
+
+function ensureSnoozeCountdownTicker(): void {
+  if (snoozeTickerId !== null) {
+    return;
+  }
+
+  snoozeTickerId = window.setInterval(() => {
+    updateSnoozeCountdownTick();
+  }, 1000);
+
+  window.addEventListener('unload', () => {
+    if (snoozeTickerId === null) {
+      return;
+    }
+    window.clearInterval(snoozeTickerId);
+    snoozeTickerId = null;
+  });
+}
 
 async function disableExpiredTemporaryFilters(data: StorageData): Promise<StorageData> {
   const now = Date.now();
@@ -64,6 +102,7 @@ async function init(): Promise<void> {
   await renderFilters();
   setupEventListeners();
   setupStorageSync();
+  ensureSnoozeCountdownTicker();
 }
 
 /**
@@ -696,6 +735,7 @@ async function renderFilters(): Promise<void> {
   let data = await loadData();
   data = await disableExpiredTemporaryFilters(data);
   cachedData = data;
+  lastSnoozeActive = isSnoozeActive(data.snooze);
   applySnoozeVisualState(data.snooze);
   const filterList = getElementByIdOrNull('filter-list');
 

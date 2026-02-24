@@ -53,6 +53,44 @@ let temporarySchedules: MutableTimeSchedule[] = [];
 let activeModal: HTMLElement | null = null;
 let lastFocusedElement: HTMLElement | null = null;
 let setInfoPopoverOpen: ((isOpen: boolean) => void) | null = null;
+let latestSnoozeState: SnoozeState | null = null;
+let snoozeTickerId: number | null = null;
+let lastSnoozeActive = false;
+
+function updateSnoozeCountdownTick(): void {
+  if (!latestSnoozeState) {
+    return;
+  }
+
+  const wasActive = lastSnoozeActive;
+  const isActive = isSnoozeActive(latestSnoozeState);
+  applySnoozeVisualState(latestSnoozeState);
+  lastSnoozeActive = isActive;
+
+  if (wasActive && !isActive) {
+    void renderGroups().catch((error: unknown) => {
+      console.error('Failed to refresh groups after snooze expired:', error);
+    });
+  }
+}
+
+function ensureSnoozeCountdownTicker(): void {
+  if (snoozeTickerId !== null) {
+    return;
+  }
+
+  snoozeTickerId = window.setInterval(() => {
+    updateSnoozeCountdownTick();
+  }, 1000);
+
+  window.addEventListener('unload', () => {
+    if (snoozeTickerId === null) {
+      return;
+    }
+    window.clearInterval(snoozeTickerId);
+    snoozeTickerId = null;
+  });
+}
 
 /**
  * Initialize options page
@@ -61,6 +99,7 @@ async function init(): Promise<void> {
   await renderGroups();
   setupEventListeners();
   setupStorageSync();
+  ensureSnoozeCountdownTicker();
   populateInfoPanel();
   openFilterFromQuery();
   openInfoFromQuery();
@@ -568,6 +607,8 @@ async function purgeExpiredTemporaryFilters(data: StorageData): Promise<StorageD
 async function renderGroups(): Promise<void> {
   let data = await loadData();
   data = await purgeExpiredTemporaryFilters(data);
+  latestSnoozeState = data.snooze;
+  lastSnoozeActive = isSnoozeActive(data.snooze);
   applySnoozeVisualState(data.snooze);
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
