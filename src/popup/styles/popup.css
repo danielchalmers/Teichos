@@ -9,6 +9,7 @@ html {
 }
 
 :root {
+  color-scheme: light;
   --font-sans: "Avenir Next", "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Noto Sans", sans-serif;
   --font-display: "Space Grotesk", "Avenir Next", "SF Pro Display", "Segoe UI Variable", "Segoe UI",
     sans-serif;
@@ -881,4 +882,91 @@ input:checked + .slider:before {
   clip: rect(0, 0, 0, 0);
   border: 0;
   white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --text-primary: #e2e8f0;
+    --text-secondary: #c6d2e3;
+    --text-muted: #95a7c2;
+    --bg: #0b1220;
+    --surface: #121b2b;
+    --border: #2a3a52;
+    --accent: #8cb5ff;
+    --accent-strong: #9b9ff6;
+    --accent-deep: #7f8bea;
+    --snooze-bg: rgba(245, 158, 11, 0.24);
+    --snooze-border: rgba(251, 191, 36, 0.45);
+    --snooze-text: #fde68a;
+    --modal-overlay: rgba(2, 6, 23, 0.72);
+    --shadow-sm: 0 8px 24px rgba(2, 6, 23, 0.38);
+  }
+
+  body {
+    background:
+      radial-gradient(520px 220px at 20% -10%, rgba(140, 181, 255, 0.2), transparent 65%),
+      radial-gradient(420px 180px at 90% -10%, rgba(155, 159, 246, 0.18), transparent 60%),
+      var(--bg);
+  }
+
+  .header {
+    background: linear-gradient(135deg, #2c4d90 0%, #4c59a8 50%, #5b4f97 100%);
+  }
+
+  .snooze-dialog-panel,
+  .quick-add-panel {
+    box-shadow: 0 20px 44px rgba(2, 6, 23, 0.52);
+  }
+
+  .dialog-section,
+  .snooze-section {
+    border-color: rgba(136, 154, 183, 0.25);
+    background: linear-gradient(180deg, #13223a 0%, #111d32 100%);
+  }
+
+  .snooze-option,
+  .snooze-custom-input,
+  .snooze-custom-unit,
+  .dialog-actions .button.ghost,
+  .input,
+  .select,
+  .dialog-chip,
+  .pill-button,
+  .icon-button {
+    background: #141f34;
+    border-color: var(--border);
+    color: var(--text-secondary);
+  }
+
+  .snooze-option:hover,
+  .dialog-actions .button.ghost:hover,
+  .pill-button:hover,
+  .icon-button:hover {
+    background: #1a2a45;
+    border-color: rgba(140, 181, 255, 0.5);
+    color: var(--text-primary);
+  }
+
+  .snooze-option.is-active {
+    background: #20345a;
+    border-color: rgba(140, 181, 255, 0.6);
+    color: var(--text-primary);
+  }
+
+  .content.is-snoozed::after {
+    background: rgba(15, 23, 42, 0.58);
+  }
+
+  .slider {
+    background-color: #475569;
+  }
+
+  .slider:before {
+    background-color: #e2e8f0;
+  }
+
+  .empty-state {
+    background: rgba(15, 23, 42, 0.65);
+  }
 }
