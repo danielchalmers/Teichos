@@ -49,11 +49,18 @@ export interface Whitelist {
   readonly description?: string;
 }
 
+/** Global snooze state for temporarily pausing all filtering */
+export interface SnoozeState {
+  readonly active: boolean;
+  readonly until?: number; // Epoch ms when snooze expires; omitted means "Always"
+}
+
 /** Root storage schema */
 export interface StorageData {
   readonly groups: readonly FilterGroup[];
   readonly filters: readonly Filter[];
   readonly whitelist: readonly Whitelist[];
+  readonly snooze: SnoozeState;
 }
 
 /** Default group ID constant */

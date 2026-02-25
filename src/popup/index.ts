@@ -2,7 +2,15 @@
  * Popup Entry Point
  */
 
-import { addFilter, deleteFilter, loadData, saveData, updateFilter } from '../shared/api';
+import {
+  addFilter,
+  clearSnooze,
+  deleteFilter,
+  loadData,
+  saveData,
+  setSnooze,
+  updateFilter,
+} from '../shared/api';
 import { getExtensionUrl, openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
 import { getActiveTab, updateTabUrl } from '../shared/api/tabs';
 import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../shared/types';
@@ -12,9 +20,11 @@ import {
   formatDuration,
   generateId,
   getScheduleContext,
+  getSnoozeRemainingMs,
   getTemporaryFilterRemainingMs,
   isFilterScheduledActive,
   isInternalUrl,
+  isSnoozeActive,
   isTemporaryFilter,
   isTemporaryFilterExpired,
   matchesPattern,
@@ -22,10 +32,48 @@ import {
   sortFiltersTemporaryFirst,
 } from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
-import type { StorageData } from '../shared/types';
+import type { SnoozeState, StorageData } from '../shared/types';
 import { PAGES } from '../shared/constants';
 
 let cachedData: StorageData | null = null;
+let snoozeTickerId: number | null = null;
+let lastSnoozeActive = false;
+
+function updateSnoozeCountdownTick(): void {
+  const snooze = cachedData?.snooze;
+  if (!snooze) {
+    return;
+  }
+
+  const wasActive = lastSnoozeActive;
+  const isActive = isSnoozeActive(snooze);
+  applySnoozeVisualState(snooze);
+  lastSnoozeActive = isActive;
+
+  if (wasActive && !isActive) {
+    void renderFilters().catch((error: unknown) => {
+      console.error('Failed to refresh filters after snooze expired:', error);
+    });
+  }
+}
+
+function ensureSnoozeCountdownTicker(): void {
+  if (snoozeTickerId !== null) {
+    return;
+  }
+
+  snoozeTickerId = window.setInterval(() => {
+    updateSnoozeCountdownTick();
+  }, 1000);
+
+  window.addEventListener('unload', () => {
+    if (snoozeTickerId === null) {
+      return;
+    }
+    window.clearInterval(snoozeTickerId);
+    snoozeTickerId = null;
+  });
+}
 
 async function disableExpiredTemporaryFilters(data: StorageData): Promise<StorageData> {
   const now = Date.now();
@@ -54,6 +102,7 @@ async function init(): Promise<void> {
   await renderFilters();
   setupEventListeners();
   setupStorageSync();
+  ensureSnoozeCountdownTicker();
 }
 
 /**
@@ -71,6 +120,7 @@ function setupEventListeners(): void {
         window.close();
       });
   });
+  setupSnoozePopover();
   setupQuickAdd();
   setupFilterListEvents();
 }
@@ -128,6 +178,207 @@ function showCopyFeedback(button: HTMLButtonElement): void {
   }, 900);
 
   copyFeedbackTimers.set(button, timeoutId);
+}
+
+function describeSnoozeStatus(snooze: SnoozeState): string {
+  if (!isSnoozeActive(snooze)) {
+    return 'Filtering is active.';
+  }
+
+  const remainingMs = getSnoozeRemainingMs(snooze);
+  if (remainingMs === null) {
+    return 'Snoozed until you resume filtering.';
+  }
+
+  return `Snoozed for ${formatDuration(remainingMs)} more.`;
+}
+
+function describeSnoozeButtonLabel(snooze: SnoozeState): string {
+  if (!isSnoozeActive(snooze)) {
+    return 'Active';
+  }
+
+  const remainingMs = getSnoozeRemainingMs(snooze);
+  if (remainingMs === null) {
+    return 'Snoozed: Always';
+  }
+
+  return `Snoozed: ${formatDuration(remainingMs)}`;
+}
+
+function applySnoozeVisualState(snooze: SnoozeState): void {
+  const isActive = isSnoozeActive(snooze);
+  const snoozeTrigger = getElementByIdOrNull<HTMLButtonElement>('open-snooze');
+  const snoozeLabel = getElementByIdOrNull('snooze-label');
+  const quickAddButton = getElementByIdOrNull<HTMLButtonElement>('open-quick-add');
+  const quickAddPopover = getElementByIdOrNull('quick-add');
+  const resumeButton = document.querySelector<HTMLButtonElement>('button[data-action="resume-snooze"]');
+
+  if (snoozeTrigger) {
+    const statusLabel = describeSnoozeStatus(snooze);
+    snoozeTrigger.classList.toggle('is-snoozed', isActive);
+    snoozeTrigger.setAttribute('aria-label', statusLabel);
+    snoozeTrigger.title = statusLabel;
+  }
+
+  if (snoozeLabel) {
+    snoozeLabel.textContent = describeSnoozeButtonLabel(snooze);
+  }
+
+  if (quickAddButton) {
+    quickAddButton.disabled = isActive;
+    quickAddButton.setAttribute(
+      'aria-label',
+      isActive ? 'Temporary filters are unavailable while snoozed' : 'New temporary filter'
+    );
+    quickAddButton.title = isActive
+      ? 'Temporary filters are unavailable while snoozed'
+      : 'New temporary filter';
+  }
+
+  if (isActive && quickAddPopover) {
+    quickAddPopover.classList.remove('is-open');
+    quickAddPopover.setAttribute('aria-hidden', 'true');
+    quickAddPopover.setAttribute('inert', '');
+    if (quickAddButton) {
+      quickAddButton.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  if (resumeButton) {
+    resumeButton.hidden = !isActive;
+  }
+
+  const content = document.querySelector<HTMLElement>('.content');
+  content?.classList.toggle('is-snoozed', isActive);
+}
+
+function setupSnoozePopover(): void {
+  const trigger = getElementByIdOrNull<HTMLButtonElement>('open-snooze');
+  const dialog = getElementByIdOrNull('snooze-dialog');
+  const customDurationInput = getElementByIdOrNull<HTMLInputElement>('snooze-custom-duration');
+  const customUnitSelect = getElementByIdOrNull<HTMLSelectElement>('snooze-custom-unit');
+
+  if (!trigger || !dialog) {
+    return;
+  }
+
+  const setOpen = (isOpen: boolean, returnFocus = false): void => {
+    dialog.classList.toggle('is-open', isOpen);
+    trigger.setAttribute('aria-expanded', String(isOpen));
+    dialog.setAttribute('aria-hidden', String(!isOpen));
+    if (isOpen) {
+      dialog.removeAttribute('inert');
+    } else {
+      dialog.setAttribute('inert', '');
+      if (returnFocus) {
+        trigger.focus();
+      }
+    }
+  };
+
+  const resolveCustomMinutes = (): number | null => {
+    const durationValue = customDurationInput ? Number(customDurationInput.value) : Number.NaN;
+    if (!Number.isFinite(durationValue) || durationValue <= 0) {
+      return null;
+    }
+
+    const unit = customUnitSelect?.value ?? 'minutes';
+    const minutesByUnit: Record<string, number> = {
+      minutes: 1,
+      hours: 60,
+      days: 1_440,
+    };
+    const minutes = Math.round(durationValue * (minutesByUnit[unit] ?? 0));
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      return null;
+    }
+
+    return minutes;
+  };
+
+  trigger.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setOpen(!dialog.classList.contains('is-open'));
+  });
+
+  dialog.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement;
+    const closeAction = target.closest<HTMLElement>('[data-action="close-snooze-dialog"]');
+    if (closeAction) {
+      setOpen(false, true);
+      return;
+    }
+
+    const actionButton = target.closest<HTMLButtonElement>('button[data-action], button[data-snooze-minutes]');
+    if (!actionButton) {
+      return;
+    }
+
+    if (actionButton.dataset['action'] === 'resume-snooze') {
+      void applySnoozeSelection('off', () => setOpen(false, true));
+      return;
+    }
+
+    if (actionButton.dataset['action'] === 'apply-custom-snooze') {
+      const minutes = resolveCustomMinutes();
+      if (!minutes) {
+        announceStatus('Enter a valid snooze duration.');
+        customDurationInput?.focus();
+        return;
+      }
+
+      void applySnoozeSelection(minutes, () => setOpen(false, true));
+      return;
+    }
+
+    const minutesRaw = actionButton.dataset['snoozeMinutes'];
+    const minutes = minutesRaw ? Number.parseInt(minutesRaw, 10) : Number.NaN;
+    if (Number.isFinite(minutes) && minutes > 0) {
+      void applySnoozeSelection(minutes, () => setOpen(false, true));
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !dialog.classList.contains('is-open')) {
+      return;
+    }
+    const returnFocus = dialog.contains(document.activeElement);
+    setOpen(false, returnFocus);
+  });
+}
+
+async function applySnoozeSelection(
+  value: number | 'off',
+  onComplete: () => void
+): Promise<void> {
+  try {
+    if (value === 'off') {
+      await clearSnooze();
+    } else {
+      await setSnooze({ active: true, until: Date.now() + value * 60_000 });
+    }
+
+    const latestData = await loadData();
+    cachedData = latestData;
+    if (isSnoozeActive(latestData.snooze)) {
+      await restoreBlockedPageIfUnblocked(latestData).catch((error: unknown) => {
+        console.error('Failed to restore blocked page:', error);
+      });
+      announceStatus(describeSnoozeStatus(latestData.snooze));
+    } else {
+      await blockActiveTabIfNowBlocked(latestData).catch((error: unknown) => {
+        console.error('Failed to block page after snooze ended:', error);
+      });
+      announceStatus('Filtering resumed.');
+    }
+
+    await renderFilters();
+    onComplete();
+  } catch (error) {
+    console.error('Failed to update snooze state:', error);
+    announceStatus('Failed to update snooze setting.');
+  }
 }
 
 function setupFilterListEvents(): void {
@@ -358,6 +609,11 @@ async function blockActiveTabIfMatched(filter: {
   readonly pattern: string;
   readonly matchMode: 'contains' | 'exact' | 'regex';
 }): Promise<void> {
+  const data = cachedData ?? (await loadData());
+  if (isSnoozeActive(data.snooze)) {
+    return;
+  }
+
   const activeTab = await getActiveTab();
   if (!activeTab?.id || !activeTab.url) {
     return;
@@ -455,6 +711,8 @@ async function renderFilters(): Promise<void> {
   let data = await loadData();
   data = await disableExpiredTemporaryFilters(data);
   cachedData = data;
+  lastSnoozeActive = isSnoozeActive(data.snooze);
+  applySnoozeVisualState(data.snooze);
   const filterList = getElementByIdOrNull('filter-list');
 
   if (!filterList) {
@@ -612,6 +870,11 @@ async function restoreBlockedPageIfUnblocked(data: StorageData): Promise<void> {
     return;
   }
 
+  if (isSnoozeActive(data.snooze)) {
+    await updateTabUrl(activeTab.id, blockedTargetUrl);
+    return;
+  }
+
   const blockingIndex = buildBlockingIndex(data.filters, data.groups, data.whitelist);
   const blockingFilter = shouldBlockUrlWithIndex(blockedTargetUrl, blockingIndex);
   if (blockingFilter) {
@@ -622,6 +885,10 @@ async function restoreBlockedPageIfUnblocked(data: StorageData): Promise<void> {
 }
 
 async function blockActiveTabIfNowBlocked(data: StorageData): Promise<void> {
+  if (isSnoozeActive(data.snooze)) {
+    return;
+  }
+
   const activeTab = await getActiveTab();
   if (!activeTab?.id || !activeTab.url) {
     return;

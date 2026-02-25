@@ -3,12 +3,17 @@
  * Checks if navigated URL should be blocked
  */
 
-import { isInternalUrl, shouldBlockUrlWithIndex } from '../../shared/utils';
+import {
+  buildBlockingIndex,
+  isInternalUrl,
+  shouldBlockUrlWithIndex,
+} from '../../shared/utils';
 import { getExtensionUrl } from '../../shared/api/runtime';
+import { loadData } from '../../shared/api/storage';
 import { updateTabUrl } from '../../shared/api/tabs';
 import { setLastAllowedUrl } from '../../shared/api/session';
 import { PAGES } from '../../shared/constants';
-import { getStorageSnapshot } from '../storageCache';
+import { isSnoozeBypassActive } from '../snoozeBypass';
 
 /**
  * Handle web navigation before navigate event
@@ -29,12 +34,24 @@ export async function handleBeforeNavigate(
  * Check URL against filters and redirect to blocked page if needed
  */
 async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
-  // Don't check internal pages
+  const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
+  if (url.startsWith(blockedPageUrl)) {
+    await restoreBlockedNavigationIfSnoozed(tabId, url, blockedPageUrl);
+    return;
+  }
+
+  // Don't check other internal pages
   if (isInternalUrl(url)) {
     return;
   }
 
-  const { blockingIndex } = await getStorageSnapshot();
+  if (await isSnoozeBypassActive()) {
+    await setLastAllowedUrl(tabId, url);
+    return;
+  }
+
+  const data = await loadData();
+  const blockingIndex = buildBlockingIndex(data.filters, data.groups, data.whitelist);
   const blockingFilter = shouldBlockUrlWithIndex(url, blockingIndex);
 
   if (blockingFilter) {
@@ -44,4 +61,31 @@ async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
   }
 
   await setLastAllowedUrl(tabId, url);
+}
+
+async function restoreBlockedNavigationIfSnoozed(
+  tabId: number,
+  blockedPageNavigationUrl: string,
+  blockedPageUrl: string
+): Promise<void> {
+  let blockedTargetUrl: string | null = null;
+  try {
+    blockedTargetUrl = new URL(blockedPageNavigationUrl).searchParams.get('url');
+  } catch {
+    return;
+  }
+
+  if (
+    !blockedTargetUrl ||
+    isInternalUrl(blockedTargetUrl) ||
+    blockedTargetUrl.startsWith(blockedPageUrl)
+  ) {
+    return;
+  }
+
+  if (await isSnoozeBypassActive()) {
+    await setLastAllowedUrl(tabId, blockedTargetUrl);
+    await updateTabUrl(tabId, blockedTargetUrl);
+    return;
+  }
 }

@@ -4,6 +4,9 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  getSnoozeRemainingMs,
+  isSnoozeActive,
+  isSnoozeExpired,
   matchesPattern,
   isFilterActive,
   shouldBlockUrl,
@@ -267,6 +270,33 @@ describe('sortFiltersTemporaryFirst', () => {
 
     const sorted = sortFiltersTemporaryFirst(filters);
     expect(sorted.map((filter) => filter.id)).toEqual(['f1', 'f3', 'f2', 'f4']);
+  });
+});
+
+describe('snooze helpers', () => {
+  it('should report inactive when snooze is not active', () => {
+    expect(isSnoozeActive({ active: false })).toBe(false);
+    expect(isSnoozeExpired({ active: false })).toBe(false);
+    expect(getSnoozeRemainingMs({ active: false })).toBeNull();
+  });
+
+  it('should report active for always snooze', () => {
+    expect(isSnoozeActive({ active: true })).toBe(true);
+    expect(isSnoozeExpired({ active: true })).toBe(false);
+    expect(getSnoozeRemainingMs({ active: true })).toBeNull();
+  });
+
+  it('should report expiration for elapsed timed snooze', () => {
+    const now = new Date(2025, 0, 15, 10, 30, 0).getTime();
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const snooze = { active: true, until: now - 1 };
+    expect(isSnoozeActive(snooze)).toBe(false);
+    expect(isSnoozeExpired(snooze)).toBe(true);
+    expect(getSnoozeRemainingMs(snooze)).toBe(-1);
+
+    vi.useRealTimers();
   });
 });
 

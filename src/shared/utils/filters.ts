@@ -2,7 +2,13 @@
  * Filter matching and scheduling utilities
  */
 
-import type { Filter, FilterGroup, FilterMatchMode, Whitelist } from '../types';
+import type {
+  Filter,
+  FilterGroup,
+  FilterMatchMode,
+  SnoozeState,
+  Whitelist,
+} from '../types';
 import { getCurrentTimeString, getCurrentDayOfWeek } from './helpers';
 
 export type WhitelistByGroup<T extends Whitelist = Whitelist> = ReadonlyMap<
@@ -48,6 +54,45 @@ export function getTemporaryFilterRemainingMs(filter: Filter, now = Date.now()):
 
 export function isTemporaryFilterExpired(filter: Filter, now = Date.now()): boolean {
   const remaining = getTemporaryFilterRemainingMs(filter, now);
+  return remaining !== null && remaining <= 0;
+}
+
+export function getSnoozeRemainingMs(
+  snooze: SnoozeState | undefined,
+  now = Date.now()
+): number | null {
+  if (!snooze?.active) {
+    return null;
+  }
+
+  if (typeof snooze.until !== 'number' || !Number.isFinite(snooze.until)) {
+    return null;
+  }
+
+  return snooze.until - now;
+}
+
+export function isSnoozeActive(
+  snooze: SnoozeState | undefined,
+  now = Date.now()
+): boolean {
+  if (!snooze?.active) {
+    return false;
+  }
+
+  const remaining = getSnoozeRemainingMs(snooze, now);
+  return remaining === null || remaining > 0;
+}
+
+export function isSnoozeExpired(
+  snooze: SnoozeState | undefined,
+  now = Date.now()
+): boolean {
+  if (!snooze?.active) {
+    return false;
+  }
+
+  const remaining = getSnoozeRemainingMs(snooze, now);
   return remaining !== null && remaining <= 0;
 }
 

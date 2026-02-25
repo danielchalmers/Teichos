@@ -3,12 +3,16 @@
  * Processes messages from popup, options, and content scripts
  */
 
-import { shouldBlockUrlWithIndex } from '../../shared/utils';
+import {
+  buildBlockingIndex,
+  shouldBlockUrlWithIndex,
+} from '../../shared/utils';
+import { loadData } from '../../shared/api/storage';
 import {
   isGetDataMessage,
   isCheckUrlMessage,
 } from '../../shared/types';
-import { getStorageSnapshot } from '../storageCache';
+import { isSnoozeBypassActive } from '../snoozeBypass';
 
 /**
  * Handle incoming messages from other extension contexts
@@ -40,7 +44,7 @@ export function handleMessage(
 async function handleGetData(
   sendResponse: (response: unknown) => void
 ): Promise<void> {
-  const { data } = await getStorageSnapshot();
+  const data = await loadData();
   sendResponse({ success: true, data });
 }
 
@@ -48,7 +52,13 @@ async function handleCheckUrl(
   url: string,
   sendResponse: (response: unknown) => void
 ): Promise<void> {
-  const { blockingIndex } = await getStorageSnapshot();
+  if (await isSnoozeBypassActive()) {
+    sendResponse({ blocked: false });
+    return;
+  }
+
+  const data = await loadData();
+  const blockingIndex = buildBlockingIndex(data.filters, data.groups, data.whitelist);
   const blocked = shouldBlockUrlWithIndex(url, blockingIndex);
   sendResponse({ blocked: blocked !== undefined });
 }

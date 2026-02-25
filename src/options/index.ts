@@ -28,6 +28,7 @@ import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../share
 import {
   generateId,
   getRegexValidationError,
+  isSnoozeActive,
   isTemporaryFilterExpired,
   sortFiltersTemporaryFirst,
 } from '../shared/utils';
@@ -394,10 +395,11 @@ async function renderGroups(): Promise<void> {
     }
   }
   const fragment = document.createDocumentFragment();
+  const snoozeActive = isSnoozeActive(data.snooze);
   for (const group of data.groups) {
     const filters = sortFiltersTemporaryFirst(filtersByGroup.get(group.id) ?? []);
     const whitelist = whitelistByGroup.get(group.id) ?? [];
-    fragment.appendChild(renderGroup(group, filters, whitelist));
+    fragment.appendChild(renderGroup(group, filters, whitelist, snoozeActive));
   }
 
   groupsList.replaceChildren(fragment);
@@ -428,7 +430,8 @@ async function renderGroups(): Promise<void> {
 function renderGroup(
   group: FilterGroup,
   filters: readonly Filter[],
-  whitelist: readonly Whitelist[]
+  whitelist: readonly Whitelist[],
+  snoozeActive: boolean
 ): HTMLDetailsElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
   const scheduleSummary = group.is24x7
@@ -446,6 +449,8 @@ function renderGroup(
     `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
 
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
+  const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
+  groupContent.classList.toggle('is-snoozed', snoozeActive);
   if (!isDefault) {
     const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
     editButton.dataset.groupId = group.id;

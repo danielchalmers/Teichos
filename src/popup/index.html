@@ -13,6 +13,89 @@
       Teichos
     </h1>
     <div class="header-actions">
+      <div class="snooze-popover" id="snooze-popover">
+        <button
+          class="snooze-button snooze-trigger"
+          id="open-snooze"
+          type="button"
+          aria-label="Snooze filtering"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="snooze-dialog"
+          title="Snooze filtering"
+        >
+          <svg class="snooze-icon snooze-icon-off" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 7.25v4.8l3.4 2.15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="2" />
+          </svg>
+          <svg class="snooze-icon snooze-icon-on" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9.25 12.2l2.1 2.15 3.4-4.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="2" />
+          </svg>
+          <span class="snooze-trigger-text" id="snooze-label">Active</span>
+        </button>
+        <div class="snooze-dialog" id="snooze-dialog" aria-hidden="true" inert>
+          <div class="snooze-dialog-backdrop" data-action="close-snooze-dialog" aria-hidden="true"></div>
+          <div
+            class="snooze-dialog-panel dialog-panel"
+            role="dialog"
+            aria-labelledby="snooze-dialog-title"
+          >
+            <div class="snooze-dialog-header dialog-header">
+              <div class="dialog-heading">
+                <div class="snooze-dialog-title dialog-title" id="snooze-dialog-title">Snooze filtering</div>
+                <div class="dialog-subtitle">Pause all filtering for a set time.</div>
+              </div>
+              <button
+                class="icon-button"
+                type="button"
+                data-action="close-snooze-dialog"
+                aria-label="Close snooze dialog"
+                title="Close"
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+                  <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div class="snooze-section dialog-section" role="group" aria-label="Quick snooze durations">
+              <div class="snooze-section-title dialog-section-title">Quick durations</div>
+              <div class="snooze-options">
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="15">15m</button>
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="30">30m</button>
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="60">1h</button>
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="120">2h</button>
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="240">4h</button>
+                <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="480">8h</button>
+              </div>
+            </div>
+            <div class="snooze-section dialog-section" role="group" aria-label="Custom snooze duration">
+              <div class="snooze-section-title dialog-section-title">Custom duration</div>
+              <div class="snooze-custom">
+                <input
+                  class="snooze-custom-input"
+                  type="number"
+                  id="snooze-custom-duration"
+                  min="1"
+                  step="1"
+                  inputmode="numeric"
+                  value="30"
+                  aria-label="Custom snooze duration"
+                >
+                <select class="snooze-custom-unit" id="snooze-custom-unit" aria-label="Custom snooze unit">
+                  <option value="minutes">Minutes</option>
+                  <option value="hours">Hours</option>
+                  <option value="days">Days</option>
+                </select>
+                <button class="snooze-custom-apply" type="button" data-action="apply-custom-snooze">Set</button>
+              </div>
+            </div>
+            <div class="snooze-dialog-actions dialog-actions">
+              <button class="snooze-resume button ghost dialog-action-full" type="button" data-action="resume-snooze">Resume filtering</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <button
         class="header-icon-button"
         id="open-quick-add"
@@ -46,15 +129,15 @@
     <div class="quick-add" id="quick-add" aria-hidden="true" inert>
       <div class="quick-add-backdrop" data-action="close-quick-add" aria-hidden="true"></div>
       <div
-        class="quick-add-panel"
+        class="quick-add-panel dialog-panel"
         role="dialog"
         aria-labelledby="quick-add-title"
         aria-describedby="quick-add-subtitle"
       >
-        <div class="quick-add-header">
-          <div>
-            <div class="quick-add-title" id="quick-add-title">Temporary filter</div>
-            <div class="quick-add-subtitle" id="quick-add-subtitle">Ignores exceptions and expires automatically.</div>
+        <div class="quick-add-header dialog-header">
+          <div class="dialog-heading">
+            <div class="quick-add-title dialog-title" id="quick-add-title">Temporary filter</div>
+            <div class="quick-add-subtitle dialog-subtitle" id="quick-add-subtitle">Create a short-lived block that expires automatically.</div>
           </div>
           <button class="icon-button" type="button" data-action="close-quick-add" aria-label="Close quick add" title="Close">
             <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
@@ -62,9 +145,9 @@
             </svg>
           </button>
         </div>
-        <form id="quick-add-form" class="quick-add-form">
-          <div class="quick-add-row">
-            <label class="form-label" for="quick-add-pattern">Site or pattern</label>
+        <form id="quick-add-form" class="quick-add-form dialog-form">
+          <div class="quick-add-row dialog-section">
+            <label class="form-label dialog-section-title" for="quick-add-pattern">Site or pattern</label>
             <input
               class="input"
               type="text"
@@ -74,8 +157,8 @@
               required
             >
           </div>
-          <div class="quick-add-row">
-            <label class="form-label" for="quick-add-duration">Block for</label>
+          <div class="quick-add-row dialog-section">
+            <label class="form-label dialog-section-title" for="quick-add-duration">Block for</label>
             <div class="quick-add-duration">
               <input
                 class="input"
@@ -94,13 +177,13 @@
               </select>
             </div>
             <div class="quick-add-presets" role="list">
-              <button class="pill-button" type="button" data-duration="15" data-unit="minutes" role="listitem">15m</button>
-              <button class="pill-button" type="button" data-duration="30" data-unit="minutes" role="listitem">30m</button>
-              <button class="pill-button" type="button" data-duration="1" data-unit="hours" role="listitem">1h</button>
-              <button class="pill-button" type="button" data-duration="2" data-unit="hours" role="listitem">2h</button>
+              <button class="pill-button dialog-chip" type="button" data-duration="15" data-unit="minutes" role="listitem">15m</button>
+              <button class="pill-button dialog-chip" type="button" data-duration="30" data-unit="minutes" role="listitem">30m</button>
+              <button class="pill-button dialog-chip" type="button" data-duration="1" data-unit="hours" role="listitem">1h</button>
+              <button class="pill-button dialog-chip" type="button" data-duration="2" data-unit="hours" role="listitem">2h</button>
             </div>
           </div>
-          <div class="quick-add-actions">
+          <div class="quick-add-actions dialog-actions">
             <button class="button" type="submit">Start block</button>
             <button class="button ghost" type="button" data-action="close-quick-add">Cancel</button>
           </div>

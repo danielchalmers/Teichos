@@ -503,6 +503,33 @@ label {
 .group-content {
   padding: 1rem 1.25rem 1.25rem;
   background: var(--surface);
+  position: relative;
+}
+
+.group-content.is-snoozed [data-role="filter-list"] {
+  position: relative;
+}
+
+.group-content.is-snoozed [data-role="filter-list"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+.group-content.is-snoozed [data-role="filter-list"] .filter-item,
+.group-content.is-snoozed [data-role="filter-list"] .empty-state {
+  opacity: 0.62;
+}
+
+.group-content.is-snoozed [data-role="filter-list"]::after {
+  content: "";
+  position: absolute;
+  inset: -0.2rem;
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.34);
+  backdrop-filter: saturate(0.72);
+  pointer-events: auto;
+  cursor: not-allowed;
+  z-index: 2;
 }
 
 .group-section {

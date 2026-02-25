@@ -17,3 +17,7 @@ export const PAGES = {
   OPTIONS: 'options/index.html',
   POPUP: 'popup/index.html',
 } as const;
+
+export const ALARMS = {
+  SNOOZE_EXPIRATION: 'snooze-expiration',
+} as const;
