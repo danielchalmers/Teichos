@@ -3,6 +3,7 @@
 }
 
 :root {
+  color-scheme: light;
   --text-2xl: 2.25rem;
   --text-lg: 1.1rem;
   --text-md: 0.98rem;
@@ -90,4 +91,37 @@ p {
 
 .button.secondary:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background: linear-gradient(135deg, #2c4d90 0%, #4c59a8 50%, #5b4f97 100%);
+  }
+
+  .url {
+    background: rgba(15, 23, 42, 0.42);
+    color: #f8fbff;
+  }
+
+  .button {
+    background: #dbeafe;
+    color: #1e3a8a;
+  }
+
+  .button:hover {
+    background: #bfdbfe;
+  }
+
+  .button.secondary {
+    background: rgba(15, 23, 42, 0.45);
+    color: #f8fbff;
+  }
+
+  .button.secondary:hover {
+    background: rgba(15, 23, 42, 0.58);
+  }
 }
