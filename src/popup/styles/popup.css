@@ -22,6 +22,13 @@ html {
   --accent: #666ddc;
   --accent-strong: #7d8fe5;
   --accent-deep: #4e4cd3;
+  --button-primary-start: #4e4cd3;
+  --button-primary-end: #5c2bc8;
+  --button-primary-hover-start: #433fc5;
+  --button-primary-hover-end: #5124ad;
+  --button-primary-text: #f7f8ff;
+  --button-primary-border: rgba(54, 42, 154, 0.54);
+  --button-primary-shadow: 0 10px 22px rgba(54, 39, 140, 0.33);
   --bg-glow-primary: rgba(172, 210, 246, 0.28);
   --bg-glow-secondary: rgba(102, 109, 220, 0.2);
   --header-gradient-start: #4e4cd3;
@@ -372,16 +379,26 @@ body {
 }
 
 .snooze-custom-apply {
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #f8fbff;
+  background: linear-gradient(
+    135deg,
+    var(--button-primary-start),
+    var(--button-primary-end)
+  );
+  color: var(--button-primary-text);
+  border-color: var(--button-primary-border);
+  box-shadow: var(--button-primary-shadow);
   padding: 0.36rem 0.6rem;
   cursor: pointer;
   font-weight: 600;
 }
 
 .snooze-custom-apply:hover {
-  border-color: var(--panel-soft-border);
-  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  border-color: var(--button-primary-border);
+  background: linear-gradient(
+    135deg,
+    var(--button-primary-hover-start),
+    var(--button-primary-hover-end)
+  );
 }
 
 .dialog-actions,
@@ -440,9 +457,13 @@ body {
 .button {
   font-family: var(--font-sans);
   padding: 0.45rem 0.9rem;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #f9fbff;
-  border: none;
+  background: linear-gradient(
+    135deg,
+    var(--button-primary-start),
+    var(--button-primary-end)
+  );
+  color: var(--button-primary-text);
+  border: 1px solid var(--button-primary-border);
   border-radius: 999px;
   cursor: pointer;
   font-size: 0.78rem;
@@ -453,10 +474,15 @@ body {
   gap: 0.35rem;
   line-height: 1;
   transition: transform 0.2s, background 0.2s;
+  box-shadow: var(--button-primary-shadow);
 }
 
 .button:hover {
-  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  background: linear-gradient(
+    135deg,
+    var(--button-primary-hover-start),
+    var(--button-primary-hover-end)
+  );
 }
 
 .button:focus-visible,
@@ -928,6 +954,13 @@ input:checked + .slider:before {
     --accent: #95b0ed;
     --accent-strong: #acd2f6;
     --accent-deep: #7d8fe5;
+    --button-primary-start: #666ddc;
+    --button-primary-end: #4e4cd3;
+    --button-primary-hover-start: #7d8fe5;
+    --button-primary-hover-end: #5c2bc8;
+    --button-primary-text: #f0f2ff;
+    --button-primary-border: rgba(172, 210, 246, 0.34);
+    --button-primary-shadow: 0 12px 26px rgba(10, 12, 40, 0.52);
     --bg-glow-primary: rgba(102, 109, 220, 0.42);
     --bg-glow-secondary: rgba(78, 76, 211, 0.34);
     --header-gradient-start: #3a32a9;

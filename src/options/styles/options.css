@@ -23,6 +23,13 @@ html {
   --accent: #666ddc;
   --accent-strong: #7d8fe5;
   --accent-deep: #4e4cd3;
+  --button-primary-start: #4e4cd3;
+  --button-primary-end: #5c2bc8;
+  --button-primary-hover-start: #433fc5;
+  --button-primary-hover-end: #5124ad;
+  --button-primary-text: #f7f8ff;
+  --button-primary-border: rgba(54, 42, 154, 0.54);
+  --button-primary-shadow: 0 10px 24px rgba(53, 56, 135, 0.35);
   --danger: #ef4444;
   --danger-hover: #dc2626;
   --bg-glow-primary: rgba(172, 210, 246, 0.28);
@@ -55,7 +62,6 @@ html {
   --info-badge-shadow-hover: 0 12px 28px rgba(40, 44, 118, 0.32);
   --icon-border: #d7e1ef;
   --icon-color: #5a6298;
-  --button-shadow: 0 10px 24px rgba(53, 56, 135, 0.25);
   --header-shadow: 0 14px 34px rgba(48, 43, 126, 0.25);
   --shadow-sm: 0 8px 20px rgba(38, 41, 102, 0.1);
   --shadow-lg: 0 20px 50px rgba(35, 38, 98, 0.24);
@@ -312,9 +318,13 @@ body {
 .button {
   font-family: var(--font-sans);
   padding: 0.6rem 1.1rem;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #f9fbff;
-  border: none;
+  background: linear-gradient(
+    135deg,
+    var(--button-primary-start),
+    var(--button-primary-end)
+  );
+  color: var(--button-primary-text);
+  border: 1px solid var(--button-primary-border);
   border-radius: 999px;
   cursor: pointer;
   font-size: 0.92rem;
@@ -325,7 +335,7 @@ body {
   gap: 0.45rem;
   line-height: 1;
   transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
-  box-shadow: var(--button-shadow);
+  box-shadow: var(--button-primary-shadow);
 }
 
 .button + .button {
@@ -341,7 +351,11 @@ form .button + .button {
 }
 
 .button:hover {
-  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  background: linear-gradient(
+    135deg,
+    var(--button-primary-hover-start),
+    var(--button-primary-hover-end)
+  );
 }
 
 .button:focus-visible,
@@ -366,6 +380,7 @@ form .button + .button {
 
 .button.danger {
   background: var(--danger);
+  border-color: transparent;
   box-shadow: none;
 }
 
@@ -903,6 +918,13 @@ input:checked + .slider:before {
     --accent: #95b0ed;
     --accent-strong: #acd2f6;
     --accent-deep: #7d8fe5;
+    --button-primary-start: #666ddc;
+    --button-primary-end: #4e4cd3;
+    --button-primary-hover-start: #7d8fe5;
+    --button-primary-hover-end: #5c2bc8;
+    --button-primary-text: #f0f2ff;
+    --button-primary-border: rgba(172, 210, 246, 0.34);
+    --button-primary-shadow: 0 12px 26px rgba(15, 17, 53, 0.46);
     --danger: #f87171;
     --danger-hover: #ef4444;
     --bg-glow-primary: rgba(102, 109, 220, 0.42);
@@ -935,7 +957,6 @@ input:checked + .slider:before {
     --info-badge-shadow-hover: 0 14px 32px rgba(12, 14, 44, 0.52);
     --icon-border: #3d4486;
     --icon-color: #b0baea;
-    --button-shadow: 0 12px 26px rgba(15, 17, 53, 0.46);
     --header-shadow: 0 16px 36px rgba(7, 8, 24, 0.54);
     --shadow-sm: 0 10px 24px rgba(7, 8, 24, 0.34);
     --shadow-lg: 0 24px 58px rgba(7, 8, 24, 0.62);
