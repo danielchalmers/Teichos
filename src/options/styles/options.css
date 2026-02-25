@@ -29,7 +29,7 @@ html {
   --button-primary-hover-end: #5124ad;
   --button-primary-text: #f7f8ff;
   --button-primary-border: rgba(54, 42, 154, 0.54);
-  --button-primary-shadow: 0 10px 24px rgba(53, 56, 135, 0.35);
+  --button-primary-shadow: none;
   --danger: #ef4444;
   --danger-hover: #dc2626;
   --bg-glow-primary: rgba(172, 210, 246, 0.28);
@@ -924,7 +924,7 @@ input:checked + .slider:before {
     --button-primary-hover-end: #5c2bc8;
     --button-primary-text: #f0f2ff;
     --button-primary-border: rgba(172, 210, 246, 0.34);
-    --button-primary-shadow: 0 12px 26px rgba(15, 17, 53, 0.46);
+    --button-primary-shadow: none;
     --danger: #f87171;
     --danger-hover: #ef4444;
     --bg-glow-primary: rgba(102, 109, 220, 0.42);
