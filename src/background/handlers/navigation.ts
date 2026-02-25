@@ -6,15 +6,14 @@
 import {
   buildBlockingIndex,
   isInternalUrl,
-  isSnoozeActive,
   shouldBlockUrlWithIndex,
 } from '../../shared/utils';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { loadData } from '../../shared/api/storage';
 import { updateTabUrl } from '../../shared/api/tabs';
-import { getSessionSnooze, setLastAllowedUrl, setSessionSnooze } from '../../shared/api/session';
+import { setLastAllowedUrl } from '../../shared/api/session';
 import { PAGES } from '../../shared/constants';
-import { STORAGE_KEY } from '../../shared/types';
+import { isSnoozeBypassActive } from '../snoozeBypass';
 
 /**
  * Handle web navigation before navigate event
@@ -52,12 +51,6 @@ async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
   }
 
   const data = await loadData();
-  if (isSnoozeActive(data.snooze)) {
-    await setSessionSnooze(data.snooze);
-    await setLastAllowedUrl(tabId, url);
-    return;
-  }
-
   const blockingIndex = buildBlockingIndex(data.filters, data.groups, data.whitelist);
   const blockingFilter = shouldBlockUrlWithIndex(url, blockingIndex);
 
@@ -95,39 +88,4 @@ async function restoreBlockedNavigationIfSnoozed(
     await updateTabUrl(tabId, blockedTargetUrl);
     return;
   }
-
-  const data = await loadData();
-  if (!isSnoozeActive(data.snooze)) {
-    return;
-  }
-
-  await setSessionSnooze(data.snooze);
-  await setLastAllowedUrl(tabId, blockedTargetUrl);
-  await updateTabUrl(tabId, blockedTargetUrl);
-}
-
-function isRawSnoozeActive(
-  snooze: { active?: unknown; until?: unknown } | undefined,
-  now = Date.now()
-): boolean {
-  if (!snooze || snooze.active !== true) {
-    return false;
-  }
-
-  if (typeof snooze.until !== 'number' || !Number.isFinite(snooze.until)) {
-    return true;
-  }
-
-  return snooze.until > now;
-}
-
-async function isSnoozeBypassActive(): Promise<boolean> {
-  const sessionSnooze = await getSessionSnooze();
-  if (isSnoozeActive(sessionSnooze)) {
-    return true;
-  }
-
-  const result = await chrome.storage.sync.get(STORAGE_KEY);
-  const rawData = result[STORAGE_KEY] as { snooze?: { active?: unknown; until?: unknown } } | undefined;
-  return isRawSnoozeActive(rawData?.snooze);
 }
