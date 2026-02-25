@@ -384,13 +384,12 @@ body {
   padding: 0.36rem 0.6rem;
   cursor: pointer;
   font-weight: 600;
-  transition: background-color 0.2s, border-color 0.2s, transform 0.16s ease;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 
 .snooze-custom-apply:hover {
   border-color: var(--button-primary-border);
   background-color: var(--button-primary-hover-bg);
-  transform: translateY(-1px);
 }
 
 .dialog-actions,
@@ -461,13 +460,12 @@ body {
   justify-content: center;
   gap: 0.35rem;
   line-height: 1;
-  transition: transform 0.16s ease, background-color 0.2s, border-color 0.2s;
+  transition: background-color 0.2s, border-color 0.2s;
   box-shadow: var(--button-primary-shadow);
 }
 
 .button:hover {
   background-color: var(--button-primary-hover-bg);
-  transform: translateY(-1px);
 }
 
 .button:focus-visible,
