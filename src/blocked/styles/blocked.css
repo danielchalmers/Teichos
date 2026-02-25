@@ -7,6 +7,21 @@
   --text-2xl: 2.25rem;
   --text-lg: 1.1rem;
   --text-md: 0.98rem;
+  --bg-glow-primary: rgba(96, 146, 255, 0.24);
+  --bg-glow-secondary: rgba(58, 185, 167, 0.2);
+  --bg-gradient-start: #365fb7;
+  --bg-gradient-mid: #4475cf;
+  --bg-gradient-end: #3f89a8;
+  --text-on-bg: #f6fbff;
+  --url-bg: rgba(255, 255, 255, 0.2);
+  --url-border: rgba(255, 255, 255, 0.28);
+  --button-bg: #f8fbff;
+  --button-text: #365fb7;
+  --button-bg-hover: #eaf2ff;
+  --button-alt-bg: rgba(255, 255, 255, 0.2);
+  --button-alt-bg-hover: rgba(255, 255, 255, 0.3);
+  --button-alt-text: #f6fbff;
+  --focus-ring: rgba(240, 248, 255, 0.9);
 }
 
 body {
@@ -16,8 +31,16 @@ body {
   align-items: center;
   min-height: 100vh;
   margin: 0;
-  background: linear-gradient(135deg, #6f9af2 0%, #7e89ec 50%, #8b7fda 100%);
-  color: white;
+  background:
+    radial-gradient(1100px 620px at 8% -12%, var(--bg-glow-primary), transparent 64%),
+    radial-gradient(860px 520px at 92% -16%, var(--bg-glow-secondary), transparent 62%),
+    linear-gradient(
+      135deg,
+      var(--bg-gradient-start) 0%,
+      var(--bg-gradient-mid) 52%,
+      var(--bg-gradient-end) 100%
+    );
+  color: var(--text-on-bg);
   font-size: 16px;
   line-height: 1.5;
 }
@@ -43,9 +66,9 @@ p {
   margin: 0 0 2rem 0;
   opacity: 0.9;
 }
-
 .url {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--url-bg);
+  border: 1px solid var(--url-border);
   padding: 1rem;
   border-radius: 8px;
   word-break: break-all;
@@ -64,64 +87,52 @@ p {
 .button {
   display: inline-block;
   padding: 12px 24px;
-  background: white;
-  color: #6f9af2;
+  background: var(--button-bg);
+  color: var(--button-text);
   text-decoration: none;
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
   border: none;
   font-size: 1rem;
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 
 .button:hover {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--button-bg-hover);
 }
 
 .button:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
 .button.secondary {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
+  background: var(--button-alt-bg);
+  color: var(--button-alt-text);
 }
 
 .button.secondary:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--button-alt-bg-hover);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-  }
-
-  body {
-    background: linear-gradient(135deg, #2c4d90 0%, #4c59a8 50%, #5b4f97 100%);
-  }
-
-  .url {
-    background: rgba(15, 23, 42, 0.42);
-    color: #f8fbff;
-  }
-
-  .button {
-    background: #dbeafe;
-    color: #1e3a8a;
-  }
-
-  .button:hover {
-    background: #bfdbfe;
-  }
-
-  .button.secondary {
-    background: rgba(15, 23, 42, 0.45);
-    color: #f8fbff;
-  }
-
-  .button.secondary:hover {
-    background: rgba(15, 23, 42, 0.58);
+    --bg-glow-primary: rgba(73, 119, 214, 0.38);
+    --bg-glow-secondary: rgba(43, 161, 152, 0.3);
+    --bg-gradient-start: #1f396c;
+    --bg-gradient-mid: #28508a;
+    --bg-gradient-end: #25657b;
+    --text-on-bg: #edf5ff;
+    --url-bg: rgba(12, 22, 39, 0.44);
+    --url-border: rgba(173, 203, 244, 0.18);
+    --button-bg: #ddecff;
+    --button-text: #244b91;
+    --button-bg-hover: #c7ddff;
+    --button-alt-bg: rgba(12, 22, 39, 0.46);
+    --button-alt-bg-hover: rgba(12, 22, 39, 0.6);
+    --button-alt-text: #edf5ff;
+    --focus-ring: rgba(224, 236, 255, 0.9);
   }
 }
