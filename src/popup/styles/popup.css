@@ -40,9 +40,9 @@ html {
   --header-control-bg-hover: rgba(255, 255, 255, 0.28);
   --header-control-border-hover: rgba(255, 255, 255, 0.72);
   --header-focus-ring: rgba(240, 248, 255, 0.94);
-  --snooze-bg: rgba(218, 150, 67, 0.24);
-  --snooze-border: rgba(255, 224, 173, 0.75);
-  --snooze-text: #fff6df;
+  --snooze-bg: rgba(172, 210, 246, 0.4);
+  --snooze-border: rgba(196, 243, 255, 0.9);
+  --snooze-text: #24306f;
   --panel-soft: #f5f6ff;
   --panel-soft-hover: #eaeeff;
   --panel-soft-active: #dde3ff;
@@ -52,7 +52,7 @@ html {
   --section-gradient-start: #fcfcff;
   --section-gradient-end: #f4f6ff;
   --modal-overlay: rgba(12, 23, 42, 0.48);
-  --overlay-muted: rgba(128, 138, 193, 0.37);
+  --overlay-muted: rgba(149, 165, 232, 0.35);
   --focus-ring: rgba(102, 109, 220, 0.68);
   --focus-ring-soft: rgba(102, 109, 220, 0.44);
   --toggle-track: #b9c0ea;
@@ -972,9 +972,9 @@ input:checked + .slider:before {
     --header-control-bg-hover: rgba(226, 232, 255, 0.26);
     --header-control-border-hover: rgba(207, 217, 255, 0.6);
     --header-focus-ring: rgba(228, 232, 255, 0.9);
-    --snooze-bg: rgba(222, 161, 83, 0.24);
-    --snooze-border: rgba(248, 190, 85, 0.46);
-    --snooze-text: #ffe4b5;
+    --snooze-bg: rgba(172, 210, 246, 0.3);
+    --snooze-border: rgba(196, 243, 255, 0.5);
+    --snooze-text: #e7f3ff;
     --panel-soft: #202657;
     --panel-soft-hover: #29306a;
     --panel-soft-active: #323b7f;
@@ -984,7 +984,7 @@ input:checked + .slider:before {
     --section-gradient-start: #1f2551;
     --section-gradient-end: #1a2044;
     --modal-overlay: rgba(7, 8, 24, 0.74);
-    --overlay-muted: rgba(10, 11, 25, 0.62);
+    --overlay-muted: rgba(33, 38, 84, 0.62);
     --focus-ring: rgba(149, 176, 237, 0.78);
     --focus-ring-soft: rgba(149, 176, 237, 0.52);
     --toggle-track: #5962a0;

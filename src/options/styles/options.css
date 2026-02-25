@@ -51,7 +51,7 @@ html {
   --panel-soft-text-strong: #2b327d;
   --group-header-start: #fafbff;
   --group-header-end: #f0f3ff;
-  --overlay-muted: rgba(128, 138, 193, 0.37);
+  --overlay-muted: rgba(149, 165, 232, 0.35);
   --focus-ring: rgba(102, 109, 220, 0.68);
   --focus-ring-soft: rgba(102, 109, 220, 0.28);
   --toggle-track: #b9c0ea;
@@ -946,7 +946,7 @@ input:checked + .slider:before {
     --panel-soft-text-strong: #e2e8ff;
     --group-header-start: #252d66;
     --group-header-end: #1f2658;
-    --overlay-muted: rgba(10, 11, 25, 0.62);
+    --overlay-muted: rgba(33, 38, 84, 0.62);
     --focus-ring: rgba(149, 176, 237, 0.78);
     --focus-ring-soft: rgba(149, 176, 237, 0.4);
     --toggle-track: #5962a0;
