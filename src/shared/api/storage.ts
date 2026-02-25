@@ -12,6 +12,7 @@ import type {
   SnoozeState,
 } from '../types';
 import { STORAGE_KEY, DEFAULT_GROUP_ID } from '../types';
+import { setSessionSnooze } from './session';
 
 /**
  * Creates the default 24/7 filter group
@@ -236,10 +237,13 @@ export async function deleteWhitelist(whitelistId: string): Promise<void> {
 
 export async function setSnooze(snooze: SnoozeState): Promise<void> {
   const data = await loadData();
-  await saveData({
-    ...data,
-    snooze,
-  });
+  await Promise.all([
+    saveData({
+      ...data,
+      snooze,
+    }),
+    setSessionSnooze(snooze),
+  ]);
 }
 
 export async function clearSnooze(): Promise<void> {

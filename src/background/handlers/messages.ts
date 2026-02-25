@@ -3,12 +3,18 @@
  * Processes messages from popup, options, and content scripts
  */
 
-import { isSnoozeActive, shouldBlockUrlWithIndex } from '../../shared/utils';
+import {
+  buildBlockingIndex,
+  isSnoozeActive,
+  shouldBlockUrlWithIndex,
+} from '../../shared/utils';
+import { getSessionSnooze, setSessionSnooze } from '../../shared/api/session';
+import { loadData } from '../../shared/api/storage';
+import { STORAGE_KEY } from '../../shared/types';
 import {
   isGetDataMessage,
   isCheckUrlMessage,
 } from '../../shared/types';
-import { getStorageSnapshot } from '../storageCache';
 
 /**
  * Handle incoming messages from other extension contexts
@@ -40,7 +46,7 @@ export function handleMessage(
 async function handleGetData(
   sendResponse: (response: unknown) => void
 ): Promise<void> {
-  const { data } = await getStorageSnapshot();
+  const data = await loadData();
   sendResponse({ success: true, data });
 }
 
@@ -48,12 +54,45 @@ async function handleCheckUrl(
   url: string,
   sendResponse: (response: unknown) => void
 ): Promise<void> {
-  const { data, blockingIndex } = await getStorageSnapshot();
-  if (isSnoozeActive(data.snooze)) {
+  if (await isSnoozeBypassActive()) {
     sendResponse({ blocked: false });
     return;
   }
 
+  const data = await loadData();
+  if (isSnoozeActive(data.snooze)) {
+    await setSessionSnooze(data.snooze);
+    sendResponse({ blocked: false });
+    return;
+  }
+
+  const blockingIndex = buildBlockingIndex(data.filters, data.groups, data.whitelist);
   const blocked = shouldBlockUrlWithIndex(url, blockingIndex);
   sendResponse({ blocked: blocked !== undefined });
+}
+
+function isRawSnoozeActive(
+  snooze: { active?: unknown; until?: unknown } | undefined,
+  now = Date.now()
+): boolean {
+  if (!snooze || snooze.active !== true) {
+    return false;
+  }
+
+  if (typeof snooze.until !== 'number' || !Number.isFinite(snooze.until)) {
+    return true;
+  }
+
+  return snooze.until > now;
+}
+
+async function isSnoozeBypassActive(): Promise<boolean> {
+  const sessionSnooze = await getSessionSnooze();
+  if (isSnoozeActive(sessionSnooze)) {
+    return true;
+  }
+
+  const result = await chrome.storage.sync.get(STORAGE_KEY);
+  const rawData = result[STORAGE_KEY] as { snooze?: { active?: unknown; until?: unknown } } | undefined;
+  return isRawSnoozeActive(rawData?.snooze);
 }
