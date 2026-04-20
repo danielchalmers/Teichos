@@ -865,6 +865,11 @@ input:checked + .slider:before {
   margin-bottom: 0.5rem;
 }
 
+#schedules-container.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .required-marker {
   color: #ef4444;
   font-weight: 600;

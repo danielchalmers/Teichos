@@ -139,6 +139,26 @@ describe('storage', () => {
       const data = await loadData();
       expect(data.snooze).toEqual(testData.snooze);
     });
+
+    it('should default legacy groups to enabled', async () => {
+      const testData = {
+        groups: [
+          {
+            id: 'legacy-group',
+            name: 'Legacy Group',
+            schedules: [],
+            is24x7: false,
+          },
+        ],
+        filters: [],
+        whitelist: [],
+      };
+
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, testData);
+
+      const data = await loadData();
+      expect(data.groups[0]?.enabled).toBe(true);
+    });
   });
 
   describe('saveData', () => {
@@ -173,6 +193,7 @@ describe('storage', () => {
         name: 'Test Group',
         schedules: [],
         is24x7: false,
+        enabled: true,
       };
 
       await addGroup(newGroup);
@@ -214,6 +235,7 @@ describe('storage', () => {
         name: 'Test Group',
         schedules: [],
         is24x7: false,
+        enabled: true,
       };
       await addGroup(newGroup);
 

@@ -23,6 +23,7 @@ export interface FilterGroup {
   readonly name: string;
   readonly schedules: readonly TimeSchedule[];
   readonly is24x7: boolean;
+  readonly enabled: boolean;
 }
 
 /** URL matching modes for filters and whitelist entries */

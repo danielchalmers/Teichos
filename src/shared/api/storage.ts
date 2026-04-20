@@ -23,6 +23,7 @@ export function createDefaultGroup(): FilterGroup {
     name: '24/7 (Always Active)',
     schedules: [],
     is24x7: true,
+    enabled: true,
   };
 }
 
@@ -49,8 +50,12 @@ type LegacyWhitelist = Omit<Whitelist, 'matchMode' | 'groupId'> & {
   readonly groupId?: string;
 };
 
+interface LegacyFilterGroup extends Omit<FilterGroup, 'enabled'> {
+  readonly enabled?: boolean;
+}
+
 type LegacyStorageData = {
-  readonly groups?: readonly FilterGroup[];
+  readonly groups?: readonly LegacyFilterGroup[];
   readonly filters?: readonly LegacyFilter[];
   readonly whitelist?: readonly LegacyWhitelist[];
   readonly snooze?: {
@@ -99,6 +104,14 @@ function normalizeSnooze(snooze: LegacyStorageData['snooze']): SnoozeState {
   return { active: true };
 }
 
+function normalizeGroups(groups: readonly LegacyFilterGroup[] | undefined): FilterGroup[] {
+  const sourceGroups = groups && groups.length > 0 ? groups : [createDefaultGroup()];
+  return sourceGroups.map((group) => ({
+    ...group,
+    enabled: group.enabled ?? true,
+  }));
+}
+
 /**
  * Load storage data from chrome.storage.sync
  * Creates default data if none exists
@@ -114,8 +127,7 @@ export async function loadData(): Promise<StorageData> {
   }
 
   const data = storedData as LegacyStorageData;
-  const groups =
-    data.groups && data.groups.length > 0 ? data.groups : [createDefaultGroup()];
+  const groups = normalizeGroups(data.groups);
   const groupIds = new Set(groups.map((group) => group.id));
   const filters = normalizeFilters(data.filters);
   const whitelist = normalizeWhitelist(data.whitelist, groupIds);

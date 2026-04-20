@@ -94,13 +94,8 @@ function setupEventListeners(): void {
   getElementByIdOrNull('group-form')?.addEventListener('submit', handleGroupSubmit);
   getElementByIdOrNull('delete-group')?.addEventListener('click', handleGroupDelete);
   getElementByIdOrNull('add-schedule-btn')?.addEventListener('click', addScheduleToModal);
-  getElementByIdOrNull('group-24x7')?.addEventListener('change', (e: Event) => {
-    const is24x7 = (e.target as HTMLInputElement).checked;
-    const schedulesContainer = getElementByIdOrNull('schedules-container');
-    if (schedulesContainer) {
-      schedulesContainer.style.display = is24x7 ? 'none' : 'block';
-    }
-  });
+  getElementByIdOrNull('group-24x7')?.addEventListener('change', updateGroupModalScheduleState);
+  getElementByIdOrNull('group-enabled')?.addEventListener('change', updateGroupModalScheduleState);
 
   // Whitelist modal
   getElementByIdOrNull('close-whitelist-modal')?.addEventListener('click', closeWhitelistModal);
@@ -434,9 +429,11 @@ function renderGroup(
   snoozeActive: boolean
 ): HTMLDetailsElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
-  const scheduleSummary = group.is24x7
-    ? 'Always Active'
-    : pluralize(group.schedules.length, 'schedule');
+  const scheduleSummary = !group.enabled
+    ? 'Disabled'
+    : group.is24x7
+      ? 'Always Active'
+      : pluralize(group.schedules.length, 'schedule');
   const filterSummary = pluralize(filters.length, 'filter');
   const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
@@ -774,9 +771,11 @@ function openGroupModal(groupId?: string): void {
   const form = getElementByIdOrNull<HTMLFormElement>('group-form');
   const schedulesContainer = getElementByIdOrNull('schedules-container');
   const is24x7Checkbox = getElementByIdOrNull<HTMLInputElement>('group-24x7');
+  const enabledCheckbox = getElementByIdOrNull<HTMLInputElement>('group-enabled');
   const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-group');
 
-  if (!modal || !title || !form || !schedulesContainer || !is24x7Checkbox) return;
+  if (!modal || !title || !form || !schedulesContainer || !is24x7Checkbox || !enabledCheckbox)
+    return;
 
   form.reset();
   title.textContent = groupId ? 'Edit Group' : 'Add Group';
@@ -794,21 +793,24 @@ function openGroupModal(groupId?: string): void {
           const nameInput = getElementByIdOrNull<HTMLInputElement>('group-name');
           if (nameInput) nameInput.value = group.name;
           is24x7Checkbox.checked = group.is24x7;
+          enabledCheckbox.checked = group.enabled;
           temporarySchedules = group.schedules.map((s) => ({
             daysOfWeek: [...s.daysOfWeek],
             startTime: s.startTime,
             endTime: s.endTime,
           }));
-          schedulesContainer.style.display = group.is24x7 ? 'none' : 'block';
           renderSchedules();
+          updateGroupModalScheduleState();
         }
       })
       .catch((error: unknown) => {
         console.error('Failed to load group data:', error);
       });
   } else {
-    schedulesContainer.style.display = 'block';
+    is24x7Checkbox.checked = false;
+    enabledCheckbox.checked = true;
     renderSchedules();
+    updateGroupModalScheduleState();
   }
 
   modal.classList.add('active');
@@ -834,16 +836,31 @@ function addScheduleToModal(): void {
   renderSchedules();
 }
 
+function updateGroupModalScheduleState(): void {
+  const schedulesContainer = getElementByIdOrNull('schedules-container');
+  const is24x7 = getElementByIdOrNull<HTMLInputElement>('group-24x7')?.checked ?? false;
+  const isGroupEnabled = getElementByIdOrNull<HTMLInputElement>('group-enabled')?.checked ?? true;
+  if (!schedulesContainer) return;
+
+  schedulesContainer.style.display = is24x7 ? 'none' : 'block';
+
+  const disableSchedules = !isGroupEnabled;
+  schedulesContainer.classList.toggle('is-disabled', disableSchedules);
+  schedulesContainer.setAttribute('aria-disabled', String(disableSchedules));
+}
+
 async function handleGroupSubmit(e: Event): Promise<void> {
   e.preventDefault();
 
   const name = getElementByIdOrNull<HTMLInputElement>('group-name')?.value ?? '';
   const is24x7 = getElementByIdOrNull<HTMLInputElement>('group-24x7')?.checked ?? false;
+  const enabled = getElementByIdOrNull<HTMLInputElement>('group-enabled')?.checked ?? true;
 
   const group: FilterGroup = {
     id: currentEditingGroupId ?? generateId(),
     name,
     is24x7,
+    enabled,
     schedules: is24x7 ? [] : temporarySchedules,
   };
 

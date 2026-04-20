@@ -109,7 +109,7 @@ describe('isFilterActive', () => {
       matchMode: 'contains',
     };
     const groups: FilterGroup[] = [
-      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true },
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true, enabled: true },
     ];
     expect(isFilterActive(filter, groups)).toBe(false);
   });
@@ -134,9 +134,23 @@ describe('isFilterActive', () => {
       matchMode: 'contains',
     };
     const groups: FilterGroup[] = [
-      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true },
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true, enabled: true },
     ];
     expect(isFilterActive(filter, groups)).toBe(true);
+  });
+
+  it('should return false when group is disabled', () => {
+    const filter: Filter = {
+      id: 'filter-1',
+      pattern: 'example',
+      groupId: 'group-1',
+      enabled: true,
+      matchMode: 'contains',
+    };
+    const groups: FilterGroup[] = [
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true, enabled: false },
+    ];
+    expect(isFilterActive(filter, groups)).toBe(false);
   });
 
   it('should return true when current time is within schedule', () => {
@@ -152,6 +166,7 @@ describe('isFilterActive', () => {
         id: 'group-1',
         name: 'Test Group',
         is24x7: false,
+        enabled: true,
         schedules: [{ daysOfWeek: [3], startTime: '09:00', endTime: '17:00' }],
       },
     ];
@@ -171,6 +186,7 @@ describe('isFilterActive', () => {
         id: 'group-1',
         name: 'Test Group',
         is24x7: false,
+        enabled: true,
         schedules: [{ daysOfWeek: [3], startTime: '14:00', endTime: '17:00' }],
       },
     ];
@@ -190,6 +206,7 @@ describe('isFilterActive', () => {
         id: 'group-1',
         name: 'Test Group',
         is24x7: false,
+        enabled: true,
         schedules: [{ daysOfWeek: [1, 2, 4, 5], startTime: '09:00', endTime: '17:00' }],
       },
     ];
@@ -206,7 +223,7 @@ describe('isFilterActive', () => {
       expiresAt: mockDate.getTime() - 1_000,
     };
     const groups: FilterGroup[] = [
-      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true },
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true, enabled: true },
     ];
     expect(isFilterActive(filter, groups)).toBe(false);
   });
@@ -221,7 +238,7 @@ describe('isFilterActive', () => {
       expiresAt: mockDate.getTime() + 60_000,
     };
     const groups: FilterGroup[] = [
-      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true },
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true, enabled: true },
     ];
     expect(isFilterActive(filter, groups)).toBe(true);
   });
@@ -302,7 +319,7 @@ describe('snooze helpers', () => {
 
 describe('shouldBlockUrl', () => {
   const groups: FilterGroup[] = [
-    { id: 'default', name: '24/7', schedules: [], is24x7: true },
+    { id: 'default', name: '24/7', schedules: [], is24x7: true, enabled: true },
   ];
 
   it('should return undefined when no filters match', () => {
@@ -417,8 +434,8 @@ describe('shouldBlockUrl', () => {
       'https://blocked.com/allowed',
       filters,
       [
-        { id: 'default', name: '24/7', schedules: [], is24x7: true },
-        { id: 'work', name: 'Work', schedules: [], is24x7: true },
+        { id: 'default', name: '24/7', schedules: [], is24x7: true, enabled: true },
+        { id: 'work', name: 'Work', schedules: [], is24x7: true, enabled: true },
       ],
       whitelist
     );
