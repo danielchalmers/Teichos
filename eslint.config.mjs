@@ -28,7 +28,9 @@ export default tseslint.config(
             ],
             '@typescript-eslint/no-explicit-any': 'error',
             '@typescript-eslint/no-floating-promises': 'error',
-            '@typescript-eslint/prefer-nullish-coalescing': 'error',
+            '@typescript-eslint/prefer-nullish-coalescing': ['error', {
+                ignorePrimitives: { boolean: true },
+            }],
             '@typescript-eslint/prefer-optional-chain': 'error',
             '@typescript-eslint/strict-boolean-expressions': 'off',
 

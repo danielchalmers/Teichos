@@ -29,12 +29,12 @@ export function handleMessage(
   }
 
   if (isGetDataMessage(message)) {
-    handleGetData(sendResponse);
+    void handleGetData(sendResponse);
     return true; // Will respond asynchronously
   }
 
   if (isCheckUrlMessage(message)) {
-    handleCheckUrl(message.url, sendResponse);
+    void handleCheckUrl(message.url, sendResponse);
     return true; // Will respond asynchronously
   }
 

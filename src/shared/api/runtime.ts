@@ -52,6 +52,7 @@ async function openOrFocusOptionsPage(
 
   if (optionsTabs.length > 0) {
     const [primary, ...rest] = optionsTabs;
+    if (!primary) return undefined;
     const primaryId = primary.id;
     const restIds = rest
       .map((tab) => tab.id)

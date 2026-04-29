@@ -258,7 +258,7 @@ function focusModal(modal: HTMLElement, preferredSelector?: string): void {
 
   const focusableElements = getFocusableElements(modal);
   if (focusableElements.length > 0) {
-    focusableElements[0].focus();
+    focusableElements[0]?.focus();
     return;
   }
 
@@ -297,6 +297,7 @@ function trapFocus(event: KeyboardEvent, modal: HTMLElement): void {
 
   const first = focusableElements[0];
   const last = focusableElements[focusableElements.length - 1];
+  if (!first || !last) return;
   const active = document.activeElement as HTMLElement | null;
 
   if (!active || !modal.contains(active)) {
@@ -441,7 +442,7 @@ function renderGroup(
   const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
   const groupElement = cloneTemplate<HTMLDetailsElement>('options-group-template');
-  groupElement.dataset.groupId = group.id;
+  groupElement.dataset['groupId'] = group.id;
 
   querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent =
     group.name;
@@ -453,7 +454,7 @@ function renderGroup(
   groupContent.classList.toggle('is-snoozed', snoozeActive);
   if (!isDefault) {
     const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
-    editButton.dataset.groupId = group.id;
+    editButton.dataset['groupId'] = group.id;
     actions.appendChild(editButton);
   }
 
@@ -468,8 +469,8 @@ function renderGroup(
     groupElement
   );
 
-  addFilterButton.dataset.groupId = group.id;
-  addWhitelistButton.dataset.groupId = group.id;
+  addFilterButton.dataset['groupId'] = group.id;
+  addWhitelistButton.dataset['groupId'] = group.id;
 
   if (filters.length === 0) {
     filterList.appendChild(createEmptyState('No filters in this group.'));
@@ -549,9 +550,9 @@ function renderFilterItem(filter: Filter): HTMLElement {
 
   patternElement.textContent = filter.pattern;
   toggleInput.checked = filter.enabled;
-  toggleInput.dataset.filterId = filter.id;
+  toggleInput.dataset['filterId'] = filter.id;
   toggleInput.setAttribute('aria-label', toggleLabel);
-  editButton.dataset.filterId = filter.id;
+  editButton.dataset['filterId'] = filter.id;
 
   return item;
 }
@@ -582,9 +583,9 @@ function renderWhitelistItem(entry: Whitelist): HTMLElement {
 
   patternElement.textContent = entry.pattern;
   toggleInput.checked = entry.enabled;
-  toggleInput.dataset.whitelistId = entry.id;
+  toggleInput.dataset['whitelistId'] = entry.id;
   toggleInput.setAttribute('aria-label', toggleLabel);
-  editButton.dataset.whitelistId = entry.id;
+  editButton.dataset['whitelistId'] = entry.id;
 
   return item;
 }
@@ -621,23 +622,23 @@ function renderSchedules(): void {
       const input = document.createElement('input');
       input.type = 'checkbox';
       input.checked = schedule.daysOfWeek.includes(dayIndex);
-      input.dataset.action = 'update-schedule-day';
-      input.dataset.scheduleIndex = String(index);
-      input.dataset.day = String(dayIndex);
+      input.dataset['action'] = 'update-schedule-day';
+      input.dataset['scheduleIndex'] = String(index);
+      input.dataset['day'] = String(dayIndex);
       label.appendChild(input);
       label.append(day);
       dayContainer.appendChild(label);
     }
 
     startInput.value = schedule.startTime;
-    startInput.dataset.scheduleIndex = String(index);
+    startInput.dataset['scheduleIndex'] = String(index);
     startInput.setAttribute('aria-label', `Start time for schedule ${scheduleNumber}`);
 
     endInput.value = schedule.endTime;
-    endInput.dataset.scheduleIndex = String(index);
+    endInput.dataset['scheduleIndex'] = String(index);
     endInput.setAttribute('aria-label', `End time for schedule ${scheduleNumber}`);
 
-    removeButton.dataset.scheduleIndex = String(index);
+    removeButton.dataset['scheduleIndex'] = String(index);
     removeButton.setAttribute('aria-label', `Delete schedule ${scheduleNumber}`);
     removeButton.title = `Delete schedule ${scheduleNumber}`;
 
@@ -1001,7 +1002,7 @@ function handleGroupsListClick(e: Event): void {
   if (action === 'edit-group' && groupId) {
     openGroupModal(groupId);
   } else if (action === 'delete-group' && groupId) {
-    deleteGroupConfirm(groupId);
+    void deleteGroupConfirm(groupId);
   } else if (action === 'add-filter' && groupId) {
     openFilterModal(undefined, groupId);
   } else if (action === 'add-whitelist' && groupId) {
@@ -1009,11 +1010,11 @@ function handleGroupsListClick(e: Event): void {
   } else if (action === 'edit-filter' && filterId) {
     openFilterModal(filterId);
   } else if (action === 'delete-filter' && filterId) {
-    deleteFilterConfirm(filterId);
+    void deleteFilterConfirm(filterId);
   } else if (action === 'edit-whitelist' && whitelistId) {
     openWhitelistModal(whitelistId);
   } else if (action === 'delete-whitelist' && whitelistId) {
-    deleteWhitelistConfirm(whitelistId);
+    void deleteWhitelistConfirm(whitelistId);
   }
 }
 
@@ -1026,12 +1027,12 @@ function handleGroupsListChange(e: Event): void {
   if (input.dataset['action'] === 'toggle-filter') {
     const filterId = input.dataset['filterId'];
     if (filterId) {
-      toggleFilter(filterId, input.checked);
+      void toggleFilter(filterId, input.checked);
     }
   } else if (input.dataset['action'] === 'toggle-whitelist') {
     const whitelistId = input.dataset['whitelistId'];
     if (whitelistId) {
-      toggleWhitelistEntry(whitelistId, input.checked);
+      void toggleWhitelistEntry(whitelistId, input.checked);
     }
   }
 }

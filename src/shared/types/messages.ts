@@ -3,7 +3,7 @@
  * Uses discriminated unions for type-safe message handling
  */
 
-import type { Filter, FilterGroup, StorageData, Whitelist } from './storage';
+import type { Filter, StorageData } from './storage';
 
 // Message types enum for discriminated union
 export const MessageType = {
@@ -66,7 +66,7 @@ export type MessageResponse<T extends ExtensionMessage> =
     ? GetDataResponse
     : T extends CheckUrlMessage
       ? CheckUrlResponse
-      : void;
+      : undefined;
 
 // Type guards for message validation
 export function isGetDataMessage(msg: unknown): msg is GetDataMessage {

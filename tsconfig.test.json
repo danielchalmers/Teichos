@@ -29,6 +29,7 @@
         "baseUrl": "."
     },
     "include": [
+        "vitest.config.ts",
         "test/**/*",
         "src/**/*"
     ],
