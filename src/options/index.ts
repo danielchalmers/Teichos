@@ -26,6 +26,7 @@ import type {
 } from '../shared/types';
 import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../shared/types';
 import {
+  formatGroupScheduleSummary,
   generateId,
   getRegexValidationError,
   isSnoozeActive,
@@ -435,9 +436,7 @@ function renderGroup(
   snoozeActive: boolean
 ): HTMLDetailsElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
-  const scheduleSummary = group.is24x7
-    ? 'Always Active'
-    : pluralize(group.schedules.length, 'schedule');
+  const scheduleSummary = formatGroupScheduleSummary(group);
   const filterSummary = pluralize(filters.length, 'filter');
   const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
@@ -446,8 +445,9 @@ function renderGroup(
 
   querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent =
     group.name;
-  querySelector<HTMLElement>('[data-role="group-meta"]', groupElement).textContent =
-    `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
+  const groupMeta = querySelector<HTMLElement>('[data-role="group-meta"]', groupElement);
+  groupMeta.textContent = `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
+  groupMeta.title = scheduleSummary;
 
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
   const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
