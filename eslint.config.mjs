@@ -2,6 +2,14 @@ import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier';
 
+const typedParserOptions = {
+    projectService: {
+        allowDefaultProject: ['eslint.config.mjs', 'vitest.config.ts'],
+        defaultProject: './tsconfig.scripts.json',
+    },
+    tsconfigRootDir: import.meta.dirname,
+};
+
 export default tseslint.config(
     eslint.configs.recommended,
     ...tseslint.configs.strict,
@@ -9,10 +17,7 @@ export default tseslint.config(
     eslintConfigPrettier,
     {
         languageOptions: {
-            parserOptions: {
-                projectService: true,
-                tsconfigRootDir: import.meta.dirname,
-            },
+            parserOptions: typedParserOptions,
         },
         rules: {
             // TypeScript specific rules
@@ -36,11 +41,6 @@ export default tseslint.config(
     {
         // Config for scripts folder (Node.js)
         files: ['scripts/**/*.ts'],
-        languageOptions: {
-            parserOptions: {
-                project: './tsconfig.scripts.json',
-            },
-        },
         rules: {
             'no-console': 'off',
         },
