@@ -2,6 +2,9 @@
  * Shared utility functions
  */
 
+import { DAY_NAMES } from '../constants';
+import type { FilterGroup, TimeSchedule } from '../types';
+
 const INTERNAL_URL_PREFIXES = [
   'chrome-extension://',
   'chrome://',
@@ -86,6 +89,73 @@ export function formatDuration(ms: number): string {
  */
 export function getCurrentDayOfWeek(): number {
   return new Date().getDay();
+}
+
+/**
+ * Format selected days of the week into a compact label.
+ */
+export function formatScheduleDays(daysOfWeek: readonly number[]): string {
+  if (daysOfWeek.length === 0) {
+    return 'No days';
+  }
+
+  const days = [...new Set(daysOfWeek)]
+    .filter((day) => day >= 0 && day < DAY_NAMES.length)
+    .sort((a, b) => a - b);
+  if (days.length === 0) {
+    return 'No days';
+  }
+
+  const ranges: string[] = [];
+  let rangeStart = days[0] as number;
+  let rangeEnd = rangeStart;
+
+  for (const day of days.slice(1)) {
+    if (day === rangeEnd + 1) {
+      rangeEnd = day;
+      continue;
+    }
+
+    ranges.push(
+      rangeStart === rangeEnd
+        ? DAY_NAMES[rangeStart] ?? ''
+        : `${DAY_NAMES[rangeStart] ?? ''}–${DAY_NAMES[rangeEnd] ?? ''}`
+    );
+    rangeStart = day;
+    rangeEnd = day;
+  }
+
+  ranges.push(
+    rangeStart === rangeEnd
+      ? DAY_NAMES[rangeStart] ?? ''
+      : `${DAY_NAMES[rangeStart] ?? ''}–${DAY_NAMES[rangeEnd] ?? ''}`
+  );
+
+  return ranges.join(', ');
+}
+
+/**
+ * Format a single schedule into a compact label.
+ */
+export function formatScheduleSummary(schedule: TimeSchedule): string {
+  return `${formatScheduleDays(schedule.daysOfWeek)} ${schedule.startTime}–${schedule.endTime}`;
+}
+
+/**
+ * Format a filter group's schedule summary for display.
+ */
+export function formatGroupScheduleSummary(
+  group: Pick<FilterGroup, 'is24x7' | 'schedules'>
+): string {
+  if (group.is24x7) {
+    return 'Always Active';
+  }
+
+  if (group.schedules.length === 0) {
+    return 'No schedules';
+  }
+
+  return group.schedules.map((schedule) => formatScheduleSummary(schedule)).join('; ');
 }
 
 /**

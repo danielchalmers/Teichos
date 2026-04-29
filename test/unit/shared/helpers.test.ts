@@ -6,6 +6,9 @@ import { describe, it, expect } from 'vitest';
 import {
   generateId,
   escapeHtml,
+  formatGroupScheduleSummary,
+  formatScheduleDays,
+  formatScheduleSummary,
   formatTime,
   getCurrentTimeString,
   isInternalUrl,
@@ -66,6 +69,59 @@ describe('getCurrentTimeString', () => {
   it('should return a string in HH:MM format', () => {
     const time = getCurrentTimeString();
     expect(time).toMatch(/^\d{2}:\d{2}$/);
+  });
+});
+
+describe('formatScheduleDays', () => {
+  it('should collapse consecutive day ranges', () => {
+    expect(formatScheduleDays([1, 2, 3, 4, 5])).toBe('Mo–Fr');
+  });
+
+  it('should list non-consecutive days individually', () => {
+    expect(formatScheduleDays([0, 2, 4])).toBe('Su, Tu, Th');
+  });
+});
+
+describe('formatScheduleSummary', () => {
+  it('should format a schedule with days and times', () => {
+    expect(
+      formatScheduleSummary({
+        daysOfWeek: [1, 2, 3, 4, 5],
+        startTime: '09:00',
+        endTime: '17:00',
+      })
+    ).toBe('Mo–Fr 09:00–17:00');
+  });
+});
+
+describe('formatGroupScheduleSummary', () => {
+  it('should return always active for 24/7 groups', () => {
+    expect(
+      formatGroupScheduleSummary({
+        is24x7: true,
+        schedules: [],
+      })
+    ).toBe('Always Active');
+  });
+
+  it('should join multiple schedules for display', () => {
+    expect(
+      formatGroupScheduleSummary({
+        is24x7: false,
+        schedules: [
+          {
+            daysOfWeek: [1, 2, 3, 4, 5],
+            startTime: '09:00',
+            endTime: '17:00',
+          },
+          {
+            daysOfWeek: [6],
+            startTime: '10:00',
+            endTime: '14:00',
+          },
+        ],
+      })
+    ).toBe('Mo–Fr 09:00–17:00; Sa 10:00–14:00');
   });
 });
 
