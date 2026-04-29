@@ -4,8 +4,8 @@
   "description": "A web extension to block URLs based on configurable regex filters with time-based scheduling",
   "type": "module",
   "engines": {
-    "node": ">=22.0.0",
-    "npm": ">=10.0.0"
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
   },
   "scripts": {
     "dev": "tsx scripts/build.ts --watch --dev",
@@ -31,7 +31,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@types/chrome": "^0.0.332",
-    "@types/node": "^22.19.17",
+    "@types/node": "^24.12.2",
     "esbuild": "^0.24.2",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^9.1.0",
