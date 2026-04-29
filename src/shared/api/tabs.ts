@@ -36,6 +36,10 @@ export function updateTab(
       if (handleRuntimeError(reject)) {
         return;
       }
+      if (!tab) {
+        reject(new Error('chrome.tabs.update returned undefined tab'));
+        return;
+      }
       resolve(tab);
     });
   });

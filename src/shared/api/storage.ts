@@ -49,7 +49,7 @@ type LegacyWhitelist = Omit<Whitelist, 'matchMode' | 'groupId'> & {
   readonly groupId?: string;
 };
 
-type LegacyStorageData = {
+interface LegacyStorageData {
   readonly groups?: readonly FilterGroup[];
   readonly filters?: readonly LegacyFilter[];
   readonly whitelist?: readonly LegacyWhitelist[];
@@ -57,7 +57,7 @@ type LegacyStorageData = {
     readonly active?: boolean;
     readonly until?: number;
   };
-};
+}
 
 function resolveMatchMode(
   matchMode: FilterMatchMode | undefined,

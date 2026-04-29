@@ -17,16 +17,16 @@ export type WhitelistByGroup<T extends Whitelist = Whitelist> = ReadonlyMap<
 >;
 export type GroupById = ReadonlyMap<string, FilterGroup>;
 export type GroupLookup = GroupById | readonly FilterGroup[];
-export type ScheduleContext = {
+export interface ScheduleContext {
   readonly dayOfWeek: number;
   readonly time: string;
-};
-export type PreparedPattern = {
+}
+export interface PreparedPattern {
   readonly pattern: string;
   readonly matchMode: FilterMatchMode;
   readonly patternLower?: string;
   readonly regex?: RegExp | null;
-};
+}
 export type PreparedFilter = Filter & {
   readonly patternLower?: string;
   readonly regex?: RegExp | null;
@@ -35,13 +35,13 @@ export type PreparedWhitelist = Whitelist & {
   readonly patternLower?: string;
   readonly regex?: RegExp | null;
 };
-export type BlockingIndex = {
+export interface BlockingIndex {
   readonly groupsById: GroupById;
   readonly filters: readonly PreparedFilter[];
   readonly whitelistByGroup: WhitelistByGroup<PreparedWhitelist>;
-};
+}
 
-export function isTemporaryFilter(filter: Filter): boolean {
+export function isTemporaryFilter(filter: Filter): filter is Filter & { expiresAt: number } {
   return typeof filter.expiresAt === 'number' && Number.isFinite(filter.expiresAt);
 }
 
@@ -384,10 +384,10 @@ function getGroupFromLookup(
   groupId: string,
   groups: GroupLookup
 ): FilterGroup | undefined {
-  if (groups instanceof Map) {
-    return groups.get(groupId);
+  if (Array.isArray(groups)) {
+    return groups.find((group) => group.id === groupId);
   }
-  return groups.find((group) => group.id === groupId);
+  return (groups as GroupById).get(groupId);
 }
 
 function isGroupScheduleActive(group: FilterGroup, context: ScheduleContext): boolean {

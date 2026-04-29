@@ -24,6 +24,3 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
 // Message handling from other extension contexts
 chrome.runtime.onMessage.addListener(handleMessage);
 registerSnoozeHandlers();
-
-// Log initialization (will be stripped in production build)
-console.log('[Teichos] Background service worker initialized');

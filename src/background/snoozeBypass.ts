@@ -9,13 +9,13 @@ import { getSessionSnooze } from '../shared/api/session';
 import { STORAGE_KEY } from '../shared/types';
 import { isSnoozeActive } from '../shared/utils';
 
-type RawSnoozeState = {
+interface RawSnoozeState {
   readonly active?: unknown;
   readonly until?: unknown;
-};
+}
 
 function isRawSnoozeActive(snooze: RawSnoozeState | undefined, now = Date.now()): boolean {
-  if (!snooze || snooze.active !== true) {
+  if (snooze?.active !== true) {
     return false;
   }
 

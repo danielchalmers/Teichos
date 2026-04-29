@@ -28,7 +28,7 @@ function syncAlarmFromSnooze(snooze: SnoozeState): void {
   }
 
   if (typeof snooze.until === 'number' && Number.isFinite(snooze.until)) {
-    chrome.alarms.create(ALARMS.SNOOZE_EXPIRATION, { when: snooze.until });
+    void chrome.alarms.create(ALARMS.SNOOZE_EXPIRATION, { when: snooze.until });
     return;
   }
 
