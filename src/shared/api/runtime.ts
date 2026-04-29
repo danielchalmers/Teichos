@@ -15,7 +15,7 @@ export function getExtensionUrl(path: string): string {
  * Open the extension's options page
  */
 export async function openOptionsPage(): Promise<void> {
-  await openOrFocusOptionsPage();
+  await chrome.runtime.openOptionsPage();
 }
 
 /**
@@ -43,9 +43,7 @@ function getOptionsPageUrl(): string {
   return getExtensionUrl('options/index.html');
 }
 
-async function openOrFocusOptionsPage(
-  targetUrl?: string
-): Promise<chrome.tabs.Tab | undefined> {
+async function openOrFocusOptionsPage(targetUrl?: string): Promise<chrome.tabs.Tab | undefined> {
   const optionsUrl = getOptionsPageUrl();
   const tabs = await queryTabs({});
   const optionsTabs = tabs.filter((tab) => tab.url?.startsWith(optionsUrl));
