@@ -38,7 +38,7 @@ jobs:
         run: npm run build
 
       - name: Verify build
-        run: bash verify.sh
+        run: npm run verify
 
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4

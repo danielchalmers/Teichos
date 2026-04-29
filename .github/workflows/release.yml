@@ -36,7 +36,7 @@ jobs:
         run: npm run build
 
       - name: Verify build
-        run: bash verify.sh
+        run: npm run verify
 
       - name: Create extension zip
         run: cd dist && zip -r ../pageblock-${{ steps.get_version.outputs.VERSION }}.zip .
