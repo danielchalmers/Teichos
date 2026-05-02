@@ -12,7 +12,7 @@
         "--load-extension=${workspaceFolder}/dist"
       ],
       "sourceMaps": true,
-      "preLaunchTask": "Build"
+      "preLaunchTask": "Build Dev"
     }
   ]
 }

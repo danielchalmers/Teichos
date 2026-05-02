@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "tsx scripts/build.ts --watch --dev",
+    "build:dev": "tsx scripts/build.ts --dev",
     "build": "tsx scripts/build.ts",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -12,6 +12,12 @@
       "problemMatcher": []
     },
     {
+      "label": "Build Dev",
+      "type": "npm",
+      "script": "build:dev",
+      "problemMatcher": []
+    },
+    {
       "label": "Watch",
       "type": "npm",
       "script": "dev",
