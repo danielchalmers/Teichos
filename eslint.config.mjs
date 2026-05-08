@@ -4,7 +4,12 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 
 const typedParserOptions = {
   projectService: {
-    allowDefaultProject: ['eslint.config.mjs', 'playwright.config.ts', 'vitest.config.ts'],
+    allowDefaultProject: [
+      'eslint.config.mjs',
+      'playwright.config.ts',
+      'scripts/**/*.mjs',
+      'vitest.config.ts',
+    ],
     defaultProject: './tsconfig.scripts.json',
   },
   tsconfigRootDir: import.meta.dirname,
@@ -45,7 +50,7 @@ export default tseslint.config(
   },
   {
     // Config for scripts folder (Node.js)
-    files: ['scripts/**/*.ts'],
+    files: ['scripts/**/*.ts', 'scripts/**/*.mjs'],
     rules: {
       'no-console': 'off',
     },
