@@ -4,16 +4,15 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
-const semverPattern =
-  /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const semverPattern = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
-type VersionedFile = {
+interface VersionedFile {
   version?: string;
-};
+}
 
-type PackageLock = VersionedFile & {
+interface PackageLock extends VersionedFile {
   packages?: Record<string, VersionedFile | undefined>;
-};
+}
 
 function normalizeReleaseVersion(input: string | undefined): string {
   if (!input) {

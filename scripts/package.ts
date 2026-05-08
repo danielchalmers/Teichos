@@ -11,15 +11,15 @@ const ZIP_VERSION = 20;
 const STORE_COMPRESSION_METHOD = 0;
 const crcTable = buildCrcTable();
 
-type Manifest = {
+interface Manifest {
   version?: string;
-};
+}
 
-type ZipEntry = {
+interface ZipEntry {
   name: string;
   content: Buffer;
   modifiedAt: Date;
-};
+}
 
 function buildCrcTable(): Uint32Array {
   const table = new Uint32Array(256);
@@ -41,7 +41,8 @@ function calculateCrc32(content: Uint8Array): number {
   let crc = 0xffffffff;
 
   for (const byte of content) {
-    crc = (crc >>> 8) ^ crcTable[(crc ^ byte) & 0xff]!;
+    const tableEntry = crcTable[(crc ^ byte) & 0xff] ?? 0;
+    crc = (crc >>> 8) ^ tableEntry;
   }
 
   return (crc ^ 0xffffffff) >>> 0;
