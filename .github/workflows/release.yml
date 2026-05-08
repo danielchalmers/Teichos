@@ -1,4 +1,4 @@
-name: Release artifact
+name: Release and deploy
 
 on:
   push:
