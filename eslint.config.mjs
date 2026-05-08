@@ -4,7 +4,7 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 
 const typedParserOptions = {
     projectService: {
-        allowDefaultProject: ['eslint.config.mjs', 'vitest.config.ts'],
+        allowDefaultProject: ['eslint.config.mjs', 'playwright.config.ts', 'vitest.config.ts'],
         defaultProject: './tsconfig.scripts.json',
     },
     tsconfigRootDir: import.meta.dirname,
@@ -56,6 +56,14 @@ export default tseslint.config(
         },
     },
     {
-        ignores: ['.cache/**', 'coverage/**', 'dist/**', 'node_modules/**', '*.js', '*.cjs'],
+        ignores: [
+            'coverage/**',
+            'dist/**',
+            'node_modules/**',
+            'playwright-report/**',
+            'test-results/**',
+            '*.js',
+            '*.cjs',
+        ],
     }
 );
