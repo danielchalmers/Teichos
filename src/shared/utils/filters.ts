@@ -2,19 +2,10 @@
  * Filter matching and scheduling utilities
  */
 
-import type {
-  Filter,
-  FilterGroup,
-  FilterMatchMode,
-  SnoozeState,
-  Whitelist,
-} from '../types';
+import type { Filter, FilterGroup, FilterMatchMode, SnoozeState, Whitelist } from '../types';
 import { getCurrentTimeString, getCurrentDayOfWeek } from './helpers';
 
-export type WhitelistByGroup<T extends Whitelist = Whitelist> = ReadonlyMap<
-  string,
-  readonly T[]
->;
+export type WhitelistByGroup<T extends Whitelist = Whitelist> = ReadonlyMap<string, readonly T[]>;
 export type GroupById = ReadonlyMap<string, FilterGroup>;
 export type GroupLookup = GroupById | readonly FilterGroup[];
 export interface ScheduleContext {
@@ -72,10 +63,7 @@ export function getSnoozeRemainingMs(
   return snooze.until - now;
 }
 
-export function isSnoozeActive(
-  snooze: SnoozeState | undefined,
-  now = Date.now()
-): boolean {
+export function isSnoozeActive(snooze: SnoozeState | undefined, now = Date.now()): boolean {
   if (!snooze?.active) {
     return false;
   }
@@ -84,10 +72,7 @@ export function isSnoozeActive(
   return remaining === null || remaining > 0;
 }
 
-export function isSnoozeExpired(
-  snooze: SnoozeState | undefined,
-  now = Date.now()
-): boolean {
+export function isSnoozeExpired(snooze: SnoozeState | undefined, now = Date.now()): boolean {
   if (!snooze?.active) {
     return false;
   }
@@ -182,9 +167,7 @@ export function matchesPattern(
   return normalizedUrl.includes(normalizedPattern);
 }
 
-export function buildWhitelistByGroup(
-  whitelist: readonly Whitelist[]
-): WhitelistByGroup;
+export function buildWhitelistByGroup(whitelist: readonly Whitelist[]): WhitelistByGroup;
 export function buildWhitelistByGroup<T extends Whitelist>(
   whitelist: readonly T[]
 ): WhitelistByGroup<T> {
@@ -380,10 +363,7 @@ function prepareWhitelist(entry: Whitelist): PreparedWhitelist {
   };
 }
 
-function getGroupFromLookup(
-  groupId: string,
-  groups: GroupLookup
-): FilterGroup | undefined {
+function getGroupFromLookup(groupId: string, groups: GroupLookup): FilterGroup | undefined {
   if (Array.isArray(groups)) {
     return groups.find((group) => group.id === groupId);
   }

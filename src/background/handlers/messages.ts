@@ -3,15 +3,9 @@
  * Processes messages from popup, options, and content scripts
  */
 
-import {
-  buildBlockingIndex,
-  shouldBlockUrlWithIndex,
-} from '../../shared/utils';
+import { buildBlockingIndex, shouldBlockUrlWithIndex } from '../../shared/utils';
 import { loadData } from '../../shared/api/storage';
-import {
-  isGetDataMessage,
-  isCheckUrlMessage,
-} from '../../shared/types';
+import { isGetDataMessage, isCheckUrlMessage } from '../../shared/types';
 import { isSnoozeBypassActive } from '../snoozeBypass';
 
 /**
@@ -41,9 +35,7 @@ export function handleMessage(
   return false;
 }
 
-async function handleGetData(
-  sendResponse: (response: unknown) => void
-): Promise<void> {
+async function handleGetData(sendResponse: (response: unknown) => void): Promise<void> {
   const data = await loadData();
   sendResponse({ success: true, data });
 }

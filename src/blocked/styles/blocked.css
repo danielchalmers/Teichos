@@ -95,7 +95,9 @@ p {
   cursor: pointer;
   border: none;
   font-size: 1rem;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
 .button:hover {
