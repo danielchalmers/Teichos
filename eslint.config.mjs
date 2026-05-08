@@ -7,7 +7,7 @@ const typedParserOptions = {
     allowDefaultProject: [
       'eslint.config.mjs',
       'playwright.config.ts',
-      'scripts/**/*.mjs',
+      'scripts/playwright-install.mjs',
       'vitest.config.ts',
     ],
     defaultProject: './tsconfig.scripts.json',
@@ -51,6 +51,11 @@ export default tseslint.config(
   {
     // Config for scripts folder (Node.js)
     files: ['scripts/**/*.ts', 'scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+      },
+    },
     rules: {
       'no-console': 'off',
     },
