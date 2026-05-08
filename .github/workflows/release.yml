@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   release:
@@ -70,8 +70,9 @@ jobs:
       - name: Create extension zip
         run: cd dist && zip -r ../pageblock-${{ steps.get_version.outputs.VERSION }}.zip .
 
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v4
+      - name: Create GitHub release
+        uses: ncipollo/release-action@v1
         with:
-          name: pageblock-${{ steps.get_version.outputs.VERSION }}
-          path: pageblock-${{ steps.get_version.outputs.VERSION }}.zip
+          tag: ${{ github.ref_name }}
+          artifacts: pageblock-${{ steps.get_version.outputs.VERSION }}.zip
+          skipIfReleaseExists: true
