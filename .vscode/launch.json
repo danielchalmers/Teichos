@@ -2,17 +2,23 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch Edge with Extension",
-      "type": "msedge",
+      "name": "Debug Playwright Chromium Extension",
+      "type": "pwa-chrome",
       "request": "launch",
-      "url": "https://example.com",
-      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "Build Dev and Install Playwright Chromium",
+      "runtimeExecutable": "${env:LOCALAPPDATA}\\ms-playwright\\chromium-1217\\chrome-win64\\chrome.exe",
+      "url": "chrome://newtab/",
+      "userDataDir": true,
       "runtimeArgs": [
+        "--load-extension=${workspaceFolder}/dist",
         "--disable-extensions-except=${workspaceFolder}/dist",
-        "--load-extension=${workspaceFolder}/dist"
+        "--disable-features=DisableLoadExtensionCommandLineSwitch",
+        "--enable-unsafe-extension-debugging",
+        "--no-first-run",
+        "--no-default-browser-check"
       ],
-      "sourceMaps": true,
-      "preLaunchTask": "Build"
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMaps": true
     }
   ]
 }

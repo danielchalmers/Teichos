@@ -118,7 +118,7 @@ export function formatScheduleDays(daysOfWeek: readonly number[]): string {
 
     ranges.push(
       rangeStart === rangeEnd
-        ? DAY_NAMES[rangeStart] ?? ''
+        ? (DAY_NAMES[rangeStart] ?? '')
         : `${DAY_NAMES[rangeStart] ?? ''}–${DAY_NAMES[rangeEnd] ?? ''}`
     );
     rangeStart = day;
@@ -127,7 +127,7 @@ export function formatScheduleDays(daysOfWeek: readonly number[]): string {
 
   ranges.push(
     rangeStart === rangeEnd
-      ? DAY_NAMES[rangeStart] ?? ''
+      ? (DAY_NAMES[rangeStart] ?? '')
       : `${DAY_NAMES[rangeStart] ?? ''}–${DAY_NAMES[rangeEnd] ?? ''}`
   );
 

@@ -45,7 +45,7 @@ describe('storage', () => {
             pattern: 'example.com',
             groupId: DEFAULT_GROUP_ID,
             enabled: true,
-            matchMode: 'contains',
+            matchMode: 'contains' as const,
           },
         ],
         whitelist: [],
@@ -151,7 +151,7 @@ describe('storage', () => {
             pattern: 'example.com',
             groupId: DEFAULT_GROUP_ID,
             enabled: true,
-            matchMode: 'contains',
+            matchMode: 'contains' as const,
           },
         ],
         whitelist: [],
@@ -222,7 +222,7 @@ describe('storage', () => {
         pattern: 'example.com',
         groupId: 'test-group',
         enabled: true,
-        matchMode: 'contains',
+        matchMode: 'contains' as const,
       };
       await addFilter(filter);
 
@@ -231,7 +231,7 @@ describe('storage', () => {
         pattern: 'allowed.com',
         groupId: 'test-group',
         enabled: true,
-        matchMode: 'contains',
+        matchMode: 'contains' as const,
       };
       await addWhitelist(whitelistEntry);
 
@@ -253,7 +253,7 @@ describe('storage', () => {
         pattern: 'example.com',
         groupId: DEFAULT_GROUP_ID,
         enabled: true,
-        matchMode: 'contains',
+        matchMode: 'contains' as const,
       };
 
       await addFilter(filter);
@@ -273,7 +273,7 @@ describe('storage', () => {
         pattern: 'example.com',
         groupId: DEFAULT_GROUP_ID,
         enabled: true,
-        matchMode: 'contains',
+        matchMode: 'contains' as const,
       };
       await addFilter(filter);
 
@@ -294,7 +294,7 @@ describe('storage', () => {
         pattern: 'example.com',
         groupId: DEFAULT_GROUP_ID,
         enabled: true,
-        matchMode: 'contains',
+        matchMode: 'contains' as const,
       };
       await addFilter(filter);
 
@@ -314,7 +314,7 @@ describe('storage', () => {
         pattern: 'allowed.com',
         groupId: DEFAULT_GROUP_ID,
         enabled: true,
-        matchMode: 'contains',
+        matchMode: 'contains' as const,
       };
 
       await addWhitelist(entry);

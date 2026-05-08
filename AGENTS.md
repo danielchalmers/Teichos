@@ -413,7 +413,7 @@ Recommended `package.json` scripts:
 After running a production build, verify the build output using the verification script:
 
 ```bash
-bash verify.sh
+npm run verify
 ```
 
 This script validates that:
@@ -440,7 +440,7 @@ This is the same verification process used in the CI workflow to ensure build in
 **Submission Checklist:**
 - [ ] Remove all `console.log` statements (or use build to strip them)
 - [ ] Verify manifest version and description
-- [ ] Run `bash verify.sh` to verify build output
+- [ ] Run `npm run verify` to verify build output
 - [ ] Test production build thoroughly
 - [ ] Prepare store listing assets
 - [ ] Write clear privacy policy if needed

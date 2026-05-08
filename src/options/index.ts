@@ -79,9 +79,7 @@ function setupEventListeners(): void {
   });
 
   // Add buttons
-  getElementByIdOrNull('add-group-btn')?.addEventListener('click', () =>
-    openGroupModal()
-  );
+  getElementByIdOrNull('add-group-btn')?.addEventListener('click', () => openGroupModal());
 
   // Filter modal
   getElementByIdOrNull('close-filter-modal')?.addEventListener('click', closeFilterModal);
@@ -317,7 +315,8 @@ function trapFocus(event: KeyboardEvent, modal: HTMLElement): void {
 }
 
 function activateModal(modal: HTMLElement, preferredSelector?: string): void {
-  lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  lastFocusedElement =
+    document.activeElement instanceof HTMLElement ? document.activeElement : null;
   activeModal = modal;
   modal.setAttribute('aria-hidden', 'false');
   setMainInert(true);
@@ -343,9 +342,7 @@ function deactivateModal(modal: HTMLElement): void {
 
 async function purgeExpiredTemporaryFilters(data: StorageData): Promise<StorageData> {
   const now = Date.now();
-  const remainingFilters = data.filters.filter(
-    (filter) => !isTemporaryFilterExpired(filter, now)
-  );
+  const remainingFilters = data.filters.filter((filter) => !isTemporaryFilterExpired(filter, now));
 
   if (remainingFilters.length === data.filters.length) {
     return data;
@@ -364,15 +361,11 @@ async function renderGroups(): Promise<void> {
 
   const focusTarget = document.activeElement as HTMLElement | null;
   const focusSelector =
-    focusTarget && groupsList.contains(focusTarget)
-      ? getFocusRestoreSelector(focusTarget)
-      : null;
+    focusTarget && groupsList.contains(focusTarget) ? getFocusRestoreSelector(focusTarget) : null;
 
   const hadGroups = groupsList.children.length > 0;
   const openGroupIds = new Set(
-    Array.from(
-      groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item[open]')
-    )
+    Array.from(groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item[open]'))
       .map((details) => details.dataset['groupId'])
       .filter((groupId): groupId is string => Boolean(groupId))
   );
@@ -416,11 +409,9 @@ async function renderGroups(): Promise<void> {
       }
     });
   } else if (!hadGroups) {
-    groupsList
-      .querySelectorAll<HTMLDetailsElement>('details.group-item')
-      .forEach((details) => {
-        details.open = true;
-      });
+    groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((details) => {
+      details.open = true;
+    });
   }
 
   if (focusSelector) {
@@ -443,8 +434,7 @@ function renderGroup(
   const groupElement = cloneTemplate<HTMLDetailsElement>('options-group-template');
   groupElement.dataset['groupId'] = group.id;
 
-  querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent =
-    group.name;
+  querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent = group.name;
   const groupMeta = querySelector<HTMLElement>('[data-role="group-meta"]', groupElement);
   groupMeta.textContent = `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
   groupMeta.title = scheduleSummary;
@@ -533,14 +523,8 @@ function renderFilterItem(filter: Filter): HTMLElement {
   const item = cloneTemplate<HTMLDivElement>('options-filter-item-template');
   const titleElement = querySelector<HTMLElement>('[data-role="filter-title"]', item);
   const patternElement = querySelector<HTMLElement>('[data-role="filter-pattern"]', item);
-  const toggleInput = querySelector<HTMLInputElement>(
-    'input[data-action="toggle-filter"]',
-    item
-  );
-  const editButton = querySelector<HTMLButtonElement>(
-    'button[data-action="edit-filter"]',
-    item
-  );
+  const toggleInput = querySelector<HTMLInputElement>('input[data-action="toggle-filter"]', item);
+  const editButton = querySelector<HTMLButtonElement>('button[data-action="edit-filter"]', item);
 
   if (description) {
     titleElement.textContent = description;
@@ -570,10 +554,7 @@ function renderWhitelistItem(entry: Whitelist): HTMLElement {
     'input[data-action="toggle-whitelist"]',
     item
   );
-  const editButton = querySelector<HTMLButtonElement>(
-    'button[data-action="edit-whitelist"]',
-    item
-  );
+  const editButton = querySelector<HTMLButtonElement>('button[data-action="edit-whitelist"]', item);
 
   if (description) {
     titleElement.textContent = description;
@@ -603,14 +584,8 @@ function renderSchedules(): void {
     const scheduleNumber = index + 1;
     const item = cloneTemplate<HTMLDivElement>('options-schedule-item-template');
     const dayContainer = querySelector<HTMLElement>('[data-role="day-checkboxes"]', item);
-    const startInput = querySelector<HTMLInputElement>(
-      'input[data-field="startTime"]',
-      item
-    );
-    const endInput = querySelector<HTMLInputElement>(
-      'input[data-field="endTime"]',
-      item
-    );
+    const startInput = querySelector<HTMLInputElement>('input[data-field="startTime"]', item);
+    const endInput = querySelector<HTMLInputElement>('input[data-field="endTime"]', item);
     const removeButton = querySelector<HTMLButtonElement>(
       'button[data-action="remove-schedule"]',
       item
@@ -732,8 +707,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     enabled,
     matchMode,
   };
-  const filter: Filter =
-    typeof expiresAt === 'number' ? { ...baseFilter, expiresAt } : baseFilter;
+  const filter: Filter = typeof expiresAt === 'number' ? { ...baseFilter, expiresAt } : baseFilter;
 
   try {
     if (currentEditingFilterId) {

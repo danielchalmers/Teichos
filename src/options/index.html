@@ -1,363 +1,492 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teichos Options</title>
-  <link rel="stylesheet" href="styles/options.css">
-</head>
-<body>
-  <div class="container" role="main">
-    <header class="page-header">
-      <div class="title-block">
-        <h1 class="app-title">
-          <img class="app-icon" src="../assets/icons/icon32.png" alt="" />
-          Teichos
-        </h1>
-        <p class="subtitle">Configure URL filters and time-based blocking schedules</p>
-      </div>
-      <div class="header-actions">
-        <div class="info-popover">
-          <button
-            class="info-button"
-            type="button"
-            aria-label="About"
-            aria-expanded="false"
-            aria-controls="info-panel-options"
-            title="About"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
-              <path d="M12 10v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-              <circle cx="12" cy="7" r="1.2" fill="currentColor" />
-            </svg>
-          </button>
-          <div
-            class="info-panel"
-            id="info-panel-options"
-            role="region"
-            aria-hidden="true"
-            aria-labelledby="info-title-options"
-            aria-describedby="info-description-options"
-            inert
-          >
-            <div class="info-title" id="info-title-options">About Teichos</div>
-            <p class="info-text" id="info-description-options">
-              Teichos is a lightweight blocker that groups sites and schedules to help you stay focused.
-            </p>
-            <div class="info-meta" role="list">
-              <div class="info-meta-row" role="listitem">
-                <span class="info-label">Version</span>
-                <span class="info-value" id="info-version">--</span>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teichos Options</title>
+    <link rel="stylesheet" href="styles/options.css" />
+  </head>
+  <body>
+    <div class="container" role="main">
+      <header class="page-header">
+        <div class="title-block">
+          <h1 class="app-title">
+            <img class="app-icon" src="../assets/icons/icon32.png" alt="" />
+            Teichos
+          </h1>
+          <p class="subtitle">Configure URL filters and time-based blocking schedules</p>
+        </div>
+        <div class="header-actions">
+          <div class="info-popover">
+            <button
+              class="info-button"
+              type="button"
+              aria-label="About"
+              aria-expanded="false"
+              aria-controls="info-panel-options"
+              title="About"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+                <path d="M12 10v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <circle cx="12" cy="7" r="1.2" fill="currentColor" />
+              </svg>
+            </button>
+            <div
+              class="info-panel"
+              id="info-panel-options"
+              role="region"
+              aria-hidden="true"
+              aria-labelledby="info-title-options"
+              aria-describedby="info-description-options"
+              inert
+            >
+              <div class="info-title" id="info-title-options">About Teichos</div>
+              <p class="info-text" id="info-description-options">
+                Teichos is a lightweight blocker that groups sites and schedules to help you stay
+                focused.
+              </p>
+              <div class="info-meta" role="list">
+                <div class="info-meta-row" role="listitem">
+                  <span class="info-label">Version</span>
+                  <span class="info-value" id="info-version">--</span>
+                </div>
+                <div class="info-meta-row" role="listitem">
+                  <span class="info-label">Copyright</span>
+                  <span class="info-value" id="info-copyright">--</span>
+                </div>
               </div>
-              <div class="info-meta-row" role="listitem">
-                <span class="info-label">Copyright</span>
-                <span class="info-value" id="info-copyright">--</span>
+              <div class="info-links">
+                <a
+                  class="info-badge"
+                  href="https://chromewebstore.google.com/detail/teichos-page-blocker/jgioiclbfmdjhonplpifidmmbadbadfa"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <span class="info-badge-icon" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                      <path
+                        d="M3 4.5h10a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.4"
+                      />
+                      <path
+                        d="M5 4.5V3.2A1.2 1.2 0 0 1 6.2 2h3.6A1.2 1.2 0 0 1 11 3.2v1.3"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.4"
+                      />
+                      <path d="M2 7.5h12" stroke="currentColor" stroke-width="1.4" />
+                    </svg>
+                  </span>
+                  Chrome Web Store
+                </a>
+                <a
+                  class="info-badge"
+                  href="https://github.com/danielchalmers/Teichos"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <span class="info-badge-icon" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                      <path
+                        fill="currentColor"
+                        d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+                      />
+                    </svg>
+                  </span>
+                  View on GitHub
+                </a>
               </div>
-            </div>
-            <div class="info-links">
-              <a
-                class="info-badge"
-                href="https://chromewebstore.google.com/detail/teichos-page-blocker/jgioiclbfmdjhonplpifidmmbadbadfa"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <span class="info-badge-icon" aria-hidden="true">
-                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                    <path
-                      d="M3 4.5h10a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.4"
-                    />
-                    <path d="M5 4.5V3.2A1.2 1.2 0 0 1 6.2 2h3.6A1.2 1.2 0 0 1 11 3.2v1.3" fill="none" stroke="currentColor" stroke-width="1.4" />
-                    <path d="M2 7.5h12" stroke="currentColor" stroke-width="1.4" />
-                  </svg>
-                </span>
-                Chrome Web Store
-              </a>
-              <a
-                class="info-badge"
-                href="https://github.com/danielchalmers/Teichos"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <span class="info-badge-icon" aria-hidden="true">
-                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                    <path
-                      fill="currentColor"
-                      d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
-                    />
-                  </svg>
-                </span>
-                View on GitHub
-              </a>
             </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
 
-    <div class="section-header">
-      <h2>Groups</h2>
+      <div class="section-header">
+        <h2>Groups</h2>
+      </div>
+      <div id="groups-list"></div>
+      <div class="list-footer">
+        <button class="button" id="add-group-btn">
+          <span class="button-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+              <path
+                d="M8 3v10M3 8h10"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              ></path>
+            </svg>
+          </span>
+          New Group
+        </button>
+      </div>
     </div>
-    <div id="groups-list"></div>
-    <div class="list-footer">
-      <button class="button" id="add-group-btn">
+
+    <template id="options-group-template">
+      <details class="group-item">
+        <summary class="group-header">
+          <div class="group-info">
+            <div class="group-title" data-role="group-title"></div>
+            <div class="filter-meta" data-role="group-meta"></div>
+          </div>
+          <div class="actions" data-role="group-actions"></div>
+        </summary>
+        <div class="group-content">
+          <div class="group-section">
+            <div class="group-section-header">
+              <h3>Filters</h3>
+            </div>
+            <div data-role="filter-list"></div>
+            <div class="list-footer">
+              <button class="button small" type="button" data-action="add-filter">
+                <span class="button-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+                    <path
+                      d="M8 3v10M3 8h10"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    ></path>
+                  </svg>
+                </span>
+                New Filter
+              </button>
+            </div>
+          </div>
+          <div class="group-section">
+            <div class="group-section-header">
+              <h3>Exceptions</h3>
+            </div>
+            <div data-role="whitelist-list"></div>
+            <div class="list-footer">
+              <button class="button small secondary" type="button" data-action="add-whitelist">
+                <span class="button-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+                    <path
+                      d="M8 3v10M3 8h10"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    ></path>
+                  </svg>
+                </span>
+                New Exception
+              </button>
+            </div>
+          </div>
+        </div>
+      </details>
+    </template>
+
+    <template id="options-group-edit-button-template">
+      <button class="button small secondary" type="button" data-action="edit-group">
         <span class="button-icon" aria-hidden="true">
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+            <path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"></path>
+            <path
+              d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z"
+              fill="currentColor"
+            ></path>
           </svg>
         </span>
-        New Group
+        Edit
       </button>
-    </div>
-  </div>
+    </template>
 
-  <template id="options-group-template">
-    <details class="group-item">
-      <summary class="group-header">
-        <div class="group-info">
-          <div class="group-title" data-role="group-title"></div>
-          <div class="filter-meta" data-role="group-meta"></div>
+    <template id="options-filter-item-template">
+      <div class="filter-item">
+        <div class="filter-details">
+          <div class="filter-title" data-role="filter-title"></div>
+          <div class="filter-pattern" data-role="filter-pattern"></div>
         </div>
-        <div class="actions" data-role="group-actions"></div>
-      </summary>
-      <div class="group-content">
-        <div class="group-section">
-          <div class="group-section-header">
-            <h3>Filters</h3>
-          </div>
-          <div data-role="filter-list"></div>
-          <div class="list-footer">
-            <button class="button small" type="button" data-action="add-filter">
-              <span class="button-icon" aria-hidden="true">
-                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-                  <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-                </svg>
-              </span>
-              New Filter
-            </button>
-          </div>
-        </div>
-        <div class="group-section">
-          <div class="group-section-header">
-            <h3>Exceptions</h3>
-          </div>
-          <div data-role="whitelist-list"></div>
-          <div class="list-footer">
-            <button class="button small secondary" type="button" data-action="add-whitelist">
-              <span class="button-icon" aria-hidden="true">
-                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-                  <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-                </svg>
-              </span>
-              New Exception
-            </button>
-          </div>
-        </div>
-      </div>
-    </details>
-  </template>
-
-  <template id="options-group-edit-button-template">
-    <button class="button small secondary" type="button" data-action="edit-group">
-      <span class="button-icon" aria-hidden="true">
-        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-          <path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"></path>
-          <path d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z" fill="currentColor"></path>
-        </svg>
-      </span>
-      Edit
-    </button>
-  </template>
-
-  <template id="options-filter-item-template">
-    <div class="filter-item">
-      <div class="filter-details">
-        <div class="filter-title" data-role="filter-title"></div>
-        <div class="filter-pattern" data-role="filter-pattern"></div>
-      </div>
-      <div class="actions">
-        <label class="toggle">
-          <input type="checkbox" data-action="toggle-filter">
-          <span class="slider"></span>
-        </label>
-        <button class="button small secondary" type="button" data-action="edit-filter">
-          <span class="button-icon" aria-hidden="true">
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-              <path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"></path>
-              <path d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z" fill="currentColor"></path>
-            </svg>
-          </span>
-          Edit
-        </button>
-      </div>
-    </div>
-  </template>
-
-  <template id="options-whitelist-item-template">
-    <div class="filter-item">
-      <div class="filter-details">
-        <div class="filter-title" data-role="whitelist-title"></div>
-        <div class="filter-pattern" data-role="whitelist-pattern"></div>
-      </div>
-      <div class="actions">
-        <label class="toggle">
-          <input type="checkbox" data-action="toggle-whitelist">
-          <span class="slider"></span>
-        </label>
-        <button class="button small secondary" type="button" data-action="edit-whitelist">
-          <span class="button-icon" aria-hidden="true">
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-              <path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"></path>
-              <path d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z" fill="currentColor"></path>
-            </svg>
-          </span>
-          Edit
-        </button>
-      </div>
-    </div>
-  </template>
-
-  <template id="options-schedule-item-template">
-    <div class="schedule-item">
-      <div class="day-checkboxes" data-role="day-checkboxes"></div>
-      <div class="time-inputs">
-        <input type="time" class="input" data-action="update-schedule-time" data-field="startTime">
-        <span>to</span>
-        <input type="time" class="input" data-action="update-schedule-time" data-field="endTime">
-        <button type="button" class="icon-button small" data-action="remove-schedule">
-          <span class="button-icon" aria-hidden="true">
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-              <path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-            </svg>
-          </span>
-          <span class="sr-only">Delete</span>
-        </button>
-      </div>
-    </div>
-  </template>
-
-  <!-- Filter Modal -->
-  <div id="filter-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="filter-modal-title" aria-hidden="true">
-    <div class="modal-content" tabindex="-1">
-      <div class="modal-header">
-        <h2 id="filter-modal-title">Add Filter</h2>
-        <button class="close" id="close-filter-modal" type="button" aria-label="Close filter dialog" title="Close filter dialog">&times;</button>
-      </div>
-      <form id="filter-form">
-        <div class="form-row">
-          <label for="filter-description">Name</label>
-          <input type="text" id="filter-description" class="input" placeholder="e.g., Block Facebook">
-        </div>
-        <div class="form-row">
-          <label for="filter-pattern">URL Pattern <span class="required-marker" aria-hidden="true">*</span></label>
-          <input type="text" id="filter-pattern" class="input" required placeholder="e.g., facebook.com">
-        </div>
-        <div class="form-row">
-          <label for="filter-match-mode">Match Mode</label>
-          <select id="filter-match-mode" class="input">
-            <option value="contains" selected>Contains (default)</option>
-            <option value="exact">Exact</option>
-            <option value="regex">Regular Expression</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label class="checkbox-label">
-            <input type="checkbox" id="filter-enabled" checked>
-            Enabled
+        <div class="actions">
+          <label class="toggle">
+            <input type="checkbox" data-action="toggle-filter" />
+            <span class="slider"></span>
           </label>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="button danger" id="delete-filter">Delete</button>
-          <button type="button" class="button secondary" id="cancel-filter">Cancel</button>
-          <button type="submit" class="button">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Group Modal -->
-  <div id="group-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="group-modal-title" aria-hidden="true">
-    <div class="modal-content" tabindex="-1">
-      <div class="modal-header">
-        <h2 id="group-modal-title">Add Group</h2>
-        <button class="close" id="close-group-modal" type="button" aria-label="Close group dialog" title="Close group dialog">&times;</button>
-      </div>
-      <form id="group-form">
-        <div class="form-row">
-          <label for="group-name">Group Name <span class="required-marker" aria-hidden="true">*</span></label>
-          <input type="text" id="group-name" class="input" required placeholder="e.g., Work Hours">
-        </div>
-        <div class="form-row">
-          <label class="checkbox-label">
-            <input type="checkbox" id="group-24x7">
-            Always Active (24/7)
-          </label>
-        </div>
-        <div id="schedules-container" style="display: none;">
-          <div class="form-row">
-            <label>Schedules</label>
-            <div id="schedules-list"></div>
-          </div>
-          <button type="button" class="button small secondary" id="add-schedule-btn">
+          <button class="button small secondary" type="button" data-action="edit-filter">
             <span class="button-icon" aria-hidden="true">
               <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-                <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                <path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"></path>
+                <path
+                  d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z"
+                  fill="currentColor"
+                ></path>
               </svg>
             </span>
-            New Schedule
+            Edit
           </button>
         </div>
-        <div class="modal-actions">
-          <button type="button" class="button danger" id="delete-group">Delete</button>
-          <button type="button" class="button secondary" id="cancel-group">Cancel</button>
-          <button type="submit" class="button">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Whitelist Modal -->
-  <div id="whitelist-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="whitelist-modal-title" aria-hidden="true">
-    <div class="modal-content" tabindex="-1">
-      <div class="modal-header">
-        <h2 id="whitelist-modal-title">Add Exception</h2>
-        <button class="close" id="close-whitelist-modal" type="button" aria-label="Close exception dialog" title="Close exception dialog">&times;</button>
       </div>
-      <form id="whitelist-form">
-        <div class="form-row">
-          <label for="whitelist-description">Name</label>
-          <input type="text" id="whitelist-description" class="input" placeholder="e.g., Allow Facebook Work">
-        </div>
-        <div class="form-row">
-          <label for="whitelist-pattern">URL Pattern <span class="required-marker" aria-hidden="true">*</span></label>
-          <input type="text" id="whitelist-pattern" class="input" required placeholder="e.g., facebook.com/work">
-        </div>
-        <div class="form-row">
-          <label for="whitelist-match-mode">Match Mode</label>
-          <select id="whitelist-match-mode" class="input">
-            <option value="contains" selected>Contains (default)</option>
-            <option value="exact">Exact</option>
-            <option value="regex">Regular Expression</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label class="checkbox-label">
-            <input type="checkbox" id="whitelist-enabled" checked>
-            Enabled
-          </label>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="button danger" id="delete-whitelist">Delete</button>
-          <button type="button" class="button secondary" id="cancel-whitelist">Cancel</button>
-          <button type="submit" class="button">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
+    </template>
 
-  <script src="index.js" type="module"></script>
-</body>
+    <template id="options-whitelist-item-template">
+      <div class="filter-item">
+        <div class="filter-details">
+          <div class="filter-title" data-role="whitelist-title"></div>
+          <div class="filter-pattern" data-role="whitelist-pattern"></div>
+        </div>
+        <div class="actions">
+          <label class="toggle">
+            <input type="checkbox" data-action="toggle-whitelist" />
+            <span class="slider"></span>
+          </label>
+          <button class="button small secondary" type="button" data-action="edit-whitelist">
+            <span class="button-icon" aria-hidden="true">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+                <path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z" fill="currentColor"></path>
+                <path
+                  d="M10.5 3.5l1.5 1.5 1-1a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1 1z"
+                  fill="currentColor"
+                ></path>
+              </svg>
+            </span>
+            Edit
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <template id="options-schedule-item-template">
+      <div class="schedule-item">
+        <div class="day-checkboxes" data-role="day-checkboxes"></div>
+        <div class="time-inputs">
+          <input
+            type="time"
+            class="input"
+            data-action="update-schedule-time"
+            data-field="startTime"
+          />
+          <span>to</span>
+          <input
+            type="time"
+            class="input"
+            data-action="update-schedule-time"
+            data-field="endTime"
+          />
+          <button type="button" class="icon-button small" data-action="remove-schedule">
+            <span class="button-icon" aria-hidden="true">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+                <path
+                  d="M3 8h10"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                ></path>
+              </svg>
+            </span>
+            <span class="sr-only">Delete</span>
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <!-- Filter Modal -->
+    <div
+      id="filter-modal"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="filter-modal-title"
+      aria-hidden="true"
+    >
+      <div class="modal-content" tabindex="-1">
+        <div class="modal-header">
+          <h2 id="filter-modal-title">Add Filter</h2>
+          <button
+            class="close"
+            id="close-filter-modal"
+            type="button"
+            aria-label="Close filter dialog"
+            title="Close filter dialog"
+          >
+            &times;
+          </button>
+        </div>
+        <form id="filter-form">
+          <div class="form-row">
+            <label for="filter-description">Name</label>
+            <input
+              type="text"
+              id="filter-description"
+              class="input"
+              placeholder="e.g., Block Facebook"
+            />
+          </div>
+          <div class="form-row">
+            <label for="filter-pattern"
+              >URL Pattern <span class="required-marker" aria-hidden="true">*</span></label
+            >
+            <input
+              type="text"
+              id="filter-pattern"
+              class="input"
+              required
+              placeholder="e.g., facebook.com"
+            />
+          </div>
+          <div class="form-row">
+            <label for="filter-match-mode">Match Mode</label>
+            <select id="filter-match-mode" class="input">
+              <option value="contains" selected>Contains (default)</option>
+              <option value="exact">Exact</option>
+              <option value="regex">Regular Expression</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="filter-enabled" checked />
+              Enabled
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="button danger" id="delete-filter">Delete</button>
+            <button type="button" class="button secondary" id="cancel-filter">Cancel</button>
+            <button type="submit" class="button">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Group Modal -->
+    <div
+      id="group-modal"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="group-modal-title"
+      aria-hidden="true"
+    >
+      <div class="modal-content" tabindex="-1">
+        <div class="modal-header">
+          <h2 id="group-modal-title">Add Group</h2>
+          <button
+            class="close"
+            id="close-group-modal"
+            type="button"
+            aria-label="Close group dialog"
+            title="Close group dialog"
+          >
+            &times;
+          </button>
+        </div>
+        <form id="group-form">
+          <div class="form-row">
+            <label for="group-name"
+              >Group Name <span class="required-marker" aria-hidden="true">*</span></label
+            >
+            <input
+              type="text"
+              id="group-name"
+              class="input"
+              required
+              placeholder="e.g., Work Hours"
+            />
+          </div>
+          <div class="form-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="group-24x7" />
+              Always Active (24/7)
+            </label>
+          </div>
+          <div id="schedules-container" style="display: none">
+            <div class="form-row">
+              <label>Schedules</label>
+              <div id="schedules-list"></div>
+            </div>
+            <button type="button" class="button small secondary" id="add-schedule-btn">
+              <span class="button-icon" aria-hidden="true">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+                  <path
+                    d="M8 3v10M3 8h10"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  ></path>
+                </svg>
+              </span>
+              New Schedule
+            </button>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="button danger" id="delete-group">Delete</button>
+            <button type="button" class="button secondary" id="cancel-group">Cancel</button>
+            <button type="submit" class="button">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Whitelist Modal -->
+    <div
+      id="whitelist-modal"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="whitelist-modal-title"
+      aria-hidden="true"
+    >
+      <div class="modal-content" tabindex="-1">
+        <div class="modal-header">
+          <h2 id="whitelist-modal-title">Add Exception</h2>
+          <button
+            class="close"
+            id="close-whitelist-modal"
+            type="button"
+            aria-label="Close exception dialog"
+            title="Close exception dialog"
+          >
+            &times;
+          </button>
+        </div>
+        <form id="whitelist-form">
+          <div class="form-row">
+            <label for="whitelist-description">Name</label>
+            <input
+              type="text"
+              id="whitelist-description"
+              class="input"
+              placeholder="e.g., Allow Facebook Work"
+            />
+          </div>
+          <div class="form-row">
+            <label for="whitelist-pattern"
+              >URL Pattern <span class="required-marker" aria-hidden="true">*</span></label
+            >
+            <input
+              type="text"
+              id="whitelist-pattern"
+              class="input"
+              required
+              placeholder="e.g., facebook.com/work"
+            />
+          </div>
+          <div class="form-row">
+            <label for="whitelist-match-mode">Match Mode</label>
+            <select id="whitelist-match-mode" class="input">
+              <option value="contains" selected>Contains (default)</option>
+              <option value="exact">Exact</option>
+              <option value="regex">Regular Expression</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="whitelist-enabled" checked />
+              Enabled
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="button danger" id="delete-whitelist">Delete</button>
+            <button type="button" class="button secondary" id="cancel-whitelist">Cancel</button>
+            <button type="submit" class="button">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="index.js" type="module"></script>
+  </body>
 </html>

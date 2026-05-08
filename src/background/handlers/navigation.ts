@@ -3,11 +3,7 @@
  * Checks if navigated URL should be blocked
  */
 
-import {
-  buildBlockingIndex,
-  isInternalUrl,
-  shouldBlockUrlWithIndex,
-} from '../../shared/utils';
+import { buildBlockingIndex, isInternalUrl, shouldBlockUrlWithIndex } from '../../shared/utils';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { loadData } from '../../shared/api/storage';
 import { updateTabUrl } from '../../shared/api/tabs';
@@ -20,7 +16,7 @@ import { isSnoozeBypassActive } from '../snoozeBypass';
  * Only processes main frame navigations
  */
 export async function handleBeforeNavigate(
-  details: chrome.webNavigation.WebNavigationParentedCallbackDetails
+  details: chrome.webNavigation.WebNavigationBaseCallbackDetails
 ): Promise<void> {
   // Only check main frame
   if (details.frameId !== 0) {
@@ -68,7 +64,7 @@ async function restoreBlockedNavigationIfSnoozed(
   blockedPageNavigationUrl: string,
   blockedPageUrl: string
 ): Promise<void> {
-  let blockedTargetUrl: string | null = null;
+  let blockedTargetUrl: string | null;
   try {
     blockedTargetUrl = new URL(blockedPageNavigationUrl).searchParams.get('url');
   } catch {

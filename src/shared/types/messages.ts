@@ -61,20 +61,16 @@ export type ExtensionMessage =
   | CloseInfoPanelMessage;
 
 // Response type mapping
-export type MessageResponse<T extends ExtensionMessage> =
-  T extends GetDataMessage
-    ? GetDataResponse
-    : T extends CheckUrlMessage
-      ? CheckUrlResponse
-      : undefined;
+export type MessageResponse<T extends ExtensionMessage> = T extends GetDataMessage
+  ? GetDataResponse
+  : T extends CheckUrlMessage
+    ? CheckUrlResponse
+    : undefined;
 
 // Type guards for message validation
 export function isGetDataMessage(msg: unknown): msg is GetDataMessage {
   return (
-    typeof msg === 'object' &&
-    msg !== null &&
-    'type' in msg &&
-    msg.type === MessageType.GET_DATA
+    typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === MessageType.GET_DATA
   );
 }
 

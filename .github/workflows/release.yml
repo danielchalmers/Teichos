@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      
+      - uses: actions/checkout@v6
+
       - name: Extract version from manifest
         id: get_version
         run: |
@@ -24,26 +24,50 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: '24'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright Chromium
+        run: npm run playwright:install
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck source
+        run: npm run typecheck
+
+      - name: Typecheck tests
+        run: npm run typecheck:test
+
+      - name: Unit tests
+        run: npm run test:unit
+
       - name: Build
         run: npm run build
 
-      - name: Verify build
-        run: bash verify.sh
+      - name: Verify build output
+        run: npm run verify
 
-      - name: Create extension zip
-        run: cd dist && zip -r ../pageblock-${{ steps.get_version.outputs.VERSION }}.zip .
+      - name: Browser smoke tests
+        run: npm run test:e2e
+
+      - name: Package extension
+        run: npm run package
+
+      - name: Rename extension package
+        run: mv teichos.zip teichos-${{ steps.get_version.outputs.VERSION }}.zip
 
       - name: Create GitHub release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@v1.21.0
         with:
           tag: v${{ steps.get_version.outputs.VERSION }}
-          artifacts: pageblock-${{ steps.get_version.outputs.VERSION }}.zip
+          artifacts: teichos-${{ steps.get_version.outputs.VERSION }}.zip
           skipIfReleaseExists: true

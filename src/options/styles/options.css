@@ -10,9 +10,10 @@ html {
 
 :root {
   color-scheme: light;
-  --font-sans: "Avenir Next", "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Noto Sans", sans-serif;
-  --font-display: "Space Grotesk", "Avenir Next", "SF Pro Display", "Segoe UI Variable", "Segoe UI",
-    sans-serif;
+  --font-sans:
+    'Avenir Next', 'SF Pro Text', 'Segoe UI Variable', 'Segoe UI', 'Noto Sans', sans-serif;
+  --font-display:
+    'Space Grotesk', 'Avenir Next', 'SF Pro Display', 'Segoe UI Variable', 'Segoe UI', sans-serif;
   --text-primary: #0f172a;
   --text-secondary: #44556f;
   --text-muted: #7689a8;
@@ -76,8 +77,7 @@ body {
   min-height: 100vh;
   background:
     radial-gradient(900px 520px at 10% -5%, var(--bg-glow-primary), transparent 65%),
-    radial-gradient(760px 420px at 92% -10%, var(--bg-glow-secondary), transparent 60%),
-    var(--bg);
+    radial-gradient(760px 420px at 92% -10%, var(--bg-glow-secondary), transparent 60%), var(--bg);
   background-attachment: fixed;
   background-repeat: no-repeat;
   color: var(--text-primary);
@@ -156,7 +156,10 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
 }
 
 .info-button svg {
@@ -192,7 +195,9 @@ body {
   opacity: 0;
   transform: translateY(-6px);
   pointer-events: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
   z-index: 20;
 }
 
@@ -271,7 +276,9 @@ body {
   font-size: 0.78rem;
   text-decoration: none;
   box-shadow: var(--info-badge-shadow);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .info-badge:hover {
@@ -328,7 +335,10 @@ body {
   justify-content: center;
   gap: 0.45rem;
   line-height: 1;
-  transition: box-shadow 0.2s, background-color 0.2s, border-color 0.2s;
+  transition:
+    box-shadow 0.2s,
+    background-color 0.2s,
+    border-color 0.2s;
   box-shadow: var(--button-primary-shadow);
 }
 
@@ -395,7 +405,10 @@ form .button + .button {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s;
 }
 
 .icon-button.small {
@@ -494,7 +507,9 @@ label {
   border-radius: var(--radius-lg);
   margin-bottom: 1.25rem;
   overflow: hidden;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
   box-shadow: var(--shadow-sm);
 }
 
@@ -553,22 +568,22 @@ label {
   position: relative;
 }
 
-.group-content.is-snoozed [data-role="filter-list"] {
+.group-content.is-snoozed [data-role='filter-list'] {
   position: relative;
 }
 
-.group-content.is-snoozed [data-role="filter-list"] > * {
+.group-content.is-snoozed [data-role='filter-list'] > * {
   position: relative;
   z-index: 1;
 }
 
-.group-content.is-snoozed [data-role="filter-list"] .filter-item,
-.group-content.is-snoozed [data-role="filter-list"] .empty-state {
+.group-content.is-snoozed [data-role='filter-list'] .filter-item,
+.group-content.is-snoozed [data-role='filter-list'] .empty-state {
   opacity: 0.62;
 }
 
-.group-content.is-snoozed [data-role="filter-list"]::after {
-  content: "";
+.group-content.is-snoozed [data-role='filter-list']::after {
+  content: '';
   position: absolute;
   inset: -0.2rem;
   border-radius: 12px;
@@ -648,7 +663,7 @@ label {
 }
 
 .filter-pattern {
-  font-family: "SFMono-Regular", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-family: 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
   color: var(--text-secondary);
   font-size: 0.85rem;
   white-space: nowrap;
@@ -661,7 +676,6 @@ label {
   font-size: 0.8rem;
   color: var(--text-muted);
 }
-
 
 .actions {
   display: flex;
@@ -707,7 +721,7 @@ label {
 
 .slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 18px;
   width: 18px;
   left: 3px;

@@ -40,7 +40,7 @@ const buildOptions: esbuild.BuildOptions = {
  */
 async function copyStaticFiles(): Promise<void> {
   const distDir = join(rootDir, 'dist');
-  
+
   // Ensure dist directories exist
   const dirs = [
     distDir,
@@ -49,29 +49,29 @@ async function copyStaticFiles(): Promise<void> {
     join(distDir, 'blocked/styles'),
     join(distDir, 'assets/icons'),
   ];
-  
+
   for (const dir of dirs) {
     if (!existsSync(dir)) {
       await mkdir(dir, { recursive: true });
     }
   }
-  
+
   // Copy files
   const copies = [
     // Manifest
     { from: 'public/manifest.json', to: 'dist/manifest.json' },
-    
+
     // HTML files
     { from: 'src/popup/index.html', to: 'dist/popup/index.html' },
     { from: 'src/options/index.html', to: 'dist/options/index.html' },
     { from: 'src/blocked/index.html', to: 'dist/blocked/index.html' },
-    
+
     // CSS files
     { from: 'src/popup/styles/popup.css', to: 'dist/popup/styles/popup.css' },
     { from: 'src/options/styles/options.css', to: 'dist/options/styles/options.css' },
     { from: 'src/blocked/styles/blocked.css', to: 'dist/blocked/styles/blocked.css' },
   ];
-  
+
   for (const { from, to } of copies) {
     const fromPath = join(rootDir, from);
     const toPath = join(rootDir, to);
@@ -79,14 +79,14 @@ async function copyStaticFiles(): Promise<void> {
       await copyFile(fromPath, toPath);
     }
   }
-  
+
   // Copy icons directory
   const iconsFrom = join(rootDir, 'src/assets/icons');
   const iconsTo = join(rootDir, 'dist/assets/icons');
   if (existsSync(iconsFrom)) {
     await cp(iconsFrom, iconsTo, { recursive: true });
   }
-  
+
   console.log('Static files copied');
 }
 
@@ -95,7 +95,7 @@ async function copyStaticFiles(): Promise<void> {
  */
 async function build(): Promise<void> {
   await copyStaticFiles();
-  
+
   if (isWatch) {
     const ctx = await esbuild.context(buildOptions);
     await ctx.watch();

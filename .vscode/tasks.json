@@ -12,6 +12,24 @@
       "problemMatcher": []
     },
     {
+      "label": "Build Dev",
+      "type": "npm",
+      "script": "build:dev",
+      "problemMatcher": []
+    },
+    {
+      "label": "Install Playwright Chromium",
+      "type": "npm",
+      "script": "playwright:install",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Dev and Install Playwright Chromium",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Build Dev", "Install Playwright Chromium"],
+      "problemMatcher": []
+    },
+    {
       "label": "Watch",
       "type": "npm",
       "script": "dev",
@@ -35,6 +53,12 @@
         "kind": "test",
         "isDefault": true
       }
+    },
+    {
+      "label": "Test E2E",
+      "type": "npm",
+      "script": "test:e2e",
+      "group": "test"
     },
     {
       "label": "Lint",

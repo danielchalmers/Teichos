@@ -27,10 +27,19 @@ Want to block sites only during work hours? Create a custom group:
 4. Click **New Schedule** to add days and times
 5. Assign filters to your new group
 
+## 💻 Development
+
+In VS Code, use **Debug Playwright Chromium Extension** to build the extension, install
+Playwright's bundled Chromium, and launch the unpacked extension.
+
+Run `npm run test:e2e` after `npm run build` to exercise the built extension in
+Playwright Chromium.
+
 ## 🙏 Credits
 
 - esbuild — MIT
 - ESLint (@eslint/js, eslint) — MIT
+- Playwright (@playwright/test) — Apache-2.0
 - Prettier — MIT
 - TypeScript — Apache-2.0
 - typescript-eslint — MIT
