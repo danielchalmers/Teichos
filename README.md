@@ -27,11 +27,17 @@ Want to block sites only during work hours? Create a custom group:
 4. Click **New Schedule** to add days and times
 5. Assign filters to your new group
 
+## 💻 Development
+
+In VS Code, use **Debug Chrome for Testing Extension** to build the extension, install
+Chrome for Testing through the local npm package, and launch the unpacked extension.
+
 ## 🙏 Credits
 
 - esbuild — MIT
 - ESLint (@eslint/js, eslint) — MIT
 - Prettier — MIT
+- @puppeteer/browsers — Apache-2.0
 - TypeScript — Apache-2.0
 - typescript-eslint — MIT
 - tsx — MIT

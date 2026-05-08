@@ -40,6 +40,12 @@ jobs:
       - name: Verify build
         run: npm run verify
 
+      - name: Install Chrome for Testing
+        run: npm run chrome:install
+
+      - name: Check Chrome for Testing
+        run: npm run check:chrome
+
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4
         with:

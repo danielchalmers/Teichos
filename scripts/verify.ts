@@ -90,7 +90,7 @@ async function verify(): Promise<void> {
   console.log('All checks passed.');
   console.log('');
   console.log('To load the extension:');
-  console.log('1. Open Edge and go to edge://extensions/');
+  console.log('1. Open Chrome and go to chrome://extensions/');
   console.log("2. Enable 'Developer mode'");
   console.log("3. Click 'Load unpacked'");
   console.log("4. Select the 'dist' folder");
