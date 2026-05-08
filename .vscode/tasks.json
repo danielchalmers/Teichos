@@ -18,6 +18,18 @@
       "problemMatcher": []
     },
     {
+      "label": "Install Chrome for Testing",
+      "type": "npm",
+      "script": "chrome:install",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Dev and Install Chrome for Testing",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Build Dev", "Install Chrome for Testing"],
+      "problemMatcher": []
+    },
+    {
       "label": "Watch",
       "type": "npm",
       "script": "dev",

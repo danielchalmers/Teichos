@@ -11,6 +11,8 @@
     "dev": "tsx scripts/build.ts --watch --dev",
     "build:dev": "tsx scripts/build.ts --dev",
     "build": "tsx scripts/build.ts",
+    "chrome:install": "browsers install chrome@148.0.7778.96 --path .cache/chrome-for-testing",
+    "check:chrome": "browsers launch chrome@148.0.7778.96 --path .cache/chrome-for-testing -- --headless=new --disable-gpu --no-sandbox --no-first-run --no-default-browser-check --disable-features=DisableLoadExtensionCommandLineSwitch --enable-unsafe-extension-debugging --disable-extensions-except=dist --load-extension=dist --dump-dom about:blank",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -32,6 +34,7 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@puppeteer/browsers": "^2.13.1",
     "@types/chrome": "^0.1.40",
     "@types/node": "^24.12.2",
     "@vitest/coverage-v8": "^4.1.5",
