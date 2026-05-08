@@ -61,6 +61,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ['scripts/**/*.mjs'],
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off',
+    },
+  },
+  {
     // Config for test files
     files: ['test/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
     rules: {
