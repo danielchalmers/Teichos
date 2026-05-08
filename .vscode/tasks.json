@@ -2,6 +2,12 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Install Dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "problemMatcher": []
+    },
+    {
       "label": "Build",
       "type": "npm",
       "script": "build",
@@ -26,7 +32,7 @@
     {
       "label": "Build Dev and Install Playwright Chromium",
       "dependsOrder": "sequence",
-      "dependsOn": ["Build Dev", "Install Playwright Chromium"],
+      "dependsOn": ["Install Dependencies", "Build Dev", "Install Playwright Chromium"],
       "problemMatcher": []
     },
     {

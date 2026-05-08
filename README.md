@@ -29,10 +29,9 @@ Want to block sites only during work hours? Create a custom group:
 
 ## 💻 Development
 
-Run `npm install` once after cloning to install the local build and test tools.
-
-In VS Code, use **Debug Playwright Chromium Extension** to build the extension, install
-Playwright's bundled Chromium, and launch the unpacked extension.
+In VS Code, use **Debug Playwright Chromium Extension** to install project
+dependencies, build the extension, install Playwright's bundled Chromium, and
+launch the unpacked extension.
 
 Run `npm run test:e2e` after `npm run build` to exercise the built extension in
 Playwright Chromium.
