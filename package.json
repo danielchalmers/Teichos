@@ -23,7 +23,9 @@
     "typecheck": "tsc --noEmit",
     "verify": "tsx scripts/verify.ts",
     "clean": "rimraf dist",
-    "package": "npm run clean && npm run build && cd dist && zip -r ../teichos.zip ."
+    "package:dist": "tsx scripts/package.ts",
+    "package": "npm run clean && npm run build && npm run package:dist",
+    "apply-release-version": "tsx scripts/applyReleaseVersion.ts"
   },
   "keywords": [
     "webextension",
