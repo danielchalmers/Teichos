@@ -45,7 +45,7 @@ jobs:
         run: ${{ matrix.command }}
 
   build:
-    name: Build, verify, and package
+    name: Build and verify
     runs-on: ubuntu-latest
 
     steps:
@@ -67,14 +67,26 @@ jobs:
       - name: Verify build output
         run: npm run verify
 
-      - name: Package extension
-        run: npm run package
-
       - name: Upload extension dist
         uses: actions/upload-artifact@v7
         with:
           name: teichos-extension-dist
           path: dist/
+
+  package:
+    name: Package extension
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download extension dist
+        uses: actions/download-artifact@v5
+        with:
+          name: teichos-extension-dist
+          path: dist/
+
+      - name: Package extension
+        run: cd dist && zip -r ../teichos.zip .
 
       - name: Upload extension package
         uses: actions/upload-artifact@v7
@@ -84,6 +96,7 @@ jobs:
 
   e2e:
     name: Browser smoke tests
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
@@ -102,8 +115,11 @@ jobs:
       - name: Install Playwright Chromium
         run: npm run playwright:install
 
-      - name: Build
-        run: npm run build
+      - name: Download extension dist
+        uses: actions/download-artifact@v5
+        with:
+          name: teichos-extension-dist
+          path: dist/
 
       - name: Browser smoke tests
         run: npm run test:e2e
