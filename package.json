@@ -14,7 +14,7 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "playwright:install": "playwright install --with-deps chromium",
-    "test": "npm run test:unit",
+    "test": "vitest run",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test:watch": "vitest",
