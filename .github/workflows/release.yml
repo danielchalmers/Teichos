@@ -38,6 +38,12 @@ jobs:
       - name: Verify build
         run: npm run verify
 
+      - name: Install Playwright Chromium
+        run: npm run playwright:install
+
+      - name: Test extension in Playwright
+        run: npm run test:e2e
+
       - name: Create extension zip
         run: cd dist && zip -r ../pageblock-${{ steps.get_version.outputs.VERSION }}.zip .
 

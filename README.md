@@ -29,15 +29,18 @@ Want to block sites only during work hours? Create a custom group:
 
 ## 💻 Development
 
-In VS Code, use **Debug Chrome for Testing Extension** to build the extension, install
-Chrome for Testing through the local npm package, and launch the unpacked extension.
+In VS Code, use **Debug Playwright Chromium Extension** to build the extension, install
+Playwright's bundled Chromium, and launch the unpacked extension.
+
+Run `npm run test:e2e` after `npm run build` to exercise the built extension in
+Playwright Chromium.
 
 ## 🙏 Credits
 
 - esbuild — MIT
 - ESLint (@eslint/js, eslint) — MIT
+- Playwright (@playwright/test) — Apache-2.0
 - Prettier — MIT
-- @puppeteer/browsers — Apache-2.0
 - TypeScript — Apache-2.0
 - typescript-eslint — MIT
 - tsx — MIT

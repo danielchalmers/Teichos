@@ -15,6 +15,7 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "resolveJsonModule": true,
+        "ignoreDeprecations": "6.0",
         "types": [
             "chrome",
             "node",
@@ -29,6 +30,7 @@
         "baseUrl": "."
     },
     "include": [
+        "playwright.config.ts",
         "vitest.config.ts",
         "test/**/*",
         "src/**/*"

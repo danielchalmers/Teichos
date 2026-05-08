@@ -18,15 +18,15 @@
       "problemMatcher": []
     },
     {
-      "label": "Install Chrome for Testing",
+      "label": "Install Playwright Chromium",
       "type": "npm",
-      "script": "chrome:install",
+      "script": "playwright:install",
       "problemMatcher": []
     },
     {
-      "label": "Build Dev and Install Chrome for Testing",
+      "label": "Build Dev and Install Playwright Chromium",
       "dependsOrder": "sequence",
-      "dependsOn": ["Build Dev", "Install Chrome for Testing"],
+      "dependsOn": ["Build Dev", "Install Playwright Chromium"],
       "problemMatcher": []
     },
     {
@@ -53,6 +53,12 @@
         "kind": "test",
         "isDefault": true
       }
+    },
+    {
+      "label": "Test E2E",
+      "type": "npm",
+      "script": "test:e2e",
+      "group": "test"
     },
     {
       "label": "Lint",
