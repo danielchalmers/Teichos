@@ -23,8 +23,8 @@
     "typecheck": "tsc --noEmit",
     "verify": "tsx scripts/verify.ts",
     "clean": "rimraf dist",
-    "package:dist": "tsx scripts/package.ts",
-    "package": "npm run clean && npm run build && npm run package:dist",
+    "build-zip": "tsx scripts/package.ts",
+    "package": "npm run clean && npm run build && npm run build-zip",
     "apply-release-version": "tsx scripts/applyReleaseVersion.ts"
   },
   "keywords": [

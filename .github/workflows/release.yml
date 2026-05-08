@@ -40,7 +40,7 @@ jobs:
         run: npm run test:e2e
 
       - name: Create extension zip
-        run: npm run package:dist
+        run: npm run build-zip
 
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
