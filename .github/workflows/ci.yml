@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 env:
-  PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/ms-playwright
+  PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
 
 jobs:
   checks:
