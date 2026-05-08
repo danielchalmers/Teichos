@@ -9,10 +9,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+
 jobs:
-  verify:
-    name: Verify
+  checks:
+    name: Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check out
@@ -21,14 +29,11 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '24'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright Chromium
-        run: npm run playwright:install
+        run: npm ci --prefer-offline --no-audit
 
       - name: Check formatting
         run: npm run format:check
@@ -42,8 +47,44 @@ jobs:
       - name: Typecheck tests
         run: npm run typecheck:test
 
+  tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
       - name: Unit tests
         run: npm run test:unit
+
+  build:
+    name: Build and verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
 
       - name: Build
         run: npm run build
@@ -51,23 +92,52 @@ jobs:
       - name: Verify build output
         run: npm run verify
 
-      - name: Browser smoke tests
-        run: npm run test:e2e
-
       - name: Package extension
-        run: npm run package
+        run: cd dist && zip -r ../teichos.zip .
 
       - name: Upload extension dist
         uses: actions/upload-artifact@v7
         with:
           name: teichos-extension-dist
           path: dist/
+          compression-level: 0
 
       - name: Upload extension package
         uses: actions/upload-artifact@v7
         with:
           name: teichos-extension-package
           path: teichos.zip
+          compression-level: 0
+
+  playwright:
+    name: Playwright
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Download extension dist
+        uses: actions/download-artifact@v6
+        with:
+          name: teichos-extension-dist
+          path: dist
+
+      - name: Browser smoke tests
+        run: npm run test:e2e
 
       - name: Upload Playwright artifacts
         if: failure()
