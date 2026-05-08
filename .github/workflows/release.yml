@@ -19,6 +19,10 @@ jobs:
         id: get_version
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          if [[ -z "$VERSION" || ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release tag: $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Setup Node.js
@@ -36,10 +40,17 @@ jobs:
           node --input-type=module <<'EOF'
           import { readFile, writeFile } from 'node:fs/promises';
 
-          const manifestPath = 'public/manifest.json';
-          const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-          manifest.version = process.env.RELEASE_VERSION;
-          await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+          try {
+            const manifestPath = 'public/manifest.json';
+            const manifestText = await readFile(manifestPath, 'utf8');
+            const manifest = JSON.parse(manifestText);
+            manifest.version = process.env.RELEASE_VERSION;
+            await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(`Failed to patch public/manifest.json for release: ${message}`);
+            process.exit(1);
+          }
           EOF
         env:
           RELEASE_VERSION: ${{ steps.get_version.outputs.VERSION }}
