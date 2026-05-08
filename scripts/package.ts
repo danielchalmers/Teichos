@@ -24,14 +24,14 @@ interface ZipEntry {
 function buildCrcTable(): Uint32Array {
   const table = new Uint32Array(256);
 
-  for (let index = 0; index < table.length; index += 1) {
-    let value = index;
+  for (let tableIndex = 0; tableIndex < table.length; tableIndex += 1) {
+    let value = tableIndex;
 
-    for (let bit = 0; bit < 8; bit += 1) {
+    for (let bitPosition = 0; bitPosition < 8; bitPosition += 1) {
       value = (value & 1) === 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
     }
 
-    table[index] = value >>> 0;
+    table[tableIndex] = value >>> 0;
   }
 
   return table;
@@ -76,7 +76,7 @@ async function collectFiles(directory: string): Promise<string[]> {
     })
   );
 
-  return files.flat().sort((left, right) => left.localeCompare(right));
+  return files.flat().sort((pathA, pathB) => pathA.localeCompare(pathB));
 }
 
 async function createEntries(): Promise<ZipEntry[]> {

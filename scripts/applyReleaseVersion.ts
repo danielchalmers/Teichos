@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
-const semverPattern = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
 interface VersionedFile {
   version?: string;
@@ -22,7 +22,7 @@ function normalizeReleaseVersion(input: string | undefined): string {
   const tag = input.trim().replace(/^refs\/tags\//, '');
   const version = tag.startsWith('v') ? tag.slice(1) : tag;
 
-  if (!semverPattern.test(version)) {
+  if (!SEMVER_PATTERN.test(version)) {
     throw new Error(`Invalid release version: ${input}`);
   }
 
