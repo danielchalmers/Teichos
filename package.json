@@ -11,6 +11,8 @@
     "dev": "tsx scripts/build.ts --watch --dev",
     "build:dev": "tsx scripts/build.ts --dev",
     "build": "tsx scripts/build.ts",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
     "playwright:install": "playwright install --with-deps chromium",
     "test": "vitest run",
     "test:e2e": "playwright test",

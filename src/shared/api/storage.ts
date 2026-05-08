@@ -114,8 +114,7 @@ export async function loadData(): Promise<StorageData> {
   }
 
   const data = storedData as LegacyStorageData;
-  const groups =
-    data.groups && data.groups.length > 0 ? data.groups : [createDefaultGroup()];
+  const groups = data.groups && data.groups.length > 0 ? data.groups : [createDefaultGroup()];
   const groupIds = new Set(groups.map((group) => group.id));
   const filters = normalizeFilters(data.filters);
   const whitelist = normalizeWhitelist(data.whitelist, groupIds);

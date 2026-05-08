@@ -10,9 +10,10 @@ html {
 
 :root {
   color-scheme: light;
-  --font-sans: "Avenir Next", "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Noto Sans", sans-serif;
-  --font-display: "Space Grotesk", "Avenir Next", "SF Pro Display", "Segoe UI Variable", "Segoe UI",
-    sans-serif;
+  --font-sans:
+    'Avenir Next', 'SF Pro Text', 'Segoe UI Variable', 'Segoe UI', 'Noto Sans', sans-serif;
+  --font-display:
+    'Space Grotesk', 'Avenir Next', 'SF Pro Display', 'Segoe UI Variable', 'Segoe UI', sans-serif;
   --text-primary: #0f172a;
   --text-secondary: #44556f;
   --text-muted: #7689a8;
@@ -75,8 +76,7 @@ body {
   overflow: hidden;
   background:
     radial-gradient(520px 220px at 20% -10%, var(--bg-glow-primary), transparent 65%),
-    radial-gradient(420px 180px at 90% -10%, var(--bg-glow-secondary), transparent 60%),
-    var(--bg);
+    radial-gradient(420px 180px at 90% -10%, var(--bg-glow-secondary), transparent 60%), var(--bg);
   background-attachment: fixed;
   background-repeat: no-repeat;
   color: var(--text-primary);
@@ -124,7 +124,10 @@ body {
   font-size: 0.74rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
 }
 
 .snooze-button .snooze-icon {
@@ -178,7 +181,10 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
 }
 
 .header-icon-button svg {
@@ -241,7 +247,9 @@ body {
   overflow-y: auto;
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.98);
-  transition: opacity 0.2s, transform 0.2s;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
   pointer-events: none;
 }
 
@@ -319,7 +327,11 @@ body {
   padding: 0.36rem 0.55rem;
   cursor: pointer;
   text-align: center;
-  transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.2s;
+  transition:
+    border-color 0.2s,
+    color 0.2s,
+    background 0.2s,
+    transform 0.2s;
 }
 
 .snooze-option:hover {
@@ -342,7 +354,11 @@ body {
   padding: 0.56rem;
   border-radius: 10px;
   border: 1px solid var(--section-border);
-  background: linear-gradient(180deg, var(--section-gradient-start) 0%, var(--section-gradient-end) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--section-gradient-start) 0%,
+    var(--section-gradient-end) 100%
+  );
 }
 
 .dialog-section-title,
@@ -384,7 +400,9 @@ body {
   padding: 0.36rem 0.6rem;
   cursor: pointer;
   font-weight: 600;
-  transition: background-color 0.2s, border-color 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
 }
 
 .snooze-custom-apply:hover {
@@ -460,7 +478,9 @@ body {
   justify-content: center;
   gap: 0.35rem;
   line-height: 1;
-  transition: background-color 0.2s, border-color 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
   box-shadow: var(--button-primary-shadow);
 }
 
@@ -616,7 +636,11 @@ body {
   padding: 0.28rem 0.56rem;
   font-size: 0.71rem;
   cursor: pointer;
-  transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.2s;
+  transition:
+    border-color 0.2s,
+    color 0.2s,
+    background 0.2s,
+    transform 0.2s;
 }
 
 .pill-button:hover {
@@ -656,7 +680,6 @@ body {
   text-decoration: underline;
 }
 
-
 .filter-list {
   display: flex;
   flex-direction: column;
@@ -680,7 +703,7 @@ body {
 }
 
 .content.is-snoozed::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background: var(--overlay-muted);
@@ -738,7 +761,7 @@ body {
 }
 
 .filter-pattern {
-  font-family: "SFMono-Regular", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-family: 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
   font-size: 0.78rem;
   color: var(--text-secondary);
   line-height: 1.35;
@@ -792,7 +815,11 @@ body {
   padding: 0;
   flex-shrink: 0;
   position: relative;
-  transition: transform 0.2s, border-color 0.2s, color 0.2s, background 0.2s;
+  transition:
+    transform 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    background 0.2s;
 }
 
 .icon-button[hidden] {
@@ -810,7 +837,9 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) scale(1);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .icon-button .icon-tick {
@@ -880,7 +909,7 @@ body {
 
 .slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 16px;
   width: 16px;
   left: 3px;

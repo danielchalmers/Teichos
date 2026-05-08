@@ -48,9 +48,7 @@ export function updateTab(
 /**
  * Create a new tab
  */
-export function createTab(
-  createProps: chrome.tabs.CreateProperties
-): Promise<chrome.tabs.Tab> {
+export function createTab(createProps: chrome.tabs.CreateProperties): Promise<chrome.tabs.Tab> {
   return new Promise((resolve, reject) => {
     chrome.tabs.create(createProps, (tab) => {
       if (handleRuntimeError(reject)) {
@@ -82,10 +80,7 @@ export function removeTabs(tabIds: number[]): Promise<void> {
 /**
  * Update a tab's URL
  */
-export async function updateTabUrl(
-  tabId: number,
-  url: string
-): Promise<chrome.tabs.Tab> {
+export async function updateTabUrl(tabId: number, url: string): Promise<chrome.tabs.Tab> {
   return updateTab(tabId, { url });
 }
 

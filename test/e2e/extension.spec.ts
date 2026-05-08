@@ -43,36 +43,32 @@ test('adds a filter from the options page', async ({ extensionPage, page }) => {
   await expect(page.getByText('blocked.example.invalid')).toBeVisible();
 });
 
-test('redirects matching navigations to the blocked page', async ({
-  extensionPage,
-  page,
-}) => {
+test('redirects matching navigations to the blocked page', async ({ extensionPage, page }) => {
   await page.goto(extensionPage('options/index.html'));
-  await page.evaluate(
-    ({ key, data }) => chrome.storage.sync.set({ [key]: data }),
-    {
-      key: storageKey,
-      data: {
-        groups: [defaultGroup],
-        filters: [
-          {
-            id: 'e2e-filter',
-            pattern: 'blocked.example.invalid',
-            groupId: defaultGroup.id,
-            enabled: true,
-            matchMode: 'contains',
-            description: 'E2E Block',
-          },
-        ],
-        whitelist: [],
-        snooze: { active: false },
-      },
-    }
-  );
+  await page.evaluate(({ key, data }) => chrome.storage.sync.set({ [key]: data }), {
+    key: storageKey,
+    data: {
+      groups: [defaultGroup],
+      filters: [
+        {
+          id: 'e2e-filter',
+          pattern: 'blocked.example.invalid',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'E2E Block',
+        },
+      ],
+      whitelist: [],
+      snooze: { active: false },
+    },
+  });
 
   const targetUrl = 'https://blocked.example.invalid/focus';
   await page.goto(targetUrl).catch(() => undefined);
-  await expect.poll(() => page.url()).toMatch(/chrome-extension:\/\/.*\/blocked\/index\.html\?url=/);
+  await expect
+    .poll(() => page.url())
+    .toMatch(/chrome-extension:\/\/.*\/blocked\/index\.html\?url=/);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
 });

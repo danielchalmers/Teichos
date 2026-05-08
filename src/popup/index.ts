@@ -212,7 +212,9 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
   const snoozeLabel = getElementByIdOrNull('snooze-label');
   const quickAddButton = getElementByIdOrNull<HTMLButtonElement>('open-quick-add');
   const quickAddPopover = getElementByIdOrNull('quick-add');
-  const resumeButton = document.querySelector<HTMLButtonElement>('button[data-action="resume-snooze"]');
+  const resumeButton = document.querySelector<HTMLButtonElement>(
+    'button[data-action="resume-snooze"]'
+  );
 
   if (snoozeTrigger) {
     const statusLabel = describeSnoozeStatus(snooze);
@@ -310,7 +312,9 @@ function setupSnoozePopover(): void {
       return;
     }
 
-    const actionButton = target.closest<HTMLButtonElement>('button[data-action], button[data-snooze-minutes]');
+    const actionButton = target.closest<HTMLButtonElement>(
+      'button[data-action], button[data-snooze-minutes]'
+    );
     if (!actionButton) {
       return;
     }
@@ -348,10 +352,7 @@ function setupSnoozePopover(): void {
   });
 }
 
-async function applySnoozeSelection(
-  value: number | 'off',
-  onComplete: () => void
-): Promise<void> {
+async function applySnoozeSelection(value: number | 'off', onComplete: () => void): Promise<void> {
   try {
     if (value === 'off') {
       await clearSnooze();
@@ -407,7 +408,7 @@ function setupFilterListEvents(): void {
         })
         .finally(() => {
           window.close();
-      });
+        });
       return;
     }
 
@@ -427,9 +428,7 @@ function setupFilterListEvents(): void {
 
   filterList.addEventListener('change', (event) => {
     const target = event.target as HTMLElement;
-    const checkbox = target.closest<HTMLInputElement>(
-      'input[type="checkbox"][data-filter-id]'
-    );
+    const checkbox = target.closest<HTMLInputElement>('input[type="checkbox"][data-filter-id]');
     if (!checkbox) return;
     void handleToggleFilter(checkbox);
   });
@@ -632,10 +631,7 @@ async function blockActiveTabIfMatched(filter: {
   await updateTabUrl(activeTab.id, blockedUrl);
 }
 
-async function handleCopyPattern(
-  pattern: string,
-  button: HTMLButtonElement
-): Promise<void> {
+async function handleCopyPattern(pattern: string, button: HTMLButtonElement): Promise<void> {
   try {
     await copyText(pattern);
     announceStatus('Copied URL pattern to clipboard.');
@@ -728,8 +724,7 @@ async function renderFilters(): Promise<void> {
 
   const activeTab = await getActiveTab();
   const activeUrl = activeTab?.url;
-  const isUrlEligible =
-    Boolean(activeUrl) && activeUrl ? !isInternalUrl(activeUrl) : false;
+  const isUrlEligible = Boolean(activeUrl) && activeUrl ? !isInternalUrl(activeUrl) : false;
 
   const groupsById = buildGroupById(data.groups);
   const scheduleContext = getScheduleContext();
@@ -772,10 +767,14 @@ async function renderFilters(): Promise<void> {
     const metaElement = item.querySelector<HTMLElement>('.filter-meta');
     const groupElement = querySelector<HTMLElement>('.filter-group', item);
     const toggleWrapper = item.querySelector<HTMLLabelElement>('label.toggle');
-    const toggleInput = toggleWrapper?.querySelector<HTMLInputElement>('input[type="checkbox"]') ?? null;
+    const toggleInput =
+      toggleWrapper?.querySelector<HTMLInputElement>('input[type="checkbox"]') ?? null;
     const copyButton = querySelector<HTMLButtonElement>('button[data-action="copy-url"]', item);
     const editButton = querySelector<HTMLButtonElement>('button[data-action="edit-filter"]', item);
-    const deleteButton = querySelector<HTMLButtonElement>('button[data-action="delete-filter"]', item);
+    const deleteButton = querySelector<HTMLButtonElement>(
+      'button[data-action="delete-filter"]',
+      item
+    );
 
     nameElement.textContent = displayName;
     nameElement.title = displayName;

@@ -17,9 +17,7 @@ export function getElementById<T extends HTMLElement>(id: string): T {
 /**
  * Get an element by ID, returning null if not found
  */
-export function getElementByIdOrNull<T extends HTMLElement>(
-  id: string
-): T | null {
+export function getElementByIdOrNull<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
 

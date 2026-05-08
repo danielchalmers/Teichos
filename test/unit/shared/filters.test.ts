@@ -301,20 +301,30 @@ describe('snooze helpers', () => {
 });
 
 describe('shouldBlockUrl', () => {
-  const groups: FilterGroup[] = [
-    { id: 'default', name: '24/7', schedules: [], is24x7: true },
-  ];
+  const groups: FilterGroup[] = [{ id: 'default', name: '24/7', schedules: [], is24x7: true }];
 
   it('should return undefined when no filters match', () => {
     const filters: Filter[] = [
-      { id: 'f1', pattern: 'blocked.com', groupId: 'default', enabled: true, matchMode: 'contains' },
+      {
+        id: 'f1',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
     ];
     expect(shouldBlockUrl('https://allowed.com', filters, groups, [])).toBeUndefined();
   });
 
   it('should return the matching filter when URL matches', () => {
     const filters: Filter[] = [
-      { id: 'f1', pattern: 'blocked.com', groupId: 'default', enabled: true, matchMode: 'contains' },
+      {
+        id: 'f1',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
     ];
     const result = shouldBlockUrl('https://blocked.com/page', filters, groups, []);
     expect(result).toBeDefined();
@@ -351,7 +361,13 @@ describe('shouldBlockUrl', () => {
 
   it('should return undefined when URL matches whitelist', () => {
     const filters: Filter[] = [
-      { id: 'f1', pattern: 'blocked.com', groupId: 'default', enabled: true, matchMode: 'contains' },
+      {
+        id: 'f1',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
     ];
     const whitelist: Whitelist[] = [
       {
@@ -362,12 +378,20 @@ describe('shouldBlockUrl', () => {
         matchMode: 'contains',
       },
     ];
-    expect(shouldBlockUrl('https://blocked.com/allowed', filters, groups, whitelist)).toBeUndefined();
+    expect(
+      shouldBlockUrl('https://blocked.com/allowed', filters, groups, whitelist)
+    ).toBeUndefined();
   });
 
   it('should allow regex whitelist entries to override filters', () => {
     const filters: Filter[] = [
-      { id: 'f1', pattern: 'blocked.com', groupId: 'default', enabled: true, matchMode: 'contains' },
+      {
+        id: 'f1',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
     ];
     const whitelist: Whitelist[] = [
       {
@@ -385,7 +409,13 @@ describe('shouldBlockUrl', () => {
 
   it('should block when whitelist is disabled', () => {
     const filters: Filter[] = [
-      { id: 'f1', pattern: 'blocked.com', groupId: 'default', enabled: true, matchMode: 'contains' },
+      {
+        id: 'f1',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
     ];
     const whitelist: Whitelist[] = [
       {
