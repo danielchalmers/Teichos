@@ -9,9 +9,6 @@ on:
 permissions:
   contents: read
 
-env:
-  PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
-
 jobs:
   checks:
     name: Fast checks
@@ -112,38 +109,12 @@ jobs:
           name: teichos-extension-package
           path: teichos.zip
 
-  playwright:
-    name: Install Playwright Chromium
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v6
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright Chromium
-        run: npm run playwright:install:browsers
-
-      - name: Upload Playwright Chromium
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-chromium
-          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}/
-
   e2e:
     name: Browser smoke tests
-    needs:
-      - build
-      - playwright
+    needs: build
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
 
     steps:
       - name: Check out
@@ -157,15 +128,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Download Playwright Chromium
-        uses: actions/download-artifact@v5
-        with:
-          name: playwright-chromium
-          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
-
-      - name: Install Playwright dependencies
-        run: npm run playwright:install:deps
 
       - name: Download extension dist
         uses: actions/download-artifact@v5

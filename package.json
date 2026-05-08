@@ -14,8 +14,6 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "playwright:install": "playwright install --with-deps chromium",
-    "playwright:install:browsers": "playwright install chromium",
-    "playwright:install:deps": "playwright install-deps chromium",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
