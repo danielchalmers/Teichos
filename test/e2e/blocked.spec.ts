@@ -1,9 +1,17 @@
 import { test, expect } from './fixtures';
 import { captureScreenshot } from './helpers';
 
-test('go back restores the last allowed url', async ({ extensionPage, page }, testInfo) => {
+test('go back restores the last allowed url', async ({ context, extensionPage, page }, testInfo) => {
   const blockedUrl = 'https://blocked.example.invalid/focus';
-  const allowedUrl = extensionPage('options/index.html');
+  const allowedUrl = 'https://allowed.example.test/landing';
+
+  await context.route(allowedUrl, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>Allowed</title><main>Allowed page</main>',
+    });
+  });
 
   await page.goto(`${extensionPage('blocked/index.html')}?url=${encodeURIComponent(blockedUrl)}`);
   await page.evaluate(async (url) => {
@@ -20,6 +28,7 @@ test('go back restores the last allowed url', async ({ extensionPage, page }, te
     page.waitForURL(allowedUrl),
     page.getByRole('button', { name: 'Go Back' }).click(),
   ]);
+  await expect(page.getByText('Allowed page')).toBeVisible();
 });
 
 test('opens settings from the blocked page', async ({ context, extensionPage, page }) => {
