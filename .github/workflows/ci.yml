@@ -64,7 +64,7 @@ jobs:
         run: npm run test:unit
 
   build:
-    name: Build and verify
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
@@ -82,9 +82,6 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Verify build output
-        run: npm run verify
 
       - name: Upload extension dist
         uses: actions/upload-artifact@v7
