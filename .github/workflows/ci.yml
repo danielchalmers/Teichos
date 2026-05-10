@@ -89,17 +89,19 @@ jobs:
       - name: Package extension
         run: cd dist && zip -r ../teichos.zip .
 
-      - name: Upload extension dist
-        uses: actions/upload-artifact@v7
-        with:
-          name: teichos-extension-dist
-          path: dist/
+      - name: Validate build artifacts
+        run: |
+          test -d dist
+          test -f teichos.zip
 
-      - name: Upload extension package
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: teichos-extension-package
-          path: teichos.zip
+          name: teichos-build-artifacts
+          path: |
+            dist/
+            teichos.zip
+          if-no-files-found: error
 
   playwright:
     name: Playwright
@@ -124,26 +126,34 @@ jobs:
       - name: Download extension dist
         uses: actions/download-artifact@v6
         with:
-          name: teichos-extension-dist
-          path: dist
+          name: teichos-build-artifacts
+          path: .
 
       - name: Browser smoke tests
         run: npm run test:e2e
 
-      - name: Upload extension screenshots
+      - name: Prepare Playwright artifacts
+        if: always()
+        run: |
+          rm -rf playwright-artifacts
+          mkdir -p playwright-artifacts
+          test -d test-results/extension-screenshots
+          find test-results/extension-screenshots -maxdepth 1 -type f | grep -q .
+          cp -R test-results/extension-screenshots playwright-artifacts/
+
+      - name: Add Playwright failure diagnostics
+        if: failure()
+        run: |
+          test -d playwright-report
+          test -d test-results
+          cp -R playwright-report playwright-artifacts/
+          mkdir -p playwright-artifacts/test-results
+          find test-results -mindepth 1 -maxdepth 1 ! -name extension-screenshots -exec cp -R {} playwright-artifacts/test-results/ \;
+
+      - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: extension-screenshots
-          path: test-results/extension-screenshots/
-          if-no-files-found: ignore
-
-      - name: Upload Playwright artifacts
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
           name: playwright-artifacts
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
+          path: playwright-artifacts/
+          if-no-files-found: error
