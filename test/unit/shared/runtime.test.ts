@@ -14,9 +14,7 @@ vi.mock('../../../src/shared/api/tabs', () => ({
   removeTabs: tabsMocks.removeTabs,
 }));
 
-import {
-  openOptionsPageWithParams,
-} from '../../../src/shared/api/runtime';
+import { openOptionsPageWithParams } from '../../../src/shared/api/runtime';
 
 describe('shared/api/runtime', () => {
   beforeEach(() => {
