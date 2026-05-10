@@ -67,16 +67,12 @@ jobs:
       - name: Package extension
         run: cd dist && zip -r ../teichos-${{ steps.validate_version.outputs.VERSION }}.zip .
 
-      - name: Create tag
-        run: |
-          TAG="v${{ steps.validate_version.outputs.VERSION }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "$TAG"
-          git push origin "$TAG"
-
       - name: Create GitHub release
         uses: ncipollo/release-action@v1.21.0
         with:
           tag: v${{ steps.validate_version.outputs.VERSION }}
           artifacts: teichos-${{ steps.validate_version.outputs.VERSION }}.zip
+
+      - name: Restore development manifest
+        if: always()
+        run: git checkout -- manifest.json
