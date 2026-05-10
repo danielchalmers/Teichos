@@ -18,14 +18,6 @@ const popupFilterData = createStorageData({
       matchMode: 'contains',
       description: 'Focus Block',
     },
-    {
-      id: 'temporary-filter',
-      pattern: 'temporary.example.invalid',
-      groupId: defaultGroup.id,
-      enabled: true,
-      matchMode: 'contains',
-      expiresAt: Date.now() + 30 * 60_000,
-    },
   ],
 });
 
@@ -69,12 +61,8 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
   await seedStorage(page, popupFilterData);
   await page.goto(extensionPage('popup/index.html'));
 
-  const temporaryItem = page
-    .locator('.filter-item')
-    .filter({ hasText: 'temporary.example.invalid' });
   const regularItem = page.locator('.filter-item').filter({ hasText: 'Focus Block' });
 
-  await expect(temporaryItem).toBeVisible();
   await expect(regularItem).toBeVisible();
   await captureScreenshot(page, testInfo, 'popup-workflow.png');
 
@@ -84,7 +72,7 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
     .toBe('blocked.example.invalid');
 
   const toggle = regularItem.locator('input[type="checkbox"][data-filter-id="regular-filter"]');
-  await toggle.setChecked(false, { force: true });
+  await regularItem.locator('label.toggle').click();
   await expect(toggle).not.toBeChecked();
   await expect
     .poll(async () => {

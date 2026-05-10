@@ -8,6 +8,8 @@ import {
   seedStorage,
 } from './helpers';
 
+const OPTIONS_URL_PATTERN = /options\/index\.html$/;
+
 test('creates, edits, and deletes a scheduled group with filters and exceptions', async ({
   extensionPage,
   page,
@@ -122,23 +124,23 @@ test('opens filter, group, and exception modals from query params', async ({
 
   await page.goto(extensionPage('options/index.html?modal=group'));
   await expect(page.locator('#group-modal.active')).toBeVisible();
-  await expect(page).toHaveURL(/options\/index\.html$/);
+  await expect(page).toHaveURL(OPTIONS_URL_PATTERN);
   await page.getByRole('button', { name: 'Close group dialog' }).click();
 
   await page.goto(extensionPage('options/index.html?modal=filter'));
   await expect(page.locator('#filter-modal.active')).toBeVisible();
-  await expect(page).toHaveURL(/options\/index\.html$/);
+  await expect(page).toHaveURL(OPTIONS_URL_PATTERN);
   await page.getByRole('button', { name: 'Close filter dialog' }).click();
 
   await page.goto(extensionPage('options/index.html?modal=whitelist'));
   await expect(page.locator('#whitelist-modal.active')).toBeVisible();
-  await expect(page).toHaveURL(/options\/index\.html$/);
+  await expect(page).toHaveURL(OPTIONS_URL_PATTERN);
   await page.getByRole('button', { name: 'Close exception dialog' }).click();
 
   await page.goto(extensionPage('options/index.html?editFilter=seeded-filter'));
   const filterModal = page.locator('#filter-modal.active');
   await expect(filterModal).toBeVisible();
-  await expect(page).toHaveURL(/options\/index\.html$/);
+  await expect(page).toHaveURL(OPTIONS_URL_PATTERN);
   await expect(filterModal.getByRole('heading', { name: 'Edit Filter' })).toBeVisible();
   await expect(filterModal.getByRole('button', { name: 'Delete' })).toBeEnabled();
 });
