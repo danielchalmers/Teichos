@@ -7,6 +7,11 @@ on:
         description: Release version in x.y.z format
         required: true
         default: '0.0.0'
+      allowUpdates:
+        description: Allow updating an existing release for this version
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,14 +30,6 @@ jobs:
             exit 1
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Fail if tag already exists
-        run: |
-          TAG="v${{ steps.validate_version.outputs.VERSION }}"
-          if git ls-remote --exit-code --tags "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "refs/tags/$TAG"; then
-            echo "Tag $TAG already exists" >&2
-            exit 1
-          fi
 
       - uses: actions/checkout@v6
         with:
@@ -72,7 +69,5 @@ jobs:
         with:
           tag: v${{ steps.validate_version.outputs.VERSION }}
           artifacts: teichos-${{ steps.validate_version.outputs.VERSION }}.zip
-
-      - name: Restore development manifest
-        if: always()
-        run: git checkout -- manifest.json
+          allowUpdates: ${{ inputs.allowUpdates }}
+          removeArtifacts: ${{ inputs.allowUpdates }}
