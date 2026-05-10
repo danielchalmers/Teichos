@@ -86,20 +86,11 @@ jobs:
       - name: Verify build output
         run: npm run verify
 
-      - name: Package extension
-        run: cd dist && zip -r ../teichos.zip .
-
       - name: Upload extension dist
         uses: actions/upload-artifact@v7
         with:
           name: teichos-extension-dist
           path: dist/
-
-      - name: Upload extension package
-        uses: actions/upload-artifact@v7
-        with:
-          name: teichos-extension-package
-          path: teichos.zip
 
   playwright:
     name: Playwright
@@ -131,11 +122,9 @@ jobs:
         run: npm run test:e2e
 
       - name: Upload Playwright artifacts
-        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: playwright-artifacts
           path: |
             playwright-report/
             test-results/
-          if-no-files-found: ignore
