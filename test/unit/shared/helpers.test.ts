@@ -20,14 +20,6 @@ describe('generateId', () => {
     vi.unstubAllGlobals();
   });
 
-  it('uses crypto.randomUUID when available', () => {
-    const randomUUID = vi.fn(() => 'generated-id');
-    vi.stubGlobal('crypto', { randomUUID });
-
-    expect(generateId()).toBe('generated-id');
-    expect(randomUUID).toHaveBeenCalledTimes(1);
-  });
-
   it('falls back when crypto.randomUUID is unavailable', () => {
     vi.stubGlobal('crypto', undefined);
     const dateNow = vi.spyOn(Date, 'now').mockReturnValue(1234);

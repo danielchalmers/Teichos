@@ -59,7 +59,7 @@ interface ChromeMock {
   };
 }
 
-function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
+export function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
   return {
     active: false,
     audible: false,

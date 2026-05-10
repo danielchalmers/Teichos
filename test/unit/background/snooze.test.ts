@@ -1,34 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getChromeMock } from '../../fixtures/chrome-mocks';
+import { createMockTab, getChromeMock } from '../../fixtures/chrome-mocks';
 import { ALARMS, PAGES } from '../../../src/shared/constants';
 import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
 
 function createActiveTimedSnooze(): { active: true; until: number } {
   return { active: true, until: Date.now() + 60_000 };
-}
-
-function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
-  return {
-    active: false,
-    audible: false,
-    autoDiscardable: true,
-    discarded: false,
-    frozen: false,
-    groupId: -1,
-    highlighted: false,
-    id: 1,
-    incognito: false,
-    index: 0,
-    mutedInfo: { muted: false },
-    pinned: false,
-    selected: false,
-    status: 'complete',
-    title: 'Test tab',
-    url: 'https://example.com',
-    windowId: 1,
-    ...overrides,
-  };
 }
 
 describe('registerSnoozeHandlers', () => {

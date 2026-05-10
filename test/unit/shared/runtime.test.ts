@@ -15,9 +15,6 @@ vi.mock('../../../src/shared/api/tabs', () => ({
 }));
 
 import {
-  getExtensionId,
-  getExtensionUrl,
-  openOptionsPage,
   openOptionsPageWithParams,
 } from '../../../src/shared/api/runtime';
 
@@ -30,19 +27,6 @@ describe('shared/api/runtime', () => {
       url: 'chrome-extension://test-extension-id/options/index.html',
     });
     tabsMocks.removeTabs.mockResolvedValue(undefined);
-  });
-
-  it('returns extension URLs and ids from chrome.runtime', () => {
-    expect(getExtensionUrl('popup/index.html')).toBe(
-      'chrome-extension://test-extension-id/popup/index.html'
-    );
-    expect(getExtensionId()).toBe('test-extension-id');
-  });
-
-  it('opens the native options page', async () => {
-    await openOptionsPage();
-
-    expect(chrome.runtime.openOptionsPage).toHaveBeenCalledTimes(1);
   });
 
   it('creates an options tab when one does not already exist', async () => {

@@ -9,30 +9,7 @@ import {
   updateTab,
   updateTabUrl,
 } from '../../../src/shared/api/tabs';
-import { getChromeMock } from '../../fixtures/chrome-mocks';
-
-function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
-  return {
-    active: false,
-    audible: false,
-    autoDiscardable: true,
-    discarded: false,
-    frozen: false,
-    groupId: -1,
-    highlighted: false,
-    id: 1,
-    incognito: false,
-    index: 0,
-    mutedInfo: { muted: false },
-    pinned: false,
-    selected: false,
-    status: 'complete',
-    title: 'Test tab',
-    url: 'https://example.com',
-    windowId: 1,
-    ...overrides,
-  };
-}
+import { createMockTab, getChromeMock } from '../../fixtures/chrome-mocks';
 
 describe('shared/api/tabs', () => {
   beforeEach(() => {
