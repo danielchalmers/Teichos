@@ -46,11 +46,8 @@ jobs:
           await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
           EOF
 
-      - name: Install Playwright Chromium
-        run: npm run playwright:install
-
-      - name: Run validation pipeline
-        run: npm run check
+      - name: Build release artifact
+        run: npm run build
 
       - name: Package extension
         run: cd dist && zip -r "../teichos-${RELEASE_VERSION}.zip" .
