@@ -60,10 +60,7 @@ jobs:
         run: npm run test:e2e
 
       - name: Package extension
-        run: npm run package
-
-      - name: Rename extension package
-        run: mv teichos.zip teichos-${{ steps.get_version.outputs.VERSION }}.zip
+        run: cd dist && zip -r ../teichos-${{ steps.get_version.outputs.VERSION }}.zip .
 
       - name: Create GitHub release
         uses: ncipollo/release-action@v1.21.0
