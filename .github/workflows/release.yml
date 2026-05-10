@@ -1,12 +1,9 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: Release version (e.g. 1.2.3)
-        required: true
-        type: string
+  push:
+    tags:
+      - 'v*.*.*'
 
 permissions:
   contents: write
@@ -14,16 +11,17 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      RELEASE_VERSION: ${{ inputs.version }}
 
     steps:
-      - name: Validate version format
+      - name: Derive release version from tag
         run: |
-          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Version must match major.minor.patch (e.g. 1.2.3)." >&2
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Tag must match vX.Y.Z (e.g. v1.2.3)." >&2
             exit 1
           fi
+
+          echo "RELEASE_TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+          echo "RELEASE_VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
 
       - name: Check out
         uses: actions/checkout@v6
@@ -57,10 +55,13 @@ jobs:
       - name: Package extension
         run: cd dist && zip -r "../teichos-${RELEASE_VERSION}.zip" .
 
-      - name: Create GitHub release
+      - name: Attach release artifact
         uses: ncipollo/release-action@v1.21.0
         with:
-          tag: v${{ env.RELEASE_VERSION }}
-          name: v${{ env.RELEASE_VERSION }}
+          tag: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
           artifacts: teichos-${{ env.RELEASE_VERSION }}.zip
-          skipIfReleaseExists: true
+          allowUpdates: true
+          replacesArtifacts: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
