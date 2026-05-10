@@ -64,3 +64,4 @@ jobs:
           allowUpdates: true
           replacesArtifacts: true
           omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
