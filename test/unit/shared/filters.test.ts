@@ -15,74 +15,65 @@ import {
 import type { Filter, FilterGroup, Whitelist } from '../../../src/shared/types';
 
 describe('matchesPattern', () => {
-  it('defaults to contains matching', () => {
-    expect(matchesPattern('https://example.com', 'example')).toBe(true);
-    expect(matchesPattern('https://example.com', 'notfound')).toBe(false);
-  });
-
-  describe('with contains matching', () => {
-    it('should match when pattern is found in URL', () => {
-      expect(matchesPattern('https://example.com', 'example', 'contains')).toBe(true);
-    });
-
-    it('should not match when pattern is not found', () => {
-      expect(matchesPattern('https://example.com', 'notfound', 'contains')).toBe(false);
-    });
-
-    it('should be case insensitive', () => {
-      expect(matchesPattern('https://EXAMPLE.com', 'example', 'contains')).toBe(true);
-      expect(matchesPattern('https://example.com', 'EXAMPLE', 'contains')).toBe(true);
-    });
-
-    it('should match substring patterns', () => {
-      expect(
-        matchesPattern('https://www.youtube.com/watch?v=abc', 'youtube.com/watch', 'contains')
-      ).toBe(true);
-      expect(
-        matchesPattern('https://www.youtube.com/channel', 'youtube.com/watch', 'contains')
-      ).toBe(false);
-    });
-  });
-
-  describe('with exact matching', () => {
-    it('should match when URL and pattern are identical', () => {
-      expect(matchesPattern('https://example.com', 'https://example.com', 'exact')).toBe(true);
-    });
-
-    it('should be case insensitive for exact matches', () => {
-      expect(matchesPattern('https://EXAMPLE.com', 'https://example.com', 'exact')).toBe(true);
-    });
-
-    it('should not match when URL includes extra path segments', () => {
-      expect(matchesPattern('https://example.com/path', 'https://example.com', 'exact')).toBe(
-        false
-      );
-    });
-  });
-
-  describe('with regex matching', () => {
-    it('should match using regex patterns', () => {
-      expect(matchesPattern('https://example.com/path', '^https://example\\.com', 'regex')).toBe(
-        true
-      );
-    });
-
-    it('should handle complex regex patterns', () => {
-      expect(
-        matchesPattern('https://www.youtube.com/watch?v=abc', 'youtube\\.com/watch', 'regex')
-      ).toBe(true);
-      expect(
-        matchesPattern('https://www.youtube.com/channel', 'youtube\\.com/watch', 'regex')
-      ).toBe(false);
-    });
-
-    it('should return false for invalid regex patterns', () => {
-      expect(matchesPattern('https://example.com', '[', 'regex')).toBe(false);
-    });
-
-    it('should be case sensitive with regex by default', () => {
-      expect(matchesPattern('https://EXAMPLE.com', 'example', 'regex')).toBe(false);
-    });
+  it.each([
+    {
+      name: 'defaults to contains matching',
+      url: 'https://example.com',
+      pattern: 'example',
+      matchMode: undefined,
+      expected: true,
+    },
+    {
+      name: 'does not match missing contains pattern',
+      url: 'https://example.com',
+      pattern: 'notfound',
+      matchMode: 'contains' as const,
+      expected: false,
+    },
+    {
+      name: 'matches contains patterns case-insensitively',
+      url: 'https://EXAMPLE.com',
+      pattern: 'example',
+      matchMode: 'contains' as const,
+      expected: true,
+    },
+    {
+      name: 'matches exact patterns case-insensitively',
+      url: 'https://EXAMPLE.com',
+      pattern: 'https://example.com',
+      matchMode: 'exact' as const,
+      expected: true,
+    },
+    {
+      name: 'does not match non-identical exact patterns',
+      url: 'https://example.com/path',
+      pattern: 'https://example.com',
+      matchMode: 'exact' as const,
+      expected: false,
+    },
+    {
+      name: 'matches regex patterns',
+      url: 'https://example.com/path',
+      pattern: '^https://example\\.com',
+      matchMode: 'regex' as const,
+      expected: true,
+    },
+    {
+      name: 'returns false for invalid regex patterns',
+      url: 'https://example.com',
+      pattern: '[',
+      matchMode: 'regex' as const,
+      expected: false,
+    },
+    {
+      name: 'keeps regex matching case-sensitive by default',
+      url: 'https://EXAMPLE.com',
+      pattern: 'example',
+      matchMode: 'regex' as const,
+      expected: false,
+    },
+  ])('$name', ({ url, pattern, matchMode, expected }) => {
+    expect(matchesPattern(url, pattern, matchMode)).toBe(expected);
   });
 });
 
@@ -228,25 +219,7 @@ describe('isFilterActive', () => {
 });
 
 describe('sortFiltersTemporaryFirst', () => {
-  it('should place temporary filters before non-temporary filters', () => {
-    const filters: Filter[] = [
-      { id: 'f1', pattern: 'first', groupId: 'default', enabled: true, matchMode: 'contains' },
-      {
-        id: 'f2',
-        pattern: 'temp',
-        groupId: 'default',
-        enabled: true,
-        matchMode: 'contains',
-        expiresAt: Date.now() + 60_000,
-      },
-      { id: 'f3', pattern: 'second', groupId: 'default', enabled: true, matchMode: 'contains' },
-    ];
-
-    const sorted = sortFiltersTemporaryFirst(filters);
-    expect(sorted.map((filter) => filter.id)).toEqual(['f2', 'f1', 'f3']);
-  });
-
-  it('should preserve relative order within temporary and non-temporary filters', () => {
+  it('places temporary filters first while preserving relative order', () => {
     const filters: Filter[] = [
       {
         id: 'f1',

@@ -164,36 +164,37 @@ describe('storage', () => {
     });
   });
 
-  describe('addGroup', () => {
-    it('should add a new group', async () => {
+  describe('group and filter CRUD', () => {
+    it('adds, updates, and removes groups and filters', async () => {
       await loadData();
 
-      const newGroup = {
+      const group = {
         id: 'test-group',
         name: 'Test Group',
         schedules: [],
         is24x7: false,
       };
+      await addGroup(group);
+      await updateGroup({ ...group, name: 'Updated Group' });
 
-      await addGroup(newGroup);
+      const filter = {
+        id: 'test-filter',
+        pattern: 'example.com',
+        groupId: group.id,
+        enabled: true,
+        matchMode: 'contains' as const,
+      };
+      await addFilter(filter);
+      await updateFilter({ ...filter, enabled: false });
 
-      const data = await loadData();
-      expect(data.groups).toHaveLength(2);
-      expect(data.groups[1]).toEqual(newGroup);
-    });
-  });
+      let data = await loadData();
+      expect(data.groups).toEqual([createDefaultGroup(), { ...group, name: 'Updated Group' }]);
+      expect(data.filters).toEqual([{ ...filter, enabled: false }]);
 
-  describe('updateGroup', () => {
-    it('should update an existing group', async () => {
-      await loadData();
+      await deleteFilter(filter.id);
 
-      const group = createDefaultGroup();
-      const updatedGroup = { ...group, name: 'Updated Name' };
-
-      await updateGroup(updatedGroup);
-
-      const data = await loadData();
-      expect(data.groups[0]?.name).toBe('Updated Name');
+      data = await loadData();
+      expect(data.filters).toEqual([]);
     });
   });
 
@@ -241,67 +242,6 @@ describe('storage', () => {
       expect(data.groups).toHaveLength(1);
       expect(data.filters[0]?.groupId).toBe(DEFAULT_GROUP_ID);
       expect(data.whitelist[0]?.groupId).toBe(DEFAULT_GROUP_ID);
-    });
-  });
-
-  describe('addFilter', () => {
-    it('should add a new filter', async () => {
-      await loadData();
-
-      const filter = {
-        id: 'test-filter',
-        pattern: 'example.com',
-        groupId: DEFAULT_GROUP_ID,
-        enabled: true,
-        matchMode: 'contains' as const,
-      };
-
-      await addFilter(filter);
-
-      const data = await loadData();
-      expect(data.filters).toHaveLength(1);
-      expect(data.filters[0]).toEqual(filter);
-    });
-  });
-
-  describe('updateFilter', () => {
-    it('should update an existing filter', async () => {
-      await loadData();
-
-      const filter = {
-        id: 'test-filter',
-        pattern: 'example.com',
-        groupId: DEFAULT_GROUP_ID,
-        enabled: true,
-        matchMode: 'contains' as const,
-      };
-      await addFilter(filter);
-
-      const updatedFilter = { ...filter, enabled: false };
-      await updateFilter(updatedFilter);
-
-      const data = await loadData();
-      expect(data.filters[0]?.enabled).toBe(false);
-    });
-  });
-
-  describe('deleteFilter', () => {
-    it('should delete a filter', async () => {
-      await loadData();
-
-      const filter = {
-        id: 'test-filter',
-        pattern: 'example.com',
-        groupId: DEFAULT_GROUP_ID,
-        enabled: true,
-        matchMode: 'contains' as const,
-      };
-      await addFilter(filter);
-
-      await deleteFilter('test-filter');
-
-      const data = await loadData();
-      expect(data.filters).toHaveLength(0);
     });
   });
 
