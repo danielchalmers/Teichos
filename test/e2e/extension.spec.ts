@@ -1,5 +1,5 @@
-import { access, mkdir } from 'fs/promises';
-import path from 'path';
+import { access, mkdir } from 'node:fs/promises';
+import path from 'node:path';
 import { test, expect } from './fixtures';
 
 const storageKey = 'pageblock_data';
