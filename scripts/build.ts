@@ -59,7 +59,7 @@ async function copyStaticFiles(): Promise<void> {
   // Copy files
   const copies = [
     // Manifest
-    { from: 'public/manifest.json', to: 'dist/manifest.json' },
+    { from: 'manifest.json', to: 'dist/manifest.json' },
 
     // HTML files
     { from: 'src/popup/index.html', to: 'dist/popup/index.html' },
