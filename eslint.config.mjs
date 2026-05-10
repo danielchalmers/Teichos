@@ -5,8 +5,20 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 const typedParserOptions = {
   projectService: {
     allowDefaultProject: ['eslint.config.mjs', 'playwright.config.ts', 'vitest.config.ts'],
-    defaultProject: './tsconfig.scripts.json',
+    defaultProject: './tsconfig.json',
   },
+  tsconfigRootDir: import.meta.dirname,
+};
+
+const scriptsParserOptions = {
+  projectService: false,
+  project: './tsconfig.scripts.json',
+  tsconfigRootDir: import.meta.dirname,
+};
+
+const testParserOptions = {
+  projectService: false,
+  project: './tsconfig.test.json',
   tsconfigRootDir: import.meta.dirname,
 };
 
@@ -46,6 +58,9 @@ export default tseslint.config(
   {
     // Config for scripts folder (Node.js)
     files: ['scripts/**/*.ts'],
+    languageOptions: {
+      parserOptions: scriptsParserOptions,
+    },
     rules: {
       'no-console': 'off',
     },
@@ -53,6 +68,9 @@ export default tseslint.config(
   {
     // Config for test files
     files: ['test/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
+    languageOptions: {
+      parserOptions: testParserOptions,
+    },
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
@@ -60,6 +78,7 @@ export default tseslint.config(
   },
   {
     ignores: [
+      'artifacts/**',
       'coverage/**',
       'dist/**',
       'node_modules/**',
