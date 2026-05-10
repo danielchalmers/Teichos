@@ -3,7 +3,7 @@ import { captureScreenshot } from './helpers';
 
 test('go back restores the last allowed url', async ({ extensionPage, page }, testInfo) => {
   const blockedUrl = 'https://blocked.example.invalid/focus';
-  const allowedUrl = 'https://example.com/';
+  const allowedUrl = extensionPage('options/index.html');
 
   await page.goto(`${extensionPage('blocked/index.html')}?url=${encodeURIComponent(blockedUrl)}`);
   await page.evaluate(async (url) => {

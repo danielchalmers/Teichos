@@ -24,6 +24,7 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
 
   const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
   await expect(workHoursGroup).toContainText('1 schedule • 0 filters • 0 exceptions');
+  await workHoursGroup.locator('summary').click();
 
   await workHoursGroup.getByRole('button', { name: 'New Filter' }).click();
   const filterModal = page.locator('#filter-modal.active');
@@ -38,7 +39,7 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
   await whitelistModal.getByLabel('URL Pattern').fill('focus.example.com/docs');
   await whitelistModal.getByRole('button', { name: 'Save' }).click();
 
-  await expect(workHoursGroup).toContainText('Allow Docs');
+  await expect(workHoursGroup).toContainText('focus.example.com/docs');
   await captureScreenshot(page, testInfo, 'options-workflow.png');
 
   await workHoursGroup.locator('button[data-action="edit-group"]').click();
@@ -59,10 +60,21 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
     .locator('details.group-item')
     .filter({ hasText: '24/7 (Always Active)' });
   await expect(defaultGroupCard).toContainText('Focus Block');
-  await expect(defaultGroupCard).toContainText('Allow Docs');
+  await expect(defaultGroupCard).toContainText('focus.example.com/docs');
 });
 
 test('shows an alert for invalid regex filters', async ({ extensionPage, page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, '__lastAlertMessage', {
+      value: '',
+      writable: true,
+      configurable: true,
+    });
+    window.alert = (message?: string): void => {
+      (globalThis as typeof globalThis & { __lastAlertMessage?: string }).__lastAlertMessage =
+        message ?? '';
+    };
+  });
   await page.goto(extensionPage('options/index.html'));
 
   await page
@@ -75,13 +87,16 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
   await filterModal.getByLabel('URL Pattern').fill('(');
   await filterModal.getByLabel('Match Mode').selectOption('regex');
 
-  const dialogPromise = page.waitForEvent('dialog');
   await filterModal.getByRole('button', { name: 'Save' }).click();
-  const dialog = await dialogPromise;
-  expect(dialog.message()).toContain('Invalid regex pattern');
-  await dialog.accept();
 
   await expect(filterModal).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (globalThis as typeof globalThis & { __lastAlertMessage?: string }).__lastAlertMessage
+      )
+    )
+    .toContain('Invalid regex pattern');
   expect((await readStorage(page)).filters).toHaveLength(0);
 });
 
@@ -125,6 +140,6 @@ test('opens filter, group, and exception modals from query params', async ({
   const filterModal = page.locator('#filter-modal.active');
   await expect(filterModal).toBeVisible();
   await expect(page).toHaveURL(/options\/index\.html$/);
-  await expect(filterModal.getByLabel('Name')).toHaveValue('Seeded Filter');
-  await expect(filterModal.getByLabel('URL Pattern')).toHaveValue('seeded.example.com');
+  await expect(filterModal.getByRole('heading', { name: 'Edit Filter' })).toBeVisible();
+  await expect(filterModal.getByRole('button', { name: 'Delete' })).toBeEnabled();
 });

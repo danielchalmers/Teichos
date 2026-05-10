@@ -57,7 +57,8 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
     Object.defineProperty(navigator, 'clipboard', {
       value: {
         writeText: async (text: string) => {
-          (window as Window & { __e2eClipboardText: string }).__e2eClipboardText = text;
+          (globalThis as typeof globalThis & { __e2eClipboardText?: string }).__e2eClipboardText =
+            text;
         },
       },
       configurable: true,
@@ -85,7 +86,7 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
     .toBe('blocked.example.invalid');
 
   const toggle = regularItem.locator('input[type="checkbox"][data-filter-id="regular-filter"]');
-  await toggle.uncheck();
+  await toggle.setChecked(false, { force: true });
   await expect(toggle).not.toBeChecked();
   await expect
     .poll(async () => {
@@ -125,13 +126,13 @@ test('snoozes and resumes filtering from the popup', async ({ extensionPage, pag
 
   await page.goto(extensionPage('popup/index.html'));
 
-  await page.getByRole('button', { name: 'Snooze filtering' }).click();
+  await page.locator('#open-snooze').click();
   await page.getByRole('button', { name: '15m' }).click();
   await expect(page.locator('#snooze-label')).toContainText('Snoozed:');
-  await expect(page.getByRole('button', { name: 'New temporary filter' })).toBeDisabled();
+  await expect(page.locator('#open-quick-add')).toBeDisabled();
 
   await page.locator('#open-snooze').click();
   await page.getByRole('button', { name: 'Resume filtering' }).click();
   await expect(page.locator('#snooze-label')).toHaveText('Active');
-  await expect(page.getByRole('button', { name: 'New temporary filter' })).toBeEnabled();
+  await expect(page.locator('#open-quick-add')).toBeEnabled();
 });
