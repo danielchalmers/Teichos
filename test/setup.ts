@@ -14,4 +14,7 @@ vi.stubGlobal('chrome', chromeMock);
 beforeEach(() => {
   vi.clearAllMocks();
   chromeMock.storage.sync._reset();
+  chromeMock.storage.local._reset();
+  chromeMock.storage.session._reset();
+  chromeMock.runtime.lastError = undefined;
 });

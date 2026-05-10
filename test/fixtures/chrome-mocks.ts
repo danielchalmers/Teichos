@@ -33,6 +33,8 @@ interface ChromeMock {
     update: ReturnType<typeof vi.fn>;
     query: ReturnType<typeof vi.fn>;
     get: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    remove: ReturnType<typeof vi.fn>;
     onUpdated: {
       addListener: ReturnType<typeof vi.fn>;
       removeListener: ReturnType<typeof vi.fn>;
@@ -46,6 +48,7 @@ interface ChromeMock {
   };
   runtime: {
     id: string;
+    lastError?: { message: string };
     getURL: ReturnType<typeof vi.fn>;
     openOptionsPage: ReturnType<typeof vi.fn>;
     sendMessage: ReturnType<typeof vi.fn>;
@@ -53,6 +56,29 @@ interface ChromeMock {
       addListener: ReturnType<typeof vi.fn>;
       removeListener: ReturnType<typeof vi.fn>;
     };
+  };
+}
+
+export function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
+  return {
+    active: false,
+    audible: false,
+    autoDiscardable: true,
+    discarded: false,
+    frozen: false,
+    groupId: -1,
+    highlighted: false,
+    id: 1,
+    incognito: false,
+    index: 0,
+    mutedInfo: { muted: false },
+    pinned: false,
+    selected: false,
+    status: 'complete',
+    title: 'Test tab',
+    url: 'https://example.com',
+    windowId: 1,
+    ...overrides,
   };
 }
 
@@ -101,9 +127,29 @@ export function createChromeMock(): ChromeMock {
       },
     },
     tabs: {
-      update: vi.fn().mockResolvedValue({}),
-      query: vi.fn().mockResolvedValue([]),
-      get: vi.fn().mockResolvedValue({}),
+      update: vi.fn(
+        (
+          tabId: number,
+          updateProps: chrome.tabs.UpdateProperties,
+          callback?: (tab: chrome.tabs.Tab) => void
+        ) => {
+          callback?.(createMockTab({ id: tabId, ...updateProps }));
+        }
+      ),
+      query: vi.fn((_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        callback?.([]);
+      }),
+      get: vi.fn((tabId: number, callback?: (tab: chrome.tabs.Tab) => void) => {
+        callback?.(createMockTab({ id: tabId }));
+      }),
+      create: vi.fn(
+        (createProps: chrome.tabs.CreateProperties, callback?: (tab: chrome.tabs.Tab) => void) => {
+          callback?.(createMockTab(createProps));
+        }
+      ),
+      remove: vi.fn((_: number | number[], callback?: () => void) => {
+        callback?.();
+      }),
       onUpdated: {
         addListener: vi.fn(),
         removeListener: vi.fn(),
@@ -117,6 +163,7 @@ export function createChromeMock(): ChromeMock {
     },
     runtime: {
       id: 'test-extension-id',
+      lastError: undefined,
       getURL: vi.fn((path: string) => `chrome-extension://test-extension-id/${path}`),
       openOptionsPage: vi.fn((callback?: () => void) => {
         callback?.();
