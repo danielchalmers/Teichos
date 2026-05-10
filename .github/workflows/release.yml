@@ -35,6 +35,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
 
+      - name: Run source validation
+        run: npm run check:fast
+
       - name: Patch manifest version
         run: |
           node --input-type=module <<'EOF'
@@ -46,11 +49,17 @@ jobs:
           await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
           EOF
 
+      - name: Format patched manifest
+        run: npx prettier --write manifest.json
+
+      - name: Build release artifact
+        run: npm run build
+
       - name: Install Playwright Chromium
         run: npm run playwright:install
 
-      - name: Run validation pipeline
-        run: npm run check
+      - name: Run e2e tests against release artifact
+        run: npm run test:e2e
 
       - name: Package extension
         run: cd dist && zip -r "../teichos-${RELEASE_VERSION}.zip" .
