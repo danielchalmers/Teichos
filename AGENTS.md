@@ -13,7 +13,7 @@ and avoid examples that can drift from the real files.
 Read the real files before making assumptions:
 
 - Product and user workflow: `README.md`
-- Extension manifest and permissions: `public/manifest.json`
+- Extension manifest and permissions: `manifest.json`
 - Build pipeline: `scripts/build.ts`
 - Package scripts and validation commands: `package.json`
 - TypeScript config: `tsconfig.json`, `tsconfig.test.json`, `tsconfig.scripts.json`
