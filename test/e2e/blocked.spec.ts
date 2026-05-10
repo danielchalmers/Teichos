@@ -1,7 +1,11 @@
 import { test, expect } from './fixtures';
 import { captureScreenshot } from './helpers';
 
-test('go back restores the last allowed url', async ({ context, extensionPage, page }, testInfo) => {
+test('go back restores the last allowed url', async ({
+  context,
+  extensionPage,
+  page,
+}, testInfo) => {
   const blockedUrl = 'https://blocked.example.invalid/focus';
   const allowedUrl = 'https://allowed.example.test/landing';
 
