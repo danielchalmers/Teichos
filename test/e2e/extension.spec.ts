@@ -1,21 +1,5 @@
-import type { Page, TestInfo } from '@playwright/test';
 import { test, expect } from './fixtures';
-
-const storageKey = 'pageblock_data';
-
-const defaultGroup = {
-  id: 'default-24x7',
-  name: '24/7 (Always Active)',
-  schedules: [],
-  is24x7: true,
-};
-
-async function captureScreenshot(page: Page, testInfo: TestInfo, fileName: string): Promise<void> {
-  await page.screenshot({
-    path: testInfo.outputPath(fileName),
-    fullPage: true,
-  });
-}
+import { captureScreenshot, defaultGroup, seedExtensionStorage } from './helpers';
 
 test('loads the extension service worker and extension pages', async ({
   extensionId,
@@ -59,23 +43,20 @@ test('redirects matching navigations to the blocked page', async ({
   page,
 }, testInfo) => {
   await page.goto(extensionPage('options/index.html'));
-  await page.evaluate(({ key, data }) => chrome.storage.sync.set({ [key]: data }), {
-    key: storageKey,
-    data: {
-      groups: [defaultGroup],
-      filters: [
-        {
-          id: 'e2e-filter',
-          pattern: 'blocked.example.invalid',
-          groupId: defaultGroup.id,
-          enabled: true,
-          matchMode: 'contains',
-          description: 'E2E Block',
-        },
-      ],
-      whitelist: [],
-      snooze: { active: false },
-    },
+  await seedExtensionStorage(page, {
+    groups: [defaultGroup],
+    filters: [
+      {
+        id: 'e2e-filter',
+        pattern: 'blocked.example.invalid',
+        groupId: defaultGroup.id,
+        enabled: true,
+        matchMode: 'contains',
+        description: 'E2E Block',
+      },
+    ],
+    whitelist: [],
+    snooze: { active: false },
   });
 
   const targetUrl = 'https://blocked.example.invalid/focus';
