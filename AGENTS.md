@@ -410,17 +410,15 @@ Recommended `package.json` scripts:
 
 ### Build Verification
 
-After running a production build, verify the build output using the verification script:
+After running a production build, run the browser smoke tests against the built extension:
 
 ```bash
-npm run verify
+npm run test:e2e
 ```
 
-This script validates that:
-- All required distribution files exist
-- Manifest structure is correct
-- Required permissions are present
-- Source files are intact
+This verifies that:
+- The built extension loads successfully
+- Core extension flows still work in Chromium
 
 This is the same verification process used in the CI workflow to ensure build integrity before deployment.
 
@@ -440,7 +438,7 @@ This is the same verification process used in the CI workflow to ensure build in
 **Submission Checklist:**
 - [ ] Remove all `console.log` statements (or use build to strip them)
 - [ ] Verify manifest version and description
-- [ ] Run `npm run verify` to verify build output
+- [ ] Run `npm run test:e2e` after building
 - [ ] Test production build thoroughly
 - [ ] Prepare store listing assets
 - [ ] Write clear privacy policy if needed
