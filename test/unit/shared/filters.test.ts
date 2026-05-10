@@ -4,12 +4,15 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  buildBlockingIndex,
   getSnoozeRemainingMs,
+  getRegexValidationError,
   isSnoozeActive,
   isSnoozeExpired,
   matchesPattern,
   isFilterActive,
   shouldBlockUrl,
+  shouldBlockUrlWithIndex,
   sortFiltersTemporaryFirst,
 } from '../../../src/shared/utils/filters';
 import type { Filter, FilterGroup, Whitelist } from '../../../src/shared/types';
@@ -168,6 +171,26 @@ describe('isFilterActive', () => {
     expect(isFilterActive(filter, groups)).toBe(false);
   });
 
+  it('should include schedule boundaries', () => {
+    const filter: Filter = {
+      id: 'filter-1',
+      pattern: 'example',
+      groupId: 'group-1',
+      enabled: true,
+      matchMode: 'contains',
+    };
+    const groups: FilterGroup[] = [
+      {
+        id: 'group-1',
+        name: 'Test Group',
+        is24x7: false,
+        schedules: [{ daysOfWeek: [3], startTime: '10:30', endTime: '10:30' }],
+      },
+    ];
+
+    expect(isFilterActive(filter, groups)).toBe(true);
+  });
+
   it('should return false when current day is not in schedule', () => {
     const filter: Filter = {
       id: 'filter-1',
@@ -270,6 +293,102 @@ describe('snooze helpers', () => {
     expect(getSnoozeRemainingMs(snooze)).toBe(-1);
 
     vi.useRealTimers();
+  });
+});
+
+describe('blocking index', () => {
+  const groups: FilterGroup[] = [
+    { id: 'default', name: '24/7', schedules: [], is24x7: true },
+    {
+      id: 'work',
+      name: 'Work',
+      schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
+      is24x7: false,
+    },
+  ];
+
+  it('filters out disabled and orphaned filters and whitelist entries', () => {
+    const blockingIndex = buildBlockingIndex(
+      [
+        {
+          id: 'active',
+          pattern: 'blocked.com',
+          groupId: 'default',
+          enabled: true,
+          matchMode: 'contains',
+        },
+        {
+          id: 'disabled',
+          pattern: 'ignored.com',
+          groupId: 'default',
+          enabled: false,
+          matchMode: 'contains',
+        },
+        {
+          id: 'orphan',
+          pattern: 'orphan.com',
+          groupId: 'missing',
+          enabled: true,
+          matchMode: 'contains',
+        },
+      ],
+      groups,
+      [
+        {
+          id: 'allowed',
+          pattern: 'blocked.com/allowed',
+          groupId: 'default',
+          enabled: true,
+          matchMode: 'contains',
+        },
+        {
+          id: 'disabled-whitelist',
+          pattern: 'disabled.com',
+          groupId: 'default',
+          enabled: false,
+          matchMode: 'contains',
+        },
+        {
+          id: 'orphan-whitelist',
+          pattern: 'orphan.com',
+          groupId: 'missing',
+          enabled: true,
+          matchMode: 'contains',
+        },
+      ]
+    );
+
+    expect(blockingIndex.filters.map((filter) => filter.id)).toEqual(['active']);
+    expect(blockingIndex.whitelistByGroup.get('default')?.map((entry) => entry.id)).toEqual([
+      'allowed',
+    ]);
+  });
+
+  it('treats invalid prepared regex patterns as non-matching', () => {
+    const blockingIndex = buildBlockingIndex(
+      [
+        {
+          id: 'regex-filter',
+          pattern: '[',
+          groupId: 'default',
+          enabled: true,
+          matchMode: 'regex',
+        },
+      ],
+      groups,
+      []
+    );
+
+    expect(
+      shouldBlockUrlWithIndex('https://blocked.com', blockingIndex, { dayOfWeek: 1, time: '10:00' })
+    ).toBeUndefined();
+  });
+});
+
+describe('regex validation', () => {
+  it('returns validation errors for invalid regex patterns', () => {
+    expect(getRegexValidationError('^https://example\\.com')).toBeNull();
+    expect(getRegexValidationError('[')).toBeTruthy();
   });
 });
 
@@ -479,5 +598,33 @@ describe('shouldBlockUrl', () => {
     expect(result).toBeUndefined();
 
     vi.useRealTimers();
+  });
+
+  it('should honor schedule boundaries when matching filters', () => {
+    const scheduledGroups: FilterGroup[] = [
+      {
+        id: 'work',
+        name: 'Work',
+        schedules: [{ daysOfWeek: [3], startTime: '10:30', endTime: '10:30' }],
+        is24x7: false,
+      },
+    ];
+    const filters: Filter[] = [
+      {
+        id: 'f1',
+        pattern: 'blocked.com',
+        groupId: 'work',
+        enabled: true,
+        matchMode: 'contains',
+      },
+    ];
+
+    const blockingIndex = buildBlockingIndex(filters, scheduledGroups, []);
+    expect(
+      shouldBlockUrlWithIndex('https://blocked.com', blockingIndex, { dayOfWeek: 3, time: '10:30' })
+    ).toBeDefined();
+    expect(
+      shouldBlockUrlWithIndex('https://blocked.com', blockingIndex, { dayOfWeek: 3, time: '10:31' })
+    ).toBeUndefined();
   });
 });
