@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures';
+import type { AlertCaptureGlobal } from './helpers';
 import {
   captureScreenshot,
   createStorageData,
@@ -13,9 +14,10 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
 }, testInfo) => {
   await page.goto(extensionPage('options/index.html'));
 
-  await page.getByRole('button', { name: 'New Group' }).click();
-
   const groupModal = page.locator('#group-modal.active');
+  await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
+  await page.getByRole('button', { name: 'New Group' }).click();
+  await expect(groupModal).toBeVisible();
   await groupModal.getByLabel('Group Name').fill('Work Hours');
   await groupModal.getByRole('button', { name: 'New Schedule' }).click();
   await expect(groupModal.getByLabel('Start time for schedule 1')).toHaveValue('09:00');
@@ -28,6 +30,7 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
 
   await workHoursGroup.getByRole('button', { name: 'New Filter' }).click();
   const filterModal = page.locator('#filter-modal.active');
+  await expect(filterModal).toBeVisible();
   await filterModal.getByLabel('Name').fill('Focus Block');
   await filterModal.getByLabel('URL Pattern').fill('focus.example.com');
   await filterModal.getByRole('button', { name: 'Save' }).click();
@@ -35,6 +38,7 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
 
   await workHoursGroup.getByRole('button', { name: 'New Exception' }).click();
   const whitelistModal = page.locator('#whitelist-modal.active');
+  await expect(whitelistModal).toBeVisible();
   await whitelistModal.getByLabel('Name').fill('Allow Docs');
   await whitelistModal.getByLabel('URL Pattern').fill('focus.example.com/docs');
   await whitelistModal.getByRole('button', { name: 'Save' }).click();
@@ -71,8 +75,7 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
       configurable: true,
     });
     window.alert = (message?: string): void => {
-      (globalThis as typeof globalThis & { __lastAlertMessage?: string }).__lastAlertMessage =
-        message ?? '';
+      (globalThis as AlertCaptureGlobal).__lastAlertMessage = message ?? '';
     };
   });
   await page.goto(extensionPage('options/index.html'));
@@ -91,11 +94,7 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
 
   await expect(filterModal).toBeVisible();
   await expect
-    .poll(() =>
-      page.evaluate(
-        () => (globalThis as typeof globalThis & { __lastAlertMessage?: string }).__lastAlertMessage
-      )
-    )
+    .poll(() => page.evaluate(() => (globalThis as AlertCaptureGlobal).__lastAlertMessage))
     .toContain('Invalid regex pattern');
   expect((await readStorage(page)).filters).toHaveLength(0);
 });

@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures';
+import type { ClipboardCaptureGlobal } from './helpers';
 import {
   captureScreenshot,
   createStorageData,
@@ -57,8 +58,7 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
     Object.defineProperty(navigator, 'clipboard', {
       value: {
         writeText: async (text: string) => {
-          (globalThis as typeof globalThis & { __e2eClipboardText?: string }).__e2eClipboardText =
-            text;
+          (globalThis as ClipboardCaptureGlobal).__e2eClipboardText = text;
         },
       },
       configurable: true,
@@ -80,9 +80,7 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
 
   await regularItem.getByRole('button', { name: 'Copy URL' }).click();
   await expect
-    .poll(() =>
-      page.evaluate(() => (window as Window & { __e2eClipboardText?: string }).__e2eClipboardText)
-    )
+    .poll(() => page.evaluate(() => (globalThis as ClipboardCaptureGlobal).__e2eClipboardText))
     .toBe('blocked.example.invalid');
 
   const toggle = regularItem.locator('input[type="checkbox"][data-filter-id="regular-filter"]');

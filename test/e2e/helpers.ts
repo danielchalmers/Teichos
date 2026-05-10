@@ -3,6 +3,14 @@ import type { StorageData } from '../../src/shared/types';
 
 export const STORAGE_KEY = 'pageblock_data';
 
+export type ClipboardCaptureGlobal = typeof globalThis & {
+  __e2eClipboardText?: string;
+};
+
+export type AlertCaptureGlobal = typeof globalThis & {
+  __lastAlertMessage?: string;
+};
+
 export const defaultGroup = {
   id: 'default-24x7',
   name: '24/7 (Always Active)',
