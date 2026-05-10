@@ -11,69 +11,104 @@ import {
 } from '../../../src/shared/api/tabs';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
 
+function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
+  return {
+    active: false,
+    audible: false,
+    autoDiscardable: true,
+    discarded: false,
+    frozen: false,
+    groupId: -1,
+    highlighted: false,
+    id: 1,
+    incognito: false,
+    index: 0,
+    mutedInfo: { muted: false },
+    pinned: false,
+    selected: false,
+    status: 'complete',
+    title: 'Test tab',
+    url: 'https://example.com',
+    windowId: 1,
+    ...overrides,
+  };
+}
+
 describe('shared/api/tabs', () => {
   beforeEach(() => {
     const chromeMock = getChromeMock();
     chromeMock.runtime.lastError = undefined;
-    chromeMock.tabs.query.mockImplementation((_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
-      callback?.([{ id: 1, url: 'https://example.com' }]);
-    });
+    chromeMock.tabs.query.mockImplementation(
+      (_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        callback?.([createMockTab({ id: 1, url: 'https://example.com' })]);
+      }
+    );
     chromeMock.tabs.update.mockImplementation(
       (
         tabId: number,
         updateProps: chrome.tabs.UpdateProperties,
         callback?: (tab: chrome.tabs.Tab | undefined) => void
       ) => {
-        callback?.({ id: tabId, ...updateProps });
+        callback?.(createMockTab({ id: tabId, ...updateProps }));
       }
     );
     chromeMock.tabs.create.mockImplementation(
       (createProps: chrome.tabs.CreateProperties, callback?: (tab: chrome.tabs.Tab) => void) => {
-        callback?.({ id: 2, ...createProps });
+        callback?.(createMockTab({ id: 2, ...createProps }));
       }
     );
     chromeMock.tabs.remove.mockImplementation((_: number | number[], callback?: () => void) => {
       callback?.();
     });
-    chromeMock.tabs.get.mockImplementation((tabId: number, callback?: (tab: chrome.tabs.Tab) => void) => {
-      callback?.({ id: tabId, url: 'https://example.com/tab' });
-    });
+    chromeMock.tabs.get.mockImplementation(
+      (tabId: number, callback?: (tab: chrome.tabs.Tab) => void) => {
+        callback?.(createMockTab({ id: tabId, url: 'https://example.com/tab' }));
+      }
+    );
   });
 
   it('wraps chrome.tabs callbacks in promises', async () => {
-    await expect(queryTabs({ active: true })).resolves.toEqual([{ id: 1, url: 'https://example.com' }]);
-    await expect(updateTab(4, { active: true })).resolves.toEqual({ id: 4, active: true });
-    await expect(createTab({ url: 'https://created.example' })).resolves.toEqual({
+    await expect(queryTabs({ active: true })).resolves.toMatchObject([
+      { id: 1, url: 'https://example.com' },
+    ]);
+    await expect(updateTab(4, { active: true })).resolves.toMatchObject({ id: 4, active: true });
+    await expect(createTab({ url: 'https://created.example' })).resolves.toMatchObject({
       id: 2,
       url: 'https://created.example',
     });
-    await expect(getTab(9)).resolves.toEqual({ id: 9, url: 'https://example.com/tab' });
+    await expect(getTab(9)).resolves.toMatchObject({ id: 9, url: 'https://example.com/tab' });
   });
 
   it('supports convenience helpers', async () => {
-    await expect(updateTabUrl(3, 'https://updated.example')).resolves.toEqual({
+    await expect(updateTabUrl(3, 'https://updated.example')).resolves.toMatchObject({
       id: 3,
       url: 'https://updated.example',
     });
-    await expect(getActiveTab()).resolves.toEqual({ id: 1, url: 'https://example.com' });
+    await expect(getActiveTab()).resolves.toMatchObject({ id: 1, url: 'https://example.com' });
     await expect(removeTabs([])).resolves.toBeUndefined();
     expect(getChromeMock().tabs.remove).not.toHaveBeenCalled();
   });
 
   it('rejects when chrome.runtime.lastError is set', async () => {
     const chromeMock = getChromeMock();
-    chromeMock.tabs.query.mockImplementation((_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
-      chromeMock.runtime.lastError = { message: 'query failed' };
-      callback?.([]);
-      chromeMock.runtime.lastError = undefined;
-    });
+    chromeMock.tabs.query.mockImplementation(
+      (_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        chromeMock.runtime.lastError = { message: 'query failed' };
+        callback?.([]);
+        chromeMock.runtime.lastError = undefined;
+      }
+    );
 
     await expect(queryTabs({})).rejects.toThrow('query failed');
   });
 
   it('rejects updateTab when the callback returns no tab', async () => {
     getChromeMock().tabs.update.mockImplementation(
-      (_tabId: number, _updateProps: chrome.tabs.UpdateProperties, callback?: (tab: chrome.tabs.Tab | undefined) => void) => {
+      (
+        _tabId: number,
+        _updateProps: chrome.tabs.UpdateProperties,
+        callback?: (tab: chrome.tabs.Tab | undefined) => void
+      ) => {
         callback?.(undefined);
       }
     );

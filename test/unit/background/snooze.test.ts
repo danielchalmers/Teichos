@@ -4,7 +4,32 @@ import { getChromeMock } from '../../fixtures/chrome-mocks';
 import { ALARMS, PAGES } from '../../../src/shared/constants';
 import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
 
-const activeTimedSnooze = { active: true, until: Date.now() + 60_000 };
+function createActiveTimedSnooze(): { active: true; until: number } {
+  return { active: true, until: Date.now() + 60_000 };
+}
+
+function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
+  return {
+    active: false,
+    audible: false,
+    autoDiscardable: true,
+    discarded: false,
+    frozen: false,
+    groupId: -1,
+    highlighted: false,
+    id: 1,
+    incognito: false,
+    index: 0,
+    mutedInfo: { muted: false },
+    pinned: false,
+    selected: false,
+    status: 'complete',
+    title: 'Test tab',
+    url: 'https://example.com',
+    windowId: 1,
+    ...overrides,
+  };
+}
 
 describe('registerSnoozeHandlers', () => {
   beforeEach(() => {
@@ -15,6 +40,7 @@ describe('registerSnoozeHandlers', () => {
 
   it('registers listeners once and creates an expiration alarm for active timed snooze', async () => {
     const chromeMock = getChromeMock();
+    const activeTimedSnooze = createActiveTimedSnooze();
     chromeMock.storage.sync._data.set(STORAGE_KEY, {
       groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
       filters: [],
@@ -25,12 +51,13 @@ describe('registerSnoozeHandlers', () => {
     const { registerSnoozeHandlers } = await import('../../../src/background/snooze');
     registerSnoozeHandlers();
     registerSnoozeHandlers();
-    await Promise.resolve();
 
     expect(chromeMock.storage.onChanged.addListener).toHaveBeenCalledTimes(1);
     expect(chromeMock.alarms.onAlarm.addListener).toHaveBeenCalledTimes(1);
-    expect(chromeMock.alarms.create).toHaveBeenCalledWith(ALARMS.SNOOZE_EXPIRATION, {
-      when: activeTimedSnooze.until,
+    await vi.waitFor(() => {
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith(ALARMS.SNOOZE_EXPIRATION, {
+        when: activeTimedSnooze.until,
+      });
     });
     expect(chromeMock.storage.session._data.get('snooze_override')).toEqual(activeTimedSnooze);
   });
@@ -49,13 +76,14 @@ describe('registerSnoozeHandlers', () => {
 
     const { registerSnoozeHandlers } = await import('../../../src/background/snooze');
     registerSnoozeHandlers();
-    await Promise.resolve();
 
-    expect(chromeMock.storage.sync._data.get(STORAGE_KEY)).toEqual({
-      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
-      filters: [],
-      whitelist: [],
-      snooze: { active: false },
+    await vi.waitFor(() => {
+      expect(chromeMock.storage.sync._data.get(STORAGE_KEY)).toEqual({
+        groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+        filters: [],
+        whitelist: [],
+        snooze: { active: false },
+      });
     });
     expect(chromeMock.storage.session._data.get('snooze_override')).toEqual({ active: false });
     expect(chromeMock.alarms.clear).toHaveBeenCalledWith(ALARMS.SNOOZE_EXPIRATION);
@@ -63,20 +91,23 @@ describe('registerSnoozeHandlers', () => {
 
   it('restores blocked tabs when snooze becomes active through storage changes', async () => {
     const chromeMock = getChromeMock();
-    chromeMock.tabs.query.mockImplementation((_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
-      callback?.([
-        {
-          id: 3,
-          url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://example.com/restored')}`,
-        },
-      ]);
-    });
+    chromeMock.tabs.query.mockImplementation(
+      (_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        callback?.([
+          createMockTab({
+            id: 3,
+            url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://example.com/restored')}`,
+          }),
+        ]);
+      }
+    );
 
     const { registerSnoozeHandlers } = await import('../../../src/background/snooze');
     registerSnoozeHandlers();
     const onChanged = chromeMock.storage.onChanged.addListener.mock.calls[0]?.[0];
     expect(onChanged).toBeTypeOf('function');
 
+    const activeTimedSnooze = createActiveTimedSnooze();
     chromeMock.storage.sync._data.set(STORAGE_KEY, {
       groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
       filters: [],
@@ -85,14 +116,14 @@ describe('registerSnoozeHandlers', () => {
     });
 
     onChanged?.({ [STORAGE_KEY]: { newValue: true } }, 'sync');
-    await Promise.resolve();
-    await Promise.resolve();
 
-    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
-      3,
-      { url: 'https://example.com/restored' },
-      expect.any(Function)
-    );
+    await vi.waitFor(() => {
+      expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+        3,
+        { url: 'https://example.com/restored' },
+        expect.any(Function)
+      );
+    });
     expect(chromeMock.storage.session._data.get('last_allowed_url_3')).toBe(
       'https://example.com/restored'
     );
@@ -130,13 +161,14 @@ describe('registerSnoozeHandlers', () => {
     });
 
     onAlarm?.({ name: ALARMS.SNOOZE_EXPIRATION });
-    await Promise.resolve();
 
-    expect(chromeMock.storage.sync._data.get(STORAGE_KEY)).toEqual({
-      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
-      filters: [],
-      whitelist: [],
-      snooze: { active: false },
+    await vi.waitFor(() => {
+      expect(chromeMock.storage.sync._data.get(STORAGE_KEY)).toEqual({
+        groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+        filters: [],
+        whitelist: [],
+        snooze: { active: false },
+      });
     });
     expect(chromeMock.storage.session._data.get('snooze_override')).toEqual({ active: false });
   });

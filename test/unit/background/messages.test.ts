@@ -41,9 +41,9 @@ describe('handleMessage', () => {
   it('rejects messages from other extensions', () => {
     const sendResponse = vi.fn();
 
-    expect(handleMessage({ type: MessageType.GET_DATA }, { id: 'someone-else' }, sendResponse)).toBe(
-      false
-    );
+    expect(
+      handleMessage({ type: MessageType.GET_DATA }, { id: 'someone-else' }, sendResponse)
+    ).toBe(false);
     expect(sendResponse).not.toHaveBeenCalled();
   });
 
@@ -107,7 +107,9 @@ describe('handleMessage', () => {
   it('ignores unknown messages from this extension', () => {
     const sendResponse = vi.fn();
 
-    expect(handleMessage({ type: 'UNKNOWN' }, { id: 'test-extension-id' }, sendResponse)).toBe(false);
+    expect(handleMessage({ type: 'UNKNOWN' }, { id: 'test-extension-id' }, sendResponse)).toBe(
+      false
+    );
     expect(sendResponse).not.toHaveBeenCalled();
   });
 });

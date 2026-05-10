@@ -59,6 +59,29 @@ interface ChromeMock {
   };
 }
 
+function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
+  return {
+    active: false,
+    audible: false,
+    autoDiscardable: true,
+    discarded: false,
+    frozen: false,
+    groupId: -1,
+    highlighted: false,
+    id: 1,
+    incognito: false,
+    index: 0,
+    mutedInfo: { muted: false },
+    pinned: false,
+    selected: false,
+    status: 'complete',
+    title: 'Test tab',
+    url: 'https://example.com',
+    windowId: 1,
+    ...overrides,
+  };
+}
+
 function createMockStorage(): MockStorage {
   const data = new Map<string, unknown>();
 
@@ -110,18 +133,20 @@ export function createChromeMock(): ChromeMock {
           updateProps: chrome.tabs.UpdateProperties,
           callback?: (tab: chrome.tabs.Tab) => void
         ) => {
-          callback?.({ id: tabId, ...updateProps });
+          callback?.(createMockTab({ id: tabId, ...updateProps }));
         }
       ),
       query: vi.fn((_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
         callback?.([]);
       }),
       get: vi.fn((tabId: number, callback?: (tab: chrome.tabs.Tab) => void) => {
-        callback?.({ id: tabId });
+        callback?.(createMockTab({ id: tabId }));
       }),
-      create: vi.fn((createProps: chrome.tabs.CreateProperties, callback?: (tab: chrome.tabs.Tab) => void) => {
-        callback?.({ id: 1, ...createProps });
-      }),
+      create: vi.fn(
+        (createProps: chrome.tabs.CreateProperties, callback?: (tab: chrome.tabs.Tab) => void) => {
+          callback?.(createMockTab(createProps));
+        }
+      ),
       remove: vi.fn((_: number | number[], callback?: () => void) => {
         callback?.();
       }),

@@ -50,7 +50,9 @@ describe('shared/utils/dom', () => {
 
     expect(getElementById<HTMLDivElement>('present')).toBe(element);
     expect(getElementByIdOrNull<HTMLDivElement>('missing')).toBeNull();
-    expect(() => getElementById<HTMLDivElement>('missing')).toThrow('Element with id "missing" not found');
+    expect(() => getElementById<HTMLDivElement>('missing')).toThrow(
+      'Element with id "missing" not found'
+    );
   });
 
   it('clones templates and queries selectors', () => {
@@ -80,7 +82,10 @@ describe('shared/utils/dom', () => {
     });
 
     const nested = new FakeElement('span');
-    const button = createElement('button', { 'data-role': 'save' }, ['child text', nested]);
+    const button = createElement('button', { 'data-role': 'save' }, [
+      'child text',
+      nested as unknown as Node,
+    ]);
     expect(button).toBe(created);
     expect(created.attributes.get('data-role')).toBe('save');
     expect(created.children).toHaveLength(2);

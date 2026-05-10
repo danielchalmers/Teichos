@@ -25,7 +25,10 @@ describe('shared/api/runtime', () => {
   beforeEach(() => {
     tabsMocks.queryTabs.mockResolvedValue([]);
     tabsMocks.updateTab.mockResolvedValue({ id: 1, active: true });
-    tabsMocks.createTab.mockResolvedValue({ id: 2, url: 'chrome-extension://test-extension-id/options/index.html' });
+    tabsMocks.createTab.mockResolvedValue({
+      id: 2,
+      url: 'chrome-extension://test-extension-id/options/index.html',
+    });
     tabsMocks.removeTabs.mockResolvedValue(undefined);
   });
 
