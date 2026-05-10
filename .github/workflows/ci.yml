@@ -130,6 +130,14 @@ jobs:
       - name: Browser smoke tests
         run: npm run test:e2e
 
+      - name: Upload extension screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: extension-screenshots
+          path: test-results/extension-screenshots/
+          if-no-files-found: ignore
+
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v7

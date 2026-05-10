@@ -1,3 +1,5 @@
+import { mkdir } from 'fs/promises';
+import path from 'path';
 import { test, expect } from './fixtures';
 
 const storageKey = 'pageblock_data';
@@ -71,4 +73,49 @@ test('redirects matching navigations to the blocked page', async ({ extensionPag
     .toMatch(/chrome-extension:\/\/.*\/blocked\/index\.html\?url=/);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+});
+
+test('captures extension UI screenshots', async ({ extensionPage, page }) => {
+  const screenshotsDir = path.resolve('test-results/extension-screenshots');
+  await mkdir(screenshotsDir, { recursive: true });
+
+  await page.goto(extensionPage('options/index.html'));
+  await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
+  await page.screenshot({
+    path: path.join(screenshotsDir, 'options-page.png'),
+    fullPage: true,
+  });
+
+  await page.evaluate(({ key, data }) => chrome.storage.sync.set({ [key]: data }), {
+    key: storageKey,
+    data: {
+      groups: [defaultGroup],
+      filters: [
+        {
+          id: 'screenshot-filter',
+          pattern: 'blocked.example.invalid',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Blocked Example',
+        },
+      ],
+      whitelist: [],
+      snooze: { active: false },
+    },
+  });
+
+  await page.goto(extensionPage('popup/index.html'));
+  await expect(page.getByText('Blocked Example')).toBeVisible();
+  await page.screenshot({
+    path: path.join(screenshotsDir, 'popup-page.png'),
+  });
+
+  const blockedUrl = 'https://blocked.example.invalid/focus';
+  await page.goto(extensionPage(`blocked/index.html?url=${encodeURIComponent(blockedUrl)}`));
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+  await page.screenshot({
+    path: path.join(screenshotsDir, 'blocked-page.png'),
+    fullPage: true,
+  });
 });
