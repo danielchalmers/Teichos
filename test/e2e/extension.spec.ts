@@ -1,4 +1,4 @@
-import { mkdir } from 'fs/promises';
+import { access, mkdir } from 'fs/promises';
 import path from 'path';
 import { test, expect } from './fixtures';
 
@@ -77,12 +77,15 @@ test('redirects matching navigations to the blocked page', async ({ extensionPag
 
 test('captures extension UI screenshots', async ({ extensionPage, page }) => {
   const screenshotsDir = path.resolve('test-results/extension-screenshots');
+  const optionsScreenshotPath = path.join(screenshotsDir, 'options-page.png');
+  const popupScreenshotPath = path.join(screenshotsDir, 'popup-page.png');
+  const blockedScreenshotPath = path.join(screenshotsDir, 'blocked-page.png');
   await mkdir(screenshotsDir, { recursive: true });
 
   await page.goto(extensionPage('options/index.html'));
   await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await page.screenshot({
-    path: path.join(screenshotsDir, 'options-page.png'),
+    path: optionsScreenshotPath,
     fullPage: true,
   });
 
@@ -108,14 +111,20 @@ test('captures extension UI screenshots', async ({ extensionPage, page }) => {
   await page.goto(extensionPage('popup/index.html'));
   await expect(page.getByText('Blocked Example')).toBeVisible();
   await page.screenshot({
-    path: path.join(screenshotsDir, 'popup-page.png'),
+    path: popupScreenshotPath,
   });
 
   const blockedUrl = 'https://blocked.example.invalid/focus';
   await page.goto(extensionPage(`blocked/index.html?url=${encodeURIComponent(blockedUrl)}`));
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await page.screenshot({
-    path: path.join(screenshotsDir, 'blocked-page.png'),
+    path: blockedScreenshotPath,
     fullPage: true,
   });
+
+  await Promise.all([
+    access(optionsScreenshotPath),
+    access(popupScreenshotPath),
+    access(blockedScreenshotPath),
+  ]);
 });
