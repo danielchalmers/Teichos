@@ -15,21 +15,21 @@ Use harnesses and canonical files instead of stale prose:
 
 ## Read these files first
 
-- `/home/runner/work/Teichos/Teichos/package.json` — npm scripts and the fastest valid check loop.
-- `/home/runner/work/Teichos/Teichos/.github/workflows/ci.yml` — the required CI jobs and ordering.
-- `/home/runner/work/Teichos/Teichos/README.md` — local development and debugging workflow.
-- `/home/runner/work/Teichos/Teichos/public/manifest.json` — extension permissions and MV3 config.
-- `/home/runner/work/Teichos/Teichos/scripts/build.ts` — bundle entry points and output behavior.
-- `/home/runner/work/Teichos/Teichos/src/` and `/home/runner/work/Teichos/Teichos/test/` — product code and mirrored tests.
+- `package.json` — npm scripts and the fastest valid check loop.
+- `.github/workflows/ci.yml` — the required CI jobs and ordering.
+- `README.md` — local development and debugging workflow.
+- `public/manifest.json` — extension permissions and MV3 config.
+- `scripts/build.ts` — bundle entry points and output behavior.
+- `src/` and `test/` — product code and mirrored tests.
 
 Read the config file itself when working in that area instead of relying on a summary here:
 
-- `/home/runner/work/Teichos/Teichos/.prettierrc`
-- `/home/runner/work/Teichos/Teichos/eslint.config.mjs`
-- `/home/runner/work/Teichos/Teichos/tsconfig.json`
-- `/home/runner/work/Teichos/Teichos/tsconfig.test.json`
-- `/home/runner/work/Teichos/Teichos/tsconfig.scripts.json`
-- `/home/runner/work/Teichos/Teichos/.vscode/`
+- `.prettierrc`
+- `eslint.config.mjs`
+- `tsconfig.json`
+- `tsconfig.test.json`
+- `tsconfig.scripts.json`
+- `.vscode/`
 
 ## Repo shape
 
