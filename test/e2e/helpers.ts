@@ -1,5 +1,10 @@
 import type { Page, TestInfo } from '@playwright/test';
-import { DEFAULT_GROUP_ID, STORAGE_KEY, type FilterGroup, type StorageData } from '../../src/shared/types';
+import {
+  DEFAULT_GROUP_ID,
+  STORAGE_KEY,
+  type FilterGroup,
+  type StorageData,
+} from '../../src/shared/types';
 
 export const defaultGroup: FilterGroup = {
   id: DEFAULT_GROUP_ID,

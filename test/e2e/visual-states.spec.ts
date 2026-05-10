@@ -70,16 +70,16 @@ test('captures seeded visual-state screenshots', async ({ extensionPage, page },
   await seedExtensionStorage(page, visualStateData);
   await page.reload();
 
-  await expect(page.getByText('Work Hours')).toBeVisible();
-  await expect(page.getByText('Focus Social')).toBeVisible();
-  await expect(page.getByText('Docs Exception')).toBeVisible();
+  await expect(page.getByText('Work Hours', { exact: true })).toBeVisible();
+  await expect(page.getByText('Focus Social', { exact: true })).toBeVisible();
+  await expect(page.getByText('Docs Exception', { exact: true })).toBeVisible();
   await expandAllGroups(page);
   await captureScreenshot(page, testInfo, 'options-configured-filters.png');
 
   await page.goto(extensionPage('popup/index.html'));
-  await expect(page.getByText('Focus Social')).toBeVisible();
-  await expect(page.getByText('Deep Work Sprint')).toBeVisible();
-  await expect(page.getByText('1 more inactive filter')).toBeVisible();
+  await expect(page.getByText('Focus Social', { exact: true })).toBeVisible();
+  await expect(page.getByText('Deep Work Sprint', { exact: true })).toBeVisible();
+  await expect(page.getByText('1 more inactive filter', { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, 'popup-configured.png');
 
   await seedExtensionStorage(page, {
@@ -88,11 +88,13 @@ test('captures seeded visual-state screenshots', async ({ extensionPage, page },
   });
   await page.reload();
 
-  await expect(page.getByText('Deep Work Sprint')).toBeVisible();
+  await expect(page.getByText('Deep Work Sprint', { exact: true })).toBeVisible();
   await expect(page.getByText(/Snoozed:/)).toBeVisible();
   await captureScreenshot(page, testInfo, 'popup-snoozed.png');
 
-  await page.goto(`${extensionPage('blocked/index.html')}?url=${encodeURIComponent(LONG_BLOCKED_URL)}`);
+  await page.goto(
+    `${extensionPage('blocked/index.html')}?url=${encodeURIComponent(LONG_BLOCKED_URL)}`
+  );
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(LONG_BLOCKED_URL);
   await captureScreenshot(page, testInfo, 'blocked-page-long-url.png');
