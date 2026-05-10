@@ -12,23 +12,23 @@ and avoid examples that can drift from the real files.
 
 Read the real files before making assumptions:
 
-- Product and user workflow: `/home/runner/work/Teichos/Teichos/README.md`
-- Extension manifest and permissions: `/home/runner/work/Teichos/Teichos/public/manifest.json`
-- Build pipeline: `/home/runner/work/Teichos/Teichos/scripts/build.ts`
-- Package scripts and validation commands: `/home/runner/work/Teichos/Teichos/package.json`
-- TypeScript config: `/home/runner/work/Teichos/Teichos/tsconfig.json`, `/home/runner/work/Teichos/Teichos/tsconfig.test.json`, `/home/runner/work/Teichos/Teichos/tsconfig.scripts.json`
-- Lint and formatting config: `/home/runner/work/Teichos/Teichos/eslint.config.mjs`, `/home/runner/work/Teichos/Teichos/.prettierrc`
-- VS Code workflow: `/home/runner/work/Teichos/Teichos/.vscode/extensions.json`, `/home/runner/work/Teichos/Teichos/.vscode/launch.json`, `/home/runner/work/Teichos/Teichos/.vscode/settings.json`, `/home/runner/work/Teichos/Teichos/.vscode/tasks.json`
-- CI expectations: `/home/runner/work/Teichos/Teichos/.github/workflows/ci.yml`
-- Browser behavior and regression coverage: `/home/runner/work/Teichos/Teichos/test/unit`, `/home/runner/work/Teichos/Teichos/test/e2e`
+- Product and user workflow: `README.md`
+- Extension manifest and permissions: `public/manifest.json`
+- Build pipeline: `scripts/build.ts`
+- Package scripts and validation commands: `package.json`
+- TypeScript config: `tsconfig.json`, `tsconfig.test.json`, `tsconfig.scripts.json`
+- Lint and formatting config: `eslint.config.mjs`, `.prettierrc`
+- VS Code workflow: `.vscode/extensions.json`, `.vscode/launch.json`, `.vscode/settings.json`, `.vscode/tasks.json`
+- CI expectations: `.github/workflows/ci.yml`
+- Browser behavior and regression coverage: `test/unit`, `test/e2e`
 
 ## Repository map
 
-- `/home/runner/work/Teichos/Teichos/src/background`: service worker logic
-- `/home/runner/work/Teichos/Teichos/src/options`: options UI
-- `/home/runner/work/Teichos/Teichos/src/popup`: popup UI
-- `/home/runner/work/Teichos/Teichos/src/blocked`: blocked-page UI
-- `/home/runner/work/Teichos/Teichos/src/shared`: shared types, storage, filter logic, and helpers
+- `src/background`: service worker logic
+- `src/options`: options UI
+- `src/popup`: popup UI
+- `src/blocked`: blocked-page UI
+- `src/shared`: shared types, storage, filter logic, and helpers
 
 ## Agent workflow
 
@@ -41,7 +41,7 @@ Read the real files before making assumptions:
 ## Extension-specific reminders
 
 - Manifest V3 service worker code must stay event-driven and should not rely on persistent in-memory state.
-- Prefer the shared logic in `/home/runner/work/Teichos/Teichos/src/shared` over duplicating types or storage behavior across entry points.
+- Prefer the shared logic in `src/shared` over duplicating types or storage behavior across entry points.
 - Treat tests as executable documentation: update or read the matching unit/e2e tests before changing behavior.
 
 ## When updating this file
