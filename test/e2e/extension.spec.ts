@@ -10,7 +10,7 @@ const defaultGroup = {
   is24x7: true,
 };
 
-async function captureScreenshot(page: Page, testInfo: TestInfo, fileName: string) {
+async function captureScreenshot(page: Page, testInfo: TestInfo, fileName: string): Promise<void> {
   await page.screenshot({
     path: testInfo.outputPath(fileName),
     fullPage: true,
@@ -54,7 +54,10 @@ test('adds a filter from the options page', async ({ extensionPage, page }, test
   await captureScreenshot(page, testInfo, 'options-filter-added.png');
 });
 
-test('redirects matching navigations to the blocked page', async ({ extensionPage, page }, testInfo) => {
+test('redirects matching navigations to the blocked page', async ({
+  extensionPage,
+  page,
+}, testInfo) => {
   await page.goto(extensionPage('options/index.html'));
   await page.evaluate(({ key, data }) => chrome.storage.sync.set({ [key]: data }), {
     key: storageKey,
