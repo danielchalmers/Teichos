@@ -1,3 +1,4 @@
+import type { Page, TestInfo } from '@playwright/test';
 import { test, expect } from './fixtures';
 
 const storageKey = 'pageblock_data';
@@ -9,23 +10,32 @@ const defaultGroup = {
   is24x7: true,
 };
 
+async function captureScreenshot(page: Page, testInfo: TestInfo, fileName: string) {
+  await page.screenshot({
+    path: testInfo.outputPath(fileName),
+    fullPage: true,
+  });
+}
+
 test('loads the extension service worker and extension pages', async ({
   extensionId,
   extensionPage,
   page,
-}) => {
+}, testInfo) => {
   expect(extensionId).toMatch(/^[a-p]{32}$/);
 
   await page.goto(extensionPage('options/index.html'));
   await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
+  await captureScreenshot(page, testInfo, 'options-page.png');
 
   await page.goto(extensionPage('popup/index.html'));
   await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await expect(page.getByText('No filters configured.')).toBeVisible();
+  await captureScreenshot(page, testInfo, 'popup-page.png');
 });
 
-test('adds a filter from the options page', async ({ extensionPage, page }) => {
+test('adds a filter from the options page', async ({ extensionPage, page }, testInfo) => {
   await page.goto(extensionPage('options/index.html'));
 
   await page
@@ -41,9 +51,10 @@ test('adds a filter from the options page', async ({ extensionPage, page }) => {
 
   await expect(page.getByText('E2E Block')).toBeVisible();
   await expect(page.getByText('blocked.example.invalid')).toBeVisible();
+  await captureScreenshot(page, testInfo, 'options-filter-added.png');
 });
 
-test('redirects matching navigations to the blocked page', async ({ extensionPage, page }) => {
+test('redirects matching navigations to the blocked page', async ({ extensionPage, page }, testInfo) => {
   await page.goto(extensionPage('options/index.html'));
   await page.evaluate(({ key, data }) => chrome.storage.sync.set({ [key]: data }), {
     key: storageKey,
@@ -71,4 +82,5 @@ test('redirects matching navigations to the blocked page', async ({ extensionPag
     .toMatch(/chrome-extension:\/\/.*\/blocked\/index\.html\?url=/);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+  await captureScreenshot(page, testInfo, 'blocked-page.png');
 });

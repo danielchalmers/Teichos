@@ -122,11 +122,11 @@ jobs:
         run: npm run test:e2e
 
       - name: Upload Playwright artifacts
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: playwright-artifacts
           path: |
             playwright-report/
             test-results/
-          if-no-files-found: ignore
+          if-no-files-found: error
