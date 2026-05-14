@@ -1,4 +1,6 @@
 dist/
+build/
+.plasmo/
 node_modules/
 *.zip
 AGENTS.md

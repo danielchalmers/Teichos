@@ -29,22 +29,27 @@ Want to block sites only during work hours? Create a custom group:
 
 ## 💻 Development
 
-In VS Code, use **Debug Playwright Chromium Extension** to build the extension, install
-Playwright's bundled Chromium, and launch the unpacked extension.
+This project now builds with [Plasmo](https://www.plasmo.com/) on top of the existing TypeScript, Vitest, and Playwright workflow.
 
-Run `npm run test:e2e` after `npm run build` to exercise the built extension in
-Playwright Chromium.
+- `npm run dev` starts the Plasmo dev server.
+- `npm run build` creates the production extension bundle in `build/chrome-mv3-prod`.
+- `npm run build:dev` creates the unpacked development bundle in `build/chrome-mv3-dev`.
+- `npm run package` creates the production zip at `build/chrome-mv3-prod.zip`.
+
+In VS Code, use **Debug Playwright Chromium Extension** to build the development bundle, install Playwright's bundled Chromium, and launch the unpacked extension from `build/chrome-mv3-dev`.
+
+Run `npm run test:e2e` after `npm run build` to exercise the built extension in Playwright Chromium.
 
 ## 🙏 Credits
 
-- esbuild — MIT
+- Plasmo — MIT
+- React, React DOM — MIT
 - ESLint (@eslint/js, eslint) — MIT
 - Playwright (@playwright/test) — Apache-2.0
 - Prettier — MIT
 - TypeScript — Apache-2.0
 - typescript-eslint — MIT
-- tsx — MIT
 - Vitest — MIT
 - rimraf — ISC
-- @types/chrome, @types/node — MIT
+- @types/chrome, @types/node, @types/react, @types/react-dom — MIT
 - Shield icons created by Freepik - Flaticon

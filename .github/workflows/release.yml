@@ -35,22 +35,22 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
 
-      - name: Patch manifest version
+      - name: Patch extension manifest version
         run: |
-          node --input-type=module <<'EOF'
+          node --input-type=module <<'EOF_NODE'
           import { readFile, writeFile } from 'node:fs/promises';
 
-          const manifestPath = 'manifest.json';
-          const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-          manifest.version = process.env.RELEASE_VERSION;
-          await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-          EOF
-
-      - name: Build release artifact
-        run: npm run build
+          const packagePath = 'package.json';
+          const pkg = JSON.parse(await readFile(packagePath, 'utf8'));
+          pkg.manifest.version = process.env.RELEASE_VERSION;
+          await writeFile(packagePath, `${JSON.stringify(pkg, null, 2)}\n`);
+          EOF_NODE
 
       - name: Package extension
-        run: cd dist && zip -r "../teichos-${RELEASE_VERSION}.zip" .
+        run: npm run package
+
+      - name: Rename release artifact
+        run: mv build/chrome-mv3-prod.zip "teichos-${RELEASE_VERSION}.zip"
 
       - name: Attach release artifact
         uses: ncipollo/release-action@v1.21.0

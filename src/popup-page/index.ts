@@ -98,7 +98,7 @@ async function disableExpiredTemporaryFilters(data: StorageData): Promise<Storag
 /**
  * Initialize popup
  */
-async function init(): Promise<void> {
+export async function init(): Promise<void> {
   await renderFilters();
   setupEventListeners();
   setupStorageSync();

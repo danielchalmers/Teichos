@@ -52,7 +52,7 @@ let setInfoPopoverOpen: ((isOpen: boolean) => void) | null = null;
 /**
  * Initialize options page
  */
-async function init(): Promise<void> {
+export async function init(): Promise<void> {
   await renderGroups();
   setupEventListeners();
   setupStorageSync();

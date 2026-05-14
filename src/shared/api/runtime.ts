@@ -2,6 +2,7 @@
  * Typed wrapper for chrome.runtime API
  */
 
+import { PAGES } from '../constants';
 import { createTab, queryTabs, removeTabs, updateTab } from './tabs';
 
 /**
@@ -40,7 +41,7 @@ export function getExtensionId(): string {
 }
 
 function getOptionsPageUrl(): string {
-  return getExtensionUrl('options/index.html');
+  return getExtensionUrl(PAGES.OPTIONS);
 }
 
 async function openOrFocusOptionsPage(targetUrl?: string): Promise<chrome.tabs.Tab | undefined> {

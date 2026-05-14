@@ -12,7 +12,7 @@ interface ExtensionFixtures {
 
 export const test = base.extend<ExtensionFixtures>({
   context: async ({ browserName: _browserName }, use) => {
-    const extensionPath = path.resolve('dist');
+    const extensionPath = path.resolve('build/chrome-mv3-prod');
     const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'teichos-e2e-'));
     const context = await chromium.launchPersistentContext(userDataDir, {
       channel: 'chromium',

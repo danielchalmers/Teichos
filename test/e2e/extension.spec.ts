@@ -8,11 +8,11 @@ test('loads the extension service worker and extension pages', async ({
 }) => {
   expect(extensionId).toMatch(/^[a-p]{32}$/);
 
-  await page.goto(extensionPage('options/index.html'));
+  await page.goto(extensionPage('options.html'));
   await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
 
-  await page.goto(extensionPage('popup/index.html'));
+  await page.goto(extensionPage('popup.html'));
   await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await expect(page.getByText('No filters configured.')).toBeVisible();
 });
@@ -21,7 +21,7 @@ test('redirects matching top-level navigations to the blocked page', async ({
   extensionPage,
   page,
 }) => {
-  await page.goto(extensionPage('options/index.html'));
+  await page.goto(extensionPage('options.html'));
   await seedStorage(
     page,
     createStorageData({
@@ -41,9 +41,7 @@ test('redirects matching top-level navigations to the blocked page', async ({
   const targetUrl = 'https://blocked.example.invalid/focus';
   await page.goto(targetUrl).catch(() => undefined);
 
-  await expect
-    .poll(() => page.url())
-    .toMatch(/chrome-extension:\/\/.*\/blocked\/index\.html\?url=/);
+  await expect.poll(() => page.url()).toMatch(/chrome-extension:\/\/.*\/tabs\/blocked\.html\?url=/);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
 });

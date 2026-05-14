@@ -13,10 +13,9 @@ and avoid examples that can drift from the real files.
 Read the real files before making assumptions:
 
 - Product and user workflow: `README.md`
-- Extension manifest and permissions: `manifest.json`
-- Build pipeline: `scripts/build.ts`
-- Package scripts and validation commands: `package.json`
-- TypeScript config: `tsconfig.json`, `tsconfig.test.json`, `tsconfig.scripts.json`
+- Extension manifest, permissions, and Plasmo entry metadata: `package.json`
+- Build pipeline and validation commands: `package.json`
+- TypeScript config: `tsconfig.json`, `tsconfig.test.json`, `tsconfig.scripts.json`, `plasmo.d.ts`
 - Lint and formatting config: `eslint.config.mjs`, `.prettierrc`
 - VS Code workflow: `.vscode/extensions.json`, `.vscode/launch.json`, `.vscode/settings.json`, `.vscode/tasks.json`
 - CI expectations: `.github/workflows/ci.yml`
@@ -25,10 +24,11 @@ Read the real files before making assumptions:
 ## Repository map
 
 - `src/background`: service worker logic
-- `src/options`: options UI
-- `src/popup`: popup UI
-- `src/blocked`: blocked-page UI
+- `src/options-page`: options-page logic and markup
+- `src/popup-page`: popup logic and markup
+- `src/blocked-page`: blocked-page logic and markup
 - `src/shared`: shared types, storage, filter logic, and helpers
+- `src/popup.tsx`, `src/options.tsx`, `src/tabs/blocked.tsx`: Plasmo page entrypoints
 
 ## Agent workflow
 

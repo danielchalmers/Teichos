@@ -17,8 +17,16 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "baseUrl": "."
+    "baseUrl": ".",
+    "jsx": "react-jsx"
   },
-  "include": ["playwright.config.ts", "vitest.config.ts", "test/**/*", "src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "plasmo.d.ts",
+    ".plasmo/index.d.ts",
+    "playwright.config.ts",
+    "vitest.config.ts",
+    "test/**/*",
+    "src/**/*"
+  ],
+  "exclude": ["node_modules", "build"]
 }

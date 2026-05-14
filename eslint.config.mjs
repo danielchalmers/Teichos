@@ -81,6 +81,8 @@ export default tseslint.config(
       'artifacts/**',
       'coverage/**',
       'dist/**',
+      'build/**',
+      '.plasmo/**',
       'node_modules/**',
       'playwright-report/**',
       'test-results/**',

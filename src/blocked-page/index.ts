@@ -11,7 +11,7 @@ import { getElementByIdOrNull } from '../shared/utils/dom';
 /**
  * Initialize blocked page
  */
-function init(): void {
+export function init(): void {
   const urlParams = new URLSearchParams(window.location.search);
   const blockedUrl = urlParams.get('url') ?? 'Unknown URL';
 
@@ -53,6 +53,3 @@ async function handleGoBack(): Promise<void> {
 
   window.history.back();
 }
-
-// Initialize on load
-init();
