@@ -42,9 +42,7 @@ test('redirects matching top-level navigations to the blocked page', async ({
   const targetUrl = 'https://blocked.example.invalid/focus';
   await page.goto(targetUrl).catch(() => undefined);
 
-  await expect
-    .poll(() => page.url())
-    .toContain(`/${PAGES.BLOCKED}?url=`);
+  await expect.poll(() => page.url()).toContain(`/${PAGES.BLOCKED}?url=`);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
 });
