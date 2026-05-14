@@ -27,17 +27,6 @@ Want to block sites only during work hours? Create a custom group:
 4. Click **New Schedule** to add days and times
 5. Assign filters to your new group
 
-## 💻 Development
-
-This repo now builds with **Vite + CRXJS**.
-
-- `npm run dev` starts the Vite development workflow for the extension.
-- `npm run build` creates the unpacked extension in `dist/`.
-- Run `npm run test:e2e` after `npm run build` to exercise the built extension in
-  Playwright Chromium.
-- In VS Code, use **Debug Playwright Chromium Extension** to run a development build,
-  install Playwright's bundled Chromium, and launch the unpacked extension.
-
 ## 🙏 Credits
 
 - @crxjs/vite-plugin — MIT
