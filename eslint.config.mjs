@@ -57,7 +57,7 @@ export default tseslint.config(
   },
   {
     // Config for scripts folder (Node.js)
-    files: ['scripts/**/*.ts'],
+    files: ['scripts/**/*.ts', 'vite.config.ts'],
     languageOptions: {
       parserOptions: scriptsParserOptions,
     },
