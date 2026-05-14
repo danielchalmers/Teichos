@@ -2,7 +2,8 @@
  * Typed wrapper for chrome.runtime API
  */
 
-import { PAGES } from '../constants';
+import { OPTIONS_ROUTE_INTENT, PAGES } from '../constants';
+import { MessageType } from '../types';
 import { createTab, queryTabs, removeTabs, updateTab } from './tabs';
 
 /**
@@ -15,22 +16,19 @@ export function getExtensionUrl(path: string): string {
 /**
  * Open the extension's options page
  */
-export async function openOptionsPage(): Promise<void> {
-  await chrome.runtime.openOptionsPage();
+export function openOptionsPage(): Promise<chrome.tabs.Tab | undefined> {
+  return openOrFocusOptionsPage();
 }
 
 /**
  * Open the extension's options page with query params
  */
-export function openOptionsPageWithParams(
+export async function openOptionsPageWithParams(
   params: Record<string, string>
 ): Promise<chrome.tabs.Tab | undefined> {
-  const url = new URL(getOptionsPageUrl());
-  Object.entries(params).forEach(([key, value]) => {
-    url.searchParams.set(key, value);
-  });
+  await chrome.storage.session.set({ [OPTIONS_ROUTE_INTENT]: params });
 
-  return openOrFocusOptionsPage(url.toString());
+  return openOrFocusOptionsPage(undefined, params);
 }
 
 /**
@@ -44,7 +42,10 @@ function getOptionsPageUrl(): string {
   return getExtensionUrl(PAGES.OPTIONS);
 }
 
-async function openOrFocusOptionsPage(targetUrl?: string): Promise<chrome.tabs.Tab | undefined> {
+async function openOrFocusOptionsPage(
+  targetUrl?: string,
+  routeParams?: Record<string, string>
+): Promise<chrome.tabs.Tab | undefined> {
   const optionsUrl = getOptionsPageUrl();
   const tabs = await queryTabs({});
   const optionsTabs = tabs.filter((tab) => tab.url?.startsWith(optionsUrl));
@@ -66,7 +67,14 @@ async function openOrFocusOptionsPage(targetUrl?: string): Promise<chrome.tabs.T
     if (targetUrl && primary.url !== targetUrl) {
       updateProps.url = targetUrl;
     }
-    return updateTab(primaryId, updateProps);
+    const updatedTab = await updateTab(primaryId, updateProps);
+    if (routeParams) {
+      await chrome.runtime.sendMessage({
+        type: MessageType.OPEN_OPTIONS_ROUTE,
+        params: routeParams,
+      });
+    }
+    return updatedTab;
   }
 
   return createTab({ url: targetUrl ?? optionsUrl });

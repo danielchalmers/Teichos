@@ -24,7 +24,12 @@ import type {
   Whitelist,
   MutableTimeSchedule,
 } from '../shared/types';
-import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../shared/types';
+import {
+  DEFAULT_GROUP_ID,
+  isCloseInfoPanelMessage,
+  isOpenOptionsRouteMessage,
+  STORAGE_KEY,
+} from '../shared/types';
 import {
   generateId,
   getRegexValidationError,
@@ -33,7 +38,7 @@ import {
   sortFiltersTemporaryFirst,
 } from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
-import { DAY_NAMES, DEFAULT_SCHEDULE } from '../shared/constants';
+import { DAY_NAMES, DEFAULT_SCHEDULE, OPTIONS_ROUTE_INTENT } from '../shared/constants';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -57,7 +62,7 @@ export async function init(): Promise<void> {
   setupEventListeners();
   setupStorageSync();
   populateInfoPanel();
-  openFilterFromQuery();
+  await openFilterFromQuery();
   openInfoFromQuery();
 }
 
@@ -74,6 +79,11 @@ function setupEventListeners(): void {
 
     if (isCloseInfoPanelMessage(message)) {
       setInfoPopoverOpen?.(false);
+      return;
+    }
+
+    if (isOpenOptionsRouteMessage(message)) {
+      openOptionsRoute(message.params);
     }
   });
 
@@ -171,8 +181,8 @@ function setupInfoPopover(): ((isOpen: boolean) => void) | null {
   return setOpen;
 }
 
-function openFilterFromQuery(): void {
-  const params = new URLSearchParams(window.location.search);
+async function openFilterFromQuery(): Promise<void> {
+  const params = await getRouteParams();
   const filterId = params.get('editFilter');
   const modal = params.get('modal');
   let handled = false;
@@ -193,21 +203,78 @@ function openFilterFromQuery(): void {
 
   if (!handled) return;
 
+  clearRouteParams(['editFilter', 'modal']);
+  void chrome.storage.session.remove(OPTIONS_ROUTE_INTENT);
+}
+
+function openOptionsRoute(params: Record<string, string>): void {
+  const filterId = params['editFilter'];
+  const modal = params['modal'];
+
+  if (filterId) {
+    openFilterModal(filterId);
+    return;
+  }
+
+  if (modal === 'filter') {
+    openFilterModal();
+  } else if (modal === 'whitelist') {
+    openWhitelistModal();
+  } else if (modal === 'group') {
+    openGroupModal();
+  }
+}
+
+async function getRouteParams(): Promise<URLSearchParams> {
+  if (window.location.search) {
+    return new URLSearchParams(window.location.search);
+  }
+
+  const hash = window.location.hash.startsWith('#')
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+
+  if (hash) {
+    return new URLSearchParams(hash);
+  }
+
+  const result = await chrome.storage.session.get(OPTIONS_ROUTE_INTENT);
+  const params = result[OPTIONS_ROUTE_INTENT];
+  if (!params || typeof params !== 'object') {
+    return new URLSearchParams();
+  }
+
+  const pendingParams = new URLSearchParams();
+  Object.entries(params as Record<string, string>).forEach(([key, value]) => {
+    pendingParams.set(key, value);
+  });
+  return pendingParams;
+}
+
+function clearRouteParams(keys: string[]): void {
   const nextUrl = new URL(window.location.href);
-  nextUrl.searchParams.delete('editFilter');
-  nextUrl.searchParams.delete('modal');
+  keys.forEach((key) => {
+    nextUrl.searchParams.delete(key);
+  });
+
+  const hashParams = new URLSearchParams(
+    nextUrl.hash.startsWith('#') ? nextUrl.hash.slice(1) : nextUrl.hash
+  );
+  keys.forEach((key) => {
+    hashParams.delete(key);
+  });
+  nextUrl.hash = hashParams.toString();
+
   history.replaceState({}, document.title, nextUrl.toString());
 }
 
 function openInfoFromQuery(): void {
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(window.location.search || window.location.hash.slice(1));
   if (!params.has('info')) return;
 
   setInfoPopoverOpen?.(true);
 
-  const nextUrl = new URL(window.location.href);
-  nextUrl.searchParams.delete('info');
-  history.replaceState({}, document.title, nextUrl.toString());
+  clearRouteParams(['info']);
 }
 
 function populateInfoPanel(): void {

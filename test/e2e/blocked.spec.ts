@@ -46,5 +46,5 @@ test('opens settings from the blocked page', async ({ context, extensionPage, pa
   await optionsPage.waitForLoadState();
 
   await expect(optionsPage.getByRole('heading', { name: 'Teichos' })).toBeVisible();
-  await expect(optionsPage).toHaveURL(/options\.html$/);
+  await expect(optionsPage).toHaveURL(/tabs\/settings\.html$/);
 });

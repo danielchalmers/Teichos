@@ -14,9 +14,11 @@ export const DEFAULT_SCHEDULE = {
 
 export const PAGES = {
   BLOCKED: 'tabs/blocked.html',
-  OPTIONS: 'options.html',
+  OPTIONS: 'tabs/settings.html',
   POPUP: 'popup.html',
 } as const;
+
+export const OPTIONS_ROUTE_INTENT = 'options-route-intent' as const;
 
 export const ALARMS = {
   SNOOZE_EXPIRATION: 'snooze-expiration',

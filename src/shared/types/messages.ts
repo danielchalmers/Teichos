@@ -12,6 +12,7 @@ export const MessageType = {
   CHECK_URL: 'CHECK_URL',
   URL_BLOCKED: 'URL_BLOCKED',
   CLOSE_INFO_PANEL: 'CLOSE_INFO_PANEL',
+  OPEN_OPTIONS_ROUTE: 'OPEN_OPTIONS_ROUTE',
 } as const;
 
 export type MessageTypeValue = (typeof MessageType)[keyof typeof MessageType];
@@ -52,13 +53,19 @@ export interface CloseInfoPanelMessage {
   readonly type: typeof MessageType.CLOSE_INFO_PANEL;
 }
 
+export interface OpenOptionsRouteMessage {
+  readonly type: typeof MessageType.OPEN_OPTIONS_ROUTE;
+  readonly params: Record<string, string>;
+}
+
 // Discriminated union of all messages
 export type ExtensionMessage =
   | GetDataMessage
   | CheckUrlMessage
   | DataUpdatedMessage
   | UrlBlockedMessage
-  | CloseInfoPanelMessage;
+  | CloseInfoPanelMessage
+  | OpenOptionsRouteMessage;
 
 // Response type mapping
 export type MessageResponse<T extends ExtensionMessage> = T extends GetDataMessage
@@ -112,5 +119,17 @@ export function isCloseInfoPanelMessage(msg: unknown): msg is CloseInfoPanelMess
     msg !== null &&
     'type' in msg &&
     msg.type === MessageType.CLOSE_INFO_PANEL
+  );
+}
+
+export function isOpenOptionsRouteMessage(msg: unknown): msg is OpenOptionsRouteMessage {
+  return (
+    typeof msg === 'object' &&
+    msg !== null &&
+    'type' in msg &&
+    msg.type === MessageType.OPEN_OPTIONS_ROUTE &&
+    'params' in msg &&
+    typeof msg.params === 'object' &&
+    msg.params !== null
   );
 }

@@ -8,7 +8,7 @@ test('loads the extension service worker and extension pages', async ({
 }) => {
   expect(extensionId).toMatch(/^[a-p]{32}$/);
 
-  await page.goto(extensionPage('options.html'));
+  await page.goto(extensionPage('tabs/settings.html'));
   await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
 
@@ -21,7 +21,7 @@ test('redirects matching top-level navigations to the blocked page', async ({
   extensionPage,
   page,
 }) => {
-  await page.goto(extensionPage('options.html'));
+  await page.goto(extensionPage('tabs/settings.html'));
   await seedStorage(
     page,
     createStorageData({

@@ -57,7 +57,7 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
     });
   });
 
-  await page.goto(extensionPage('options.html'));
+  await page.goto(extensionPage('tabs/settings.html'));
   await seedStorage(page, popupFilterData);
   await page.goto(extensionPage('popup.html'));
 
@@ -93,7 +93,7 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
 });
 
 test('snoozes and resumes filtering from the popup', async ({ extensionPage, page }) => {
-  await page.goto(extensionPage('options.html'));
+  await page.goto(extensionPage('tabs/settings.html'));
   await seedStorage(
     page,
     createStorageData({

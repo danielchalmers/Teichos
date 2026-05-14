@@ -8,13 +8,13 @@ import {
   seedStorage,
 } from './helpers';
 
-const OPTIONS_URL_PATTERN = /options\.html$/;
+const OPTIONS_URL_PATTERN = /tabs\/settings\.html$/;
 
 test('creates, edits, and deletes a scheduled group with filters and exceptions', async ({
   extensionPage,
   page,
 }, testInfo) => {
-  await page.goto(extensionPage('options.html'));
+  await page.goto(extensionPage('tabs/settings.html'));
 
   const groupModal = page.locator('#group-modal.active');
   await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
@@ -80,7 +80,7 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
       (globalThis as AlertCaptureGlobal).__lastAlertMessage = message ?? '';
     };
   });
-  await page.goto(extensionPage('options.html'));
+  await page.goto(extensionPage('tabs/settings.html'));
 
   await page
     .locator('details.group-item')
@@ -105,7 +105,7 @@ test('opens filter, group, and exception modals from query params', async ({
   extensionPage,
   page,
 }) => {
-  await page.goto(extensionPage('options.html'));
+  await page.goto(extensionPage('tabs/settings.html'));
   await seedStorage(
     page,
     createStorageData({
@@ -122,22 +122,34 @@ test('opens filter, group, and exception modals from query params', async ({
     })
   );
 
-  await page.goto(extensionPage('options.html?modal=group'));
+  await page.evaluate(async () => {
+    await chrome.storage.session.set({ 'options-route-intent': { modal: 'group' } });
+  });
+  await page.goto(extensionPage('tabs/settings.html'));
   await expect(page.locator('#group-modal.active')).toBeVisible();
   await expect(page).toHaveURL(OPTIONS_URL_PATTERN);
   await page.getByRole('button', { name: 'Close group dialog' }).click();
 
-  await page.goto(extensionPage('options.html?modal=filter'));
+  await page.evaluate(async () => {
+    await chrome.storage.session.set({ 'options-route-intent': { modal: 'filter' } });
+  });
+  await page.goto(extensionPage('tabs/settings.html'));
   await expect(page.locator('#filter-modal.active')).toBeVisible();
   await expect(page).toHaveURL(OPTIONS_URL_PATTERN);
   await page.getByRole('button', { name: 'Close filter dialog' }).click();
 
-  await page.goto(extensionPage('options.html?modal=whitelist'));
+  await page.evaluate(async () => {
+    await chrome.storage.session.set({ 'options-route-intent': { modal: 'whitelist' } });
+  });
+  await page.goto(extensionPage('tabs/settings.html'));
   await expect(page.locator('#whitelist-modal.active')).toBeVisible();
   await expect(page).toHaveURL(OPTIONS_URL_PATTERN);
   await page.getByRole('button', { name: 'Close exception dialog' }).click();
 
-  await page.goto(extensionPage('options.html?editFilter=seeded-filter'));
+  await page.evaluate(async () => {
+    await chrome.storage.session.set({ 'options-route-intent': { editFilter: 'seeded-filter' } });
+  });
+  await page.goto(extensionPage('tabs/settings.html'));
   const filterModal = page.locator('#filter-modal.active');
   await expect(filterModal).toBeVisible();
   await expect(page).toHaveURL(OPTIONS_URL_PATTERN);
