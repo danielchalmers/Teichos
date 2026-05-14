@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures';
 import { captureScreenshot } from './helpers';
+import { PAGES } from '../../src/shared/constants';
 
 test('go back restores the last allowed url', async ({
   context,
@@ -17,7 +18,7 @@ test('go back restores the last allowed url', async ({
     });
   });
 
-  await page.goto(`${extensionPage('blocked/index.html')}?url=${encodeURIComponent(blockedUrl)}`);
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?url=${encodeURIComponent(blockedUrl)}`);
   await page.evaluate(async (url) => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (typeof tab?.id === 'number') {
@@ -37,7 +38,7 @@ test('go back restores the last allowed url', async ({
 
 test('opens settings from the blocked page', async ({ context, extensionPage, page }) => {
   await page.goto(
-    `${extensionPage('blocked/index.html')}?url=${encodeURIComponent('https://blocked.example.invalid')}`
+    `${extensionPage(PAGES.BLOCKED)}?url=${encodeURIComponent('https://blocked.example.invalid')}`
   );
 
   const optionsPagePromise = context.waitForEvent('page');
@@ -46,5 +47,5 @@ test('opens settings from the blocked page', async ({ context, extensionPage, pa
   await optionsPage.waitForLoadState();
 
   await expect(optionsPage.getByRole('heading', { name: 'Teichos' })).toBeVisible();
-  await expect(optionsPage).toHaveURL(/options\/index\.html$/);
+  await expect.poll(() => new URL(optionsPage.url()).pathname).toBe(`/${PAGES.OPTIONS}`);
 });

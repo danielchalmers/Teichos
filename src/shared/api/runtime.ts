@@ -3,6 +3,7 @@
  */
 
 import { createTab, queryTabs, removeTabs, updateTab } from './tabs';
+import { PAGES } from '../constants';
 
 /**
  * Get the full URL for an extension resource
@@ -40,7 +41,7 @@ export function getExtensionId(): string {
 }
 
 function getOptionsPageUrl(): string {
-  return getExtensionUrl('options/index.html');
+  return getExtensionUrl(PAGES.OPTIONS);
 }
 
 async function openOrFocusOptionsPage(targetUrl?: string): Promise<chrome.tabs.Tab | undefined> {

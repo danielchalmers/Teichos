@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures';
 import { createStorageData, defaultGroup, seedStorage } from './helpers';
+import { PAGES } from '../../src/shared/constants';
 
 test('loads the extension service worker and extension pages', async ({
   extensionId,
@@ -8,11 +9,11 @@ test('loads the extension service worker and extension pages', async ({
 }) => {
   expect(extensionId).toMatch(/^[a-p]{32}$/);
 
-  await page.goto(extensionPage('options/index.html'));
+  await page.goto(extensionPage(PAGES.OPTIONS));
   await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
 
-  await page.goto(extensionPage('popup/index.html'));
+  await page.goto(extensionPage(PAGES.POPUP));
   await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await expect(page.getByText('No filters configured.')).toBeVisible();
 });
@@ -21,7 +22,7 @@ test('redirects matching top-level navigations to the blocked page', async ({
   extensionPage,
   page,
 }) => {
-  await page.goto(extensionPage('options/index.html'));
+  await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(
     page,
     createStorageData({
@@ -43,7 +44,7 @@ test('redirects matching top-level navigations to the blocked page', async ({
 
   await expect
     .poll(() => page.url())
-    .toMatch(/chrome-extension:\/\/.*\/blocked\/index\.html\?url=/);
+    .toContain(`/${PAGES.BLOCKED}?url=`);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
 });

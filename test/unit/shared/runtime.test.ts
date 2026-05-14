@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PAGES } from '../../../src/shared/constants';
 
 const tabsMocks = vi.hoisted(() => ({
   queryTabs: vi.fn(),
@@ -22,7 +23,7 @@ describe('shared/api/runtime', () => {
     tabsMocks.updateTab.mockResolvedValue({ id: 1, active: true });
     tabsMocks.createTab.mockResolvedValue({
       id: 2,
-      url: 'chrome-extension://test-extension-id/options/index.html',
+      url: `chrome-extension://test-extension-id/${PAGES.OPTIONS}`,
     });
     tabsMocks.removeTabs.mockResolvedValue(undefined);
   });
@@ -31,14 +32,14 @@ describe('shared/api/runtime', () => {
     await openOptionsPageWithParams({ panel: 'filters', mode: 'new' });
 
     expect(tabsMocks.createTab).toHaveBeenCalledWith({
-      url: 'chrome-extension://test-extension-id/options/index.html?panel=filters&mode=new',
+      url: `chrome-extension://test-extension-id/${PAGES.OPTIONS}?panel=filters&mode=new`,
     });
   });
 
   it('focuses an existing options tab and removes duplicates', async () => {
     tabsMocks.queryTabs.mockResolvedValue([
-      { id: 10, url: 'chrome-extension://test-extension-id/options/index.html' },
-      { id: 11, url: 'chrome-extension://test-extension-id/options/index.html?stale=1' },
+      { id: 10, url: `chrome-extension://test-extension-id/${PAGES.OPTIONS}` },
+      { id: 11, url: `chrome-extension://test-extension-id/${PAGES.OPTIONS}?stale=1` },
     ]);
 
     await openOptionsPageWithParams({ panel: 'filters' });
@@ -46,13 +47,13 @@ describe('shared/api/runtime', () => {
     expect(tabsMocks.removeTabs).toHaveBeenCalledWith([11]);
     expect(tabsMocks.updateTab).toHaveBeenCalledWith(10, {
       active: true,
-      url: 'chrome-extension://test-extension-id/options/index.html?panel=filters',
+      url: `chrome-extension://test-extension-id/${PAGES.OPTIONS}?panel=filters`,
     });
   });
 
   it('returns undefined when the existing options tab has no id', async () => {
     tabsMocks.queryTabs.mockResolvedValue([
-      { url: 'chrome-extension://test-extension-id/options/index.html' },
+      { url: `chrome-extension://test-extension-id/${PAGES.OPTIONS}` },
     ]);
 
     await expect(openOptionsPageWithParams({ panel: 'filters' })).resolves.toBeUndefined();

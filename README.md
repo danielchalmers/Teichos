@@ -29,21 +29,24 @@ Want to block sites only during work hours? Create a custom group:
 
 ## 💻 Development
 
-In VS Code, use **Debug Playwright Chromium Extension** to build the extension, install
-Playwright's bundled Chromium, and launch the unpacked extension.
+This repo now builds with **Vite + CRXJS**.
 
-Run `npm run test:e2e` after `npm run build` to exercise the built extension in
-Playwright Chromium.
+- `npm run dev` starts the Vite development workflow for the extension.
+- `npm run build` creates the unpacked extension in `dist/`.
+- Run `npm run test:e2e` after `npm run build` to exercise the built extension in
+  Playwright Chromium.
+- In VS Code, use **Debug Playwright Chromium Extension** to run a development build,
+  install Playwright's bundled Chromium, and launch the unpacked extension.
 
 ## 🙏 Credits
 
-- esbuild — MIT
+- @crxjs/vite-plugin — MIT
 - ESLint (@eslint/js, eslint) — MIT
 - Playwright (@playwright/test) — Apache-2.0
 - Prettier — MIT
 - TypeScript — Apache-2.0
 - typescript-eslint — MIT
-- tsx — MIT
+- Vite — MIT
 - Vitest — MIT
 - rimraf — ISC
 - @types/chrome, @types/node — MIT

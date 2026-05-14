@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures';
 import type { ClipboardCaptureGlobal } from './helpers';
+import { PAGES } from '../../src/shared/constants';
 import {
   captureScreenshot,
   createStorageData,
@@ -22,7 +23,7 @@ const popupFilterData = createStorageData({
 });
 
 test('adds and deletes a temporary filter from the popup', async ({ extensionPage, page }) => {
-  await page.goto(extensionPage('popup/index.html'));
+  await page.goto(extensionPage(PAGES.POPUP));
 
   await page.getByRole('button', { name: 'New temporary filter' }).click();
   await page.getByLabel('Site or pattern').fill('quick.example.invalid');
@@ -57,9 +58,9 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
     });
   });
 
-  await page.goto(extensionPage('options/index.html'));
+  await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(page, popupFilterData);
-  await page.goto(extensionPage('popup/index.html'));
+  await page.goto(extensionPage(PAGES.POPUP));
 
   const regularItem = page.locator('.filter-item').filter({ hasText: 'Focus Block' });
 
@@ -93,7 +94,7 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
 });
 
 test('snoozes and resumes filtering from the popup', async ({ extensionPage, page }) => {
-  await page.goto(extensionPage('options/index.html'));
+  await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(
     page,
     createStorageData({
@@ -110,7 +111,7 @@ test('snoozes and resumes filtering from the popup', async ({ extensionPage, pag
     })
   );
 
-  await page.goto(extensionPage('popup/index.html'));
+  await page.goto(extensionPage(PAGES.POPUP));
 
   await page.locator('#open-snooze').click();
   await page.getByRole('button', { name: '15m' }).click();

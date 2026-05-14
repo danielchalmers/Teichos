@@ -46,8 +46,8 @@
         },
         "background": {
           "activeOnStart": true,
-          "beginsPattern": "^Building",
-          "endsPattern": "^Watching"
+          "beginsPattern": ".",
+          "endsPattern": "ready in .*ms"
         }
       }
     },
