@@ -42,6 +42,13 @@ function getOptionsPageUrl(): string {
   return getExtensionUrl(PAGES.OPTIONS);
 }
 
+/**
+ * Open or focus the in-app settings page.
+ *
+ * targetUrl is used when a navigation should land on a specific extension URL.
+ * routeParams carries modal/edit intents that are delivered via session storage and
+ * runtime messaging because Plasmo strips hash/query state from routed pages.
+ */
 async function openOrFocusOptionsPage(
   targetUrl?: string,
   routeParams?: Record<string, string>

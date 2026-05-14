@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { OPTIONS_ROUTE_INTENT } from '../../../src/shared/constants';
+
 const tabsMocks = vi.hoisted(() => ({
   queryTabs: vi.fn(),
   updateTab: vi.fn(),
@@ -18,6 +20,8 @@ import { openOptionsPageWithParams } from '../../../src/shared/api/runtime';
 
 describe('shared/api/runtime', () => {
   beforeEach(() => {
+    (chrome.storage.session as typeof chrome.storage.session & { _reset: () => void })._reset();
+    (chrome.runtime.sendMessage as ReturnType<typeof vi.fn>).mockClear();
     tabsMocks.queryTabs.mockResolvedValue([]);
     tabsMocks.updateTab.mockResolvedValue({ id: 1, active: true });
     tabsMocks.createTab.mockResolvedValue({
@@ -33,6 +37,9 @@ describe('shared/api/runtime', () => {
     expect(tabsMocks.createTab).toHaveBeenCalledWith({
       url: 'chrome-extension://test-extension-id/tabs/settings.html',
     });
+    await expect(chrome.storage.session.get(OPTIONS_ROUTE_INTENT)).resolves.toEqual({
+      [OPTIONS_ROUTE_INTENT]: { panel: 'filters', mode: 'new' },
+    });
   });
 
   it('focuses an existing options tab and removes duplicates', async () => {
@@ -46,6 +53,14 @@ describe('shared/api/runtime', () => {
     expect(tabsMocks.removeTabs).toHaveBeenCalledWith([11]);
     expect(tabsMocks.updateTab).toHaveBeenCalledWith(10, {
       active: true,
+    });
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'OPEN_OPTIONS_ROUTE',
+      params: { panel: 'filters' },
+    });
+    expect(tabsMocks.updateTab).not.toHaveBeenCalledWith(10, {
+      active: true,
+      url: 'chrome-extension://test-extension-id/tabs/settings.html#panel=filters',
     });
   });
 
