@@ -7,6 +7,11 @@
 
 Block distracting websites with smart scheduling and filters.
 
+## 🧰 Development
+
+- Use Node.js 24 LTS and npm 11 for local builds, tests, and VS Code debug tasks.
+- The repository pins the local toolchain in `.nvmrc` and `.node-version`.
+
 ## 📖 Usage
 
 ### Adding Filters
