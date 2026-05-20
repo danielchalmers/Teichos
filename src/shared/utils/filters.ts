@@ -191,7 +191,7 @@ export function buildBlockingIndex(
   groups: readonly FilterGroup[],
   whitelist: readonly Whitelist[]
 ): BlockingIndex {
-  const groupsById = buildGroupById(groups);
+  const groupsById = buildGroupById(groups.filter(isGroupEnabled));
   const preparedFilters: PreparedFilter[] = [];
   for (const filter of filters) {
     if (!filter.enabled) {
@@ -371,6 +371,10 @@ function getGroupFromLookup(groupId: string, groups: GroupLookup): FilterGroup |
 }
 
 function isGroupScheduleActive(group: FilterGroup, context: ScheduleContext): boolean {
+  if (!isGroupEnabled(group)) {
+    return false;
+  }
+
   if (group.is24x7) {
     return true;
   }
@@ -381,4 +385,8 @@ function isGroupScheduleActive(group: FilterGroup, context: ScheduleContext): bo
     }
     return context.time >= schedule.startTime && context.time <= schedule.endTime;
   });
+}
+
+function isGroupEnabled(group: FilterGroup): boolean {
+  return group.enabled !== false;
 }

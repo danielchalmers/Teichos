@@ -568,6 +568,10 @@ label {
   position: relative;
 }
 
+.group-content.is-disabled {
+  opacity: 0.72;
+}
+
 .group-content.is-snoozed [data-role='filter-list'] {
   position: relative;
 }

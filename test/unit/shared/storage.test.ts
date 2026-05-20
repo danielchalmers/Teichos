@@ -71,6 +71,18 @@ describe('storage', () => {
       expect(data.snooze).toEqual({ active: false });
     });
 
+    it('should default legacy groups to enabled', async () => {
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, {
+        groups: [{ id: 'legacy-group', name: 'Legacy Group', schedules: [], is24x7: true }],
+        filters: [],
+        whitelist: [],
+        snooze: { active: false },
+      });
+
+      const data = await loadData();
+      expect(data.groups[0]?.enabled).toBe(true);
+    });
+
     it('should assign the default group to legacy whitelist entries', async () => {
       const testData = {
         groups: [createDefaultGroup()],
@@ -171,6 +183,7 @@ describe('storage', () => {
       const group = {
         id: 'test-group',
         name: 'Test Group',
+        enabled: true,
         schedules: [],
         is24x7: false,
       };
@@ -213,6 +226,7 @@ describe('storage', () => {
       const newGroup = {
         id: 'test-group',
         name: 'Test Group',
+        enabled: true,
         schedules: [],
         is24x7: false,
       };

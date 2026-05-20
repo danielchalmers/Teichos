@@ -21,6 +21,7 @@ export function createDefaultGroup(): FilterGroup {
   return {
     id: DEFAULT_GROUP_ID,
     name: '24/7 (Always Active)',
+    enabled: true,
     schedules: [],
     is24x7: true,
   };
@@ -57,6 +58,14 @@ interface LegacyStorageData {
     readonly active?: boolean;
     readonly until?: number;
   };
+}
+
+function normalizeGroups(groups: readonly FilterGroup[] | undefined): FilterGroup[] {
+  const resolvedGroups = groups && groups.length > 0 ? groups : [createDefaultGroup()];
+  return resolvedGroups.map((group) => ({
+    ...group,
+    enabled: group.enabled !== false,
+  }));
 }
 
 function resolveMatchMode(
@@ -114,7 +123,7 @@ export async function loadData(): Promise<StorageData> {
   }
 
   const data = storedData as LegacyStorageData;
-  const groups = data.groups && data.groups.length > 0 ? data.groups : [createDefaultGroup()];
+  const groups = normalizeGroups(data.groups);
   const groupIds = new Set(groups.map((group) => group.id));
   const filters = normalizeFilters(data.filters);
   const whitelist = normalizeWhitelist(data.whitelist, groupIds);

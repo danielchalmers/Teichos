@@ -2,6 +2,10 @@ import { DAY_NAMES } from '../constants';
 import type { FilterGroup, TimeSchedule } from '../types';
 
 export function formatGroupScheduleSummary(group: FilterGroup): string {
+  if (group.enabled === false) {
+    return 'Disabled';
+  }
+
   if (group.is24x7) {
     return 'Always Active';
   }

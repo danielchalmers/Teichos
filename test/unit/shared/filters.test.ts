@@ -133,6 +133,20 @@ describe('isFilterActive', () => {
     expect(isFilterActive(filter, groups)).toBe(true);
   });
 
+  it('should return false when the group is disabled', () => {
+    const filter: Filter = {
+      id: 'filter-1',
+      pattern: 'example',
+      groupId: 'group-1',
+      enabled: true,
+      matchMode: 'contains',
+    };
+    const groups: FilterGroup[] = [
+      { id: 'group-1', name: 'Test Group', enabled: false, schedules: [], is24x7: true },
+    ];
+    expect(isFilterActive(filter, groups)).toBe(false);
+  });
+
   it('should return true when current time is within schedule', () => {
     const filter: Filter = {
       id: 'filter-1',
@@ -473,6 +487,23 @@ describe('shouldBlockUrl', () => {
     expect(
       shouldBlockUrl('https://blocked.com/allowed', filters, groups, whitelist)
     ).toBeUndefined();
+  });
+
+  it('should ignore filters from disabled groups', () => {
+    const filters: Filter[] = [
+      {
+        id: 'f1',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
+    ];
+    const disabledGroups: FilterGroup[] = [
+      { id: 'default', name: '24/7', enabled: false, schedules: [], is24x7: true },
+    ];
+
+    expect(shouldBlockUrl('https://blocked.com', filters, disabledGroups, [])).toBeUndefined();
   });
 
   it('should allow regex whitelist entries to override filters', () => {

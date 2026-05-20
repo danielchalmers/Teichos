@@ -14,6 +14,7 @@ export type AlertCaptureGlobal = typeof globalThis & {
 export const defaultGroup = {
   id: 'default-24x7',
   name: '24/7 (Always Active)',
+  enabled: true,
   schedules: [],
   is24x7: true,
 } as const satisfies StorageData['groups'][number];

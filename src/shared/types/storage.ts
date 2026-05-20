@@ -21,6 +21,7 @@ export interface MutableTimeSchedule {
 export interface FilterGroup {
   readonly id: string;
   readonly name: string;
+  readonly enabled?: boolean;
   readonly schedules: readonly TimeSchedule[];
   readonly is24x7: boolean;
 }

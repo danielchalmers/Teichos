@@ -38,6 +38,50 @@ test('shows schedule hints in the group header', async ({ extensionPage, page },
   await captureScreenshot(page, testInfo, 'options-schedule-hint.png');
 });
 
+test('toggles an entire group off from the options page', async ({ extensionPage, page }, testInfo) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'work-hours',
+          name: 'Work Hours',
+          enabled: true,
+          is24x7: false,
+          schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
+        },
+      ],
+      filters: [
+        {
+          id: 'focus-filter',
+          pattern: 'focus.example.com',
+          groupId: 'work-hours',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Focus Block',
+        },
+      ],
+    })
+  );
+
+  const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  await expect(workHoursGroup).toContainText('Mo-Fr 09:00-17:00 • 1 filter • 0 exceptions');
+
+  await workHoursGroup.locator('input[data-action="toggle-group"]').evaluate((input) => {
+    const toggle = input as HTMLInputElement;
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  await expect(workHoursGroup).toContainText('Disabled • 1 filter • 0 exceptions');
+  await expect
+    .poll(async () => (await readStorage(page)).groups.find((group) => group.id === 'work-hours')?.enabled)
+    .toBe(false);
+  await captureScreenshot(page, testInfo, 'options-group-disabled.png');
+});
+
 test('creates, edits, and deletes a scheduled group with filters and exceptions', async ({
   extensionPage,
   page,

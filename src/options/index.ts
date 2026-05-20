@@ -440,7 +440,15 @@ function renderGroup(
 
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
   const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
-  groupContent.classList.toggle('is-snoozed', snoozeActive);
+  const toggleInput = querySelector<HTMLInputElement>('input[data-action="toggle-group"]', actions);
+  const isEnabled = group.enabled !== false;
+
+  toggleInput.checked = isEnabled;
+  toggleInput.dataset['groupId'] = group.id;
+  toggleInput.setAttribute('aria-label', `Toggle group ${group.name}`);
+
+  groupContent.classList.toggle('is-disabled', !isEnabled);
+  groupContent.classList.toggle('is-snoozed', snoozeActive && isEnabled);
   if (!isDefault) {
     const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
     editButton.dataset['groupId'] = group.id;
@@ -813,10 +821,17 @@ async function handleGroupSubmit(e: Event): Promise<void> {
 
   const name = getElementByIdOrNull<HTMLInputElement>('group-name')?.value ?? '';
   const is24x7 = getElementByIdOrNull<HTMLInputElement>('group-24x7')?.checked ?? false;
+  let enabled = true;
+
+  if (currentEditingGroupId) {
+    const data = await loadData();
+    enabled = data.groups.find((group) => group.id === currentEditingGroupId)?.enabled !== false;
+  }
 
   const group: FilterGroup = {
     id: currentEditingGroupId ?? generateId(),
     name,
+    enabled,
     is24x7,
     schedules: is24x7 ? [] : temporarySchedules,
   };
@@ -1002,6 +1017,11 @@ function handleGroupsListChange(e: Event): void {
     if (filterId) {
       void toggleFilter(filterId, input.checked);
     }
+  } else if (input.dataset['action'] === 'toggle-group') {
+    const groupId = input.dataset['groupId'];
+    if (groupId) {
+      void toggleGroup(groupId, input.checked);
+    }
   } else if (input.dataset['action'] === 'toggle-whitelist') {
     const whitelistId = input.dataset['whitelistId'];
     if (whitelistId) {
@@ -1070,6 +1090,14 @@ async function toggleFilter(filterId: string, enabled: boolean): Promise<void> {
   const filter = data.filters.find((f) => f.id === filterId);
   if (filter) {
     await updateFilter({ ...filter, enabled });
+  }
+}
+
+async function toggleGroup(groupId: string, enabled: boolean): Promise<void> {
+  const data = await loadData();
+  const group = data.groups.find((g) => g.id === groupId);
+  if (group) {
+    await updateGroup({ ...group, enabled });
   }
 }
 
