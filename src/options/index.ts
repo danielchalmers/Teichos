@@ -43,6 +43,7 @@ const FOCUSABLE_SELECTOR =
 let currentEditingFilterId: string | null = null;
 let currentEditingGroupId: string | null = null;
 let currentEditingWhitelistId: string | null = null;
+let currentEditingGroupEnabled = true;
 let currentFilterGroupId: string | null = null;
 let currentWhitelistGroupId: string | null = null;
 let temporarySchedules: MutableTimeSchedule[] = [];
@@ -749,6 +750,7 @@ async function handleFilterDelete(): Promise<void> {
 
 function openGroupModal(groupId?: string): void {
   currentEditingGroupId = groupId ?? null;
+  currentEditingGroupEnabled = true;
   temporarySchedules = [];
 
   const modal = getElementByIdOrNull('group-modal');
@@ -773,6 +775,7 @@ function openGroupModal(groupId?: string): void {
       .then((data) => {
         const group = data.groups.find((g) => g.id === groupId);
         if (group) {
+          currentEditingGroupEnabled = group.enabled !== false;
           const nameInput = getElementByIdOrNull<HTMLInputElement>('group-name');
           if (nameInput) nameInput.value = group.name;
           is24x7Checkbox.checked = group.is24x7;
@@ -804,6 +807,7 @@ function closeGroupModal(): void {
     deactivateModal(modal);
   }
   currentEditingGroupId = null;
+  currentEditingGroupEnabled = true;
   temporarySchedules = [];
 }
 
@@ -821,17 +825,11 @@ async function handleGroupSubmit(e: Event): Promise<void> {
 
   const name = getElementByIdOrNull<HTMLInputElement>('group-name')?.value ?? '';
   const is24x7 = getElementByIdOrNull<HTMLInputElement>('group-24x7')?.checked ?? false;
-  let enabled = true;
-
-  if (currentEditingGroupId) {
-    const data = await loadData();
-    enabled = data.groups.find((group) => group.id === currentEditingGroupId)?.enabled !== false;
-  }
 
   const group: FilterGroup = {
     id: currentEditingGroupId ?? generateId(),
     name,
-    enabled,
+    enabled: currentEditingGroupEnabled,
     is24x7,
     schedules: is24x7 ? [] : temporarySchedules,
   };
