@@ -108,52 +108,6 @@ describe('registerSnoozeHandlers', () => {
     );
   });
 
-  it('restores blocked tabs when a disabled group no longer blocks the target URL', async () => {
-    const chromeMock = getChromeMock();
-    const blockedUrl = `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}`;
-    chromeMock.tabs.query.mockImplementation(
-      (_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
-        callback?.([createMockTab({ id: 4, url: blockedUrl })]);
-      }
-    );
-    chromeMock.storage.sync._data.set(STORAGE_KEY, {
-      groups: [
-        {
-          id: 'work',
-          name: 'Work',
-          enabled: false,
-          schedules: [],
-          is24x7: true,
-        },
-      ],
-      filters: [
-        {
-          id: 'focus-filter',
-          pattern: 'blocked.com',
-          groupId: 'work',
-          enabled: true,
-          matchMode: 'contains',
-        },
-      ],
-      whitelist: [],
-      snooze: { active: false },
-    });
-
-    const { registerSnoozeHandlers } = await import('../../../src/background/snooze');
-    registerSnoozeHandlers();
-
-    await vi.waitFor(() => {
-      expect(chromeMock.tabs.update).toHaveBeenCalledWith(
-        4,
-        { url: 'https://blocked.com/focus' },
-        expect.any(Function)
-      );
-    });
-    expect(chromeMock.storage.session._data.get('last_allowed_url_4')).toBe(
-      'https://blocked.com/focus'
-    );
-  });
-
   it('handles snooze expiration alarms and ignores unrelated alarms', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-01-15T10:30:00Z'));

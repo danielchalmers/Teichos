@@ -10,7 +10,6 @@ import { updateTabUrl } from '../../shared/api/tabs';
 import { setLastAllowedUrl } from '../../shared/api/session';
 import { PAGES } from '../../shared/constants';
 import { isSnoozeBypassActive } from '../snoozeBypass';
-import { restoreBlockedTabIfAllowed } from '../blockedTabs';
 
 /**
  * Handle web navigation before navigate event
@@ -33,7 +32,7 @@ export async function handleBeforeNavigate(
 async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
   const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
   if (url.startsWith(blockedPageUrl)) {
-    await restoreBlockedNavigationIfAllowed(tabId, url, blockedPageUrl);
+    await restoreBlockedNavigationIfSnoozed(tabId, url, blockedPageUrl);
     return;
   }
 
@@ -60,32 +59,29 @@ async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
   await setLastAllowedUrl(tabId, url);
 }
 
-async function restoreBlockedNavigationIfAllowed(
+async function restoreBlockedNavigationIfSnoozed(
   tabId: number,
   blockedPageNavigationUrl: string,
   blockedPageUrl: string
 ): Promise<void> {
+  let blockedTargetUrl: string | null;
+  try {
+    blockedTargetUrl = new URL(blockedPageNavigationUrl).searchParams.get('url');
+  } catch {
+    return;
+  }
+
+  if (
+    !blockedTargetUrl ||
+    isInternalUrl(blockedTargetUrl) ||
+    blockedTargetUrl.startsWith(blockedPageUrl)
+  ) {
+    return;
+  }
+
   if (await isSnoozeBypassActive()) {
-    let blockedTargetUrl: string | null;
-    try {
-      blockedTargetUrl = new URL(blockedPageNavigationUrl).searchParams.get('url');
-    } catch {
-      return;
-    }
-
-    if (
-      !blockedTargetUrl ||
-      isInternalUrl(blockedTargetUrl) ||
-      blockedTargetUrl.startsWith(blockedPageUrl)
-    ) {
-      return;
-    }
-
     await setLastAllowedUrl(tabId, blockedTargetUrl);
     await updateTabUrl(tabId, blockedTargetUrl);
     return;
   }
-
-  const data = await loadData();
-  await restoreBlockedTabIfAllowed(tabId, blockedPageNavigationUrl, data, blockedPageUrl);
 }

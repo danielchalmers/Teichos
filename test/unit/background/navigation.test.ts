@@ -121,46 +121,6 @@ describe('handleBeforeNavigate', () => {
     expect(mocks.updateTabUrl).toHaveBeenCalledWith(11, 'https://example.com/focus');
   });
 
-  it('restores blocked-page target navigation when a disabled group no longer blocks it', async () => {
-    mocks.loadData.mockResolvedValue({
-      groups: [
-        {
-          id: 'work',
-          name: 'Work',
-          enabled: false,
-          schedules: [],
-          is24x7: true,
-        },
-      ],
-      filters: [
-        {
-          id: 'filter-1',
-          pattern: 'blocked.com',
-          groupId: 'work',
-          enabled: true,
-          matchMode: 'contains' as const,
-        },
-      ],
-      whitelist: [],
-      snooze: { active: false },
-    });
-    const blockedUrl = `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/page')}`;
-
-    await handleBeforeNavigate(createNavigationDetails({ tabId: 13, url: blockedUrl }));
-
-    expect(mocks.setLastAllowedUrl).toHaveBeenCalledWith(13, 'https://blocked.com/page');
-    expect(mocks.updateTabUrl).toHaveBeenCalledWith(13, 'https://blocked.com/page');
-  });
-
-  it('keeps blocked-page target navigation when the target is still blocked', async () => {
-    const blockedUrl = `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/page')}`;
-
-    await handleBeforeNavigate(createNavigationDetails({ tabId: 14, url: blockedUrl }));
-
-    expect(mocks.setLastAllowedUrl).not.toHaveBeenCalled();
-    expect(mocks.updateTabUrl).not.toHaveBeenCalled();
-  });
-
   it('does not restore invalid blocked-page target URLs', async () => {
     const blockedUrl = `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent(`chrome-extension://test-extension-id/${PAGES.BLOCKED}`)}`;
 
