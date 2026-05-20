@@ -11,6 +11,33 @@ import {
 
 const OPTIONS_PATHNAME = `/${PAGES.OPTIONS}`;
 
+test('shows schedule hints in the group header', async ({ extensionPage, page }, testInfo) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'work-hours',
+          name: 'Work Hours',
+          is24x7: false,
+          schedules: [
+            { daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' },
+            { daysOfWeek: [6], startTime: '10:00', endTime: '12:00' },
+          ],
+        },
+      ],
+    })
+  );
+
+  const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  await expect(workHoursGroup).toContainText(
+    'Mo-Fr 09:00-17:00, Sa 10:00-12:00 • 0 filters • 0 exceptions'
+  );
+  await captureScreenshot(page, testInfo, 'options-schedule-hint.png');
+});
+
 test('creates, edits, and deletes a scheduled group with filters and exceptions', async ({
   extensionPage,
   page,
@@ -28,7 +55,7 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
   await groupModal.getByRole('button', { name: 'Save' }).click();
 
   const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
-  await expect(workHoursGroup).toContainText('1 schedule • 0 filters • 0 exceptions');
+  await expect(workHoursGroup).toContainText('Mo-Fr 09:00-17:00 • 0 filters • 0 exceptions');
   await workHoursGroup.locator('summary').click();
 
   await workHoursGroup.getByRole('button', { name: 'New Filter' }).click();

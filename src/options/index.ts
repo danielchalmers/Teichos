@@ -26,6 +26,7 @@ import type {
 } from '../shared/types';
 import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../shared/types';
 import {
+  formatGroupScheduleSummary,
   generateId,
   getRegexValidationError,
   isSnoozeActive,
@@ -426,9 +427,7 @@ function renderGroup(
   snoozeActive: boolean
 ): HTMLDetailsElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
-  const scheduleSummary = group.is24x7
-    ? 'Always Active'
-    : pluralize(group.schedules.length, 'schedule');
+  const scheduleSummary = formatGroupScheduleSummary(group);
   const filterSummary = pluralize(filters.length, 'filter');
   const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
