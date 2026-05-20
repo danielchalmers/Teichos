@@ -38,7 +38,10 @@ test('shows schedule hints in the group header', async ({ extensionPage, page },
   await captureScreenshot(page, testInfo, 'options-schedule-hint.png');
 });
 
-test('toggles an entire group off from the options page', async ({ extensionPage, page }, testInfo) => {
+test('toggles an entire group off from the options page', async ({
+  extensionPage,
+  page,
+}, testInfo) => {
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(
     page,
@@ -77,7 +80,10 @@ test('toggles an entire group off from the options page', async ({ extensionPage
 
   await expect(workHoursGroup).toContainText('Disabled • 1 filter • 0 exceptions');
   await expect
-    .poll(async () => (await readStorage(page)).groups.find((group) => group.id === 'work-hours')?.enabled)
+    .poll(
+      async () =>
+        (await readStorage(page)).groups.find((group) => group.id === 'work-hours')?.enabled
+    )
     .toBe(false);
   await captureScreenshot(page, testInfo, 'options-group-disabled.png');
 });
