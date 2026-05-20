@@ -88,6 +88,44 @@ test('toggles an entire group off from the options page', async ({
   await captureScreenshot(page, testInfo, 'options-group-disabled.png');
 });
 
+test('collapses disabled groups on initial options load', async ({ extensionPage, page }) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'disabled-work',
+          name: 'Disabled Work',
+          enabled: false,
+          is24x7: true,
+          schedules: [],
+        },
+        {
+          id: 'enabled-work',
+          name: 'Enabled Work',
+          enabled: true,
+          is24x7: true,
+          schedules: [],
+        },
+      ],
+    })
+  );
+
+  await page.reload();
+
+  await expect(
+    page.locator('details.group-item').filter({ hasText: '24/7 (Always Active)' })
+  ).toHaveJSProperty('open', true);
+  await expect(
+    page.locator('details.group-item').filter({ hasText: 'Enabled Work' })
+  ).toHaveJSProperty('open', true);
+  await expect(
+    page.locator('details.group-item').filter({ hasText: 'Disabled Work' })
+  ).toHaveJSProperty('open', false);
+});
+
 test('creates, edits, and deletes a scheduled group with filters and exceptions', async ({
   extensionPage,
   page,

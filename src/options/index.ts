@@ -411,7 +411,9 @@ async function renderGroups(): Promise<void> {
     });
   } else if (!hadGroups) {
     groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((details) => {
-      details.open = true;
+      const groupId = details.dataset['groupId'];
+      const group = data.groups.find((candidate) => candidate.id === groupId);
+      details.open = group?.enabled !== false;
     });
   }
 
