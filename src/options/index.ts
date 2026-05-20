@@ -16,6 +16,7 @@ import {
   updateWhitelist,
   deleteWhitelist,
 } from '../shared/api';
+import { restoreBlockedTabsIfUnblocked } from '../shared/api/blockedTabs';
 import type {
   Filter,
   FilterGroup,
@@ -1090,6 +1091,7 @@ async function toggleFilter(filterId: string, enabled: boolean): Promise<void> {
   const filter = data.filters.find((f) => f.id === filterId);
   if (filter) {
     await updateFilter({ ...filter, enabled });
+    await restoreBlockedTabsIfUnblocked(await loadData());
   }
 }
 
@@ -1098,6 +1100,7 @@ async function toggleGroup(groupId: string, enabled: boolean): Promise<void> {
   const group = data.groups.find((g) => g.id === groupId);
   if (group) {
     await updateGroup({ ...group, enabled });
+    await restoreBlockedTabsIfUnblocked(await loadData());
   }
 }
 
