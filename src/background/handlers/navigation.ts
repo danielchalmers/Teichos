@@ -7,7 +7,7 @@ import { buildBlockingIndex, isInternalUrl, shouldBlockUrlWithIndex } from '../.
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { loadData } from '../../shared/api/storage';
 import { updateTabUrl } from '../../shared/api/tabs';
-import { setLastAllowedUrl } from '../../shared/api/session';
+import { consumeRestoreBypassUrl, setLastAllowedUrl } from '../../shared/api/session';
 import { PAGES } from '../../shared/constants';
 import { isSnoozeBypassActive } from '../snoozeBypass';
 
@@ -41,6 +41,12 @@ async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
     return;
   }
 
+  if (await consumeRestoreBypassUrl(tabId, url)) {
+    console.debug('[Teichos] Allowing restored blocked target once', { tabId, url });
+    await setLastAllowedUrl(tabId, url);
+    return;
+  }
+
   if (await isSnoozeBypassActive()) {
     await setLastAllowedUrl(tabId, url);
     return;
@@ -51,6 +57,15 @@ async function checkAndBlockUrl(tabId: number, url: string): Promise<void> {
   const blockingFilter = shouldBlockUrlWithIndex(url, blockingIndex);
 
   if (blockingFilter) {
+    const group = data.groups.find((candidate) => candidate.id === blockingFilter.groupId);
+    console.debug('[Teichos] Blocking navigation', {
+      tabId,
+      url,
+      filterId: blockingFilter.id,
+      groupId: blockingFilter.groupId,
+      groupEnabled: group?.enabled !== false,
+      groupName: group?.name,
+    });
     const blockedUrl = `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(url)}`;
     await updateTabUrl(tabId, blockedUrl);
     return;

@@ -6,3 +6,4 @@ export * from './storage';
 export * from './runtime';
 export * from './tabs';
 export * from './session';
+export * from './blockedTabs';
