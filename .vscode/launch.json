@@ -2,13 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Playwright Chromium Extension",
-      "type": "pwa-chrome",
+      "name": "Run Playwright Chromium Extension",
+      "type": "chrome",
       "request": "launch",
-      "preLaunchTask": "Build Dev and Install Playwright Chromium",
+      "preLaunchTask": "Build Dev and Ensure Playwright Chromium",
       "runtimeExecutable": "${env:LOCALAPPDATA}\\ms-playwright\\chromium-1217\\chrome-win64\\chrome.exe",
-      "url": "chrome://newtab/",
-      "userDataDir": true,
+      "url": "about:blank",
+      "urlFilter": "about:blank",
+      "userDataDir": "${workspaceFolder}\\.vscode\\chrome-debug-profile",
       "runtimeArgs": [
         "--load-extension=${workspaceFolder}/dist",
         "--disable-extensions-except=${workspaceFolder}/dist",
@@ -17,8 +18,9 @@
         "--no-first-run",
         "--no-default-browser-check"
       ],
-      "webRoot": "${workspaceFolder}/src",
-      "sourceMaps": true
+      "webRoot": "${workspaceFolder}/dist",
+      "sourceMaps": false,
+      "pauseForSourceMap": false
     }
   ]
 }
