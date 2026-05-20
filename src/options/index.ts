@@ -21,6 +21,7 @@ import type {
   FilterGroup,
   FilterMatchMode,
   StorageData,
+  TimeSchedule,
   Whitelist,
   MutableTimeSchedule,
 } from '../shared/types';
@@ -426,9 +427,7 @@ function renderGroup(
   snoozeActive: boolean
 ): HTMLDetailsElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
-  const scheduleSummary = group.is24x7
-    ? 'Always Active'
-    : pluralize(group.schedules.length, 'schedule');
+  const scheduleSummary = formatGroupScheduleSummary(group);
   const filterSummary = pluralize(filters.length, 'filter');
   const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
@@ -573,6 +572,65 @@ function renderWhitelistItem(entry: Whitelist): HTMLElement {
 
 function pluralize(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function formatGroupScheduleSummary(group: FilterGroup): string {
+  if (group.is24x7) {
+    return 'Always Active';
+  }
+
+  if (group.schedules.length === 0) {
+    return pluralize(0, 'schedule');
+  }
+
+  return group.schedules.map(formatScheduleSummary).join(', ');
+}
+
+function formatScheduleSummary(schedule: TimeSchedule): string {
+  return `${formatScheduleDays(schedule.daysOfWeek)} ${schedule.startTime}-${schedule.endTime}`;
+}
+
+function formatScheduleDays(daysOfWeek: readonly number[]): string {
+  const uniqueDays = [...new Set(daysOfWeek)].sort((a, b) => a - b);
+  if (uniqueDays.length === DAY_NAMES.length) {
+    return 'Daily';
+  }
+
+  if (uniqueDays.length === 0) {
+    return 'No days';
+  }
+
+  const firstDay = uniqueDays[0];
+  if (firstDay === undefined) {
+    return 'No days';
+  }
+
+  const remainingDays = uniqueDays.slice(1);
+  const dayRanges: string[] = [];
+  let rangeStart = firstDay;
+  let rangeEnd = firstDay;
+
+  for (const day of remainingDays) {
+    if (day === rangeEnd + 1) {
+      rangeEnd = day;
+      continue;
+    }
+
+    dayRanges.push(formatScheduleDayRange(rangeStart, rangeEnd));
+    rangeStart = day;
+    rangeEnd = day;
+  }
+
+  dayRanges.push(formatScheduleDayRange(rangeStart, rangeEnd));
+  return dayRanges.join(', ');
+}
+
+function formatScheduleDayRange(startDay: number, endDay: number): string {
+  if (startDay === endDay) {
+    return DAY_NAMES[startDay] ?? 'Unknown';
+  }
+
+  return `${DAY_NAMES[startDay] ?? 'Unknown'}-${DAY_NAMES[endDay] ?? 'Unknown'}`;
 }
 
 function renderSchedules(): void {
