@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Install Dependencies",
+      "label": "Ensure Dependencies",
       "type": "shell",
-      "command": "npm ci",
+      "command": "if (Test-Path .\\node_modules\\.bin\\vite.cmd) { Write-Host 'Dependencies already installed.' } else { npm ci }",
       "problemMatcher": []
     },
     {
@@ -30,9 +30,9 @@
       "problemMatcher": []
     },
     {
-      "label": "Build Dev and Install Playwright Chromium",
+      "label": "Build Dev and Ensure Playwright Chromium",
       "dependsOrder": "sequence",
-      "dependsOn": ["Install Dependencies", "Build Dev", "Install Playwright Chromium"],
+      "dependsOn": ["Ensure Dependencies", "Build Dev", "Install Playwright Chromium"],
       "problemMatcher": []
     },
     {
