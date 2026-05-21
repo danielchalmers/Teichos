@@ -3,20 +3,55 @@ import { test, expect } from './fixtures';
 import {
   captureScreenshot,
   createFilterViaOptions,
+  createGroupViaOptions,
   createStorageData,
+  createWhitelistViaOptions,
   mockAllowedPage,
   defaultGroup,
   expectAllowed,
   expectBlocked,
+  expectBlockedTabStateCleared,
   expectPopupHidesFilter,
   expectPopupShowsInactiveFilter,
   expectPopupShowsFilter,
   openOptions,
   openPopup,
+  readBlockedTabStateForTarget,
   readStorage,
   seedStorage,
   toggleFilterViaOptions,
 } from './helpers';
+
+function formatTimeFromMinutes(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function getScheduleWindows(now = new Date()): {
+  currentDay: number;
+  activeStart: string;
+  activeEnd: string;
+  inactiveStart: string;
+  inactiveEnd: string;
+} {
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const activeStartMinutes = currentMinutes <= 1 ? 0 : currentMinutes - 1;
+  const activeEndMinutes = currentMinutes >= 1438 ? 1439 : currentMinutes + 1;
+
+  const [inactiveStartMinutes, inactiveEndMinutes] =
+    currentMinutes <= 1436
+      ? [currentMinutes + 2, currentMinutes + 3]
+      : [currentMinutes - 3, currentMinutes - 2];
+
+  return {
+    currentDay: now.getDay(),
+    activeStart: formatTimeFromMinutes(activeStartMinutes),
+    activeEnd: formatTimeFromMinutes(activeEndMinutes),
+    inactiveStart: formatTimeFromMinutes(inactiveStartMinutes),
+    inactiveEnd: formatTimeFromMinutes(inactiveEndMinutes),
+  };
+}
 
 test('options filter lifecycle blocks, restores, and blocks again after re-enable', async ({
   context,
@@ -44,6 +79,53 @@ test('options filter lifecycle blocks, restores, and blocks again after re-enabl
 
   await toggleFilterViaOptions(optionsPage, 'Options Lifecycle', true);
   await expectBlocked(browsingPage, targetUrl);
+});
+
+test('an already-blocked tab becomes allowed and clears stale state after popup disable', async ({
+  context,
+  extensionPage,
+  page,
+}, testInfo) => {
+  const targetUrl = 'https://blocked-tab-disable.example.test/focus';
+  await mockAllowedPage(page, targetUrl, 'Blocked tab restored');
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'blocked-tab-filter',
+          pattern: 'blocked-tab-disable.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Blocked Tab Disable',
+        },
+      ],
+    })
+  );
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, targetUrl);
+  await expect
+    .poll(async () => (await readBlockedTabStateForTarget(page, targetUrl))?.targetUrl)
+    .toBe(targetUrl);
+
+  const popupPage = await openPopup(extensionPage, browsingPage);
+  await popupPage
+    .locator('.filter-item')
+    .filter({ hasText: 'Blocked Tab Disable' })
+    .locator('label.toggle')
+    .click();
+  await expectPopupShowsInactiveFilter(popupPage, 'Blocked Tab Disable');
+
+  await expect.poll(() => browsingPage.url()).toBe(targetUrl);
+  await expect(browsingPage.getByText('Blocked tab restored')).toBeVisible();
+  await expectBlockedTabStateCleared(page, targetUrl);
+  await captureScreenshot(browsingPage, testInfo, 'blocked-tab-disable-restored.png');
+
+  await expectAllowed(browsingPage, targetUrl);
 });
 
 test('popup toggle changes navigation behavior and direct storage updates refresh popup state', async ({
@@ -99,6 +181,52 @@ test('popup toggle changes navigation behavior and direct storage updates refres
   await expectBlocked(browsingPage, targetUrl);
 });
 
+test('direct storage updates allow navigation after background rules are already primed', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://primed-storage-update.example.test/focus';
+  await mockAllowedPage(page, targetUrl, 'Primed storage allowed');
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'primed-filter',
+          pattern: 'primed-storage-update.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Primed Filter',
+        },
+      ],
+    })
+  );
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, targetUrl);
+  await expect
+    .poll(async () => (await readBlockedTabStateForTarget(page, targetUrl))?.blockedBy.filterId)
+    .toBe('primed-filter');
+
+  const data = await readStorage(page);
+  expect(data).toBeDefined();
+  await seedStorage(page, {
+    ...data!,
+    filters: data!.filters.map((filter) =>
+      filter.id === 'primed-filter' ? { ...filter, enabled: false } : filter
+    ),
+    rulesVersion: data!.rulesVersion + 1,
+  });
+
+  await expect.poll(() => browsingPage.url()).toBe(targetUrl);
+  await expectAllowed(browsingPage, targetUrl);
+  await expectBlockedTabStateCleared(page, targetUrl);
+});
+
 test('whitelisting keeps navigation allowed and hides the matching popup filter for the current url', async ({
   context,
   extensionPage,
@@ -139,6 +267,137 @@ test('whitelisting keeps navigation allowed and hides the matching popup filter 
   await expect(whitelistItem.locator('input[data-action="toggle-whitelist"]')).not.toBeChecked();
 
   await expectBlocked(browsingPage, targetUrl);
+});
+
+test('adding a whitelist from blocked state restores the target and clears stale blocked-tab state', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://blocked-whitelist-lifecycle.example.test/docs';
+  await mockAllowedPage(page, targetUrl, 'Blocked whitelist restored');
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'blocked-whitelist-filter',
+          pattern: 'blocked-whitelist-lifecycle.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Blocked Whitelist',
+        },
+      ],
+    })
+  );
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, targetUrl);
+  await expect
+    .poll(async () => (await readBlockedTabStateForTarget(page, targetUrl))?.targetUrl)
+    .toBe(targetUrl);
+
+  await createWhitelistViaOptions(page, {
+    name: 'Allow Blocked Docs',
+    pattern: targetUrl,
+  });
+
+  await expect.poll(() => browsingPage.url()).toBe(targetUrl);
+  await expect(browsingPage.getByText('Blocked whitelist restored')).toBeVisible();
+  await expectBlockedTabStateCleared(page, targetUrl);
+  await expectAllowed(browsingPage, targetUrl);
+});
+
+test('expired temporary filters do not mask a later active regular filter in real navigation', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://temporary-expired-regular-active.example.test/focus';
+  await mockAllowedPage(page, targetUrl, 'Regular filter backstop');
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'expired-temporary-filter',
+          pattern: 'temporary-expired-regular-active.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Expired Temporary',
+          expiresAt: Date.now() - 60_000,
+        },
+        {
+          id: 'active-regular-filter',
+          pattern: 'temporary-expired-regular-active.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Regular Backstop',
+        },
+      ],
+    })
+  );
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, targetUrl);
+  await expect
+    .poll(async () => (await readBlockedTabStateForTarget(page, targetUrl))?.blockedBy.filterId)
+    .toBe('active-regular-filter');
+});
+
+test('editing a schedule through options changes navigation from off-schedule allow to on-schedule block', async ({
+  context,
+  extensionPage,
+  page,
+}, testInfo) => {
+  const targetUrl = 'https://schedule-lifecycle.example.test/focus';
+  const { currentDay, activeStart, activeEnd, inactiveStart, inactiveEnd } = getScheduleWindows();
+  await mockAllowedPage(page, targetUrl, 'Schedule lifecycle allowed');
+
+  const optionsPage = await openOptions(extensionPage, page);
+  await createGroupViaOptions(optionsPage, {
+    name: 'Schedule Lifecycle',
+    schedules: [
+      {
+        daysOfWeek: [currentDay],
+        startTime: inactiveStart,
+        endTime: inactiveEnd,
+      },
+    ],
+  });
+  await createFilterViaOptions(optionsPage, {
+    groupName: 'Schedule Lifecycle',
+    name: 'Schedule Lifecycle Filter',
+    pattern: 'schedule-lifecycle.example.test',
+  });
+
+  const browsingPage = await context.newPage();
+  await expectAllowed(browsingPage, targetUrl);
+  await expect(browsingPage.getByText('Schedule lifecycle allowed')).toBeVisible();
+
+  const scheduleGroup = optionsPage
+    .locator('details.group-item')
+    .filter({ hasText: 'Schedule Lifecycle' });
+  await scheduleGroup.locator('button[data-action="edit-group"]').click();
+
+  const groupModal = optionsPage.locator('#group-modal.active');
+  await expect(groupModal).toBeVisible();
+  await groupModal.getByLabel('Start time for schedule 1').fill(activeStart);
+  await groupModal.getByLabel('End time for schedule 1').fill(activeEnd);
+  await groupModal.getByRole('button', { name: 'Save' }).click();
+
+  await expect
+    .poll(() => new URL(browsingPage.url()).pathname + new URL(browsingPage.url()).search)
+    .toBe(`/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}`);
+  await expect(browsingPage.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+  await captureScreenshot(browsingPage, testInfo, 'schedule-lifecycle-blocked.png');
 });
 
 test('popup snooze allows navigation until filtering is resumed', async ({

@@ -1,6 +1,6 @@
-import { expect, type Page, type TestInfo } from '@playwright/test';
-import { PAGES } from '../../src/shared/constants';
-import type { StorageData } from '../../src/shared/types';
+import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
+import { DAY_NAMES, PAGES } from '../../src/shared/constants';
+import type { BlockedTabState, StorageData } from '../../src/shared/types';
 
 export const STORAGE_KEY = 'pageblock_data';
 
@@ -43,6 +43,12 @@ export async function readStorage(page: Page): Promise<StorageData | undefined> 
     const result = await chrome.storage.sync.get(key);
     return result[key] as StorageData | undefined;
   }, STORAGE_KEY);
+}
+
+async function setCheckboxState(checkbox: Locator, checked: boolean): Promise<void> {
+  if ((await checkbox.isChecked()) !== checked) {
+    await checkbox.click();
+  }
 }
 
 export function getBlockedPagePathFor(targetUrl: string): string {
@@ -133,6 +139,87 @@ export async function createFilterViaOptions(
   ).toHaveCount(1);
 }
 
+export async function createGroupViaOptions(
+  optionsPage: Page,
+  group: {
+    name: string;
+    is24x7?: boolean;
+    schedules?: {
+      daysOfWeek: number[];
+      startTime: string;
+      endTime: string;
+    }[];
+  }
+): Promise<void> {
+  await optionsPage.getByRole('button', { name: 'New Group' }).click();
+
+  const modal = optionsPage.locator('#group-modal.active');
+  await expect(modal).toBeVisible();
+  await modal.getByLabel('Group Name').fill(group.name);
+
+  const alwaysActive = modal.getByLabel('Always Active (24/7)');
+  const is24x7 = group.is24x7 ?? false;
+  if (is24x7) {
+    await alwaysActive.check();
+  } else {
+    await alwaysActive.uncheck();
+    for (const [index, schedule] of (group.schedules ?? []).entries()) {
+      await modal.getByRole('button', { name: 'New Schedule' }).click();
+      const scheduleItem = modal.locator('#schedules-list .schedule-item').nth(index);
+      const dayCheckboxes = scheduleItem.locator('label.day-checkbox input');
+      for (const dayIndex of DAY_NAMES.keys()) {
+        await setCheckboxState(dayCheckboxes.nth(dayIndex), schedule.daysOfWeek.includes(dayIndex));
+      }
+
+      await modal
+        .getByLabel(`Start time for schedule ${index + 1}`)
+        .fill(schedule.startTime);
+      await modal.getByLabel(`End time for schedule ${index + 1}`).fill(schedule.endTime);
+    }
+  }
+
+  await modal.getByRole('button', { name: 'Save' }).click();
+  await expect(
+    optionsPage.locator('details.group-item').filter({ hasText: group.name })
+  ).toHaveCount(1);
+}
+
+export async function createWhitelistViaOptions(
+  optionsPage: Page,
+  whitelist: {
+    groupName?: string;
+    name?: string;
+    pattern: string;
+    matchMode?: 'contains' | 'exact' | 'regex';
+    enabled?: boolean;
+  }
+): Promise<void> {
+  const groupName = whitelist.groupName ?? defaultGroup.name;
+  await openGroupIfNeeded(optionsPage, groupName);
+
+  const group = optionsPage.locator('details.group-item').filter({ hasText: groupName });
+  await group.getByRole('button', { name: 'New Exception' }).click();
+
+  const modal = optionsPage.locator('#whitelist-modal.active');
+  await expect(modal).toBeVisible();
+  await modal.getByLabel('Name').fill(whitelist.name ?? '');
+  await modal.getByLabel('URL Pattern').fill(whitelist.pattern);
+  await modal.getByLabel('Match Mode').selectOption(whitelist.matchMode ?? 'contains');
+
+  const enabled = whitelist.enabled ?? true;
+  const enabledInput = modal.getByLabel('Enabled');
+  if (enabled) {
+    await enabledInput.check();
+  } else {
+    await enabledInput.uncheck();
+  }
+
+  await modal.getByRole('button', { name: 'Save' }).click();
+  await expect(
+    group.locator('.filter-item').filter({ hasText: whitelist.name ?? whitelist.pattern })
+  ).toHaveCount(1);
+}
+
 export async function toggleFilterViaOptions(
   optionsPage: Page,
   filterLabel: string,
@@ -179,6 +266,28 @@ export async function mockAllowedPage(page: Page, url: string, label: string): P
       body: `<!doctype html><title>${label}</title><main>${label}</main>`,
     });
   });
+}
+
+export async function readBlockedTabStateForTarget(
+  page: Page,
+  targetUrl: string
+): Promise<BlockedTabState | undefined> {
+  return page.evaluate(async ({ blockedPagePath, url }) => {
+    const blockedUrl = `${chrome.runtime.getURL(blockedPagePath)}?url=${encodeURIComponent(url)}`;
+    const tabs = await chrome.tabs.query({});
+    const tab = tabs.find((candidate) => candidate.url === url || candidate.url === blockedUrl);
+    if (typeof tab?.id !== 'number') {
+      return undefined;
+    }
+
+    const key = `blocked_tab_state_${tab.id}`;
+    const result = await chrome.storage.session.get(key);
+    return result[key] as BlockedTabState | undefined;
+  }, { blockedPagePath: PAGES.BLOCKED, url: targetUrl });
+}
+
+export async function expectBlockedTabStateCleared(page: Page, targetUrl: string): Promise<void> {
+  await expect.poll(() => readBlockedTabStateForTarget(page, targetUrl)).toBeUndefined();
 }
 
 export async function captureScreenshot(
