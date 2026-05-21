@@ -48,13 +48,7 @@ export class RulesProvider {
 }
 
 function serializeRulesData(data: StorageData): string {
-  return JSON.stringify({
-    groups: data.groups,
-    filters: data.filters,
-    whitelist: data.whitelist,
-    snooze: data.snooze,
-    rulesVersion: data.rulesVersion,
-  });
+  return JSON.stringify(data);
 }
 
 const rulesProvider = new RulesProvider();

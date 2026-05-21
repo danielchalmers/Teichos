@@ -16,7 +16,7 @@ class TabController {
   private didRegister = false;
   private reconcileQueue: Promise<void> = Promise.resolve();
 
-  constructor(private readonly rulesProvider: RulesProvider = getRulesProvider()) {}
+  constructor(private readonly rulesProvider: RulesProvider) {}
 
   register(): void {
     if (this.didRegister) {
@@ -266,7 +266,7 @@ function parseBlockedTargetUrl(tabUrl: string | undefined): string | null {
   }
 }
 
-const tabController = new TabController();
+const tabController = new TabController(getRulesProvider());
 
 export function getTabController(): TabController {
   return tabController;
