@@ -46,6 +46,7 @@ export async function readStorage(page: Page): Promise<StorageData | undefined> 
 }
 
 async function setCheckboxState(checkbox: Locator, checked: boolean): Promise<void> {
+  // Avoid double-toggling when the control is already in the desired state.
   if ((await checkbox.isChecked()) !== checked) {
     await checkbox.click();
   }

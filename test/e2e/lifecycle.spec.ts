@@ -28,6 +28,10 @@ function formatTimeFromMinutes(totalMinutes: number): string {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
+/**
+ * Generate one active and one inactive schedule window around the current local time
+ * so e2e tests can assert both allow and block behavior without mocking time.
+ */
 function getScheduleWindows(now = new Date()): {
   currentDay: number;
   activeStart: string;
@@ -36,6 +40,8 @@ function getScheduleWindows(now = new Date()): {
   inactiveEnd: string;
 } {
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  // Clamp the active and inactive windows near 00:00 and 23:59 so they always stay
+  // within a valid day while still landing on opposite sides of the current time.
   const activeStartMinutes = currentMinutes <= 1 ? 0 : currentMinutes - 1;
   const activeEndMinutes = currentMinutes >= 1438 ? 1439 : currentMinutes + 1;
 
