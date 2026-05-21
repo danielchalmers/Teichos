@@ -40,13 +40,13 @@ function getScheduleWindows(now = new Date()): {
   inactiveEnd: string;
 } {
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  // Clamp the active and inactive windows near 00:00 and 23:59 so they always stay
+  // Clamp the active and inactive windows near 00:01 and 23:58 so they always stay
   // within a valid day while still landing on opposite sides of the current time.
   const activeStartMinutes = currentMinutes <= 1 ? 0 : currentMinutes - 1;
   const activeEndMinutes = currentMinutes >= 1438 ? 1439 : currentMinutes + 1;
 
   const [inactiveStartMinutes, inactiveEndMinutes] =
-    currentMinutes <= 1436 // 23:56, leaving room for a 2-minute inactive window before day end.
+    currentMinutes <= 1436 // 23:56, leaving room for an inactive window at 23:58-23:59.
       ? [currentMinutes + 2, currentMinutes + 3]
       : [currentMinutes - 3, currentMinutes - 2];
 
