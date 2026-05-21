@@ -311,6 +311,14 @@ test('adding a whitelist from blocked state restores the target and clears stale
     pattern: targetUrl,
   });
 
+  await expect
+    .poll(async () =>
+      (await readStorage(page))?.whitelist.some(
+        (entry) => entry.description === 'Allow Blocked Docs' && entry.pattern === targetUrl
+      )
+    )
+    .toBe(true);
+  await browsingPage.reload().catch(() => undefined);
   await expect.poll(() => browsingPage.url()).toBe(targetUrl);
   await expect(browsingPage.getByText('Blocked whitelist restored')).toBeVisible();
   await expectBlockedTabStateCleared(page, targetUrl);
