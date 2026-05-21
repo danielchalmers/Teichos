@@ -12,7 +12,10 @@ vi.mock('../../../src/background/tabController', () => ({
   }),
 }));
 
-import { handleBeforeNavigate } from '../../../src/background/handlers/navigation';
+import {
+  handleBeforeNavigate,
+  handleNavigationChange,
+} from '../../../src/background/handlers/navigation';
 
 function createNavigationDetails(
   overrides: Partial<chrome.webNavigation.WebNavigationBaseCallbackDetails>
@@ -31,22 +34,49 @@ function createNavigationDetails(
   };
 }
 
-describe('handleBeforeNavigate', () => {
+describe('handleNavigationChange', () => {
   beforeEach(() => {
     mocks.evaluateNavigation.mockResolvedValue(undefined);
   });
 
   it('ignores non-main-frame navigations', async () => {
-    await handleBeforeNavigate(createNavigationDetails({ frameId: 2, tabId: 4 }));
+    await handleNavigationChange(createNavigationDetails({ frameId: 2, tabId: 4 }));
 
     expect(mocks.evaluateNavigation).not.toHaveBeenCalled();
   });
 
-  it('delegates main-frame navigations to the tab controller', async () => {
+  it('delegates main-frame before-navigate events to the tab controller', async () => {
     await handleBeforeNavigate(
       createNavigationDetails({ tabId: 9, url: 'https://blocked.com/page' })
     );
 
     expect(mocks.evaluateNavigation).toHaveBeenCalledWith(9, 'https://blocked.com/page');
+  });
+
+  it('delegates main-frame history-state updates to the tab controller', async () => {
+    await handleNavigationChange(
+      createNavigationDetails({ tabId: 5, url: 'https://example.com/blocked-route' })
+    );
+
+    expect(mocks.evaluateNavigation).toHaveBeenCalledWith(5, 'https://example.com/blocked-route');
+  });
+
+  it('delegates main-frame fragment updates to the tab controller', async () => {
+    await handleNavigationChange(
+      createNavigationDetails({ tabId: 6, url: 'https://example.com/page#blocked' })
+    );
+
+    expect(mocks.evaluateNavigation).toHaveBeenCalledWith(6, 'https://example.com/page#blocked');
+  });
+
+  it('ignores sub-frame history-state and fragment updates', async () => {
+    await handleNavigationChange(
+      createNavigationDetails({ frameId: 2, tabId: 7, url: 'https://example.com/blocked-route' })
+    );
+    await handleNavigationChange(
+      createNavigationDetails({ frameId: 3, tabId: 8, url: 'https://example.com/page#blocked' })
+    );
+
+    expect(mocks.evaluateNavigation).not.toHaveBeenCalled();
   });
 });

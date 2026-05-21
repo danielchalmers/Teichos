@@ -46,6 +46,14 @@ interface ChromeMock {
       addListener: ReturnType<typeof vi.fn>;
       removeListener: ReturnType<typeof vi.fn>;
     };
+    onHistoryStateUpdated: {
+      addListener: ReturnType<typeof vi.fn>;
+      removeListener: ReturnType<typeof vi.fn>;
+    };
+    onReferenceFragmentUpdated: {
+      addListener: ReturnType<typeof vi.fn>;
+      removeListener: ReturnType<typeof vi.fn>;
+    };
   };
   runtime: {
     id: string;
@@ -165,6 +173,14 @@ export function createChromeMock(): ChromeMock {
     },
     webNavigation: {
       onBeforeNavigate: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+      onHistoryStateUpdated: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+      onReferenceFragmentUpdated: {
         addListener: vi.fn(),
         removeListener: vi.fn(),
       },

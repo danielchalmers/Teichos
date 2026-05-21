@@ -8,7 +8,7 @@
  * - Use chrome.storage instead of localStorage
  */
 
-import { handleBeforeNavigate, handleMessage } from './handlers';
+import { handleMessage, handleNavigationChange, type NavigationChangeDetails } from './handlers';
 import { registerSnoozeHandlers } from './snooze';
 import { getTabController } from './tabController';
 
@@ -16,11 +16,15 @@ import { getTabController } from './tabController';
 // This is critical for MV3 service workers
 
 // Web navigation events - handle main frame navigations
-chrome.webNavigation.onBeforeNavigate.addListener((details) => {
-  handleBeforeNavigate(details).catch((error: unknown) => {
+const handleNavigationEvent = (details: NavigationChangeDetails): void => {
+  handleNavigationChange(details).catch((error: unknown) => {
     console.error('[Teichos] Error handling navigation:', error);
   });
-});
+};
+
+chrome.webNavigation.onBeforeNavigate.addListener(handleNavigationEvent);
+chrome.webNavigation.onHistoryStateUpdated.addListener(handleNavigationEvent);
+chrome.webNavigation.onReferenceFragmentUpdated.addListener(handleNavigationEvent);
 
 // Message handling from other extension contexts
 chrome.runtime.onMessage.addListener(handleMessage);
