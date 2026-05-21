@@ -1,3 +1,4 @@
+import { readFile } from 'fs/promises';
 import { test, expect } from './fixtures';
 import type { AlertCaptureGlobal } from './helpers';
 import { PAGES } from '../../src/shared/constants';
@@ -130,6 +131,156 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
     .poll(() => page.evaluate(() => (globalThis as AlertCaptureGlobal).__lastAlertMessage))
     .toContain('Invalid regex pattern');
   await expect.poll(() => readStorage(page)).toBeUndefined();
+});
+
+test('exports current settings from global settings', async ({ extensionPage, page }) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  const expectedData = createStorageData({
+    groups: [
+      defaultGroup,
+      {
+        id: 'work-hours',
+        name: 'Work Hours',
+        is24x7: false,
+        schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
+      },
+    ],
+    filters: [
+      {
+        id: 'focus-filter',
+        pattern: 'focus.example.test',
+        groupId: 'work-hours',
+        enabled: true,
+        matchMode: 'contains',
+        description: 'Focus Filter',
+      },
+    ],
+    whitelist: [
+      {
+        id: 'allow-docs',
+        pattern: 'focus.example.test/docs',
+        groupId: 'work-hours',
+        enabled: true,
+        matchMode: 'contains',
+        description: 'Allow Docs',
+      },
+    ],
+    snooze: { active: true, until: 1_234_567_890 },
+    rulesVersion: 7,
+  });
+  await seedStorage(page, expectedData);
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export Settings' }).click();
+  const download = await downloadPromise;
+  const downloadPath = await download.path();
+
+  expect(downloadPath).not.toBeNull();
+  expect(JSON.parse(await readFile(downloadPath!, 'utf8'))).toEqual(expectedData);
+  await expect(page.locator('#global-settings-status')).toHaveText('Settings exported successfully.');
+});
+
+test('imports settings from global settings', async ({ extensionPage, page }) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'old-filter',
+          pattern: 'old.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Old Filter',
+        },
+      ],
+      rulesVersion: 0,
+    })
+  );
+
+  const importedData = createStorageData({
+    groups: [
+      defaultGroup,
+      {
+        id: 'imported-group',
+        name: 'Imported Group',
+        is24x7: false,
+        schedules: [{ daysOfWeek: [1, 3, 5], startTime: '08:00', endTime: '12:00' }],
+      },
+    ],
+    filters: [
+      {
+        id: 'imported-filter',
+        pattern: 'imported.example.test',
+        groupId: 'imported-group',
+        enabled: true,
+        matchMode: 'contains',
+        description: 'Imported Filter',
+      },
+    ],
+    whitelist: [
+      {
+        id: 'imported-exception',
+        pattern: 'imported.example.test/docs',
+        groupId: 'imported-group',
+        enabled: true,
+        matchMode: 'exact',
+        description: 'Imported Exception',
+      },
+    ],
+    snooze: { active: true, until: 9_999_999_999_999 },
+    rulesVersion: 5,
+  });
+
+  await page.locator('#import-settings-input').setInputFiles({
+    name: 'teichos-settings.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(importedData)),
+  });
+
+  const importedGroup = page.locator('details.group-item').filter({ hasText: 'Imported Group' });
+  await expect(importedGroup).toContainText('Imported Filter');
+  await expect(importedGroup).toContainText('Imported Exception');
+  await expect(page.locator('#global-settings-status')).toHaveText('Settings imported successfully.');
+  await expect
+    .poll(() => readStorage(page))
+    .toMatchObject({
+      groups: importedData.groups,
+      filters: importedData.filters,
+      whitelist: importedData.whitelist,
+      snooze: importedData.snooze,
+      rulesVersion: 1,
+    });
+});
+
+test('keeps existing settings when global settings import fails', async ({ extensionPage, page }) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  const originalData = createStorageData({
+    filters: [
+      {
+        id: 'existing-filter',
+        pattern: 'existing.example.test',
+        groupId: defaultGroup.id,
+        enabled: true,
+        matchMode: 'contains',
+        description: 'Existing Filter',
+      },
+    ],
+    rulesVersion: 3,
+  });
+  await seedStorage(page, originalData);
+
+  await page.locator('#import-settings-input').setInputFiles({
+    name: 'broken-settings.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from('{'),
+  });
+
+  await expect(page.locator('#global-settings-status')).toHaveText(
+    'Settings file is not valid JSON.'
+  );
+  await expect.poll(() => readStorage(page)).toEqual(originalData);
 });
 
 test('opens filter, group, and exception modals from query params', async ({

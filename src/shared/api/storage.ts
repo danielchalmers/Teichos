@@ -8,10 +8,12 @@ import type {
   FilterGroup,
   Filter,
   FilterMatchMode,
+  TimeSchedule,
   Whitelist,
   SnoozeState,
 } from '../types';
 import { STORAGE_KEY, DEFAULT_GROUP_ID } from '../types';
+import { getRegexValidationError } from '../utils';
 import { setSessionSnooze } from './session';
 
 /**
@@ -59,6 +61,205 @@ interface LegacyStorageData {
     readonly active?: boolean;
     readonly until?: number;
   };
+}
+
+type JsonObject = Record<string, unknown>;
+
+function isObject(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isValidMatchMode(value: unknown): value is FilterMatchMode {
+  return value === 'contains' || value === 'exact' || value === 'regex';
+}
+
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === 'string';
+}
+
+function isOptionalBoolean(value: unknown): value is boolean | undefined {
+  return value === undefined || typeof value === 'boolean';
+}
+
+function isOptionalFiniteNumber(value: unknown): value is number | undefined {
+  return value === undefined || (typeof value === 'number' && Number.isFinite(value));
+}
+
+function isValidDayOfWeek(value: unknown): value is number {
+  return Number.isInteger(value) && value >= 0 && value <= 6;
+}
+
+function isValidSchedule(value: unknown): value is TimeSchedule {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return (
+    Array.isArray(value['daysOfWeek']) &&
+    value['daysOfWeek'].every(isValidDayOfWeek) &&
+    typeof value['startTime'] === 'string' &&
+    typeof value['endTime'] === 'string'
+  );
+}
+
+function isValidGroup(value: unknown): value is FilterGroup {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return (
+    typeof value['id'] === 'string' &&
+    typeof value['name'] === 'string' &&
+    typeof value['is24x7'] === 'boolean' &&
+    Array.isArray(value['schedules']) &&
+    value['schedules'].every(isValidSchedule)
+  );
+}
+
+function isValidFilterLike(value: unknown): value is LegacyFilter {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return (
+    typeof value['id'] === 'string' &&
+    typeof value['pattern'] === 'string' &&
+    typeof value['groupId'] === 'string' &&
+    typeof value['enabled'] === 'boolean' &&
+    (value['matchMode'] === undefined || isValidMatchMode(value['matchMode'])) &&
+    isOptionalBoolean(value['isRegex']) &&
+    isOptionalString(value['description']) &&
+    isOptionalFiniteNumber(value['expiresAt'])
+  );
+}
+
+function isValidWhitelistLike(value: unknown): value is LegacyWhitelist {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return (
+    typeof value['id'] === 'string' &&
+    typeof value['pattern'] === 'string' &&
+    typeof value['enabled'] === 'boolean' &&
+    isOptionalString(value['groupId']) &&
+    (value['matchMode'] === undefined || isValidMatchMode(value['matchMode'])) &&
+    isOptionalBoolean(value['isRegex']) &&
+    isOptionalString(value['description'])
+  );
+}
+
+function isValidSnooze(value: unknown): value is LegacyStorageData['snooze'] {
+  if (value === undefined) {
+    return true;
+  }
+
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return isOptionalBoolean(value['active']) && isOptionalFiniteNumber(value['until']);
+}
+
+function assertUniqueIds(
+  items: ReadonlyArray<{ readonly id: string }>,
+  entityName: 'group' | 'filter' | 'exception'
+): void {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (seen.has(item.id)) {
+      throw new Error(`Imported settings contain duplicate ${entityName} ids.`);
+    }
+    seen.add(item.id);
+  }
+}
+
+function ensureDefaultGroup(groups: readonly FilterGroup[]): FilterGroup[] {
+  if (groups.some((group) => group.id === DEFAULT_GROUP_ID)) {
+    return [...groups];
+  }
+
+  return [createDefaultGroup(), ...groups];
+}
+
+function assertKnownGroupReferences(
+  filters: readonly Filter[],
+  whitelist: readonly Whitelist[],
+  groups: readonly FilterGroup[]
+): void {
+  const groupIds = new Set(groups.map((group) => group.id));
+
+  for (const filter of filters) {
+    if (!groupIds.has(filter.groupId)) {
+      throw new Error(`Imported filter "${filter.id}" references an unknown group.`);
+    }
+  }
+
+  for (const entry of whitelist) {
+    if (!groupIds.has(entry.groupId)) {
+      throw new Error(`Imported exception "${entry.id}" references an unknown group.`);
+    }
+  }
+}
+
+function assertValidRegexEntries(
+  filters: readonly Filter[],
+  whitelist: readonly Whitelist[]
+): void {
+  for (const filter of filters) {
+    if (filter.matchMode !== 'regex') {
+      continue;
+    }
+
+    if (getRegexValidationError(filter.pattern)) {
+      throw new Error(`Imported filter "${filter.id}" has an invalid regex pattern.`);
+    }
+  }
+
+  for (const entry of whitelist) {
+    if (entry.matchMode !== 'regex') {
+      continue;
+    }
+
+    if (getRegexValidationError(entry.pattern)) {
+      throw new Error(`Imported exception "${entry.id}" has an invalid regex pattern.`);
+    }
+  }
+}
+
+function validateImportedStorageShape(raw: JsonObject): void {
+  const hasKnownCollections =
+    Object.hasOwn(raw, 'groups') || Object.hasOwn(raw, 'filters') || Object.hasOwn(raw, 'whitelist');
+
+  if (!hasKnownCollections) {
+    throw new Error('Settings file does not contain Teichos data.');
+  }
+
+  if (Object.hasOwn(raw, 'groups')) {
+    if (!Array.isArray(raw['groups']) || !raw['groups'].every(isValidGroup)) {
+      throw new Error('Settings file contains invalid groups.');
+    }
+  }
+
+  if (Object.hasOwn(raw, 'filters')) {
+    if (!Array.isArray(raw['filters']) || !raw['filters'].every(isValidFilterLike)) {
+      throw new Error('Settings file contains invalid filters.');
+    }
+  }
+
+  if (Object.hasOwn(raw, 'whitelist')) {
+    if (!Array.isArray(raw['whitelist']) || !raw['whitelist'].every(isValidWhitelistLike)) {
+      throw new Error('Settings file contains invalid exceptions.');
+    }
+  }
+
+  if (!isValidSnooze(raw['snooze'])) {
+    throw new Error('Settings file contains an invalid snooze state.');
+  }
+
+  if (!isOptionalFiniteNumber(raw['rulesVersion'])) {
+    throw new Error('Settings file contains an invalid rules version.');
+  }
 }
 
 function resolveMatchMode(
@@ -127,12 +328,51 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
   };
 }
 
+export function serializeDataForExport(data: StorageData): string {
+  return `${JSON.stringify(data, null, 2)}\n`;
+}
+
+export function parseImportedData(serialized: string): StorageData {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(serialized);
+  } catch {
+    throw new Error('Settings file is not valid JSON.');
+  }
+
+  if (!isObject(parsed)) {
+    throw new Error('Settings file must contain a JSON object.');
+  }
+
+  validateImportedStorageShape(parsed);
+
+  const normalized = normalizeStoredData(parsed as LegacyStorageData);
+  const groups = ensureDefaultGroup(normalized.groups);
+  const importedData: StorageData = {
+    ...normalized,
+    groups,
+  };
+
+  assertUniqueIds(importedData.groups, 'group');
+  assertUniqueIds(importedData.filters, 'filter');
+  assertUniqueIds(importedData.whitelist, 'exception');
+  assertKnownGroupReferences(importedData.filters, importedData.whitelist, importedData.groups);
+  assertValidRegexEntries(importedData.filters, importedData.whitelist);
+
+  return importedData;
+}
+
 /**
  * Load storage data from chrome.storage.sync
  */
 export async function loadData(): Promise<StorageData> {
   const result = await chrome.storage.sync.get(STORAGE_KEY);
   return normalizeStoredData(result[STORAGE_KEY] as LegacyStorageData | undefined);
+}
+
+export async function exportData(): Promise<string> {
+  return serializeDataForExport(await loadData());
 }
 
 /**
@@ -154,6 +394,12 @@ export async function saveData(data: StorageData): Promise<void> {
       rulesVersion: previousRulesVersion + 1,
     },
   });
+}
+
+export async function importData(serialized: string): Promise<StorageData> {
+  const data = parseImportedData(serialized);
+  await Promise.all([saveData(data), setSessionSnooze(data.snooze)]);
+  return data;
 }
 
 // Group operations

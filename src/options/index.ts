@@ -8,6 +8,8 @@ import {
   addFilter,
   updateFilter,
   deleteFilter,
+  exportData,
+  importData,
   saveData,
   addGroup,
   updateGroup,
@@ -80,6 +82,18 @@ function setupEventListeners(): void {
 
   // Add buttons
   getElementByIdOrNull('add-group-btn')?.addEventListener('click', () => openGroupModal());
+  getElementByIdOrNull('export-settings-btn')?.addEventListener('click', () => {
+    void handleExportSettings();
+  });
+  getElementByIdOrNull('import-settings-btn')?.addEventListener('click', () => {
+    getElementByIdOrNull<HTMLInputElement>('import-settings-input')?.click();
+  });
+  getElementByIdOrNull<HTMLInputElement>('import-settings-input')?.addEventListener(
+    'change',
+    (event) => {
+      void handleImportSettings(event);
+    }
+  );
 
   // Filter modal
   getElementByIdOrNull('close-filter-modal')?.addEventListener('click', closeFilterModal);
@@ -222,6 +236,63 @@ function populateInfoPanel(): void {
   const copyrightElement = getElementByIdOrNull('info-copyright');
   if (copyrightElement) {
     copyrightElement.textContent = `(c) ${year} Daniel Chalmers`;
+  }
+}
+
+function setGlobalSettingsStatus(message: string, isError = false): void {
+  const status = getElementByIdOrNull('global-settings-status');
+  if (!status) return;
+
+  status.textContent = message;
+  status.classList.toggle('is-error', isError);
+}
+
+function createExportFileName(now = new Date()): string {
+  const dateStamp = now.toISOString().slice(0, 10);
+  return `teichos-settings-${dateStamp}.json`;
+}
+
+function downloadSettingsFile(serialized: string): void {
+  const blob = new Blob([serialized], { type: 'application/json' });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = createExportFileName();
+  link.click();
+  window.setTimeout(() => {
+    URL.revokeObjectURL(objectUrl);
+  }, 0);
+}
+
+async function handleExportSettings(): Promise<void> {
+  try {
+    const serialized = await exportData();
+    downloadSettingsFile(serialized);
+    setGlobalSettingsStatus('Settings exported successfully.');
+  } catch (error) {
+    console.error('Failed to export settings:', error);
+    setGlobalSettingsStatus('Failed to export settings.', true);
+  }
+}
+
+async function handleImportSettings(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement | null;
+  const file = input?.files?.[0];
+  if (!input || !file) {
+    return;
+  }
+
+  try {
+    const serialized = await file.text();
+    await importData(serialized);
+    await renderGroups();
+    setGlobalSettingsStatus('Settings imported successfully.');
+  } catch (error) {
+    console.error('Failed to import settings:', error);
+    const message = error instanceof Error ? error.message : 'Failed to import settings.';
+    setGlobalSettingsStatus(message, true);
+  } finally {
+    input.value = '';
   }
 }
 
