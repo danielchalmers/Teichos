@@ -318,7 +318,11 @@ test('adding a whitelist from blocked state restores the target and clears stale
       )
     )
     .toBe(true);
-  await browsingPage.reload().catch(() => undefined);
+  await browsingPage.reload().catch((error: unknown) => {
+    if (browsingPage.url() !== targetUrl) {
+      throw error;
+    }
+  });
   await expect.poll(() => browsingPage.url()).toBe(targetUrl);
   await expect(browsingPage.getByText('Blocked whitelist restored')).toBeVisible();
   await expectBlockedTabStateCleared(page, targetUrl);
