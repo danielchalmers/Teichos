@@ -4,7 +4,6 @@
   "version": "0.0.0",
   "description": "Block URLs based on configurable regex filters with time-based scheduling",
   "permissions": ["alarms", "storage", "tabs", "webNavigation"],
-  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background/index.ts",
     "type": "module"
