@@ -31,7 +31,6 @@ import {
   formatGroupScheduleSummary,
   generateId,
   getRegexValidationError,
-  isGroupEnabled,
   isSnoozeActive,
   isTemporaryFilterExpired,
   sortFiltersTemporaryFirst,
@@ -499,9 +498,7 @@ function renderGroup(
   snoozeActive: boolean
 ): HTMLDetailsElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
-  const groupEnabled = isGroupEnabled(group);
   const scheduleSummary = formatGroupScheduleSummary(group);
-  const activitySummary = groupEnabled ? scheduleSummary : `Disabled • ${scheduleSummary}`;
   const filterSummary = pluralize(filters.length, 'filter');
   const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
@@ -510,12 +507,11 @@ function renderGroup(
 
   querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent = group.name;
   querySelector<HTMLElement>('[data-role="group-meta"]', groupElement).textContent =
-    `${activitySummary} • ${filterSummary} • ${exceptionSummary}`;
+    `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
 
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
   const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
   groupContent.classList.toggle('is-snoozed', snoozeActive);
-  groupContent.classList.toggle('is-effectively-inactive', !groupEnabled);
   if (!isDefault) {
     const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
     editButton.dataset['groupId'] = group.id;
@@ -823,14 +819,13 @@ function openGroupModal(groupId?: string): void {
   const form = getElementByIdOrNull<HTMLFormElement>('group-form');
   const schedulesContainer = getElementByIdOrNull('schedules-container');
   const is24x7Checkbox = getElementByIdOrNull<HTMLInputElement>('group-24x7');
-  const enabledCheckbox = getElementByIdOrNull<HTMLInputElement>('group-enabled');
   const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-group');
 
-  if (!modal || !title || !form || !schedulesContainer || !is24x7Checkbox || !enabledCheckbox)
+  if (!modal || !title || !form || !schedulesContainer || !is24x7Checkbox) {
     return;
+  }
 
   form.reset();
-  enabledCheckbox.checked = true;
   title.textContent = groupId ? 'Edit Group' : 'Add Group';
   if (deleteButton) {
     const allowDelete = Boolean(groupId && groupId !== DEFAULT_GROUP_ID);
@@ -845,7 +840,6 @@ function openGroupModal(groupId?: string): void {
         if (group) {
           const nameInput = getElementByIdOrNull<HTMLInputElement>('group-name');
           if (nameInput) nameInput.value = group.name;
-          enabledCheckbox.checked = group.enabled ?? true;
           is24x7Checkbox.checked = group.is24x7;
           temporarySchedules = group.schedules.map((s) => ({
             daysOfWeek: [...s.daysOfWeek],
@@ -891,13 +885,11 @@ async function handleGroupSubmit(e: Event): Promise<void> {
   e.preventDefault();
 
   const name = getElementByIdOrNull<HTMLInputElement>('group-name')?.value ?? '';
-  const enabled = getElementByIdOrNull<HTMLInputElement>('group-enabled')?.checked ?? true;
   const is24x7 = getElementByIdOrNull<HTMLInputElement>('group-24x7')?.checked ?? false;
 
   const group: FilterGroup = {
     id: currentEditingGroupId ?? generateId(),
     name,
-    enabled,
     is24x7,
     schedules: is24x7 ? [] : temporarySchedules,
   };
