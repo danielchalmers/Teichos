@@ -317,6 +317,35 @@ test('adding a whitelist from blocked state restores the target and clears stale
   await expectAllowed(browsingPage, targetUrl);
 });
 
+test('exact and regex filters block matching real navigations', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const exactTarget = 'https://exact-block.example.test/focus?mode=now';
+  const regexTarget = 'https://regex-block.example.test/articles/42';
+  await mockAllowedPage(page, exactTarget, 'Exact target allowed');
+  await mockAllowedPage(page, regexTarget, 'Regex target allowed');
+
+  const optionsPage = await openOptions(extensionPage, page);
+  await createFilterViaOptions(optionsPage, {
+    name: 'Exact Filter',
+    pattern: exactTarget,
+    matchMode: 'exact',
+  });
+  await createFilterViaOptions(optionsPage, {
+    name: 'Regex Filter',
+    pattern: '^https://regex-block\\.example\\.test/articles/\\d+$',
+    matchMode: 'regex',
+  });
+
+  const exactPage = await context.newPage();
+  await expectBlocked(exactPage, exactTarget);
+
+  const regexPage = await context.newPage();
+  await expectBlocked(regexPage, regexTarget);
+});
+
 test('expired temporary filters do not prevent real navigation from being blocked', async ({
   context,
   extensionPage,
@@ -353,6 +382,51 @@ test('expired temporary filters do not prevent real navigation from being blocke
 
   const browsingPage = await context.newPage();
   await expectBlocked(browsingPage, targetUrl);
+});
+
+test('expired temporary filters disappear from popup and options ui', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'expired-ui-filter',
+          pattern: 'expired-ui.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Expired UI Filter',
+          expiresAt: Date.now() - 60_000,
+        },
+        {
+          id: 'regular-ui-filter',
+          pattern: 'regular-ui.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Regular UI Filter',
+        },
+      ],
+    })
+  );
+
+  const popupPage = await openPopup(extensionPage, page);
+  await expectPopupHidesFilter(popupPage, 'Expired UI Filter');
+  await expectPopupShowsFilter(popupPage, 'Regular UI Filter');
+
+  const popupStorage = await readStorage(page);
+  expect(popupStorage?.filters.find((filter) => filter.id === 'expired-ui-filter')?.enabled).toBe(false);
+
+  const optionsPage = await openOptions(extensionPage, page);
+  await expect(optionsPage.locator('.filter-item').filter({ hasText: 'Expired UI Filter' })).toHaveCount(0);
+  await expect(optionsPage.locator('.filter-item').filter({ hasText: 'Regular UI Filter' })).toHaveCount(1);
+  await expect
+    .poll(async () => (await readStorage(page))?.filters.some((filter) => filter.id === 'expired-ui-filter'))
+    .toBe(false);
 });
 
 test('editing a schedule through options changes navigation from off-schedule allow to on-schedule block', async ({
