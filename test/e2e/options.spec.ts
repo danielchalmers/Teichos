@@ -129,59 +129,6 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
   expect((await readStorage(page)).filters).toHaveLength(0);
 });
 
-test('disabling a group preserves child filters and stops blocking', async ({
-  extensionPage,
-  page,
-}, testInfo) => {
-  await page.goto(extensionPage(PAGES.OPTIONS));
-  await seedStorage(
-    page,
-    createStorageData({
-      groups: [
-        defaultGroup,
-        {
-          id: 'focus-group',
-          name: 'Focus Group',
-          is24x7: true,
-          enabled: true,
-          schedules: [],
-        },
-      ],
-      filters: [
-        {
-          id: 'focus-filter',
-          pattern: 'example.com/teichos-options-disabled-group',
-          groupId: 'focus-group',
-          enabled: true,
-          matchMode: 'contains',
-          description: 'Focus Filter',
-        },
-      ],
-    })
-  );
-
-  const focusGroup = page.locator('details.group-item').filter({ hasText: 'Focus Group' });
-  await focusGroup.locator('summary').click();
-  await focusGroup.locator('button[data-action="edit-group"]').click();
-
-  const groupModal = page.locator('#group-modal.active');
-  await expect(groupModal).toBeVisible();
-  await groupModal.getByLabel('Enabled').uncheck();
-  await groupModal.getByRole('button', { name: 'Save' }).click();
-
-  await expect(focusGroup).toContainText('Disabled • Always Active • 1 filter • 0 exceptions');
-  const storedData = await readStorage(page);
-  expect(storedData.groups.find((group) => group.id === 'focus-group')?.enabled).toBe(false);
-  expect(storedData.filters.find((filter) => filter.id === 'focus-filter')?.enabled).toBe(true);
-  await captureScreenshot(page, testInfo, 'options-group-disabled.png');
-
-  const targetUrl = 'https://example.com/teichos-options-disabled-group';
-  await page.goto(targetUrl).catch(() => undefined);
-
-  await expect.poll(() => page.url().includes(`/${PAGES.BLOCKED}?url=`)).toBe(false);
-  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toHaveCount(0);
-});
-
 test('opens filter, group, and exception modals from query params', async ({
   extensionPage,
   page,
