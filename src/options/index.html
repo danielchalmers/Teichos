@@ -132,7 +132,32 @@
           </div>
         </summary>
         <div class="group-content">
-          <p class="empty-state">Global settings controls will appear here.</p>
+          <div class="global-settings-panel">
+            <p class="global-settings-note">
+              Export your current Teichos configuration, or import a previous backup to replace the
+              current settings.
+            </p>
+            <div class="global-settings-actions">
+              <button class="button secondary" id="export-settings-btn" type="button">
+                Export Settings
+              </button>
+              <button class="button secondary" id="import-settings-btn" type="button">
+                Import Settings
+              </button>
+              <input
+                id="import-settings-input"
+                type="file"
+                accept="application/json,.json"
+                hidden
+              />
+            </div>
+            <p
+              class="global-settings-status"
+              id="global-settings-status"
+              role="status"
+              aria-live="polite"
+            ></p>
+          </div>
         </div>
       </details>
     </div>
