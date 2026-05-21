@@ -39,10 +39,13 @@ export async function seedStorage(page: Page, data: StorageData): Promise<void> 
 }
 
 export async function readStorage(page: Page): Promise<StorageData> {
-  return page.evaluate(async (key) => {
-    const result = await chrome.storage.sync.get(key);
-    return result[key] as StorageData;
-  }, STORAGE_KEY);
+  return page.evaluate(
+    async ({ key, defaultData }) => {
+      const result = await chrome.storage.sync.get(key);
+      return (result[key] as StorageData | undefined) ?? defaultData;
+    },
+    { key: STORAGE_KEY, defaultData: createStorageData() }
+  );
 }
 
 export async function captureScreenshot(

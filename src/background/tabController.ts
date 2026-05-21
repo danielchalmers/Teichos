@@ -242,10 +242,7 @@ class TabController {
   }
 
   private async getRules(): Promise<CachedRules> {
-    if (!this.cachedRules) {
-      await this.reloadRules();
-    }
-
+    await this.reloadRules();
     return this.cachedRules as CachedRules;
   }
 

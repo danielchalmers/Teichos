@@ -209,4 +209,44 @@ describe('TabController', () => {
       expect.any(Function)
     );
   });
+
+  it('reloads rules for navigation even when storage changes were not observed', async () => {
+    const chromeMock = getChromeMock();
+    const enabledData = createStorageData({
+      groups: [{ id: 'work', name: 'Work', schedules: [], is24x7: true, enabled: true }],
+      filters: [
+        {
+          id: 'filter-1',
+          pattern: 'blocked.com',
+          groupId: 'work',
+          enabled: true,
+          matchMode: 'contains',
+        },
+      ],
+      rulesVersion: 2,
+    });
+    chromeMock.storage.sync._data.set(STORAGE_KEY, enabledData);
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await expect(getTabController().getUrlDecision('https://blocked.com')).resolves.toEqual({
+      action: 'block',
+      filterId: 'filter-1',
+      groupId: 'work',
+      reason: 'matched-filter',
+    });
+
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        groups: [{ id: 'work', name: 'Work', schedules: [], is24x7: true, enabled: false }],
+        filters: enabledData.filters,
+        rulesVersion: 3,
+      })
+    );
+
+    await getTabController().evaluateNavigation(14, 'https://blocked.com');
+
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+    await expect(getLastAllowedUrl(14)).resolves.toBe('https://blocked.com');
+  });
 });
