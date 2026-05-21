@@ -207,6 +207,8 @@ describe('TabController', () => {
         rulesVersion: 3,
       })
     );
+    // Intentionally update the backing mock storage without invoking the
+    // storage listener to simulate a missed chrome.storage.onChanged event.
 
     await getTabController().evaluateNavigation(13, 'https://blocked.com');
 

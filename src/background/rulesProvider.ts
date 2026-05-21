@@ -17,6 +17,7 @@ export class RulesProvider {
   private readonly createEngine: (data: StorageData) => FilteringEngine;
   private cachedRules: CurrentRules | null = null;
   private cachedSignature: string | null = null;
+  private loadingRules: Promise<CurrentRules> | null = null;
 
   constructor(options: RulesProviderOptions = {}) {
     this.loadStorageData = options.loadStorageData ?? loadData;
@@ -29,21 +30,28 @@ export class RulesProvider {
   }
 
   async loadCurrentRules(): Promise<CurrentRules> {
-    const data = await this.loadStorageData();
-    const signature = serializeRulesData(data);
+    this.loadingRules ??= this.loadStorageData()
+      .then((data) => {
+        const signature = serializeRulesData(data);
 
-    if (this.cachedRules && this.cachedSignature === signature) {
-      return this.cachedRules;
-    }
+        if (this.cachedRules && this.cachedSignature === signature) {
+          return this.cachedRules;
+        }
 
-    const currentRules = {
-      data,
-      engine: this.createEngine(data),
-    };
+        const currentRules = {
+          data,
+          engine: this.createEngine(data),
+        };
 
-    this.cachedRules = currentRules;
-    this.cachedSignature = signature;
-    return currentRules;
+        this.cachedRules = currentRules;
+        this.cachedSignature = signature;
+        return currentRules;
+      })
+      .finally(() => {
+        this.loadingRules = null;
+      });
+
+    return this.loadingRules;
   }
 }
 

@@ -74,6 +74,28 @@ describe('RulesProvider', () => {
     expect(second).toBe(first);
   });
 
+  it('shares in-flight loads so unchanged concurrent reads build one engine', async () => {
+    let resolveStorageData: ((data: StorageData) => void) | undefined;
+    const loadStorageData = vi.fn(
+      () =>
+        new Promise<StorageData>((resolve) => {
+          resolveStorageData = resolve;
+        })
+    );
+    const createEngine = vi.fn((data: StorageData) => createFilteringEngine(data));
+    const provider = new RulesProvider({ loadStorageData, createEngine });
+
+    const firstLoad = provider.loadCurrentRules();
+    const secondLoad = provider.loadCurrentRules();
+    resolveStorageData?.(createStorageData({ rulesVersion: 1 }));
+
+    const [first, second] = await Promise.all([firstLoad, secondLoad]);
+
+    expect(loadStorageData).toHaveBeenCalledTimes(1);
+    expect(createEngine).toHaveBeenCalledTimes(1);
+    expect(second).toBe(first);
+  });
+
   it('reloads rules when storage changes', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ rulesVersion: 1 }));
