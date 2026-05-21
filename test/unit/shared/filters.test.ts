@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   buildBlockingIndex,
+  getFilterActivityState,
   getSnoozeRemainingMs,
   getRegexValidationError,
   isSnoozeActive,
@@ -210,6 +211,22 @@ describe('isFilterActive', () => {
     expect(isFilterActive(filter, groups)).toBe(false);
   });
 
+  it('should return false when the group is disabled', () => {
+    const filter: Filter = {
+      id: 'filter-1',
+      pattern: 'example',
+      groupId: 'group-1',
+      enabled: true,
+      matchMode: 'contains',
+    };
+    const groups: FilterGroup[] = [
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true, enabled: false },
+    ];
+
+    expect(isFilterActive(filter, groups)).toBe(false);
+    expect(getFilterActivityState(filter, groups).reason).toBe('group-disabled');
+  });
+
   it('should return false when a temporary filter is expired', () => {
     const filter: Filter = {
       id: 'filter-1',
@@ -376,6 +393,26 @@ describe('blocking index', () => {
         },
       ],
       groups,
+      []
+    );
+
+    expect(
+      shouldBlockUrlWithIndex('https://blocked.com', blockingIndex, { dayOfWeek: 1, time: '10:00' })
+    ).toBeUndefined();
+  });
+
+  it('does not block when the matching filter group is disabled', () => {
+    const blockingIndex = buildBlockingIndex(
+      [
+        {
+          id: 'disabled-group-filter',
+          pattern: 'blocked.com',
+          groupId: 'work',
+          enabled: true,
+          matchMode: 'contains',
+        },
+      ],
+      [{ id: 'work', name: 'Work', schedules: [], is24x7: true, enabled: false }],
       []
     );
 

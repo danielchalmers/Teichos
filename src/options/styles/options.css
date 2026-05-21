@@ -594,6 +594,13 @@ label {
   z-index: 2;
 }
 
+.group-content.is-effectively-inactive .filter-item,
+.group-content.is-effectively-inactive .empty-state,
+.group-content.is-effectively-inactive [data-role='whitelist-list'] .filter-item,
+.group-content.is-effectively-inactive [data-role='whitelist-list'] .empty-state {
+  opacity: 0.62;
+}
+
 .group-section {
   margin-bottom: 1.25rem;
 }

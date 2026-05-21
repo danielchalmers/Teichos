@@ -32,6 +32,19 @@ export interface BlockingIndex {
   readonly whitelistByGroup: WhitelistByGroup<PreparedWhitelist>;
 }
 
+export type FilterInactiveReason =
+  | 'filter-disabled'
+  | 'group-disabled'
+  | 'group-missing'
+  | 'group-schedule-inactive'
+  | 'temporary-expired';
+
+export interface FilterActivityState {
+  readonly active: boolean;
+  readonly group?: FilterGroup;
+  readonly reason?: FilterInactiveReason;
+}
+
 export function isTemporaryFilter(filter: Filter): filter is Filter & { expiresAt: number } {
   return typeof filter.expiresAt === 'number' && Number.isFinite(filter.expiresAt);
 }
@@ -233,11 +246,7 @@ export function isFilterActive(
   groups: GroupLookup,
   context: ScheduleContext = getScheduleContext()
 ): boolean {
-  if (!filter.enabled) {
-    return false;
-  }
-
-  return isFilterScheduledActive(filter, groups, context);
+  return isFilterEffectivelyActive(filter, groups, context);
 }
 
 /**
@@ -250,16 +259,51 @@ export function isFilterScheduledActive(
   groups: GroupLookup,
   context: ScheduleContext = getScheduleContext()
 ): boolean {
-  if (isTemporaryFilterExpired(filter)) {
-    return false;
+  const state = getFilterActivityState(filter, groups, context);
+  return state.active || state.reason === 'filter-disabled';
+}
+
+export function getFilterActivityState(
+  filter: Filter,
+  groups: GroupLookup,
+  context: ScheduleContext = getScheduleContext(),
+  now = Date.now()
+): FilterActivityState {
+  if (!filter.enabled) {
+    return { active: false, reason: 'filter-disabled' };
+  }
+
+  if (isTemporaryFilterExpired(filter, now)) {
+    return { active: false, reason: 'temporary-expired' };
   }
 
   const group = getGroupFromLookup(filter.groupId, groups);
   if (!group) {
-    return false;
+    return { active: false, reason: 'group-missing' };
   }
 
-  return isGroupScheduleActive(group, context);
+  if (!isGroupEnabled(group)) {
+    return { active: false, group, reason: 'group-disabled' };
+  }
+
+  if (!isGroupScheduleActive(group, context)) {
+    return { active: false, group, reason: 'group-schedule-inactive' };
+  }
+
+  return { active: true, group };
+}
+
+export function isFilterEffectivelyActive(
+  filter: Filter,
+  groups: GroupLookup,
+  context: ScheduleContext = getScheduleContext(),
+  now = Date.now()
+): boolean {
+  return getFilterActivityState(filter, groups, context, now).active;
+}
+
+export function isGroupEnabled(group: FilterGroup): boolean {
+  return group.enabled !== false;
 }
 
 export function shouldBlockUrlWithIndex(
@@ -277,14 +321,9 @@ export function shouldBlockUrlWithIndex(
   const whitelistStatus = new Map<string, boolean>();
 
   for (const filter of blockingIndex.filters) {
-    if (isTemporaryFilterExpired(filter, now)) {
-      continue;
-    }
-
     let isActive = activeGroupStatus.get(filter.groupId);
     if (isActive === undefined) {
-      const group = blockingIndex.groupsById.get(filter.groupId);
-      isActive = group ? isGroupScheduleActive(group, context) : false;
+      isActive = isFilterEffectivelyActive(filter, blockingIndex.groupsById, context, now);
       activeGroupStatus.set(filter.groupId, isActive);
     }
     if (!isActive) {
@@ -370,7 +409,7 @@ function getGroupFromLookup(groupId: string, groups: GroupLookup): FilterGroup |
   return (groups as GroupById).get(groupId);
 }
 
-function isGroupScheduleActive(group: FilterGroup, context: ScheduleContext): boolean {
+export function isGroupScheduleActive(group: FilterGroup, context: ScheduleContext): boolean {
   if (group.is24x7) {
     return true;
   }

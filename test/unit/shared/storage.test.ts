@@ -31,6 +31,7 @@ describe('storage', () => {
 
       expect(data.groups).toHaveLength(1);
       expect(data.groups[0]?.id).toBe(DEFAULT_GROUP_ID);
+      expect(data.groups[0]?.enabled).toBe(true);
       expect(data.filters).toEqual([]);
       expect(data.whitelist).toEqual([]);
       expect(data.snooze).toEqual({ active: false });
@@ -72,6 +73,19 @@ describe('storage', () => {
       expect(data.whitelist).toEqual([]);
       expect(data.snooze).toEqual({ active: false });
       expect(data.rulesVersion).toBe(0);
+    });
+
+    it('should default legacy groups to enabled', async () => {
+      const testData = {
+        groups: [{ id: 'work', name: 'Work', schedules: [], is24x7: false }],
+        filters: [],
+        whitelist: [],
+      };
+
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, testData);
+
+      const data = await loadData();
+      expect(data.groups[0]?.enabled).toBe(true);
     });
 
     it('should assign the default group to legacy whitelist entries', async () => {
@@ -197,7 +211,10 @@ describe('storage', () => {
       await updateFilter({ ...filter, enabled: false });
 
       let data = await loadData();
-      expect(data.groups).toEqual([createDefaultGroup(), { ...group, name: 'Updated Group' }]);
+      expect(data.groups).toEqual([
+        createDefaultGroup(),
+        { ...group, name: 'Updated Group', enabled: true },
+      ]);
       expect(data.filters).toEqual([{ ...filter, enabled: false }]);
 
       await deleteFilter(filter.id);

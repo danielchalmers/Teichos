@@ -12,7 +12,7 @@ import { PAGES } from '../../../src/shared/constants';
 function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
   return {
     groups: overrides.groups ?? [
-      { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true },
+      { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true, enabled: true },
     ],
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
@@ -181,5 +181,53 @@ describe('TabController', () => {
       },
       expect.any(Function)
     );
+  });
+
+  it('stops blocking immediately when a matching group is disabled', async () => {
+    const chromeMock = getChromeMock();
+    const { getTabController } = await import('../../../src/background/tabController');
+    getTabController().register();
+
+    const initialData = createStorageData({
+      filters: [
+        {
+          id: 'filter-1',
+          pattern: 'blocked.com',
+          groupId: DEFAULT_GROUP_ID,
+          enabled: true,
+          matchMode: 'contains',
+        },
+      ],
+      rulesVersion: 1,
+    });
+    chromeMock.storage.sync._data.set(STORAGE_KEY, initialData);
+
+    await expect(getTabController().getUrlDecision('https://blocked.com')).resolves.toEqual({
+      action: 'block',
+      filterId: 'filter-1',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
+
+    const onChanged = chromeMock.storage.onChanged.addListener.mock.calls[0]?.[0];
+    const updatedData = createStorageData({
+      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true, enabled: false }],
+      filters: initialData.filters,
+      rulesVersion: 2,
+    });
+    chromeMock.storage.sync._data.set(STORAGE_KEY, updatedData);
+    chromeMock.tabs.update.mockClear();
+
+    onChanged?.({ [STORAGE_KEY]: { newValue: updatedData } }, 'sync');
+
+    await expect(getTabController().getUrlDecision('https://blocked.com')).resolves.toEqual({
+      action: 'allow',
+      reason: 'group-inactive',
+    });
+
+    await getTabController().evaluateNavigation(13, 'https://blocked.com');
+
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+    await expect(getLastAllowedUrl(13)).resolves.toBe('https://blocked.com');
   });
 });
