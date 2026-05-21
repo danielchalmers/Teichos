@@ -35,6 +35,7 @@ function createDefaultData(): StorageData {
     filters: [],
     whitelist: [],
     snooze: { active: false },
+    rulesVersion: 0,
   };
 }
 
@@ -53,6 +54,7 @@ interface LegacyStorageData {
   readonly groups?: readonly FilterGroup[];
   readonly filters?: readonly LegacyFilter[];
   readonly whitelist?: readonly LegacyWhitelist[];
+  readonly rulesVersion?: number;
   readonly snooze?: {
     readonly active?: boolean;
     readonly until?: number;
@@ -119,6 +121,10 @@ export async function loadData(): Promise<StorageData> {
   const filters = normalizeFilters(data.filters);
   const whitelist = normalizeWhitelist(data.whitelist, groupIds);
   const snooze = normalizeSnooze(data.snooze);
+  const rulesVersion =
+    typeof data.rulesVersion === 'number' && Number.isFinite(data.rulesVersion)
+      ? data.rulesVersion
+      : 0;
 
   return {
     ...data,
@@ -126,6 +132,7 @@ export async function loadData(): Promise<StorageData> {
     filters,
     whitelist,
     snooze,
+    rulesVersion,
   };
 }
 
@@ -133,7 +140,21 @@ export async function loadData(): Promise<StorageData> {
  * Save storage data to chrome.storage.sync
  */
 export async function saveData(data: StorageData): Promise<void> {
-  await chrome.storage.sync.set({ [STORAGE_KEY]: data });
+  const result = await chrome.storage.sync.get(STORAGE_KEY);
+  const storedData = result[STORAGE_KEY] as { rulesVersion?: unknown } | undefined;
+  const previousRulesVersion =
+    typeof storedData?.rulesVersion === 'number' && Number.isFinite(storedData.rulesVersion)
+      ? storedData.rulesVersion
+      : typeof data.rulesVersion === 'number' && Number.isFinite(data.rulesVersion)
+        ? data.rulesVersion
+        : 0;
+
+  await chrome.storage.sync.set({
+    [STORAGE_KEY]: {
+      ...data,
+      rulesVersion: previousRulesVersion + 1,
+    },
+  });
 }
 
 // Group operations

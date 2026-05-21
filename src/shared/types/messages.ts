@@ -11,6 +11,7 @@ export const MessageType = {
   DATA_UPDATED: 'DATA_UPDATED',
   CHECK_URL: 'CHECK_URL',
   URL_BLOCKED: 'URL_BLOCKED',
+  GO_BACK_ACTIVE_TAB: 'GO_BACK_ACTIVE_TAB',
   CLOSE_INFO_PANEL: 'CLOSE_INFO_PANEL',
 } as const;
 
@@ -26,6 +27,10 @@ export interface CheckUrlMessage {
   readonly url: string;
 }
 
+export interface GoBackActiveTabMessage {
+  readonly type: typeof MessageType.GO_BACK_ACTIVE_TAB;
+}
+
 // Response messages
 export interface GetDataResponse {
   readonly success: true;
@@ -34,6 +39,10 @@ export interface GetDataResponse {
 
 export interface CheckUrlResponse {
   readonly blocked: boolean;
+}
+
+export interface GoBackActiveTabResponse {
+  readonly restored: boolean;
 }
 
 // Notification messages (broadcast)
@@ -56,6 +65,7 @@ export interface CloseInfoPanelMessage {
 export type ExtensionMessage =
   | GetDataMessage
   | CheckUrlMessage
+  | GoBackActiveTabMessage
   | DataUpdatedMessage
   | UrlBlockedMessage
   | CloseInfoPanelMessage;
@@ -65,7 +75,9 @@ export type MessageResponse<T extends ExtensionMessage> = T extends GetDataMessa
   ? GetDataResponse
   : T extends CheckUrlMessage
     ? CheckUrlResponse
-    : undefined;
+    : T extends GoBackActiveTabMessage
+      ? GoBackActiveTabResponse
+      : undefined;
 
 // Type guards for message validation
 export function isGetDataMessage(msg: unknown): msg is GetDataMessage {
@@ -82,6 +94,15 @@ export function isCheckUrlMessage(msg: unknown): msg is CheckUrlMessage {
     msg.type === MessageType.CHECK_URL &&
     'url' in msg &&
     typeof msg.url === 'string'
+  );
+}
+
+export function isGoBackActiveTabMessage(msg: unknown): msg is GoBackActiveTabMessage {
+  return (
+    typeof msg === 'object' &&
+    msg !== null &&
+    'type' in msg &&
+    msg.type === MessageType.GO_BACK_ACTIVE_TAB
   );
 }
 

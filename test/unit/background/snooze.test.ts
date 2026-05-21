@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createMockTab, getChromeMock } from '../../fixtures/chrome-mocks';
-import { ALARMS, PAGES } from '../../../src/shared/constants';
+import { getChromeMock } from '../../fixtures/chrome-mocks';
+import { ALARMS } from '../../../src/shared/constants';
 import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
 
 function createActiveTimedSnooze(): { active: true; until: number } {
@@ -23,6 +23,7 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: activeTimedSnooze,
+      rulesVersion: 1,
     });
 
     const { registerSnoozeHandlers } = await import('../../../src/background/snooze');
@@ -60,25 +61,15 @@ describe('registerSnoozeHandlers', () => {
         filters: [],
         whitelist: [],
         snooze: { active: false },
+        rulesVersion: 1,
       });
     });
     expect(chromeMock.storage.session._data.get('snooze_override')).toEqual({ active: false });
     expect(chromeMock.alarms.clear).toHaveBeenCalledWith(ALARMS.SNOOZE_EXPIRATION);
   });
 
-  it('restores blocked tabs when snooze becomes active through storage changes', async () => {
+  it('updates session snooze state when snooze becomes active through storage changes', async () => {
     const chromeMock = getChromeMock();
-    chromeMock.tabs.query.mockImplementation(
-      (_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
-        callback?.([
-          createMockTab({
-            id: 3,
-            url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://example.com/restored')}`,
-          }),
-        ]);
-      }
-    );
-
     const { registerSnoozeHandlers } = await import('../../../src/background/snooze');
     registerSnoozeHandlers();
     const onChanged = chromeMock.storage.onChanged.addListener.mock.calls[0]?.[0];
@@ -90,20 +81,17 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: activeTimedSnooze,
+      rulesVersion: 2,
     });
 
     onChanged?.({ [STORAGE_KEY]: { newValue: true } }, 'sync');
 
     await vi.waitFor(() => {
-      expect(chromeMock.tabs.update).toHaveBeenCalledWith(
-        3,
-        { url: 'https://example.com/restored' },
-        expect.any(Function)
-      );
+      expect(chromeMock.storage.session._data.get('snooze_override')).toEqual(activeTimedSnooze);
     });
-    expect(chromeMock.storage.session._data.get('last_allowed_url_3')).toBe(
-      'https://example.com/restored'
-    );
+    expect(chromeMock.alarms.create).toHaveBeenCalledWith(ALARMS.SNOOZE_EXPIRATION, {
+      when: activeTimedSnooze.until,
+    });
   });
 
   it('handles snooze expiration alarms and ignores unrelated alarms', async () => {
@@ -115,6 +103,7 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: { active: true, until: Date.now() - 1 },
+      rulesVersion: 1,
     });
 
     const { registerSnoozeHandlers } = await import('../../../src/background/snooze');
@@ -127,6 +116,7 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: { active: true, until: Date.now() - 1 },
+      rulesVersion: 1,
     });
 
     onAlarm?.({ name: 'other-alarm' });
@@ -135,6 +125,7 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: { active: true, until: Date.now() - 1 },
+      rulesVersion: 1,
     });
 
     onAlarm?.({ name: ALARMS.SNOOZE_EXPIRATION });
@@ -145,6 +136,7 @@ describe('registerSnoozeHandlers', () => {
         filters: [],
         whitelist: [],
         snooze: { active: false },
+        rulesVersion: 2,
       });
     });
     expect(chromeMock.storage.session._data.get('snooze_override')).toEqual({ active: false });

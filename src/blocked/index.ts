@@ -4,24 +4,15 @@
  */
 
 import { openOptionsPage } from '../shared/api/runtime';
-import { getLastAllowedUrl } from '../shared/api/session';
-import { getActiveTab, updateTabUrl } from '../shared/api/tabs';
+import { MessageType, type GoBackActiveTabResponse } from '../shared/types';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 
 /**
  * Initialize blocked page
  */
-function init(): void {
-  const urlParams = new URLSearchParams(window.location.search);
-  const blockedUrl = urlParams.get('url') ?? 'Unknown URL';
+async function init(): Promise<void> {
+  renderBlockedUrl();
 
-  // Display the blocked URL
-  const blockedUrlElement = getElementByIdOrNull('blocked-url');
-  if (blockedUrlElement) {
-    blockedUrlElement.textContent = blockedUrl;
-  }
-
-  // Set up go back button
   const goBackButton = getElementByIdOrNull('go-back');
   goBackButton?.addEventListener('click', () => {
     void handleGoBack().catch((error: unknown) => {
@@ -39,20 +30,24 @@ function init(): void {
 }
 
 async function handleGoBack(): Promise<void> {
-  const activeTab = await getActiveTab();
-  if (!activeTab?.id) {
-    window.history.back();
-    return;
-  }
+  const response = (await chrome.runtime.sendMessage({
+    type: MessageType.GO_BACK_ACTIVE_TAB,
+  })) as GoBackActiveTabResponse;
 
-  const lastAllowedUrl = await getLastAllowedUrl(activeTab.id);
-  if (lastAllowedUrl) {
-    await updateTabUrl(activeTab.id, lastAllowedUrl);
-    return;
+  if (!response.restored) {
+    console.warn('[Teichos] No restorable tab target is available.');
   }
+}
 
-  window.history.back();
+function renderBlockedUrl(): void {
+  const urlParams = new URLSearchParams(window.location.search);
+  const blockedUrlElement = getElementByIdOrNull('blocked-url');
+  if (blockedUrlElement) {
+    blockedUrlElement.textContent = urlParams.get('url') ?? 'Unknown URL';
+  }
 }
 
 // Initialize on load
-init();
+void init().catch((error: unknown) => {
+  console.error('Failed to initialize blocked page:', error);
+});

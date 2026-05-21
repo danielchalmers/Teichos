@@ -3,10 +3,9 @@
  * Processes messages from popup, options, and content scripts
  */
 
-import { buildBlockingIndex, shouldBlockUrlWithIndex } from '../../shared/utils';
 import { loadData } from '../../shared/api/storage';
-import { isGetDataMessage, isCheckUrlMessage } from '../../shared/types';
-import { isSnoozeBypassActive } from '../snoozeBypass';
+import { isCheckUrlMessage, isGetDataMessage, isGoBackActiveTabMessage } from '../../shared/types';
+import { getTabController } from '../tabController';
 
 /**
  * Handle incoming messages from other extension contexts
@@ -32,6 +31,11 @@ export function handleMessage(
     return true; // Will respond asynchronously
   }
 
+  if (isGoBackActiveTabMessage(message)) {
+    void handleGoBackActiveTab(sendResponse);
+    return true;
+  }
+
   return false;
 }
 
@@ -44,13 +48,10 @@ async function handleCheckUrl(
   url: string,
   sendResponse: (response: unknown) => void
 ): Promise<void> {
-  if (await isSnoozeBypassActive()) {
-    sendResponse({ blocked: false });
-    return;
-  }
+  const decision = await getTabController().getUrlDecision(url);
+  sendResponse({ blocked: decision.action === 'block' });
+}
 
-  const data = await loadData();
-  const blockingIndex = buildBlockingIndex(data.filters, data.groups, data.whitelist);
-  const blocked = shouldBlockUrlWithIndex(url, blockingIndex);
-  sendResponse({ blocked: blocked !== undefined });
+async function handleGoBackActiveTab(sendResponse: (response: unknown) => void): Promise<void> {
+  sendResponse({ restored: await getTabController().goBackFromActiveTab() });
 }
