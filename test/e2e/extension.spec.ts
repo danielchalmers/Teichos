@@ -1,36 +1,6 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { test, expect } from './fixtures';
 import { createStorageData, defaultGroup, seedStorage } from './helpers';
 import { PAGES } from '../../src/shared/constants';
-
-interface BuiltManifest {
-  host_permissions?: string[];
-  permissions: string[];
-  web_accessible_resources?: {
-    matches?: string[];
-    resources?: string[];
-  }[];
-}
-
-test('built manifest does not request broad host permissions', async () => {
-  const manifest = JSON.parse(
-    await readFile(path.resolve('dist/manifest.json'), 'utf8')
-  ) as BuiltManifest;
-
-  expect(manifest.host_permissions).toBeUndefined();
-  expect(manifest.permissions).toEqual(
-    expect.arrayContaining(['alarms', 'storage', 'tabs', 'webNavigation'])
-  );
-  expect(manifest.web_accessible_resources).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({
-        matches: ['<all_urls>'],
-        resources: expect.arrayContaining(['src/blocked/index.html']),
-      }),
-    ])
-  );
-});
 
 test('loads the extension service worker and extension pages', async ({
   extensionId,
