@@ -86,24 +86,24 @@ export function evaluateFilterDecision(
     }
 
     if (!filter.enabled) {
-      fallbackReason = upgradeFallbackReason(fallbackReason, 'filter-disabled');
+      fallbackReason = selectHigherPriorityReason(fallbackReason, 'filter-disabled');
       continue;
     }
 
     if (isTemporaryFilterExpired(filter, now)) {
-      fallbackReason = upgradeFallbackReason(fallbackReason, 'temporary-expired');
+      fallbackReason = selectHigherPriorityReason(fallbackReason, 'temporary-expired');
       continue;
     }
 
     if (!isFilterScheduledActive(filter, groupsById, context)) {
-      fallbackReason = upgradeFallbackReason(fallbackReason, 'group-inactive');
+      fallbackReason = selectHigherPriorityReason(fallbackReason, 'group-inactive');
       continue;
     }
 
     if (!isTemporaryFilter(filter)) {
       const groupWhitelist = whitelistByGroup.get(filter.groupId);
       if (groupWhitelist?.some((entry) => matchesPattern(url, entry, undefined, urlLower))) {
-        fallbackReason = upgradeFallbackReason(fallbackReason, 'whitelisted');
+        fallbackReason = selectHigherPriorityReason(fallbackReason, 'whitelisted');
         continue;
       }
     }
@@ -119,7 +119,7 @@ export function evaluateFilterDecision(
   return { action: 'allow', reason: fallbackReason };
 }
 
-function upgradeFallbackReason(
+function selectHigherPriorityReason(
   current: FilterDecisionAllowReason,
   candidate: FilterDecisionAllowReason
 ): FilterDecisionAllowReason {
