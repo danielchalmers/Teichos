@@ -9,6 +9,7 @@ interface MockStorage {
   _reset: () => void;
   get: ReturnType<typeof vi.fn>;
   set: ReturnType<typeof vi.fn>;
+  remove: ReturnType<typeof vi.fn>;
 }
 
 interface ChromeMock {
@@ -101,6 +102,13 @@ function createMockStorage(): MockStorage {
     set: vi.fn((items: Record<string, unknown>) => {
       Object.entries(items).forEach(([key, value]) => {
         data.set(key, value);
+      });
+      return Promise.resolve();
+    }),
+    remove: vi.fn((keys: string | string[]) => {
+      const keyArray = Array.isArray(keys) ? keys : [keys];
+      keyArray.forEach((key) => {
+        data.delete(key);
       });
       return Promise.resolve();
     }),

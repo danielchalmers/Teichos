@@ -74,7 +74,7 @@ export async function getBlockedTabState(tabId: number): Promise<BlockedTabState
 }
 
 export async function clearBlockedTabState(tabId: number): Promise<void> {
-  await chrome.storage.session.set({ [blockedTabStateKey(tabId)]: undefined });
+  await chrome.storage.session.remove(blockedTabStateKey(tabId));
 }
 
 function normalizeSessionSnooze(value: unknown): SnoozeState | undefined {
