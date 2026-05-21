@@ -33,6 +33,8 @@ class TabController {
         return;
       }
 
+      // Invalidate immediately so any navigation that arrives before the queued
+      // reconciliation finishes reloads the latest rules instead of using stale cached data.
       this.cachedRules = null;
       this.queueReconcile();
     });

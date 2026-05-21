@@ -156,23 +156,21 @@ describe('TabController', () => {
     });
 
     const onChanged = chromeMock.storage.onChanged.addListener.mock.calls[0]?.[0];
-    chromeMock.storage.sync._data.set(
-      STORAGE_KEY,
-      createStorageData({
-        filters: [
-          {
-            id: 'filter-2',
-            pattern: 'blocked.com',
-            groupId: DEFAULT_GROUP_ID,
-            enabled: true,
-            matchMode: 'contains',
-          },
-        ],
-        rulesVersion: 2,
-      })
-    );
+    const updatedData = createStorageData({
+      filters: [
+        {
+          id: 'filter-2',
+          pattern: 'blocked.com',
+          groupId: DEFAULT_GROUP_ID,
+          enabled: true,
+          matchMode: 'contains',
+        },
+      ],
+      rulesVersion: 2,
+    });
+    chromeMock.storage.sync._data.set(STORAGE_KEY, updatedData);
 
-    onChanged?.({ [STORAGE_KEY]: { newValue: true } }, 'sync');
+    onChanged?.({ [STORAGE_KEY]: { newValue: updatedData } }, 'sync');
 
     await getTabController().evaluateNavigation(12, 'https://blocked.com');
 
