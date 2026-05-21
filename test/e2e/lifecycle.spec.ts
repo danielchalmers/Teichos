@@ -17,11 +17,7 @@ import {
   toggleFilterViaOptions,
 } from './helpers';
 
-async function mockAllowedPage(
-  context: BrowserContext,
-  url: string,
-  label: string
-): Promise<void> {
+async function mockAllowedPage(context: BrowserContext, url: string, label: string): Promise<void> {
   await context.route(url, async (route) => {
     await route.fulfill({
       status: 200,
@@ -90,7 +86,11 @@ test('popup toggle changes navigation behavior and direct storage updates refres
   await expectPopupShowsFilter(popupPage, 'Popup Toggle');
   await expectBlocked(browsingPage, targetUrl);
 
-  await popupPage.locator('.filter-item').filter({ hasText: 'Popup Toggle' }).locator('label.toggle').click();
+  await popupPage
+    .locator('.filter-item')
+    .filter({ hasText: 'Popup Toggle' })
+    .locator('label.toggle')
+    .click();
   await expectPopupHidesFilter(popupPage, 'Popup Toggle');
   await expectAllowed(browsingPage, targetUrl);
 
@@ -132,7 +132,9 @@ test('whitelisting keeps navigation allowed and hides the matching popup filter 
   await whitelistModal.getByLabel('Name').fill('Allow Docs');
   await whitelistModal.getByLabel('URL Pattern').fill(targetUrl);
   await whitelistModal.getByRole('button', { name: 'Save' }).click();
-  await expect(defaultGroupCard.locator('.filter-item').filter({ hasText: 'Allow Docs' })).toHaveCount(1);
+  await expect(
+    defaultGroupCard.locator('.filter-item').filter({ hasText: 'Allow Docs' })
+  ).toHaveCount(1);
 
   const browsingPage = await context.newPage();
   await expectAllowed(browsingPage, targetUrl);

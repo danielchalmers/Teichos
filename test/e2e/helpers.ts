@@ -55,9 +55,9 @@ export async function expectBlocked(
   expectedBlockedUrl = expectBlockedPageFor(targetUrl)
 ): Promise<void> {
   await page.goto(targetUrl).catch(() => undefined);
-  await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe(
-    expectedBlockedUrl
-  );
+  await expect
+    .poll(() => new URL(page.url()).pathname + new URL(page.url()).search)
+    .toBe(expectedBlockedUrl);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
 }
@@ -128,9 +128,9 @@ export async function createFilterViaOptions(
   }
 
   await modal.getByRole('button', { name: 'Save' }).click();
-  await expect(group.locator('.filter-item').filter({ hasText: filter.name ?? filter.pattern })).toHaveCount(
-    1
-  );
+  await expect(
+    group.locator('.filter-item').filter({ hasText: filter.name ?? filter.pattern })
+  ).toHaveCount(1);
 }
 
 export async function toggleFilterViaOptions(
