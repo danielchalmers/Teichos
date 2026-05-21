@@ -5,15 +5,13 @@ import { createStorageData, defaultGroup, seedStorage } from './helpers';
 import { PAGES } from '../../src/shared/constants';
 
 test('built manifest does not request broad host permissions', async () => {
-  const manifest = JSON.parse(
-    await readFile(path.resolve('dist/manifest.json'), 'utf8')
-  ) as {
+  const manifest = JSON.parse(await readFile(path.resolve('dist/manifest.json'), 'utf8')) as {
     host_permissions?: string[];
     permissions: string[];
-    web_accessible_resources?: Array<{
+    web_accessible_resources?: {
       matches?: string[];
       resources?: string[];
-    }>;
+    }[];
   };
 
   expect(manifest.host_permissions).toBeUndefined();
