@@ -478,9 +478,61 @@ describe('TabController', () => {
       reason: 'group-inactive',
     });
 
+    chromeMock.tabs.update.mockClear();
     await getTabController().evaluateNavigation(13, 'https://blocked.com');
 
     expect(chromeMock.tabs.update).not.toHaveBeenCalled();
     await expect(getLastAllowedUrl(13)).resolves.toBe('https://blocked.com');
+  });
+
+  it('reloads persisted rules before blocking when storage changes without a listener event', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'filter-1',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 1,
+      })
+    );
+    const { getTabController } = await import('../../../src/background/tabController');
+    const tabController = getTabController();
+
+    await expect(tabController.getUrlDecision('https://blocked.com')).resolves.toEqual({
+      action: 'block',
+      filterId: 'filter-1',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
+
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true, enabled: false }],
+        filters: [
+          {
+            id: 'filter-1',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 2,
+      })
+    );
+    chromeMock.tabs.update.mockClear();
+
+    await tabController.evaluateNavigation(14, 'https://blocked.com');
+
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+    await expect(getLastAllowedUrl(14)).resolves.toBe('https://blocked.com');
   });
 });

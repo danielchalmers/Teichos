@@ -480,3 +480,75 @@ test('updates selected days and supports empty schedules in the group editor', a
 
   await expect(flexibleHoursGroup).toContainText('No days 09:00-17:00 • 0 filters • 0 exceptions');
 });
+
+test('stops blocking after a group is disabled from options storage updates', async ({
+  extensionPage,
+  page,
+}, testInfo) => {
+  const targetUrl = 'https://blocked.example.invalid/options-group-disabled';
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'focus-group',
+          name: 'Focus Group',
+          is24x7: true,
+          enabled: true,
+          schedules: [],
+        },
+      ],
+      filters: [
+        {
+          id: 'focus-filter',
+          pattern: 'blocked.example.invalid/options-group-disabled',
+          groupId: 'focus-group',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Focus Filter',
+        },
+      ],
+    })
+  );
+
+  await page.goto(targetUrl).catch(() => undefined);
+  await expect
+    .poll(() => {
+      const currentUrl = new URL(page.url());
+      return (
+        currentUrl.pathname === `/${PAGES.BLOCKED}` &&
+        currentUrl.searchParams.has('blockId') &&
+        !currentUrl.searchParams.has('url')
+      );
+    })
+    .toBe(true);
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  const existingData = await readStorage(page);
+  if (!existingData) {
+    throw new Error('Expected seeded storage data.');
+  }
+  expect(existingData.filters.find((filter) => filter.id === 'focus-filter')?.enabled).toBe(true);
+
+  await seedStorage(page, {
+    ...existingData,
+    groups: existingData.groups.map((group) =>
+      group.id === 'focus-group' ? { ...group, enabled: false } : group
+    ),
+  });
+
+  const updatedData = await readStorage(page);
+  if (!updatedData) {
+    throw new Error('Expected updated storage data.');
+  }
+  expect(updatedData.groups.find((group) => group.id === 'focus-group')?.enabled).toBe(false);
+  expect(updatedData.filters.find((filter) => filter.id === 'focus-filter')?.enabled).toBe(true);
+  await captureScreenshot(page, testInfo, 'options-group-disabled-storage-update.png');
+
+  await page.goto(targetUrl).catch(() => undefined);
+  await expect.poll(() => new URL(page.url()).pathname).not.toBe(`/${PAGES.BLOCKED}`);
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toHaveCount(0);
+});
