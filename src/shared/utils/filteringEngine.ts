@@ -36,6 +36,15 @@ export interface FilteringEngine {
   evaluate: (url: string, context?: ScheduleContext) => FilterDecision;
 }
 
+const FILTER_DECISION_REASON_PRIORITY: Record<FilterDecisionAllowReason, number> = {
+  'no-match': 0,
+  'filter-disabled': 1,
+  'temporary-expired': 2,
+  'group-inactive': 3,
+  whitelisted: 4,
+  snoozed: 5,
+};
+
 export function createFilteringEngine(data: StorageData): FilteringEngine {
   const groupsById = buildGroupById(data.groups);
   const whitelistByGroup = buildWhitelistByGroup(data.whitelist);
@@ -123,14 +132,7 @@ function selectHigherPriorityReason(
   current: FilterDecisionAllowReason,
   candidate: FilterDecisionAllowReason
 ): FilterDecisionAllowReason {
-  const priority: Record<FilterDecisionAllowReason, number> = {
-    'no-match': 0,
-    'filter-disabled': 1,
-    'temporary-expired': 2,
-    'group-inactive': 3,
-    whitelisted: 4,
-    snoozed: 5,
-  };
-
-  return priority[candidate] > priority[current] ? candidate : current;
+  return FILTER_DECISION_REASON_PRIORITY[candidate] > FILTER_DECISION_REASON_PRIORITY[current]
+    ? candidate
+    : current;
 }
