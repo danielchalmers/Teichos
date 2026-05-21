@@ -1,4 +1,3 @@
-import { loadData } from '../shared/api/storage';
 import {
   clearBlockedTabState,
   getBlockedTabState,
@@ -9,18 +8,15 @@ import {
 import { getActiveTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
 import { getExtensionUrl } from '../shared/api/runtime';
 import { PAGES } from '../shared/constants';
-import { STORAGE_KEY, type BlockedTabState, type StorageData } from '../shared/types';
-import { createFilteringEngine, isInternalUrl, type FilterDecision } from '../shared/utils';
-
-interface CachedRules {
-  readonly data: StorageData;
-  readonly engine: ReturnType<typeof createFilteringEngine>;
-}
+import { STORAGE_KEY, type BlockedTabState } from '../shared/types';
+import { isInternalUrl, type FilterDecision } from '../shared/utils';
+import { getRulesProvider, type CurrentRules, type RulesProvider } from './rulesProvider';
 
 class TabController {
   private didRegister = false;
-  private cachedRules: CachedRules | null = null;
   private reconcileQueue: Promise<void> = Promise.resolve();
+
+  constructor(private readonly rulesProvider: RulesProvider = getRulesProvider()) {}
 
   register(): void {
     if (this.didRegister) {
@@ -33,9 +29,7 @@ class TabController {
         return;
       }
 
-      // Invalidate immediately so any navigation that arrives before the queued
-      // reconciliation finishes reloads the latest rules instead of using stale cached data.
-      this.cachedRules = null;
+      this.rulesProvider.invalidate();
       this.queueReconcile();
     });
 
@@ -233,7 +227,7 @@ class TabController {
   private queueReconcile(): void {
     this.reconcileQueue = this.reconcileQueue
       .then(async () => {
-        await this.reloadRules();
+        await this.getRules();
         await this.reconcileAllOpenTabs();
       })
       .catch((error: unknown) => {
@@ -241,20 +235,8 @@ class TabController {
       });
   }
 
-  private async getRules(): Promise<CachedRules> {
-    if (!this.cachedRules) {
-      await this.reloadRules();
-    }
-
-    return this.cachedRules as CachedRules;
-  }
-
-  private async reloadRules(): Promise<void> {
-    const data = await loadData();
-    this.cachedRules = {
-      data,
-      engine: createFilteringEngine(data),
-    };
+  private async getRules(): Promise<CurrentRules> {
+    return this.rulesProvider.loadCurrentRules();
   }
 }
 
