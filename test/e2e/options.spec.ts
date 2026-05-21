@@ -59,21 +59,26 @@ test('restores collapsed groups when reopening the options page', async ({
   );
   await page.reload();
 
-  const defaultGroupCard = page
-    .locator('details.group-item')
-    .filter({ hasText: '24/7 (Always Active)' });
   const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
 
-  await expect(defaultGroupCard).toHaveJSProperty('open', true);
+  await workHoursGroup.locator('summary').click();
   await expect(workHoursGroup).toHaveJSProperty('open', true);
 
   await workHoursGroup.locator('summary').click();
   await expect(workHoursGroup).toHaveJSProperty('open', false);
 
-  await page.reload();
+  const reopenedPage = await page.context().newPage();
+  await reopenedPage.goto(extensionPage(PAGES.OPTIONS));
 
-  await expect(defaultGroupCard).toHaveJSProperty('open', true);
-  await expect(workHoursGroup).toHaveJSProperty('open', false);
+  const reopenedDefaultGroupCard = reopenedPage
+    .locator('details.group-item')
+    .filter({ hasText: '24/7 (Always Active)' });
+  const reopenedWorkHoursGroup = reopenedPage
+    .locator('details.group-item')
+    .filter({ hasText: 'Work Hours' });
+
+  await expect(reopenedDefaultGroupCard).toHaveJSProperty('open', true);
+  await expect(reopenedWorkHoursGroup).toHaveJSProperty('open', false);
 });
 
 test('creates, edits, and deletes a scheduled group with filters and exceptions', async ({

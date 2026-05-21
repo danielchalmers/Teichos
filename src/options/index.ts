@@ -50,6 +50,7 @@ let temporarySchedules: MutableTimeSchedule[] = [];
 let activeModal: HTMLElement | null = null;
 let lastFocusedElement: HTMLElement | null = null;
 let setInfoPopoverOpen: ((isOpen: boolean) => void) | null = null;
+let isRestoringGroupCollapseState = false;
 
 /**
  * Initialize options page
@@ -401,24 +402,31 @@ async function renderGroups(): Promise<void> {
 
   groupsList.replaceChildren(fragment);
 
-  if (openGroupIds.size > 0) {
-    openGroupIds.forEach((groupId) => {
-      const details = groupsList.querySelector<HTMLDetailsElement>(
-        `details.group-item[data-group-id="${groupId}"]`
-      );
-      if (details) {
-        details.open = true;
-      }
-    });
-  } else if (!hadGroups) {
-    groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((details) => {
-      const groupId = details.dataset['groupId'];
-      details.open = !groupId || !storedCollapsedGroupIds.has(groupId);
-    });
+  isRestoringGroupCollapseState = true;
+  try {
+    if (openGroupIds.size > 0) {
+      openGroupIds.forEach((groupId) => {
+        const details = groupsList.querySelector<HTMLDetailsElement>(
+          `details.group-item[data-group-id="${groupId}"]`
+        );
+        if (details) {
+          details.open = true;
+        }
+      });
+    } else if (!hadGroups) {
+      groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((details) => {
+        const groupId = details.dataset['groupId'];
+        details.open = !groupId || !storedCollapsedGroupIds.has(groupId);
+      });
+    }
+  } finally {
+    isRestoringGroupCollapseState = false;
   }
 
   const currentGroupIds = new Set(data.groups.map((group) => group.id));
-  const staleCollapsedGroupIds = [...storedCollapsedGroupIds].filter((groupId) => !currentGroupIds.has(groupId));
+  const staleCollapsedGroupIds = [...storedCollapsedGroupIds].filter(
+    (groupId) => !currentGroupIds.has(groupId)
+  );
   if (staleCollapsedGroupIds.length > 0) {
     void saveCollapsedGroupIds(
       [...storedCollapsedGroupIds].filter((groupId) => currentGroupIds.has(groupId))
@@ -445,6 +453,9 @@ function renderGroup(
   const groupElement = cloneTemplate<HTMLDetailsElement>('options-group-template');
   groupElement.dataset['groupId'] = group.id;
   groupElement.addEventListener('toggle', () => {
+    if (isRestoringGroupCollapseState) {
+      return;
+    }
     void persistCollapsedGroupIds();
   });
 
@@ -506,7 +517,9 @@ async function loadCollapsedGroupIds(): Promise<Set<string>> {
     return new Set();
   }
 
-  return new Set(storedGroupIds.filter((groupId): groupId is string => typeof groupId === 'string'));
+  return new Set(
+    storedGroupIds.filter((groupId): groupId is string => typeof groupId === 'string')
+  );
 }
 
 async function saveCollapsedGroupIds(groupIds: readonly string[]): Promise<void> {
