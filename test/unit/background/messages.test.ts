@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   getUrlDecision: vi.fn(),
-  getActiveBlockedPageInfo: vi.fn(),
   goBackFromActiveTab: vi.fn(),
   loadData: vi.fn(),
 }));
@@ -10,11 +9,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../src/background/tabController', () => ({
   getTabController: (): {
     getUrlDecision: typeof mocks.getUrlDecision;
-    getActiveBlockedPageInfo: typeof mocks.getActiveBlockedPageInfo;
     goBackFromActiveTab: typeof mocks.goBackFromActiveTab;
   } => ({
     getUrlDecision: mocks.getUrlDecision,
-    getActiveBlockedPageInfo: mocks.getActiveBlockedPageInfo,
     goBackFromActiveTab: mocks.goBackFromActiveTab,
   }),
 }));
@@ -39,7 +36,6 @@ describe('handleMessage', () => {
   beforeEach(() => {
     mocks.loadData.mockResolvedValue(defaultData);
     mocks.getUrlDecision.mockResolvedValue({ action: 'allow', reason: 'no-match' });
-    mocks.getActiveBlockedPageInfo.mockResolvedValue({ blocked: false });
     mocks.goBackFromActiveTab.mockResolvedValue(false);
   });
 
@@ -83,33 +79,6 @@ describe('handleMessage', () => {
 
     await vi.waitFor(() => {
       expect(sendResponse).toHaveBeenCalledWith({ blocked: true });
-    });
-  });
-
-  it('responds with blocked page info requests', async () => {
-    mocks.getActiveBlockedPageInfo.mockResolvedValue({
-      blocked: true,
-      targetUrl: 'https://blocked.com',
-      filterLabel: 'Focus Block',
-      groupLabel: '24/7',
-    });
-    const sendResponse = vi.fn();
-
-    expect(
-      handleMessage(
-        { type: MessageType.GET_BLOCKED_PAGE_INFO },
-        { id: 'test-extension-id' },
-        sendResponse
-      )
-    ).toBe(true);
-
-    await vi.waitFor(() => {
-      expect(sendResponse).toHaveBeenCalledWith({
-        blocked: true,
-        targetUrl: 'https://blocked.com',
-        filterLabel: 'Focus Block',
-        groupLabel: '24/7',
-      });
     });
   });
 

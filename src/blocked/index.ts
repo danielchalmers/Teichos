@@ -4,18 +4,14 @@
  */
 
 import { openOptionsPage } from '../shared/api/runtime';
-import {
-  MessageType,
-  type GetBlockedPageInfoResponse,
-  type GoBackActiveTabResponse,
-} from '../shared/types';
+import { MessageType, type GoBackActiveTabResponse } from '../shared/types';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 
 /**
  * Initialize blocked page
  */
 async function init(): Promise<void> {
-  await renderBlockedState();
+  renderBlockedUrl();
 
   const goBackButton = getElementByIdOrNull('go-back');
   goBackButton?.addEventListener('click', () => {
@@ -43,24 +39,11 @@ async function handleGoBack(): Promise<void> {
   }
 }
 
-async function renderBlockedState(): Promise<void> {
-  const response = (await chrome.runtime.sendMessage({
-    type: MessageType.GET_BLOCKED_PAGE_INFO,
-  })) as GetBlockedPageInfoResponse;
-
+function renderBlockedUrl(): void {
+  const urlParams = new URLSearchParams(window.location.search);
   const blockedUrlElement = getElementByIdOrNull('blocked-url');
   if (blockedUrlElement) {
-    blockedUrlElement.textContent = response.targetUrl ?? 'Unknown URL';
-  }
-
-  const filterElement = getElementByIdOrNull('blocked-filter');
-  if (filterElement) {
-    filterElement.textContent = response.filterLabel ?? 'Matched filter';
-  }
-
-  const groupElement = getElementByIdOrNull('blocked-group');
-  if (groupElement) {
-    groupElement.textContent = response.groupLabel ?? 'Unknown group';
+    blockedUrlElement.textContent = urlParams.get('url') ?? 'Unknown URL';
   }
 }
 

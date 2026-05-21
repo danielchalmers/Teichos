@@ -4,12 +4,7 @@
  */
 
 import { loadData } from '../../shared/api/storage';
-import {
-  isCheckUrlMessage,
-  isGetBlockedPageInfoMessage,
-  isGetDataMessage,
-  isGoBackActiveTabMessage,
-} from '../../shared/types';
+import { isCheckUrlMessage, isGetDataMessage, isGoBackActiveTabMessage } from '../../shared/types';
 import { getTabController } from '../tabController';
 
 /**
@@ -36,11 +31,6 @@ export function handleMessage(
     return true; // Will respond asynchronously
   }
 
-  if (isGetBlockedPageInfoMessage(message)) {
-    void handleGetBlockedPageInfo(sendResponse);
-    return true;
-  }
-
   if (isGoBackActiveTabMessage(message)) {
     void handleGoBackActiveTab(sendResponse);
     return true;
@@ -60,10 +50,6 @@ async function handleCheckUrl(
 ): Promise<void> {
   const decision = await getTabController().getUrlDecision(url);
   sendResponse({ blocked: decision.action === 'block' });
-}
-
-async function handleGetBlockedPageInfo(sendResponse: (response: unknown) => void): Promise<void> {
-  sendResponse(await getTabController().getActiveBlockedPageInfo());
 }
 
 async function handleGoBackActiveTab(sendResponse: (response: unknown) => void): Promise<void> {

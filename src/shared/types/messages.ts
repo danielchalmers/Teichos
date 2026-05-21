@@ -11,7 +11,6 @@ export const MessageType = {
   DATA_UPDATED: 'DATA_UPDATED',
   CHECK_URL: 'CHECK_URL',
   URL_BLOCKED: 'URL_BLOCKED',
-  GET_BLOCKED_PAGE_INFO: 'GET_BLOCKED_PAGE_INFO',
   GO_BACK_ACTIVE_TAB: 'GO_BACK_ACTIVE_TAB',
   CLOSE_INFO_PANEL: 'CLOSE_INFO_PANEL',
 } as const;
@@ -28,10 +27,6 @@ export interface CheckUrlMessage {
   readonly url: string;
 }
 
-export interface GetBlockedPageInfoMessage {
-  readonly type: typeof MessageType.GET_BLOCKED_PAGE_INFO;
-}
-
 export interface GoBackActiveTabMessage {
   readonly type: typeof MessageType.GO_BACK_ACTIVE_TAB;
 }
@@ -44,13 +39,6 @@ export interface GetDataResponse {
 
 export interface CheckUrlResponse {
   readonly blocked: boolean;
-}
-
-export interface GetBlockedPageInfoResponse {
-  readonly blocked: boolean;
-  readonly targetUrl?: string;
-  readonly filterLabel?: string;
-  readonly groupLabel?: string;
 }
 
 export interface GoBackActiveTabResponse {
@@ -77,7 +65,6 @@ export interface CloseInfoPanelMessage {
 export type ExtensionMessage =
   | GetDataMessage
   | CheckUrlMessage
-  | GetBlockedPageInfoMessage
   | GoBackActiveTabMessage
   | DataUpdatedMessage
   | UrlBlockedMessage
@@ -88,11 +75,9 @@ export type MessageResponse<T extends ExtensionMessage> = T extends GetDataMessa
   ? GetDataResponse
   : T extends CheckUrlMessage
     ? CheckUrlResponse
-    : T extends GetBlockedPageInfoMessage
-      ? GetBlockedPageInfoResponse
-      : T extends GoBackActiveTabMessage
-        ? GoBackActiveTabResponse
-        : undefined;
+    : T extends GoBackActiveTabMessage
+      ? GoBackActiveTabResponse
+      : undefined;
 
 // Type guards for message validation
 export function isGetDataMessage(msg: unknown): msg is GetDataMessage {
@@ -109,15 +94,6 @@ export function isCheckUrlMessage(msg: unknown): msg is CheckUrlMessage {
     msg.type === MessageType.CHECK_URL &&
     'url' in msg &&
     typeof msg.url === 'string'
-  );
-}
-
-export function isGetBlockedPageInfoMessage(msg: unknown): msg is GetBlockedPageInfoMessage {
-  return (
-    typeof msg === 'object' &&
-    msg !== null &&
-    'type' in msg &&
-    msg.type === MessageType.GET_BLOCKED_PAGE_INFO
   );
 }
 

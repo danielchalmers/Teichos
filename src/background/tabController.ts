@@ -12,13 +12,6 @@ import { PAGES } from '../shared/constants';
 import { STORAGE_KEY, type BlockedTabState, type StorageData } from '../shared/types';
 import { createFilteringEngine, isInternalUrl, type FilterDecision } from '../shared/utils';
 
-export interface BlockedPageInfo {
-  readonly blocked: boolean;
-  readonly targetUrl?: string;
-  readonly filterLabel?: string;
-  readonly groupLabel?: string;
-}
-
 interface CachedRules {
   readonly data: StorageData;
   readonly engine: ReturnType<typeof createFilteringEngine>;
@@ -108,34 +101,6 @@ class TabController {
         console.error('[Teichos] Failed to reconcile tab:', result.reason);
       }
     }
-  }
-
-  async getActiveBlockedPageInfo(): Promise<BlockedPageInfo> {
-    const activeTab = await getActiveTab();
-    if (!activeTab?.id) {
-      return { blocked: false };
-    }
-
-    const state = await this.resolveBlockedTabState(activeTab.id, activeTab.url);
-    const targetUrl = state?.targetUrl ?? parseBlockedTargetUrl(activeTab.url);
-    if (!targetUrl) {
-      return { blocked: false };
-    }
-
-    const rules = await this.getRules();
-    const filter = state
-      ? rules.data.filters.find((entry) => entry.id === state.blockedBy.filterId)
-      : undefined;
-    const group = state
-      ? rules.data.groups.find((entry) => entry.id === state.blockedBy.groupId)
-      : undefined;
-
-    return {
-      blocked: true,
-      targetUrl,
-      filterLabel: filter?.description?.trim() ?? filter?.pattern ?? 'Matched filter',
-      groupLabel: group?.name ?? 'Unknown group',
-    };
   }
 
   async goBackFromActiveTab(): Promise<boolean> {
