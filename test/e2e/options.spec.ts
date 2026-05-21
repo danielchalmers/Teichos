@@ -5,11 +5,13 @@ import {
   captureScreenshot,
   createStorageData,
   defaultGroup,
+  readLocalStorageValue,
   readStorage,
   seedStorage,
 } from './helpers';
 
 const OPTIONS_PATHNAME = `/${PAGES.OPTIONS}`;
+const COLLAPSED_GROUPS_STORAGE_KEY = 'options-collapsed-group-ids';
 
 test('shows schedule hints in the group header', async ({ extensionPage, page }, testInfo) => {
   await page.goto(extensionPage(PAGES.OPTIONS));
@@ -63,9 +65,15 @@ test('restores collapsed groups when reopening the options page', async ({
 
   await workHoursGroup.locator('summary').click();
   await expect(workHoursGroup).toHaveJSProperty('open', true);
+  await expect(
+    readLocalStorageValue<string[]>(page, COLLAPSED_GROUPS_STORAGE_KEY)
+  ).resolves.toEqual([]);
 
   await workHoursGroup.locator('summary').click();
   await expect(workHoursGroup).toHaveJSProperty('open', false);
+  await expect(
+    readLocalStorageValue<string[]>(page, COLLAPSED_GROUPS_STORAGE_KEY)
+  ).resolves.toEqual(['work-hours']);
 
   const reopenedPage = await page.context().newPage();
   await reopenedPage.goto(extensionPage(PAGES.OPTIONS));

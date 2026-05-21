@@ -517,9 +517,13 @@ async function loadCollapsedGroupIds(): Promise<Set<string>> {
     return new Set();
   }
 
-  return new Set(
-    storedGroupIds.filter((groupId): groupId is string => typeof groupId === 'string')
-  );
+  const collapsedGroupIds = new Set<string>();
+  storedGroupIds.forEach((groupId) => {
+    if (typeof groupId === 'string') {
+      collapsedGroupIds.add(groupId);
+    }
+  });
+  return collapsedGroupIds;
 }
 
 async function saveCollapsedGroupIds(groupIds: readonly string[]): Promise<void> {

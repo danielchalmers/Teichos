@@ -44,6 +44,13 @@ export async function readStorage(page: Page): Promise<StorageData> {
   }, STORAGE_KEY);
 }
 
+export async function readLocalStorageValue<T>(page: Page, key: string): Promise<T | undefined> {
+  return page.evaluate(async (storageKey) => {
+    const result = await chrome.storage.local.get(storageKey);
+    return result[storageKey] as T | undefined;
+  }, key);
+}
+
 export async function captureScreenshot(
   page: Page,
   testInfo: TestInfo,
