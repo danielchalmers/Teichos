@@ -111,9 +111,11 @@ describe('RulesProvider', () => {
 
   it('returns normalized default rules for empty storage without writing storage', async () => {
     const chromeMock = getChromeMock();
-    const provider = new RulesProvider();
+    const createEngine = vi.fn((data: StorageData) => createFilteringEngine(data));
+    const provider = new RulesProvider({ createEngine });
 
     const rules = await provider.loadCurrentRules();
+    const cachedRules = await provider.loadCurrentRules();
 
     expect(rules.data).toEqual({
       groups: [createDefaultGroup()],
@@ -122,6 +124,8 @@ describe('RulesProvider', () => {
       snooze: { active: false },
       rulesVersion: 0,
     });
+    expect(cachedRules).toBe(rules);
+    expect(createEngine).toHaveBeenCalledTimes(1);
     expect(chromeMock.storage.sync.set).not.toHaveBeenCalled();
     expect(chromeMock.storage.sync._data.has(STORAGE_KEY)).toBe(false);
   });
