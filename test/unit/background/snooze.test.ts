@@ -4,6 +4,14 @@ import { getChromeMock } from '../../fixtures/chrome-mocks';
 import { ALARMS } from '../../../src/shared/constants';
 import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
 
+const defaultGroup = {
+  id: DEFAULT_GROUP_ID,
+  name: '24/7',
+  schedules: [],
+  is24x7: true,
+  enabled: true,
+} as const;
+
 function createActiveTimedSnooze(): { active: true; until: number } {
   return { active: true, until: Date.now() + 60_000 };
 }
@@ -19,7 +27,7 @@ describe('registerSnoozeHandlers', () => {
     const chromeMock = getChromeMock();
     const activeTimedSnooze = createActiveTimedSnooze();
     chromeMock.storage.sync._data.set(STORAGE_KEY, {
-      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+      groups: [defaultGroup],
       filters: [],
       whitelist: [],
       snooze: activeTimedSnooze,
@@ -46,7 +54,7 @@ describe('registerSnoozeHandlers', () => {
     const chromeMock = getChromeMock();
     const expired = { active: true, until: Date.now() - 1 };
     chromeMock.storage.sync._data.set(STORAGE_KEY, {
-      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+      groups: [defaultGroup],
       filters: [],
       whitelist: [],
       snooze: expired,
@@ -57,7 +65,7 @@ describe('registerSnoozeHandlers', () => {
 
     await vi.waitFor(() => {
       expect(chromeMock.storage.sync._data.get(STORAGE_KEY)).toEqual({
-        groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+        groups: [defaultGroup],
         filters: [],
         whitelist: [],
         snooze: { active: false },
@@ -77,7 +85,7 @@ describe('registerSnoozeHandlers', () => {
 
     const activeTimedSnooze = createActiveTimedSnooze();
     chromeMock.storage.sync._data.set(STORAGE_KEY, {
-      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+      groups: [defaultGroup],
       filters: [],
       whitelist: [],
       snooze: activeTimedSnooze,
@@ -99,7 +107,7 @@ describe('registerSnoozeHandlers', () => {
     vi.setSystemTime(new Date('2025-01-15T10:30:00Z'));
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(STORAGE_KEY, {
-      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+      groups: [defaultGroup],
       filters: [],
       whitelist: [],
       snooze: { active: true, until: Date.now() - 1 },
@@ -112,7 +120,7 @@ describe('registerSnoozeHandlers', () => {
     expect(onAlarm).toBeTypeOf('function');
 
     chromeMock.storage.sync._data.set(STORAGE_KEY, {
-      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+      groups: [defaultGroup],
       filters: [],
       whitelist: [],
       snooze: { active: true, until: Date.now() - 1 },
@@ -121,7 +129,7 @@ describe('registerSnoozeHandlers', () => {
 
     onAlarm?.({ name: 'other-alarm' });
     expect(chromeMock.storage.sync._data.get(STORAGE_KEY)).toEqual({
-      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+      groups: [defaultGroup],
       filters: [],
       whitelist: [],
       snooze: { active: true, until: Date.now() - 1 },
@@ -132,7 +140,7 @@ describe('registerSnoozeHandlers', () => {
 
     await vi.waitFor(() => {
       expect(chromeMock.storage.sync._data.get(STORAGE_KEY)).toEqual({
-        groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+        groups: [defaultGroup],
         filters: [],
         whitelist: [],
         snooze: { active: false },

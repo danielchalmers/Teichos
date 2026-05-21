@@ -134,16 +134,6 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
     .poll(() => page.evaluate(() => (globalThis as ClipboardCaptureGlobal).__e2eClipboardText))
     .toBe('blocked.example.invalid');
 
-  const toggle = regularItem.locator('input[type="checkbox"][data-filter-id="regular-filter"]');
-  await regularItem.locator('label.toggle').click();
-  await expect(toggle).not.toBeChecked();
-  await expect
-    .poll(async () => {
-      const data = await readStorage(page);
-      return data?.filters.find((filter) => filter.id === 'regular-filter')?.enabled;
-    })
-    .toBe(false);
-
   const optionsPagePromise = context.waitForEvent('page');
   await regularItem.getByRole('button', { name: 'Edit Filter' }).click();
   const optionsPage = await optionsPagePromise;
@@ -153,6 +143,20 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
   await expect(filterModal).toBeVisible();
   await expect(filterModal.getByLabel('Name')).toHaveValue('Focus Block');
   await expect(filterModal.getByLabel('URL Pattern')).toHaveValue('blocked.example.invalid');
+  const popupPage = await context.newPage();
+  await popupPage.goto(extensionPage(PAGES.POPUP));
+
+  const toggledItem = popupPage.locator('.filter-item').filter({ hasText: 'Focus Block' });
+  await toggledItem.locator('label.toggle').click();
+  await expect(toggledItem).toHaveCount(0);
+  await expect(popupPage.locator('.inactive-summary')).toHaveText('1 more inactive filter');
+  await expect
+    .poll(async () => {
+      const data = await readStorage(popupPage);
+      return data.filters.find((filter) => filter.id === 'regular-filter')?.enabled;
+    })
+    .toBe(false);
+  await popupPage.close();
 });
 
 test('supports quick-add suggestions, validation, duration units, and the full editor link', async ({
