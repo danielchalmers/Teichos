@@ -45,14 +45,14 @@ export async function readStorage(page: Page): Promise<StorageData | undefined> 
   }, STORAGE_KEY);
 }
 
-export function expectBlockedPageFor(targetUrl: string): string {
+export function getBlockedPagePathFor(targetUrl: string): string {
   return `/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}`;
 }
 
 export async function expectBlocked(
   page: Page,
   targetUrl: string,
-  expectedBlockedUrl = expectBlockedPageFor(targetUrl)
+  expectedBlockedUrl = getBlockedPagePathFor(targetUrl)
 ): Promise<void> {
   await page.goto(targetUrl).catch(() => undefined);
   await expect
@@ -169,6 +169,16 @@ export async function expectPopupShowsInactiveFilter(
   const filterItems = page.locator('.filter-item').filter({ hasText: filterLabel });
   await expect(filterItems).toHaveCount(1);
   await expect(filterItems.locator('input[type="checkbox"]')).not.toBeChecked();
+}
+
+export async function mockAllowedPage(page: Page, url: string, label: string): Promise<void> {
+  await page.context().route(url, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: `<!doctype html><title>${label}</title><main>${label}</main>`,
+    });
+  });
 }
 
 export async function captureScreenshot(

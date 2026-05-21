@@ -1,10 +1,10 @@
-import type { BrowserContext } from '@playwright/test';
 import { PAGES } from '../../src/shared/constants';
 import { test, expect } from './fixtures';
 import {
   captureScreenshot,
   createFilterViaOptions,
   createStorageData,
+  mockAllowedPage,
   defaultGroup,
   expectAllowed,
   expectBlocked,
@@ -18,23 +18,13 @@ import {
   toggleFilterViaOptions,
 } from './helpers';
 
-async function mockAllowedPage(context: BrowserContext, url: string, label: string): Promise<void> {
-  await context.route(url, async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: `<!doctype html><title>${label}</title><main>${label}</main>`,
-    });
-  });
-}
-
 test('options filter lifecycle blocks, restores, and blocks again after re-enable', async ({
   context,
   extensionPage,
   page,
 }, testInfo) => {
   const targetUrl = 'https://options-lifecycle.example.test/focus';
-  await mockAllowedPage(context, targetUrl, 'Options lifecycle allowed');
+  await mockAllowedPage(page, targetUrl, 'Options lifecycle allowed');
 
   const optionsPage = await openOptions(extensionPage, page);
   await createFilterViaOptions(optionsPage, {
@@ -62,7 +52,7 @@ test('popup toggle changes navigation behavior and direct storage updates refres
   page,
 }) => {
   const targetUrl = 'https://popup-toggle.example.test/focus';
-  await mockAllowedPage(context, targetUrl, 'Popup toggle allowed');
+  await mockAllowedPage(page, targetUrl, 'Popup toggle allowed');
 
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(
@@ -115,7 +105,7 @@ test('whitelisting keeps navigation allowed and hides the matching popup filter 
   page,
 }) => {
   const targetUrl = 'https://whitelist-lifecycle.example.test/docs';
-  await mockAllowedPage(context, targetUrl, 'Whitelist lifecycle allowed');
+  await mockAllowedPage(page, targetUrl, 'Whitelist lifecycle allowed');
 
   const optionsPage = await openOptions(extensionPage, page);
   await createFilterViaOptions(optionsPage, {
@@ -157,7 +147,7 @@ test('popup snooze allows navigation until filtering is resumed', async ({
   page,
 }, testInfo) => {
   const targetUrl = 'https://popup-snooze.example.test/focus';
-  await mockAllowedPage(context, targetUrl, 'Popup snooze allowed');
+  await mockAllowedPage(page, targetUrl, 'Popup snooze allowed');
 
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(
