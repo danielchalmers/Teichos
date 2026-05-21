@@ -233,6 +233,39 @@ describe('storage', () => {
       data = await loadData();
       expect(data.groups[0]?.enabled).toBe(true);
     });
+
+    it('disables filters in a group when the group is disabled', async () => {
+      await loadData();
+
+      const workGroup = {
+        id: 'work',
+        name: 'Work',
+        schedules: [],
+        is24x7: true,
+        enabled: true,
+      };
+      await addGroup(workGroup);
+      await addFilter({
+        id: 'work-filter',
+        pattern: 'blocked.com',
+        groupId: workGroup.id,
+        enabled: true,
+        matchMode: 'contains',
+      });
+      await addFilter({
+        id: 'default-filter',
+        pattern: 'always-blocked.com',
+        groupId: DEFAULT_GROUP_ID,
+        enabled: true,
+        matchMode: 'contains',
+      });
+
+      await updateGroup({ ...workGroup, enabled: false });
+
+      const data = await loadData();
+      expect(data.filters.find((filter) => filter.id === 'work-filter')?.enabled).toBe(false);
+      expect(data.filters.find((filter) => filter.id === 'default-filter')?.enabled).toBe(true);
+    });
   });
 
   describe('deleteGroup', () => {
