@@ -99,27 +99,36 @@ test('toggles groups without mutating child states and restores disabled groups 
 
   await workHoursGroupToggle.click();
   await expect
-    .poll(async () => (await readStorage(page)).groups.find((group) => group.id === 'work-hours')?.enabled)
+    .poll(
+      async () =>
+        (await readStorage(page)).groups.find((group) => group.id === 'work-hours')?.enabled
+    )
     .toBe(false);
   await expect
-    .poll(async () => (await readStorage(page)).filters.find((filter) => filter.id === 'work-filter')?.enabled)
+    .poll(
+      async () =>
+        (await readStorage(page)).filters.find((filter) => filter.id === 'work-filter')?.enabled
+    )
     .toBe(true);
   await expect
     .poll(
-      async () => (await readStorage(page)).whitelist.find((entry) => entry.id === 'work-exception')?.enabled
+      async () =>
+        (await readStorage(page)).whitelist.find((entry) => entry.id === 'work-exception')?.enabled
     )
     .toBe(true);
 
   await defaultGroupToggle.click();
   await expect
     .poll(
-      async () => (await readStorage(page)).groups.find((group) => group.id === defaultGroup.id)?.enabled
+      async () =>
+        (await readStorage(page)).groups.find((group) => group.id === defaultGroup.id)?.enabled
     )
     .toBe(false);
   await defaultGroupToggle.click();
   await expect
     .poll(
-      async () => (await readStorage(page)).groups.find((group) => group.id === defaultGroup.id)?.enabled
+      async () =>
+        (await readStorage(page)).groups.find((group) => group.id === defaultGroup.id)?.enabled
     )
     .toBe(true);
 
@@ -144,17 +153,23 @@ test('toggles groups without mutating child states and restores disabled groups 
   await expect(workExceptionToggle).not.toBeDisabled();
 
   await expect
-    .poll(async () => (await readStorage(page)).filters.find((filter) => filter.id === 'work-filter')?.enabled)
+    .poll(
+      async () =>
+        (await readStorage(page)).filters.find((filter) => filter.id === 'work-filter')?.enabled
+    )
     .toBe(false);
   await expect
     .poll(
-      async () => (await readStorage(page)).whitelist.find((entry) => entry.id === 'work-exception')?.enabled
+      async () =>
+        (await readStorage(page)).whitelist.find((entry) => entry.id === 'work-exception')?.enabled
     )
     .toBe(false);
 
   await page.reload();
 
-  const reloadedWorkHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  const reloadedWorkHoursGroup = page
+    .locator('details.group-item')
+    .filter({ hasText: 'Work Hours' });
   const reloadedDefaultGroup = page
     .locator('details.group-item')
     .filter({ hasText: '24/7 (Always Active)' });
@@ -164,7 +179,9 @@ test('toggles groups without mutating child states and restores disabled groups 
 
   await reloadedWorkHoursGroup.locator('summary').click();
   await expect(
-    reloadedWorkHoursGroup.locator('input[data-action="toggle-filter"][data-filter-id="work-filter"]')
+    reloadedWorkHoursGroup.locator(
+      'input[data-action="toggle-filter"][data-filter-id="work-filter"]'
+    )
   ).not.toBeChecked();
   await expect(
     reloadedWorkHoursGroup.locator(
@@ -174,10 +191,15 @@ test('toggles groups without mutating child states and restores disabled groups 
 
   await reloadedWorkHoursGroup.locator('summary .actions label.toggle').first().click();
   await expect
-    .poll(async () => (await readStorage(page)).groups.find((group) => group.id === 'work-hours')?.enabled)
+    .poll(
+      async () =>
+        (await readStorage(page)).groups.find((group) => group.id === 'work-hours')?.enabled
+    )
     .toBe(true);
   await expect(
-    reloadedWorkHoursGroup.locator('input[data-action="toggle-filter"][data-filter-id="work-filter"]')
+    reloadedWorkHoursGroup.locator(
+      'input[data-action="toggle-filter"][data-filter-id="work-filter"]'
+    )
   ).not.toBeChecked();
 });
 
@@ -199,7 +221,7 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
 
   const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
   await expect(workHoursGroup).toContainText('Mo-Fr 09:00-17:00 • 0 filters • 0 exceptions');
-  await workHoursGroup.locator('summary').click();
+  await expect(workHoursGroup).toHaveAttribute('open', '');
 
   await workHoursGroup.getByRole('button', { name: 'New Filter' }).click();
   const filterModal = page.locator('#filter-modal.active');

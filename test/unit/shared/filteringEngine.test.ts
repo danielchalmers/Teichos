@@ -154,9 +154,9 @@ describe('filteringEngine', () => {
       ],
     });
 
-    expect(evaluateFilterDecision('https://blocked.com', disabledData, { context: activeContext })).toEqual(
-      { action: 'allow', reason: 'group-inactive' }
-    );
+    expect(
+      evaluateFilterDecision('https://blocked.com', disabledData, { context: activeContext })
+    ).toEqual({ action: 'allow', reason: 'group-inactive' });
 
     const reenabledData = {
       ...disabledData,
