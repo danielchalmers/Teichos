@@ -1,5 +1,6 @@
 import { readFile } from 'fs/promises';
 import { test, expect } from './fixtures';
+import type { Locator, Page } from '@playwright/test';
 import type { AlertCaptureGlobal } from './helpers';
 import { PAGES } from '../../src/shared/constants';
 import {
@@ -14,6 +15,16 @@ import {
 } from './helpers';
 
 const OPTIONS_PATHNAME = `/${PAGES.OPTIONS}`;
+
+function getGroupCard(page: Page, groupId: string): Locator {
+  return page.locator(`details.group-item[data-group-id="${groupId}"]`);
+}
+
+function getGroupToggle(page: Page, groupId: string): Locator {
+  return getGroupCard(page, groupId).locator(
+    `label.group-toggle-control:has(input[data-action="toggle-group"][data-group-id="${groupId}"])`
+  );
+}
 
 test('shows schedule hints in the group header', async ({ extensionPage, page }, testInfo) => {
   await page.goto(extensionPage(PAGES.OPTIONS));
@@ -554,6 +565,111 @@ test('stops blocking after a group is disabled from options storage updates', as
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toHaveCount(0);
 });
 
+test('stops blocking after a custom group is disabled with the visible options toggle', async ({
+  extensionPage,
+  page,
+}, testInfo) => {
+  const targetUrl = 'https://blocked.example.invalid/options-custom-group-toggle';
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'focus-group',
+          name: 'Focus Group',
+          is24x7: true,
+          enabled: true,
+          schedules: [],
+        },
+      ],
+      filters: [
+        {
+          id: 'focus-filter',
+          pattern: 'blocked.example.invalid/options-custom-group-toggle',
+          groupId: 'focus-group',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Focus Filter',
+        },
+      ],
+    })
+  );
+  await page.reload();
+
+  await page.goto(targetUrl).catch(() => undefined);
+  await expect.poll(() => page.url()).toContain(`/${PAGES.BLOCKED}?url=`);
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await getGroupToggle(page, 'focus-group').click();
+  await expect
+    .poll(async () => {
+      const data = await readStorage(page);
+      return {
+        groupEnabled: data.groups.find((group) => group.id === 'focus-group')?.enabled,
+        filterEnabled: data.filters.find((filter) => filter.id === 'focus-filter')?.enabled,
+      };
+    })
+    .toEqual({
+      groupEnabled: false,
+      filterEnabled: true,
+    });
+  await captureScreenshot(page, testInfo, 'options-custom-group-toggle-stop-blocking.png');
+
+  await page.goto(targetUrl).catch(() => undefined);
+  await expect.poll(() => page.url().includes(`/${PAGES.BLOCKED}?url=`)).toBe(false);
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toHaveCount(0);
+});
+
+test('stops blocking after the default group is disabled with the visible options toggle', async ({
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://blocked.example.invalid/options-default-group-toggle';
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'default-filter',
+          pattern: 'blocked.example.invalid/options-default-group-toggle',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Default Filter',
+        },
+      ],
+    })
+  );
+  await page.reload();
+
+  await page.goto(targetUrl).catch(() => undefined);
+  await expect.poll(() => page.url()).toContain(`/${PAGES.BLOCKED}?url=`);
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await getGroupToggle(page, defaultGroup.id).click();
+  await expect
+    .poll(async () => {
+      const data = await readStorage(page);
+      return {
+        groupEnabled: data.groups.find((group) => group.id === defaultGroup.id)?.enabled,
+        filterEnabled: data.filters.find((filter) => filter.id === 'default-filter')?.enabled,
+      };
+    })
+    .toEqual({
+      groupEnabled: false,
+      filterEnabled: true,
+    });
+
+  await page.goto(targetUrl).catch(() => undefined);
+  await expect.poll(() => page.url().includes(`/${PAGES.BLOCKED}?url=`)).toBe(false);
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toHaveCount(0);
+});
+
 test('toggles default and custom groups without mutating child state and reloads disabled groups collapsed', async ({
   extensionPage,
   page,
@@ -612,14 +728,10 @@ test('toggles default and custom groups without mutating child state and reloads
   );
   await page.reload();
 
-  const defaultGroupCard = page.locator(`details.group-item[data-group-id="${defaultGroup.id}"]`);
-  const focusGroupCard = page.locator('details.group-item[data-group-id="focus-group"]');
-  const defaultToggle = defaultGroupCard.locator(
-    'label.group-toggle-control:has(input[data-group-id="default-24x7"])'
-  );
-  const focusToggle = focusGroupCard.locator(
-    'label.group-toggle-control:has(input[data-group-id="focus-group"])'
-  );
+  const defaultGroupCard = getGroupCard(page, defaultGroup.id);
+  const focusGroupCard = getGroupCard(page, 'focus-group');
+  const defaultToggle = getGroupToggle(page, defaultGroup.id);
+  const focusToggle = getGroupToggle(page, 'focus-group');
 
   await expect(defaultGroupCard).toHaveAttribute('open', '');
   await expect(focusGroupCard).toHaveAttribute('open', '');
@@ -702,8 +814,9 @@ test('keeps child controls editable inside a disabled group', async ({ extension
       ],
     })
   );
+  await page.reload();
 
-  const focusGroupCard = page.locator('details.group-item[data-group-id="focus-group"]');
+  const focusGroupCard = getGroupCard(page, 'focus-group');
   await expect(focusGroupCard).not.toHaveAttribute('open', '');
 
   await focusGroupCard.locator('summary').click();
