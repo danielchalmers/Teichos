@@ -420,6 +420,41 @@ describe('blocking index', () => {
       shouldBlockUrlWithIndex('https://blocked.com', blockingIndex, { dayOfWeek: 1, time: '10:00' })
     ).toBeUndefined();
   });
+
+  it('still blocks with a later active filter after an expired temporary filter in the same group', () => {
+    const now = new Date(2025, 0, 15, 10, 30, 0).getTime();
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const blockingIndex = buildBlockingIndex(
+      [
+        {
+          id: 'expired-temporary',
+          pattern: 'blocked.com',
+          groupId: 'work',
+          enabled: true,
+          matchMode: 'contains',
+          expiresAt: now - 1,
+        },
+        {
+          id: 'active-filter',
+          pattern: 'blocked.com',
+          groupId: 'work',
+          enabled: true,
+          matchMode: 'contains',
+        },
+      ],
+      [{ id: 'work', name: 'Work', schedules: [], is24x7: true, enabled: true }],
+      []
+    );
+
+    expect(
+      shouldBlockUrlWithIndex('https://blocked.com', blockingIndex, { dayOfWeek: 1, time: '10:00' })
+        ?.id
+    ).toBe('active-filter');
+
+    vi.useRealTimers();
+  });
 });
 
 describe('regex validation', () => {

@@ -306,6 +306,13 @@ export function isGroupEnabled(group: FilterGroup): boolean {
   return group.enabled !== false;
 }
 
+export function isGroupEffectivelyActive(
+  group: FilterGroup,
+  context: ScheduleContext = getScheduleContext()
+): boolean {
+  return isGroupEnabled(group) && isGroupScheduleActive(group, context);
+}
+
 export function shouldBlockUrlWithIndex(
   url: string,
   blockingIndex: BlockingIndex,
@@ -321,9 +328,14 @@ export function shouldBlockUrlWithIndex(
   const whitelistStatus = new Map<string, boolean>();
 
   for (const filter of blockingIndex.filters) {
+    if (isTemporaryFilterExpired(filter, now)) {
+      continue;
+    }
+
     let isActive = activeGroupStatus.get(filter.groupId);
     if (isActive === undefined) {
-      isActive = isFilterEffectivelyActive(filter, blockingIndex.groupsById, context, now);
+      const group = blockingIndex.groupsById.get(filter.groupId);
+      isActive = group ? isGroupEffectivelyActive(group, context) : false;
       activeGroupStatus.set(filter.groupId, isActive);
     }
     if (!isActive) {
