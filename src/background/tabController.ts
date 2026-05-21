@@ -33,6 +33,7 @@ class TabController {
         return;
       }
 
+      this.cachedRules = null;
       this.queueReconcile();
     });
 

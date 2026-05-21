@@ -144,4 +144,44 @@ describe('TabController', () => {
       );
     });
   });
+
+  it('invalidates cached rules immediately when sync storage changes', async () => {
+    const chromeMock = getChromeMock();
+    const { getTabController } = await import('../../../src/background/tabController');
+    getTabController().register();
+
+    await expect(getTabController().getUrlDecision('https://blocked.com')).resolves.toEqual({
+      action: 'allow',
+      reason: 'no-match',
+    });
+
+    const onChanged = chromeMock.storage.onChanged.addListener.mock.calls[0]?.[0];
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'filter-2',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 2,
+      })
+    );
+
+    onChanged?.({ [STORAGE_KEY]: { newValue: true } }, 'sync');
+
+    await getTabController().evaluateNavigation(12, 'https://blocked.com');
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      12,
+      {
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com')}`,
+      },
+      expect.any(Function)
+    );
+  });
 });
