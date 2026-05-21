@@ -171,9 +171,7 @@ export async function createGroupViaOptions(
         await setCheckboxState(dayCheckboxes.nth(dayIndex), schedule.daysOfWeek.includes(dayIndex));
       }
 
-      await modal
-        .getByLabel(`Start time for schedule ${index + 1}`)
-        .fill(schedule.startTime);
+      await modal.getByLabel(`Start time for schedule ${index + 1}`).fill(schedule.startTime);
       await modal.getByLabel(`End time for schedule ${index + 1}`).fill(schedule.endTime);
     }
   }
@@ -272,18 +270,21 @@ export async function readBlockedTabStateForTarget(
   page: Page,
   targetUrl: string
 ): Promise<BlockedTabState | undefined> {
-  return page.evaluate(async ({ blockedPagePath, url }) => {
-    const blockedUrl = `${chrome.runtime.getURL(blockedPagePath)}?url=${encodeURIComponent(url)}`;
-    const tabs = await chrome.tabs.query({});
-    const tab = tabs.find((candidate) => candidate.url === url || candidate.url === blockedUrl);
-    if (typeof tab?.id !== 'number') {
-      return undefined;
-    }
+  return page.evaluate(
+    async ({ blockedPagePath, url }) => {
+      const blockedUrl = `${chrome.runtime.getURL(blockedPagePath)}?url=${encodeURIComponent(url)}`;
+      const tabs = await chrome.tabs.query({});
+      const tab = tabs.find((candidate) => candidate.url === url || candidate.url === blockedUrl);
+      if (typeof tab?.id !== 'number') {
+        return undefined;
+      }
 
-    const key = `blocked_tab_state_${tab.id}`;
-    const result = await chrome.storage.session.get(key);
-    return result[key] as BlockedTabState | undefined;
-  }, { blockedPagePath: PAGES.BLOCKED, url: targetUrl });
+      const key = `blocked_tab_state_${tab.id}`;
+      const result = await chrome.storage.session.get(key);
+      return result[key] as BlockedTabState | undefined;
+    },
+    { blockedPagePath: PAGES.BLOCKED, url: targetUrl }
+  );
 }
 
 export async function expectBlockedTabStateCleared(page: Page, targetUrl: string): Promise<void> {
