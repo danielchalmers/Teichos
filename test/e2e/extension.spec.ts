@@ -205,3 +205,41 @@ test('blocks matching same-tab hash navigations and preserves go back', async ({
   await expect(page.getByRole('heading', { name: 'SPA Route Test' })).toBeVisible();
   await expect(page.locator('#current-url')).toHaveText(initialUrl);
 });
+
+test('does not redirect when an enabled filter belongs to a disabled group', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'paused-group',
+          name: 'Paused Group',
+          is24x7: true,
+          enabled: false,
+          schedules: [],
+        },
+      ],
+      filters: [
+        {
+          id: 'paused-filter',
+          pattern: 'example.com/teichos-disabled-group',
+          groupId: 'paused-group',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Disabled Group Filter',
+        },
+      ],
+    })
+  );
+
+  const targetUrl = 'https://example.com/teichos-disabled-group';
+  await page.goto(targetUrl).catch(() => undefined);
+
+  await expect.poll(() => page.url().includes(`/${PAGES.BLOCKED}?url=`)).toBe(false);
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toHaveCount(0);
+});

@@ -25,6 +25,7 @@ export function createDefaultGroup(): FilterGroup {
     name: '24/7 (Always Active)',
     schedules: [],
     is24x7: true,
+    enabled: true,
   };
 }
 
@@ -46,6 +47,10 @@ type LegacyFilter = Omit<Filter, 'matchMode'> & {
   readonly isRegex?: boolean;
 };
 
+type LegacyFilterGroup = Omit<FilterGroup, 'enabled'> & {
+  readonly enabled?: boolean;
+};
+
 type LegacyWhitelist = Omit<Whitelist, 'matchMode' | 'groupId'> & {
   readonly matchMode?: FilterMatchMode;
   readonly isRegex?: boolean;
@@ -53,7 +58,7 @@ type LegacyWhitelist = Omit<Whitelist, 'matchMode' | 'groupId'> & {
 };
 
 interface LegacyStorageData {
-  readonly groups?: readonly FilterGroup[];
+  readonly groups?: readonly LegacyFilterGroup[];
   readonly filters?: readonly LegacyFilter[];
   readonly whitelist?: readonly LegacyWhitelist[];
   readonly rulesVersion?: number;
@@ -274,6 +279,17 @@ function resolveMatchMode(
   return isRegex ? 'regex' : 'contains';
 }
 
+function normalizeGroups(groups: readonly LegacyFilterGroup[] | undefined): FilterGroup[] {
+  if (!groups || groups.length === 0) {
+    return [createDefaultGroup()];
+  }
+
+  return groups.map((group) => ({
+    ...group,
+    enabled: group.enabled ?? true,
+  }));
+}
+
 function normalizeFilters(filters: readonly LegacyFilter[] | undefined): Filter[] {
   return (filters ?? []).map(({ isRegex, matchMode, ...filter }) => ({
     ...filter,
@@ -310,7 +326,7 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
   }
 
   const data = raw;
-  const groups = data.groups && data.groups.length > 0 ? data.groups : [createDefaultGroup()];
+  const groups = normalizeGroups(data.groups);
   const groupIds = new Set(groups.map((group) => group.id));
   const filters = normalizeFilters(data.filters);
   const whitelist = normalizeWhitelist(data.whitelist, groupIds);

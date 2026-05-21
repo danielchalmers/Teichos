@@ -3,11 +3,10 @@ import type { ScheduleContext } from './filters';
 import {
   buildGroupById,
   buildWhitelistByGroup,
+  getFilterActivityState,
   getScheduleContext,
-  isFilterScheduledActive,
   isSnoozeActive,
   isTemporaryFilter,
-  isTemporaryFilterExpired,
   matchesPattern,
   sortFiltersTemporaryFirst,
 } from './filters';
@@ -99,13 +98,16 @@ export function evaluateFilterDecision(
       continue;
     }
 
-    if (isTemporaryFilterExpired(filter, now)) {
-      fallbackReason = selectHigherPriorityReason(fallbackReason, 'temporary-expired');
-      continue;
-    }
-
-    if (!isFilterScheduledActive(filter, groupsById, context)) {
-      fallbackReason = selectHigherPriorityReason(fallbackReason, 'group-inactive');
+    const activity = getFilterActivityState(filter, groupsById, context, now);
+    if (!activity.active) {
+      fallbackReason = selectHigherPriorityReason(
+        fallbackReason,
+        activity.reason === 'temporary-expired'
+          ? 'temporary-expired'
+          : activity.reason === 'filter-disabled'
+            ? 'filter-disabled'
+            : 'group-inactive'
+      );
       continue;
     }
 

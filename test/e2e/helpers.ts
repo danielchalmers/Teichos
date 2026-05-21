@@ -17,6 +17,7 @@ export const defaultGroup = {
   name: '24/7 (Always Active)',
   schedules: [],
   is24x7: true,
+  enabled: true,
 } as const satisfies StorageData['groups'][number];
 
 export function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
