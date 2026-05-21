@@ -8,9 +8,8 @@ This extension requests only the permissions required to block pages based on yo
 
 - `storage` — Save filters, groups, schedules, and whitelist entries in `chrome.storage.sync`.
 - `alarms` — Schedule snooze expiration so filtering can automatically resume at the time you set.
-- `tabs` — Read the active tab URL during navigation and redirect the tab to the blocked page when a match occurs.
+- `tabs` — Read active and open tab URLs where Chrome exposes them, redirect blocked tabs, restore the last allowed URL, and focus or reuse the options tab.
 - `webNavigation` — Detect navigations as early as possible to block matching pages before they fully load.
-- Host permissions (`<all_urls>`) — Required to evaluate and block any URL you choose to configure. This is the core purpose of the extension.
 
 ## Data We Store
 
@@ -25,7 +24,7 @@ This data is saved in `chrome.storage.sync` to allow your settings to follow you
 
 ## Data We Access
 
-To block pages, the extension evaluates the URLs you navigate to against your filters. URL checks happen locally in the extension and are not transmitted off your device.
+To block pages, the extension evaluates navigation event URLs and tab URLs exposed by the retained Chrome permissions against your filters. These checks happen locally in the extension and are not transmitted off your device.
 
 ## Data We Share
 
