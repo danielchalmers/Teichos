@@ -521,6 +521,10 @@ label {
   margin-top: 1.25rem;
 }
 
+.group-item.is-disabled {
+  box-shadow: none;
+}
+
 .group-header {
   display: flex;
   align-items: center;
@@ -555,6 +559,10 @@ label {
 
 .group-item[open] .group-header {
   border-bottom: 1px solid var(--border);
+}
+
+.group-item.is-disabled .group-header {
+  background: var(--surface-muted);
 }
 
 .group-header:focus-visible {
@@ -698,6 +706,11 @@ label {
   font-family: var(--font-display);
 }
 
+.group-item.is-disabled .group-title,
+.group-item.is-disabled .filter-meta {
+  color: var(--text-muted);
+}
+
 .filter-pattern {
   font-family: 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
   color: var(--text-secondary);
@@ -722,6 +735,10 @@ label {
 
 .group-header .actions {
   margin-left: auto;
+}
+
+.group-toggle-control {
+  cursor: pointer;
 }
 
 /* Toggle switch */

@@ -31,6 +31,7 @@ import {
   formatGroupScheduleSummary,
   generateId,
   getRegexValidationError,
+  isGroupEnabled,
   isSnoozeActive,
   isTemporaryFilterExpired,
   sortFiltersTemporaryFirst,
@@ -481,7 +482,7 @@ async function renderGroups(): Promise<void> {
     });
   } else if (!hadGroups) {
     groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((details) => {
-      details.open = true;
+      details.open = details.dataset['groupEnabled'] !== 'false';
     });
   }
 
@@ -498,19 +499,34 @@ function renderGroup(
   snoozeActive: boolean
 ): HTMLDetailsElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
+  const isEnabled = isGroupEnabled(group);
   const scheduleSummary = formatGroupScheduleSummary(group);
   const filterSummary = pluralize(filters.length, 'filter');
   const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
   const groupElement = cloneTemplate<HTMLDetailsElement>('options-group-template');
   groupElement.dataset['groupId'] = group.id;
+  groupElement.dataset['groupEnabled'] = String(isEnabled);
+  groupElement.classList.toggle('is-disabled', !isEnabled);
 
   querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent = group.name;
   querySelector<HTMLElement>('[data-role="group-meta"]', groupElement).textContent =
     `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
 
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
+  const groupToggle = cloneTemplate<HTMLLabelElement>('options-group-toggle-template');
+  const groupToggleInput = querySelector<HTMLInputElement>(
+    'input[data-action="toggle-group"]',
+    groupToggle
+  );
   const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
+  groupToggleInput.checked = isEnabled;
+  groupToggleInput.dataset['groupId'] = group.id;
+  groupToggleInput.setAttribute('aria-label', `Toggle group ${group.name}`);
+  groupToggle.addEventListener('click', (event) => {
+    event.stopPropagation();
+  });
+  actions.appendChild(groupToggle);
   groupContent.classList.toggle('is-snoozed', snoozeActive);
   if (!isDefault) {
     const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
@@ -886,12 +902,16 @@ async function handleGroupSubmit(e: Event): Promise<void> {
 
   const name = getElementByIdOrNull<HTMLInputElement>('group-name')?.value ?? '';
   const is24x7 = getElementByIdOrNull<HTMLInputElement>('group-24x7')?.checked ?? false;
+  const existingGroup = currentEditingGroupId
+    ? (await loadData()).groups.find((group) => group.id === currentEditingGroupId)
+    : undefined;
 
   const group: FilterGroup = {
     id: currentEditingGroupId ?? generateId(),
     name,
     is24x7,
     schedules: is24x7 ? [] : temporarySchedules,
+    enabled: existingGroup?.enabled ?? true,
   };
 
   try {
@@ -1075,6 +1095,8 @@ function handleGroupsListChange(e: Event): void {
     if (filterId) {
       void toggleFilter(filterId, input.checked);
     }
+  } else if (input.dataset['action'] === 'toggle-group') {
+    void toggleGroup(input);
   } else if (input.dataset['action'] === 'toggle-whitelist') {
     const whitelistId = input.dataset['whitelistId'];
     if (whitelistId) {
@@ -1143,6 +1165,33 @@ async function toggleFilter(filterId: string, enabled: boolean): Promise<void> {
   const filter = data.filters.find((f) => f.id === filterId);
   if (filter) {
     await updateFilter({ ...filter, enabled });
+  }
+}
+
+async function toggleGroup(input: HTMLInputElement): Promise<void> {
+  const groupId = input.dataset['groupId'];
+  if (!groupId) return;
+
+  const originalState = !input.checked;
+
+  try {
+    const data = await loadData();
+    const group = data.groups.find((entry) => entry.id === groupId);
+    if (!group) {
+      input.checked = originalState;
+      return;
+    }
+
+    await updateGroup({ ...group, enabled: input.checked });
+    await renderGroups();
+    const refreshedInput = document.querySelector<HTMLInputElement>(
+      `input[data-action="toggle-group"][data-group-id="${groupId}"]`
+    );
+    refreshedInput?.focus();
+  } catch (error) {
+    console.error('Failed to save group:', error);
+    input.checked = originalState;
+    alert('Failed to save group. Please try again.');
   }
 }
 

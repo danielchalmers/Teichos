@@ -553,3 +553,185 @@ test('stops blocking after a group is disabled from options storage updates', as
   await expect.poll(() => new URL(page.url()).pathname).not.toBe(`/${PAGES.BLOCKED}`);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toHaveCount(0);
 });
+
+test('toggles default and custom groups without mutating child state and reloads disabled groups collapsed', async ({
+  extensionPage,
+  page,
+}, testInfo) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'focus-group',
+          name: 'Focus Group',
+          is24x7: true,
+          enabled: true,
+          schedules: [],
+        },
+      ],
+      filters: [
+        {
+          id: 'default-filter',
+          pattern: 'default.example.invalid',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Default Filter',
+        },
+        {
+          id: 'focus-filter',
+          pattern: 'focus.example.invalid',
+          groupId: 'focus-group',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Focus Filter',
+        },
+      ],
+      whitelist: [
+        {
+          id: 'default-exception',
+          pattern: 'default.example.invalid/allowed',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Default Exception',
+        },
+        {
+          id: 'focus-exception',
+          pattern: 'focus.example.invalid/allowed',
+          groupId: 'focus-group',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Focus Exception',
+        },
+      ],
+    })
+  );
+  await page.reload();
+
+  const defaultGroupCard = page.locator(`details.group-item[data-group-id="${defaultGroup.id}"]`);
+  const focusGroupCard = page.locator('details.group-item[data-group-id="focus-group"]');
+  const defaultToggle = defaultGroupCard.locator(
+    'label.group-toggle-control:has(input[data-group-id="default-24x7"])'
+  );
+  const focusToggle = focusGroupCard.locator(
+    'label.group-toggle-control:has(input[data-group-id="focus-group"])'
+  );
+
+  await expect(defaultGroupCard).toHaveAttribute('open', '');
+  await expect(focusGroupCard).toHaveAttribute('open', '');
+
+  await defaultToggle.click();
+  await expect(defaultGroupCard).toHaveAttribute('open', '');
+  await focusToggle.click();
+  await expect(focusGroupCard).toHaveAttribute('open', '');
+
+  await expect
+    .poll(async () => {
+      const data = await readStorage(page);
+      return {
+        groups: data.groups.map((group) => ({ id: group.id, enabled: group.enabled ?? true })),
+        filters: data.filters.map((filter) => ({ id: filter.id, enabled: filter.enabled })),
+        whitelist: data.whitelist.map((entry) => ({ id: entry.id, enabled: entry.enabled })),
+      };
+    })
+    .toEqual({
+      groups: [
+        { id: defaultGroup.id, enabled: false },
+        { id: 'focus-group', enabled: false },
+      ],
+      filters: [
+        { id: 'default-filter', enabled: true },
+        { id: 'focus-filter', enabled: true },
+      ],
+      whitelist: [
+        { id: 'default-exception', enabled: true },
+        { id: 'focus-exception', enabled: true },
+      ],
+    });
+
+  await expect(defaultGroupCard).toHaveClass(/is-disabled/);
+  await expect(focusGroupCard).toHaveClass(/is-disabled/);
+  await captureScreenshot(page, testInfo, 'options-group-toggle-disabled.png');
+
+  await page.reload();
+
+  await expect(defaultGroupCard).not.toHaveAttribute('open', '');
+  await expect(focusGroupCard).not.toHaveAttribute('open', '');
+  await expect(defaultGroupCard).toHaveClass(/is-disabled/);
+  await expect(focusGroupCard).toHaveClass(/is-disabled/);
+});
+
+test('keeps child controls editable inside a disabled group', async ({ extensionPage, page }) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'focus-group',
+          name: 'Focus Group',
+          is24x7: true,
+          enabled: false,
+          schedules: [],
+        },
+      ],
+      filters: [
+        {
+          id: 'focus-filter',
+          pattern: 'focus.example.invalid',
+          groupId: 'focus-group',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Focus Filter',
+        },
+      ],
+      whitelist: [
+        {
+          id: 'focus-exception',
+          pattern: 'focus.example.invalid/allowed',
+          groupId: 'focus-group',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Focus Exception',
+        },
+      ],
+    })
+  );
+
+  const focusGroupCard = page.locator('details.group-item[data-group-id="focus-group"]');
+  await expect(focusGroupCard).not.toHaveAttribute('open', '');
+
+  await focusGroupCard.locator('summary').click();
+  await expect(focusGroupCard).toHaveAttribute('open', '');
+
+  await focusGroupCard.locator('label.toggle:has(input[data-filter-id="focus-filter"])').click();
+  await expect
+    .poll(
+      async () =>
+        (await readStorage(page)).filters.find((filter) => filter.id === 'focus-filter')?.enabled
+    )
+    .toBe(false);
+
+  await focusGroupCard
+    .locator('label.toggle:has(input[data-whitelist-id="focus-exception"])')
+    .click();
+  await expect
+    .poll(
+      async () =>
+        (await readStorage(page)).whitelist.find((entry) => entry.id === 'focus-exception')?.enabled
+    )
+    .toBe(false);
+
+  await focusGroupCard.locator('button[data-action="edit-filter"]').click();
+  await expect(page.locator('#filter-modal.active')).toBeVisible();
+  await page.getByRole('button', { name: 'Close filter dialog' }).click();
+
+  await focusGroupCard.getByRole('button', { name: 'New Exception' }).click();
+  await expect(page.locator('#whitelist-modal.active')).toBeVisible();
+  await page.getByRole('button', { name: 'Close exception dialog' }).click();
+});

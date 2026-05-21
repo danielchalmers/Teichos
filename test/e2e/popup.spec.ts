@@ -265,3 +265,51 @@ test('snoozes and resumes filtering from the popup', async ({ extensionPage, pag
   await expect(page.locator('#snooze-label')).toHaveText('Active');
   await expect(page.locator('#open-quick-add')).toBeEnabled();
 });
+
+test('hides filters from disabled groups in the popup active list', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'paused-group',
+          name: 'Paused Group',
+          is24x7: true,
+          enabled: false,
+          schedules: [],
+        },
+      ],
+      filters: [
+        {
+          id: 'visible-filter',
+          pattern: 'visible.example.invalid',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Visible Filter',
+        },
+        {
+          id: 'hidden-filter',
+          pattern: 'hidden.example.invalid',
+          groupId: 'paused-group',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Hidden Filter',
+        },
+      ],
+    })
+  );
+
+  await page.goto(extensionPage(PAGES.POPUP));
+
+  await expect(page.locator('.filter-item').filter({ hasText: 'Visible Filter' })).toBeVisible();
+  await expect(page.locator('.filter-item').filter({ hasText: 'Hidden Filter' })).toHaveCount(0);
+  expect(
+    (await readStorage(page)).filters.find((filter) => filter.id === 'hidden-filter')?.enabled
+  ).toBe(true);
+});
