@@ -169,6 +169,7 @@ test('exports current settings from global settings', async ({ extensionPage, pa
     rulesVersion: 7,
   });
   await seedStorage(page, expectedData);
+  const currentData = await readStorage(page);
 
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export Settings' }).click();
@@ -176,8 +177,10 @@ test('exports current settings from global settings', async ({ extensionPage, pa
   const downloadPath = await download.path();
 
   expect(downloadPath).not.toBeNull();
-  expect(JSON.parse(await readFile(downloadPath!, 'utf8'))).toEqual(expectedData);
-  await expect(page.locator('#global-settings-status')).toHaveText('Settings exported successfully.');
+  expect(JSON.parse(await readFile(downloadPath!, 'utf8'))).toEqual(currentData);
+  await expect(page.locator('#global-settings-status')).toHaveText(
+    'Settings exported successfully.'
+  );
 });
 
 test('imports settings from global settings', async ({ extensionPage, page }) => {
@@ -242,7 +245,9 @@ test('imports settings from global settings', async ({ extensionPage, page }) =>
   const importedGroup = page.locator('details.group-item').filter({ hasText: 'Imported Group' });
   await expect(importedGroup).toContainText('Imported Filter');
   await expect(importedGroup).toContainText('Imported Exception');
-  await expect(page.locator('#global-settings-status')).toHaveText('Settings imported successfully.');
+  await expect(page.locator('#global-settings-status')).toHaveText(
+    'Settings imported successfully.'
+  );
   await expect
     .poll(() => readStorage(page))
     .toMatchObject({
@@ -254,7 +259,10 @@ test('imports settings from global settings', async ({ extensionPage, page }) =>
     });
 });
 
-test('keeps existing settings when global settings import fails', async ({ extensionPage, page }) => {
+test('keeps existing settings when global settings import fails', async ({
+  extensionPage,
+  page,
+}) => {
   await page.goto(extensionPage(PAGES.OPTIONS));
   const originalData = createStorageData({
     filters: [

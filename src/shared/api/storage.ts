@@ -86,7 +86,7 @@ function isOptionalFiniteNumber(value: unknown): value is number | undefined {
 }
 
 function isValidDayOfWeek(value: unknown): value is number {
-  return Number.isInteger(value) && value >= 0 && value <= 6;
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 6;
 }
 
 function isValidSchedule(value: unknown): value is TimeSchedule {
@@ -162,7 +162,7 @@ function isValidSnooze(value: unknown): value is LegacyStorageData['snooze'] {
 }
 
 function assertUniqueIds(
-  items: ReadonlyArray<{ readonly id: string }>,
+  items: readonly { readonly id: string }[],
   entityName: 'group' | 'filter' | 'exception'
 ): void {
   const seen = new Set<string>();
@@ -229,7 +229,9 @@ function assertValidRegexEntries(
 
 function validateImportedStorageShape(raw: JsonObject): void {
   const hasKnownCollections =
-    Object.hasOwn(raw, 'groups') || Object.hasOwn(raw, 'filters') || Object.hasOwn(raw, 'whitelist');
+    Object.hasOwn(raw, 'groups') ||
+    Object.hasOwn(raw, 'filters') ||
+    Object.hasOwn(raw, 'whitelist');
 
   if (!hasKnownCollections) {
     throw new Error('Settings file does not contain Teichos data.');
