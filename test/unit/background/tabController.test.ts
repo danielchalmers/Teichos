@@ -67,6 +67,54 @@ describe('TabController', () => {
     });
   });
 
+  it('uses a matching regular filter when an earlier temporary match is already expired', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'expired-temporary-filter',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            expiresAt: Date.now() - 60_000,
+          },
+          {
+            id: 'regular-filter',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 8,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(6, 'https://blocked.com/focus');
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      6,
+      {
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}`,
+      },
+      expect.any(Function)
+    );
+    await expect(getBlockedTabState(6)).resolves.toEqual({
+      tabId: 6,
+      targetUrl: 'https://blocked.com/focus',
+      blockedAt: expect.any(Number),
+      rulesVersion: 8,
+      blockedBy: {
+        filterId: 'regular-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+  });
+
   it('stores the last allowed url for allowed navigations', async () => {
     const { getTabController } = await import('../../../src/background/tabController');
     await getTabController().evaluateNavigation(9, 'https://allowed.com');

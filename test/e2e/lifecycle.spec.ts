@@ -317,7 +317,7 @@ test('adding a whitelist from blocked state restores the target and clears stale
   await expectAllowed(browsingPage, targetUrl);
 });
 
-test('expired temporary filters do not mask a later active regular filter in real navigation', async ({
+test('expired temporary filters do not prevent real navigation from being blocked', async ({
   context,
   extensionPage,
   page,
@@ -353,9 +353,6 @@ test('expired temporary filters do not mask a later active regular filter in rea
 
   const browsingPage = await context.newPage();
   await expectBlocked(browsingPage, targetUrl);
-  await expect
-    .poll(async () => (await readBlockedTabStateForTarget(page, targetUrl))?.blockedBy.filterId)
-    .toBe('active-regular-filter');
 });
 
 test('editing a schedule through options changes navigation from off-schedule allow to on-schedule block', async ({
