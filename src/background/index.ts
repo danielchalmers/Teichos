@@ -16,7 +16,7 @@ import { getTabController } from './tabController';
 // This is critical for MV3 service workers
 
 // Web navigation events - handle main frame navigations
-const handleNavigationEvent = (details: NavigationChangeDetails) => {
+const handleNavigationEvent = (details: NavigationChangeDetails): void => {
   handleNavigationChange(details).catch((error: unknown) => {
     console.error('[Teichos] Error handling navigation:', error);
   });

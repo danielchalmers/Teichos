@@ -13,8 +13,8 @@ vi.mock('../../../src/background/tabController', () => ({
 }));
 
 import {
- handleBeforeNavigate,
- handleNavigationChange,
+  handleBeforeNavigate,
+  handleNavigationChange,
 } from '../../../src/background/handlers/navigation';
 
 function createNavigationDetails(
@@ -58,10 +58,7 @@ describe('handleNavigationChange', () => {
       createNavigationDetails({ tabId: 5, url: 'https://example.com/blocked-route' })
     );
 
-    expect(mocks.evaluateNavigation).toHaveBeenCalledWith(
-      5,
-      'https://example.com/blocked-route'
-    );
+    expect(mocks.evaluateNavigation).toHaveBeenCalledWith(5, 'https://example.com/blocked-route');
   });
 
   it('delegates main-frame fragment updates to the tab controller', async () => {
