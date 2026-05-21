@@ -46,7 +46,7 @@ function getScheduleWindows(now = new Date()): {
   const activeEndMinutes = currentMinutes >= 1438 ? 1439 : currentMinutes + 1;
 
   const [inactiveStartMinutes, inactiveEndMinutes] =
-    currentMinutes <= 1436
+    currentMinutes <= 1436 // 23:56, leaving room for a 2-minute inactive window before day end.
       ? [currentMinutes + 2, currentMinutes + 3]
       : [currentMinutes - 3, currentMinutes - 2];
 
@@ -337,7 +337,7 @@ test('expired temporary filters do not mask a later active regular filter in rea
           enabled: true,
           matchMode: 'contains',
           description: 'Expired Temporary',
-          expiresAt: Date.now() - 60_000,
+          expiresAt: Date.now() - 60_000, // 1 minute ago.
         },
         {
           id: 'active-regular-filter',

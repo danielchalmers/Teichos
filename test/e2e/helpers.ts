@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
 import { DAY_NAMES, PAGES } from '../../src/shared/constants';
 import type { BlockedTabState, StorageData } from '../../src/shared/types';
 
@@ -43,13 +43,6 @@ export async function readStorage(page: Page): Promise<StorageData | undefined> 
     const result = await chrome.storage.sync.get(key);
     return result[key] as StorageData | undefined;
   }, STORAGE_KEY);
-}
-
-async function setCheckboxState(checkbox: Locator, checked: boolean): Promise<void> {
-  // Avoid double-toggling when the control is already in the desired state.
-  if ((await checkbox.isChecked()) !== checked) {
-    await checkbox.click();
-  }
 }
 
 export function getBlockedPagePathFor(targetUrl: string): string {
@@ -168,8 +161,21 @@ export async function createGroupViaOptions(
       await modal.getByRole('button', { name: 'New Schedule' }).click();
       const scheduleItem = modal.locator('#schedules-list .schedule-item').nth(index);
       const dayCheckboxes = scheduleItem.locator('label.day-checkbox input');
+      const selectedDays = new Set(schedule.daysOfWeek);
+      for (const dayIndex of schedule.daysOfWeek) {
+        const checkbox = dayCheckboxes.nth(dayIndex);
+        if (!(await checkbox.isChecked())) {
+          await checkbox.click();
+        }
+      }
       for (const dayIndex of DAY_NAMES.keys()) {
-        await setCheckboxState(dayCheckboxes.nth(dayIndex), schedule.daysOfWeek.includes(dayIndex));
+        if (selectedDays.has(dayIndex)) {
+          continue;
+        }
+        const checkbox = dayCheckboxes.nth(dayIndex);
+        if (await checkbox.isChecked()) {
+          await checkbox.click();
+        }
       }
 
       await modal.getByLabel(`Start time for schedule ${index + 1}`).fill(schedule.startTime);
