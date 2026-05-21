@@ -404,7 +404,7 @@ async function renderGroups(): Promise<void> {
       const details = groupsList.querySelector<HTMLDetailsElement>(
         `details.group-item[data-group-id="${groupId}"]`
       );
-      if (details?.dataset['groupEnabled'] !== 'false') {
+      if (details && details.dataset['groupEnabled'] !== 'false') {
         details.open = true;
       }
     });
