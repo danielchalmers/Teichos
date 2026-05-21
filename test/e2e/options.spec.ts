@@ -113,6 +113,7 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
     };
   });
   await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(page, createStorageData());
 
   await page
     .locator('details.group-item')

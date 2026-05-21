@@ -515,7 +515,9 @@ describe('TabController', () => {
     chromeMock.storage.sync._data.set(
       STORAGE_KEY,
       createStorageData({
-        groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true, enabled: false }],
+        groups: [
+          { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true, enabled: false },
+        ],
         filters: [
           {
             id: 'filter-1',
