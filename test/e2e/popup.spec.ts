@@ -103,7 +103,7 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
   await expect
     .poll(async () => {
       const data = await readStorage(page);
-      return data.filters.find((filter) => filter.id === 'regular-filter')?.enabled;
+      return data?.filters.find((filter) => filter.id === 'regular-filter')?.enabled;
     })
     .toBe(false);
 

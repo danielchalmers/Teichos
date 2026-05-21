@@ -126,7 +126,7 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
   await expect
     .poll(() => page.evaluate(() => (globalThis as AlertCaptureGlobal).__lastAlertMessage))
     .toContain('Invalid regex pattern');
-  expect((await readStorage(page)).filters).toHaveLength(0);
+  await expect.poll(() => readStorage(page)).toBeUndefined();
 });
 
 test('opens filter, group, and exception modals from query params', async ({

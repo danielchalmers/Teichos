@@ -101,21 +101,12 @@ function normalizeSnooze(snooze: LegacyStorageData['snooze']): SnoozeState {
   return { active: true };
 }
 
-/**
- * Load storage data from chrome.storage.sync
- * Creates default data if none exists
- */
-export async function loadData(): Promise<StorageData> {
-  const result = await chrome.storage.sync.get(STORAGE_KEY);
-  const storedData = result[STORAGE_KEY];
-
-  if (!storedData) {
-    const defaultData = createDefaultData();
-    await saveData(defaultData);
-    return defaultData;
+export function normalizeStoredData(raw: LegacyStorageData | undefined): StorageData {
+  if (!raw) {
+    return createDefaultData();
   }
 
-  const data = storedData as LegacyStorageData;
+  const data = raw;
   const groups = data.groups && data.groups.length > 0 ? data.groups : [createDefaultGroup()];
   const groupIds = new Set(groups.map((group) => group.id));
   const filters = normalizeFilters(data.filters);
@@ -134,6 +125,14 @@ export async function loadData(): Promise<StorageData> {
     snooze,
     rulesVersion,
   };
+}
+
+/**
+ * Load storage data from chrome.storage.sync
+ */
+export async function loadData(): Promise<StorageData> {
+  const result = await chrome.storage.sync.get(STORAGE_KEY);
+  return normalizeStoredData(result[STORAGE_KEY] as LegacyStorageData | undefined);
 }
 
 /**

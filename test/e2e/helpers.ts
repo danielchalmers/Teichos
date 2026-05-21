@@ -37,10 +37,10 @@ export async function seedStorage(page: Page, data: StorageData): Promise<void> 
   );
 }
 
-export async function readStorage(page: Page): Promise<StorageData> {
+export async function readStorage(page: Page): Promise<StorageData | undefined> {
   return page.evaluate(async (key) => {
     const result = await chrome.storage.sync.get(key);
-    return result[key] as StorageData;
+    return result[key] as StorageData | undefined;
   }, STORAGE_KEY);
 }
 
