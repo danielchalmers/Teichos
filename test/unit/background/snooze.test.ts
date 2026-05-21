@@ -57,7 +57,9 @@ describe('registerSnoozeHandlers', () => {
 
     await vi.waitFor(() => {
       expect(chromeMock.storage.sync._data.get(STORAGE_KEY)).toEqual({
-        groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+        groups: [
+          { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true, enabled: true },
+        ],
         filters: [],
         whitelist: [],
         snooze: { active: false },
@@ -132,7 +134,9 @@ describe('registerSnoozeHandlers', () => {
 
     await vi.waitFor(() => {
       expect(chromeMock.storage.sync._data.get(STORAGE_KEY)).toEqual({
-        groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+        groups: [
+          { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true, enabled: true },
+        ],
         filters: [],
         whitelist: [],
         snooze: { active: false },

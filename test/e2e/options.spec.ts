@@ -30,12 +30,155 @@ test('shows schedule hints in the group header', async ({ extensionPage, page },
       ],
     })
   );
+  await page.goto(extensionPage(PAGES.OPTIONS));
 
   const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
   await expect(workHoursGroup).toContainText(
     'Mo-Fr 09:00-17:00, Sa 10:00-12:00 • 0 filters • 0 exceptions'
   );
   await captureScreenshot(page, testInfo, 'options-schedule-hint.png');
+});
+
+test('toggles groups without mutating child states and restores disabled groups collapsed', async ({
+  extensionPage,
+  page,
+}, testInfo) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'work-hours',
+          name: 'Work Hours',
+          is24x7: false,
+          enabled: true,
+          schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
+        },
+      ],
+      filters: [
+        {
+          id: 'default-filter',
+          pattern: 'always.example.invalid',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Always On',
+        },
+        {
+          id: 'work-filter',
+          pattern: 'work.example.invalid',
+          groupId: 'work-hours',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Work Block',
+        },
+      ],
+      whitelist: [
+        {
+          id: 'work-exception',
+          pattern: 'work.example.invalid/docs',
+          groupId: 'work-hours',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Work Docs',
+        },
+      ],
+    })
+  );
+  await page.goto(extensionPage(PAGES.OPTIONS));
+
+  const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  const workHoursGroupToggle = workHoursGroup.locator('summary .actions label.toggle').first();
+  const defaultGroupCard = page
+    .locator('details.group-item')
+    .filter({ hasText: '24/7 (Always Active)' });
+  const defaultGroupToggle = defaultGroupCard.locator('summary .actions label.toggle').first();
+  await expect(workHoursGroup).toHaveAttribute('open', '');
+
+  await workHoursGroupToggle.click();
+  await expect
+    .poll(async () => (await readStorage(page)).groups.find((group) => group.id === 'work-hours')?.enabled)
+    .toBe(false);
+  await expect
+    .poll(async () => (await readStorage(page)).filters.find((filter) => filter.id === 'work-filter')?.enabled)
+    .toBe(true);
+  await expect
+    .poll(
+      async () => (await readStorage(page)).whitelist.find((entry) => entry.id === 'work-exception')?.enabled
+    )
+    .toBe(true);
+
+  await defaultGroupToggle.click();
+  await expect
+    .poll(
+      async () => (await readStorage(page)).groups.find((group) => group.id === defaultGroup.id)?.enabled
+    )
+    .toBe(false);
+  await defaultGroupToggle.click();
+  await expect
+    .poll(
+      async () => (await readStorage(page)).groups.find((group) => group.id === defaultGroup.id)?.enabled
+    )
+    .toBe(true);
+
+  await expect(workHoursGroup).toHaveAttribute('open', '');
+  const workFilterToggle = workHoursGroup.locator(
+    'input[data-action="toggle-filter"][data-filter-id="work-filter"]'
+  );
+  const workExceptionToggle = workHoursGroup.locator(
+    'input[data-action="toggle-whitelist"][data-whitelist-id="work-exception"]'
+  );
+  await workHoursGroup
+    .locator('.filter-item')
+    .filter({ hasText: 'Work Block' })
+    .locator('label.toggle')
+    .click();
+  await workHoursGroup
+    .locator('.filter-item')
+    .filter({ hasText: 'Work Docs' })
+    .locator('label.toggle')
+    .click();
+  await expect(workFilterToggle).not.toBeDisabled();
+  await expect(workExceptionToggle).not.toBeDisabled();
+
+  await expect
+    .poll(async () => (await readStorage(page)).filters.find((filter) => filter.id === 'work-filter')?.enabled)
+    .toBe(false);
+  await expect
+    .poll(
+      async () => (await readStorage(page)).whitelist.find((entry) => entry.id === 'work-exception')?.enabled
+    )
+    .toBe(false);
+
+  await page.reload();
+
+  const reloadedWorkHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  const reloadedDefaultGroup = page
+    .locator('details.group-item')
+    .filter({ hasText: '24/7 (Always Active)' });
+  await expect(reloadedWorkHoursGroup).not.toHaveAttribute('open', '');
+  await expect(reloadedDefaultGroup).toHaveAttribute('open', '');
+  await captureScreenshot(page, testInfo, 'options-group-toggle.png');
+
+  await reloadedWorkHoursGroup.locator('summary').click();
+  await expect(
+    reloadedWorkHoursGroup.locator('input[data-action="toggle-filter"][data-filter-id="work-filter"]')
+  ).not.toBeChecked();
+  await expect(
+    reloadedWorkHoursGroup.locator(
+      'input[data-action="toggle-whitelist"][data-whitelist-id="work-exception"]'
+    )
+  ).not.toBeChecked();
+
+  await reloadedWorkHoursGroup.locator('summary .actions label.toggle').first().click();
+  await expect
+    .poll(async () => (await readStorage(page)).groups.find((group) => group.id === 'work-hours')?.enabled)
+    .toBe(true);
+  await expect(
+    reloadedWorkHoursGroup.locator('input[data-action="toggle-filter"][data-filter-id="work-filter"]')
+  ).not.toBeChecked();
 });
 
 test('creates, edits, and deletes a scheduled group with filters and exceptions', async ({

@@ -549,6 +549,16 @@ label {
   border-bottom: 1px solid var(--border);
 }
 
+.group-item.is-disabled .group-header {
+  background: linear-gradient(180deg, var(--surface-muted) 0%, var(--surface) 100%);
+}
+
+.group-item.is-disabled .group-title,
+.group-item.is-disabled .filter-meta,
+.group-item.is-disabled .group-header::after {
+  color: var(--text-muted);
+}
+
 .group-header:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

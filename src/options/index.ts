@@ -363,11 +363,10 @@ async function renderGroups(): Promise<void> {
   const focusSelector =
     focusTarget && groupsList.contains(focusTarget) ? getFocusRestoreSelector(focusTarget) : null;
 
-  const hadGroups = groupsList.children.length > 0;
-  const openGroupIds = new Set(
-    Array.from(groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item[open]'))
-      .map((details) => details.dataset['groupId'])
-      .filter((groupId): groupId is string => Boolean(groupId))
+  const groupDisclosureState = new Map(
+    Array.from(groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item')).map(
+      (details) => [details.dataset['groupId'], details.open] as const
+    )
   );
 
   const filtersByGroup = new Map<string, Filter[]>();
@@ -399,20 +398,10 @@ async function renderGroups(): Promise<void> {
 
   groupsList.replaceChildren(fragment);
 
-  if (openGroupIds.size > 0) {
-    openGroupIds.forEach((groupId) => {
-      const details = groupsList.querySelector<HTMLDetailsElement>(
-        `details.group-item[data-group-id="${groupId}"]`
-      );
-      if (details) {
-        details.open = true;
-      }
-    });
-  } else if (!hadGroups) {
-    groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((details) => {
-      details.open = true;
-    });
-  }
+  groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((details) => {
+    const previousState = groupDisclosureState.get(details.dataset['groupId']);
+    details.open = previousState ?? details.dataset['groupEnabled'] !== 'false';
+  });
 
   if (focusSelector) {
     const restored = groupsList.querySelector<HTMLElement>(focusSelector);
@@ -427,12 +416,15 @@ function renderGroup(
   snoozeActive: boolean
 ): HTMLDetailsElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
+  const isEnabled = group.enabled !== false;
   const scheduleSummary = formatGroupScheduleSummary(group);
   const filterSummary = pluralize(filters.length, 'filter');
   const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
   const groupElement = cloneTemplate<HTMLDetailsElement>('options-group-template');
   groupElement.dataset['groupId'] = group.id;
+  groupElement.dataset['groupEnabled'] = String(isEnabled);
+  groupElement.classList.toggle('is-disabled', !isEnabled);
 
   querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent = group.name;
   querySelector<HTMLElement>('[data-role="group-meta"]', groupElement).textContent =
@@ -441,6 +433,24 @@ function renderGroup(
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
   const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
   groupContent.classList.toggle('is-snoozed', snoozeActive);
+  const toggle = document.createElement('label');
+  toggle.className = 'toggle';
+  toggle.dataset['role'] = 'group-toggle';
+  const toggleInput = document.createElement('input');
+  toggleInput.type = 'checkbox';
+  toggleInput.checked = isEnabled;
+  toggleInput.dataset['action'] = 'toggle-group';
+  toggleInput.dataset['groupId'] = group.id;
+  toggleInput.setAttribute('aria-label', `Toggle group ${group.name}`);
+  const slider = document.createElement('span');
+  slider.className = 'slider';
+  const stopSummaryToggle = (event: Event): void => {
+    event.stopPropagation();
+  };
+  toggle.addEventListener('click', stopSummaryToggle);
+  toggleInput.addEventListener('click', stopSummaryToggle);
+  toggle.append(toggleInput, slider);
+  actions.appendChild(toggle);
   if (!isDefault) {
     const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
     editButton.dataset['groupId'] = group.id;
@@ -813,12 +823,16 @@ async function handleGroupSubmit(e: Event): Promise<void> {
 
   const name = getElementByIdOrNull<HTMLInputElement>('group-name')?.value ?? '';
   const is24x7 = getElementByIdOrNull<HTMLInputElement>('group-24x7')?.checked ?? false;
+  const existingGroup = currentEditingGroupId
+    ? (await loadData()).groups.find((candidate) => candidate.id === currentEditingGroupId)
+    : undefined;
 
   const group: FilterGroup = {
     id: currentEditingGroupId ?? generateId(),
     name,
     is24x7,
     schedules: is24x7 ? [] : temporarySchedules,
+    enabled: existingGroup?.enabled ?? true,
   };
 
   try {
@@ -1002,6 +1016,8 @@ function handleGroupsListChange(e: Event): void {
     if (filterId) {
       void toggleFilter(filterId, input.checked);
     }
+  } else if (input.dataset['action'] === 'toggle-group') {
+    void toggleGroup(input);
   } else if (input.dataset['action'] === 'toggle-whitelist') {
     const whitelistId = input.dataset['whitelistId'];
     if (whitelistId) {
@@ -1088,6 +1104,26 @@ async function deleteGroupConfirm(groupId: string): Promise<void> {
   ) {
     await deleteGroup(groupId);
     await renderGroups();
+  }
+}
+
+async function toggleGroup(input: HTMLInputElement): Promise<void> {
+  const groupId = input.dataset['groupId'];
+  if (!groupId) return;
+
+  const originalState = !input.checked;
+
+  try {
+    const data = await loadData();
+    const group = data.groups.find((candidate) => candidate.id === groupId);
+    if (!group) return;
+
+    await updateGroup({ ...group, enabled: input.checked });
+    await renderGroups();
+  } catch (error) {
+    console.error('Failed to save group:', error);
+    input.checked = originalState;
+    alert('Failed to save group. Please try again.');
   }
 }
 

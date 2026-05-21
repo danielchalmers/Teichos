@@ -31,6 +31,7 @@ describe('storage', () => {
 
       expect(data.groups).toHaveLength(1);
       expect(data.groups[0]?.id).toBe(DEFAULT_GROUP_ID);
+      expect(data.groups[0]?.enabled).toBe(true);
       expect(data.filters).toEqual([]);
       expect(data.whitelist).toEqual([]);
       expect(data.snooze).toEqual({ active: false });
@@ -72,6 +73,18 @@ describe('storage', () => {
       expect(data.whitelist).toEqual([]);
       expect(data.snooze).toEqual({ active: false });
       expect(data.rulesVersion).toBe(0);
+    });
+
+    it('should default missing group enabled state to true', async () => {
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, {
+        groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+        filters: [],
+        whitelist: [],
+      });
+
+      const data = await loadData();
+
+      expect(data.groups[0]?.enabled).toBe(true);
     });
 
     it('should assign the default group to legacy whitelist entries', async () => {
@@ -197,13 +210,28 @@ describe('storage', () => {
       await updateFilter({ ...filter, enabled: false });
 
       let data = await loadData();
-      expect(data.groups).toEqual([createDefaultGroup(), { ...group, name: 'Updated Group' }]);
+      expect(data.groups).toEqual([
+        createDefaultGroup(),
+        { ...group, name: 'Updated Group', enabled: true },
+      ]);
       expect(data.filters).toEqual([{ ...filter, enabled: false }]);
 
       await deleteFilter(filter.id);
 
       data = await loadData();
       expect(data.filters).toEqual([]);
+    });
+
+    it('persists group enabled toggles', async () => {
+      await loadData();
+
+      await updateGroup({ ...createDefaultGroup(), enabled: false });
+      let data = await loadData();
+      expect(data.groups[0]?.enabled).toBe(false);
+
+      await updateGroup({ ...createDefaultGroup(), enabled: true });
+      data = await loadData();
+      expect(data.groups[0]?.enabled).toBe(true);
     });
   });
 

@@ -118,6 +118,49 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
   await expect(filterModal.getByLabel('URL Pattern')).toHaveValue('blocked.example.invalid');
 });
 
+test('hides filters from disabled groups in the popup list', async ({ extensionPage, page }) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'disabled-group',
+          name: 'Disabled Group',
+          schedules: [],
+          is24x7: true,
+          enabled: false,
+        },
+      ],
+      filters: [
+        {
+          id: 'visible-filter',
+          pattern: 'visible.example.invalid',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Visible Filter',
+        },
+        {
+          id: 'hidden-filter',
+          pattern: 'hidden.example.invalid',
+          groupId: 'disabled-group',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Hidden Filter',
+        },
+      ],
+    })
+  );
+
+  await page.goto(extensionPage(PAGES.POPUP));
+
+  await expect(page.locator('.filter-item').filter({ hasText: 'Visible Filter' })).toBeVisible();
+  await expect(page.locator('.filter-item').filter({ hasText: 'Hidden Filter' })).toHaveCount(0);
+  await expect(page.locator('.inactive-summary')).toContainText('1 more inactive filter');
+});
+
 test('snoozes and resumes filtering from the popup', async ({ extensionPage, page }) => {
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(

@@ -7,7 +7,7 @@ import { createFilteringEngine, evaluateFilterDecision } from '../../../src/shar
 function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
   return {
     groups: overrides.groups ?? [
-      { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true },
+      { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true, enabled: true },
     ],
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
@@ -138,6 +138,39 @@ describe('filteringEngine', () => {
     );
 
     expect(decision).toEqual({ action: 'allow', reason: 'group-inactive' });
+  });
+
+  it('allows matching urls when the group is disabled and blocks again when re-enabled', () => {
+    const disabledData = createStorageData({
+      groups: [{ id: 'work', name: 'Work', is24x7: true, schedules: [], enabled: false }],
+      filters: [
+        {
+          id: 'filter-1',
+          pattern: 'blocked.com',
+          groupId: 'work',
+          enabled: true,
+          matchMode: 'contains',
+        },
+      ],
+    });
+
+    expect(evaluateFilterDecision('https://blocked.com', disabledData, { context: activeContext })).toEqual(
+      { action: 'allow', reason: 'group-inactive' }
+    );
+
+    const reenabledData = {
+      ...disabledData,
+      groups: disabledData.groups.map((group) => ({ ...group, enabled: true })),
+    };
+
+    expect(
+      evaluateFilterDecision('https://blocked.com', reenabledData, { context: activeContext })
+    ).toEqual({
+      action: 'block',
+      filterId: 'filter-1',
+      groupId: 'work',
+      reason: 'matched-filter',
+    });
   });
 
   it('allows matching urls when a temporary filter has expired', () => {
