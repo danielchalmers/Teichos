@@ -215,7 +215,9 @@ test('edits and deletes individual filters and exceptions from options', async (
     .locator('details.group-item')
     .filter({ hasText: '24/7 (Always Active)' });
 
-  const filterItem = defaultGroupCard.locator('.filter-item').filter({ hasText: 'Editable Filter' });
+  const filterItem = defaultGroupCard
+    .locator('.filter-item')
+    .filter({ hasText: 'Editable Filter' });
   await filterItem.getByRole('button', { name: 'Edit' }).click();
   const filterModal = page.locator('#filter-modal.active');
   await expect(filterModal).toBeVisible();
@@ -239,7 +241,9 @@ test('edits and deletes individual filters and exceptions from options', async (
   await whitelistModal.getByLabel('Match Mode').selectOption('regex');
   await whitelistModal.getByRole('button', { name: 'Save' }).click();
   await expect(defaultGroupCard).toContainText('Updated Exception');
-  await expect(defaultGroupCard).toContainText('^https://editable-filter\\.example\\.test/docs/\\d+$');
+  await expect(defaultGroupCard).toContainText(
+    '^https://editable-filter\\.example\\.test/docs/\\d+$'
+  );
 
   await defaultGroupCard
     .locator('.filter-item')
@@ -247,7 +251,9 @@ test('edits and deletes individual filters and exceptions from options', async (
     .getByRole('button', { name: 'Edit' })
     .click();
   await page.locator('#filter-modal.active').getByRole('button', { name: 'Delete' }).click();
-  await expect(defaultGroupCard.locator('.filter-item').filter({ hasText: 'Updated Filter' })).toHaveCount(0);
+  await expect(
+    defaultGroupCard.locator('.filter-item').filter({ hasText: 'Updated Filter' })
+  ).toHaveCount(0);
 
   await defaultGroupCard
     .locator('.filter-item')
@@ -261,10 +267,12 @@ test('edits and deletes individual filters and exceptions from options', async (
 
   await expect(defaultGroupCard.getByText('No filters in this group.')).toBeVisible();
   await expect(defaultGroupCard.getByText('No exceptions in this group.')).toBeVisible();
-  await expect.poll(() => readStorage(page)).toMatchObject({
-    filters: [],
-    whitelist: [],
-  });
+  await expect
+    .poll(() => readStorage(page))
+    .toMatchObject({
+      filters: [],
+      whitelist: [],
+    });
 });
 
 test('updates selected days and supports empty schedules in the group editor', async ({
@@ -288,11 +296,16 @@ test('updates selected days and supports empty schedules in the group editor', a
   await firstDayCheckboxes.nth(6).click();
   await groupModal.getByRole('button', { name: 'Save' }).click();
 
-  const flexibleHoursGroup = page.locator('details.group-item').filter({ hasText: 'Flexible Hours' });
+  const flexibleHoursGroup = page
+    .locator('details.group-item')
+    .filter({ hasText: 'Flexible Hours' });
   await expect(flexibleHoursGroup).toContainText('Su, Sa 09:00-17:00 • 0 filters • 0 exceptions');
 
   await flexibleHoursGroup.locator('button[data-action="edit-group"]').click();
-  await page.locator('#group-modal.active').getByRole('button', { name: 'Delete schedule 1' }).click();
+  await page
+    .locator('#group-modal.active')
+    .getByRole('button', { name: 'Delete schedule 1' })
+    .click();
   await page.locator('#group-modal.active').getByRole('button', { name: 'Save' }).click();
   await expect(flexibleHoursGroup).toContainText('0 schedules • 0 filters • 0 exceptions');
 

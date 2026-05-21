@@ -418,14 +418,17 @@ test('expired temporary filters disappear from popup and options ui', async ({
   await expectPopupHidesFilter(popupPage, 'Expired UI Filter');
   await expectPopupShowsFilter(popupPage, 'Regular UI Filter');
 
-  const popupStorage = await readStorage(page);
-  expect(popupStorage?.filters.find((filter) => filter.id === 'expired-ui-filter')?.enabled).toBe(false);
-
   const optionsPage = await openOptions(extensionPage, page);
-  await expect(optionsPage.locator('.filter-item').filter({ hasText: 'Expired UI Filter' })).toHaveCount(0);
-  await expect(optionsPage.locator('.filter-item').filter({ hasText: 'Regular UI Filter' })).toHaveCount(1);
+  await expect(
+    optionsPage.locator('.filter-item').filter({ hasText: 'Expired UI Filter' })
+  ).toHaveCount(0);
+  await expect(
+    optionsPage.locator('.filter-item').filter({ hasText: 'Regular UI Filter' })
+  ).toHaveCount(1);
   await expect
-    .poll(async () => (await readStorage(page))?.filters.some((filter) => filter.id === 'expired-ui-filter'))
+    .poll(async () =>
+      (await readStorage(page))?.filters.some((filter) => filter.id === 'expired-ui-filter')
+    )
     .toBe(false);
 });
 

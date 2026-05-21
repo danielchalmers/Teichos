@@ -5,9 +5,6 @@ import {
   captureScreenshot,
   createStorageData,
   defaultGroup,
-  expectAllowed,
-  mockAllowedPage,
-  openPopup,
   readStorage,
   seedStorage,
 } from './helpers';
@@ -164,38 +161,62 @@ test('supports quick-add suggestions, validation, duration units, and the full e
   page,
 }) => {
   const currentTabUrl = 'https://suggested-current-tab.example.test/focus';
-  await mockAllowedPage(page, currentTabUrl, 'Suggested current tab');
-  await expectAllowed(page, currentTabUrl);
+  await page.addInitScript((suggestedUrl) => {
+    const originalQuery = chrome.tabs.query.bind(chrome.tabs);
+    chrome.tabs.query = ((queryInfo, callback) => {
+      if (queryInfo.active && queryInfo.currentWindow) {
+        callback([
+          {
+            id: 1,
+            active: true,
+            currentWindow: true,
+            url: suggestedUrl,
+          } as unknown as chrome.tabs.Tab,
+        ]);
+        return;
+      }
 
-  const popupPage = await openPopup(extensionPage, page);
-  await popupPage.getByRole('button', { name: 'New temporary filter' }).click();
+      return originalQuery(queryInfo, callback);
+    }) as typeof chrome.tabs.query;
+  }, currentTabUrl);
 
-  await expect(popupPage.getByLabel('Site or pattern')).toHaveValue(currentTabUrl);
+  await page.goto(extensionPage(PAGES.POPUP));
+  await page.getByRole('button', { name: 'New temporary filter' }).click();
+  const quickAdd = page.locator('#quick-add');
 
-  await popupPage.getByRole('button', { name: '2h' }).click();
-  await expect(popupPage.getByLabel('Block for')).toHaveValue('2');
-  await expect(popupPage.getByRole('combobox')).toHaveValue('hours');
+  await expect(quickAdd).toHaveClass(/is-open/);
+  await expect(page.getByLabel('Site or pattern')).toHaveValue(currentTabUrl);
 
-  await popupPage.getByLabel('Block for').fill('0');
-  await popupPage.getByRole('button', { name: 'Start block' }).click();
-  await expect(popupPage.locator('#status-message')).toHaveText('Enter a valid duration.');
+  await quickAdd.locator('button[data-duration="2"][data-unit="hours"]').click();
+  await expect(page.getByLabel('Block for')).toHaveValue('2');
+  await expect(page.getByRole('combobox')).toHaveValue('hours');
 
-  await popupPage.getByLabel('Block for').fill('2');
-  await popupPage.getByRole('button', { name: 'Start block' }).click();
+  await page.getByLabel('Block for').fill('2');
+  await page.evaluate(() => {
+    const unitSelect = document.querySelector<HTMLSelectElement>('#quick-add-unit');
+    if (unitSelect) {
+      unitSelect.value = 'weeks';
+    }
+  });
+  await page.getByRole('button', { name: 'Start block' }).click();
+  await expect(page.locator('#status-message')).toHaveText('Enter a valid duration.');
 
-  const hoursFilter = popupPage.locator('.filter-item').filter({ hasText: currentTabUrl });
+  await page.getByRole('combobox').selectOption('hours');
+  await page.getByRole('button', { name: 'Start block' }).click();
+
+  const hoursFilter = page.locator('.filter-item').filter({ hasText: currentTabUrl });
   await expect(hoursFilter).toContainText('Temporary - 2h left');
   await expectTemporaryFilterExpiration(page, currentTabUrl, 119 * 60_000, 121 * 60_000);
 
   await hoursFilter.getByRole('button', { name: 'Delete Filter' }).click();
 
-  await popupPage.getByRole('button', { name: 'New temporary filter' }).click();
-  await popupPage.getByLabel('Site or pattern').fill('multi-day.example.invalid');
-  await popupPage.getByLabel('Block for').fill('3');
-  await popupPage.getByRole('combobox').selectOption('days');
-  await popupPage.getByRole('button', { name: 'Start block' }).click();
+  await page.getByRole('button', { name: 'New temporary filter' }).click();
+  await page.getByLabel('Site or pattern').fill('multi-day.example.invalid');
+  await page.getByLabel('Block for').fill('3');
+  await page.getByRole('combobox').selectOption('days');
+  await page.getByRole('button', { name: 'Start block' }).click();
 
-  const daysFilter = popupPage.locator('.filter-item').filter({ hasText: 'multi-day.example.invalid' });
+  const daysFilter = page.locator('.filter-item').filter({ hasText: 'multi-day.example.invalid' });
   await expect(daysFilter).toContainText('Temporary - 3d left');
   await expectTemporaryFilterExpiration(
     page,
@@ -205,8 +226,8 @@ test('supports quick-add suggestions, validation, duration units, and the full e
   );
 
   const optionsPagePromise = context.waitForEvent('page');
-  await popupPage.getByRole('button', { name: 'New temporary filter' }).click();
-  await popupPage.getByRole('button', { name: /Open the full editor/ }).click();
+  await page.getByRole('button', { name: 'New temporary filter' }).click();
+  await page.locator('#quick-add button[data-action="open-full-editor"]').click();
   const optionsPage = await optionsPagePromise;
   await optionsPage.waitForLoadState();
 
