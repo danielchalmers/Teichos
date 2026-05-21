@@ -240,6 +240,8 @@ class TabController {
       return undefined;
     }
 
+    // Migration path for blocked tabs that were created before blocked-tab
+    // session state started being recorded.
     const rules = await this.getRules();
     const decision = rules.engine.evaluate(fallbackTargetUrl);
     if (decision.action !== 'block') {
@@ -267,7 +269,7 @@ class TabController {
         await this.reconcileAllOpenTabs();
       })
       .catch((error: unknown) => {
-        console.error('[Teichos] Failed to reload rules:', error);
+        console.error('[Teichos] Failed to reconcile tabs after rules change:', error);
       });
   }
 
