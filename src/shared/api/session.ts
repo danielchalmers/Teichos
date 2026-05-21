@@ -5,10 +5,15 @@
 import type { SnoozeState } from '../types';
 
 const LAST_ALLOWED_URL_KEY_PREFIX = 'last_allowed_url_' as const;
+const RESTORE_BYPASS_URL_KEY_PREFIX = 'restore_bypass_url_' as const;
 const SNOOZE_OVERRIDE_KEY = 'snooze_override' as const;
 
 function lastAllowedUrlKey(tabId: number): string {
   return `${LAST_ALLOWED_URL_KEY_PREFIX}${tabId}`;
+}
+
+function restoreBypassUrlKey(tabId: number): string {
+  return `${RESTORE_BYPASS_URL_KEY_PREFIX}${tabId}`;
 }
 
 /**
@@ -26,6 +31,21 @@ export async function getLastAllowedUrl(tabId: number): Promise<string | undefin
   const result = await chrome.storage.session.get(key);
   const value = result[key];
   return typeof value === 'string' ? value : undefined;
+}
+
+export async function setRestoreBypassUrl(tabId: number, url: string): Promise<void> {
+  await chrome.storage.session.set({ [restoreBypassUrlKey(tabId)]: url });
+}
+
+export async function consumeRestoreBypassUrl(tabId: number, url: string): Promise<boolean> {
+  const key = restoreBypassUrlKey(tabId);
+  const result = await chrome.storage.session.get(key);
+  if (result[key] !== url) {
+    return false;
+  }
+
+  await chrome.storage.session.remove(key);
+  return true;
 }
 
 function normalizeSessionSnooze(value: unknown): SnoozeState | undefined {

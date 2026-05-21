@@ -10,6 +10,7 @@ import { ALARMS, PAGES } from '../shared/constants';
 import type { SnoozeState } from '../shared/types';
 import { STORAGE_KEY } from '../shared/types';
 import { isInternalUrl, isSnoozeActive, isSnoozeExpired } from '../shared/utils';
+import { restoreBlockedTabsIfUnblocked } from './blockedTabs';
 
 const INACTIVE_SNOOZE: SnoozeState = { active: false };
 
@@ -92,6 +93,7 @@ async function syncSnoozeFromStorage(): Promise<void> {
     syncAlarmFromSnooze(data.snooze);
     await setSessionSnooze(data.snooze);
     await restoreBlockedTabsIfSnoozed(data.snooze);
+    await restoreBlockedTabsIfUnblocked(data);
     return;
   }
 

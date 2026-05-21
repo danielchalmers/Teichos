@@ -8,6 +8,19 @@ import {
 } from './helpers';
 import { PAGES } from '../../src/shared/constants';
 
+const blockedPageFilterData = createStorageData({
+  filters: [
+    {
+      id: 'blocked-page-filter',
+      pattern: 'blocked.example.invalid',
+      groupId: defaultGroup.id,
+      enabled: true,
+      matchMode: 'contains',
+      description: 'Blocked Page Test',
+    },
+  ],
+});
+
 test('go back restores the last allowed url', async ({
   context,
   extensionPage,
@@ -15,6 +28,9 @@ test('go back restores the last allowed url', async ({
 }, testInfo) => {
   const blockedUrl = 'https://blocked.example.invalid/focus';
   const allowedUrl = 'https://allowed.example.test/landing';
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(page, blockedPageFilterData);
 
   await context.route(allowedUrl, async (route) => {
     await route.fulfill({
@@ -43,6 +59,9 @@ test('go back restores the last allowed url', async ({
 });
 
 test('opens settings from the blocked page', async ({ context, extensionPage, page }) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(page, blockedPageFilterData);
+
   await page.goto(
     `${extensionPage(PAGES.BLOCKED)}?url=${encodeURIComponent('https://blocked.example.invalid')}`
   );
