@@ -16,6 +16,7 @@ import {
   updateWhitelist,
   deleteWhitelist,
   createDefaultGroup,
+  normalizeStoredData,
 } from '../../../src/shared/api/storage';
 import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
@@ -26,15 +27,23 @@ describe('storage', () => {
   });
 
   describe('loadData', () => {
-    it('should create default data when storage is empty', async () => {
+    it('returns default data when storage is empty', async () => {
       const data = await loadData();
 
-      expect(data.groups).toHaveLength(1);
-      expect(data.groups[0]?.id).toBe(DEFAULT_GROUP_ID);
-      expect(data.filters).toEqual([]);
-      expect(data.whitelist).toEqual([]);
-      expect(data.snooze).toEqual({ active: false });
-      expect(data.rulesVersion).toBe(0);
+      expect(data).toEqual({
+        groups: [createDefaultGroup()],
+        filters: [],
+        whitelist: [],
+        snooze: { active: false },
+        rulesVersion: 0,
+      });
+    });
+
+    it('does not persist default data when storage is empty', async () => {
+      await loadData();
+
+      expect(getChromeMock().storage.sync.set).not.toHaveBeenCalled();
+      expect(getChromeMock().storage.sync._data.has(STORAGE_KEY)).toBe(false);
     });
 
     it('should load existing data from storage', async () => {
@@ -143,6 +152,46 @@ describe('storage', () => {
 
       const data = await loadData();
       expect(data.snooze).toEqual(testData.snooze);
+    });
+
+    it('normalizes legacy storage data', () => {
+      const data = normalizeStoredData({
+        filters: [
+          {
+            id: 'legacy-filter',
+            pattern: 'example.com',
+            groupId: 'missing-group',
+            enabled: true,
+            isRegex: true,
+          },
+        ],
+        whitelist: [{ id: 'legacy-whitelist', pattern: 'allowed.com', enabled: true }],
+        snooze: { active: true },
+      });
+
+      expect(data).toEqual({
+        groups: [createDefaultGroup()],
+        filters: [
+          {
+            id: 'legacy-filter',
+            pattern: 'example.com',
+            groupId: 'missing-group',
+            enabled: true,
+            matchMode: 'regex',
+          },
+        ],
+        whitelist: [
+          {
+            id: 'legacy-whitelist',
+            pattern: 'allowed.com',
+            enabled: true,
+            groupId: DEFAULT_GROUP_ID,
+            matchMode: 'contains',
+          },
+        ],
+        snooze: { active: true },
+        rulesVersion: 0,
+      });
     });
   });
 

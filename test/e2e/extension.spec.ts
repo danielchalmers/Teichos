@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { createStorageData, defaultGroup, seedStorage } from './helpers';
+import { createStorageData, defaultGroup, readStorage, seedStorage } from './helpers';
 import { PAGES } from '../../src/shared/constants';
 
 test('loads the extension service worker and extension pages', async ({
@@ -16,6 +16,7 @@ test('loads the extension service worker and extension pages', async ({
   await page.goto(extensionPage(PAGES.POPUP));
   await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await expect(page.getByText('No filters configured.')).toBeVisible();
+  await expect.poll(() => readStorage(page)).toBeUndefined();
 });
 
 test('redirects matching top-level navigations to the blocked page', async ({
