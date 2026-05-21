@@ -182,4 +182,42 @@ describe('TabController', () => {
       expect.any(Function)
     );
   });
+
+  it('reloads current rules for navigation decisions even if a storage event is missed', async () => {
+    const chromeMock = getChromeMock();
+    const { getTabController } = await import('../../../src/background/tabController');
+
+    await expect(getTabController().getUrlDecision('https://blocked.com')).resolves.toEqual({
+      action: 'allow',
+      reason: 'no-match',
+    });
+
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'filter-3',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 3,
+      })
+    );
+    // Intentionally update the backing mock storage without invoking the
+    // storage listener to simulate a missed chrome.storage.onChanged event.
+
+    await getTabController().evaluateNavigation(13, 'https://blocked.com');
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      13,
+      {
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com')}`,
+      },
+      expect.any(Function)
+    );
+  });
 });
