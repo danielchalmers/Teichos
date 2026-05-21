@@ -22,6 +22,23 @@ const popupFilterData = createStorageData({
   ],
 });
 
+async function expectTemporaryFilterExpiration(
+  page: Parameters<typeof readStorage>[0],
+  pattern: string,
+  minMs: number,
+  maxMs: number
+): Promise<void> {
+  const data = await readStorage(page);
+  const filter = data?.filters.find((entry) => entry.pattern === pattern);
+
+  expect(filter).toBeDefined();
+  expect(typeof filter?.expiresAt).toBe('number');
+
+  const remainingMs = (filter?.expiresAt ?? 0) - Date.now();
+  expect(remainingMs).toBeGreaterThan(minMs);
+  expect(remainingMs).toBeLessThan(maxMs);
+}
+
 test('adds and deletes a temporary filter from the popup', async ({ extensionPage, page }) => {
   await page.goto(extensionPage(PAGES.POPUP));
 
@@ -35,6 +52,26 @@ test('adds and deletes a temporary filter from the popup', async ({ extensionPag
 
   await temporaryItem.getByRole('button', { name: 'Delete Filter' }).click();
   await expect(page.getByText('No filters configured.')).toBeVisible();
+});
+
+test('opens the full filter editor from the popup empty state', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.POPUP));
+
+  await expect(page.getByText('No filters configured.')).toBeVisible();
+
+  const optionsPagePromise = context.waitForEvent('page');
+  await page.getByRole('button', { name: '+ New Filter' }).click();
+  const optionsPage = await optionsPagePromise;
+  await optionsPage.waitForLoadState();
+
+  const filterModal = optionsPage.locator('#filter-modal.active');
+  await expect(filterModal).toBeVisible();
+  await expect(filterModal.getByRole('heading', { name: 'Add Filter' })).toBeVisible();
+  await expect.poll(() => new URL(optionsPage.url()).pathname).toBe(`/${PAGES.OPTIONS}`);
 });
 
 test('shows the URL pattern when a filter name is blank', async ({ extensionPage, page }) => {
@@ -116,6 +153,86 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
   await expect(filterModal).toBeVisible();
   await expect(filterModal.getByLabel('Name')).toHaveValue('Focus Block');
   await expect(filterModal.getByLabel('URL Pattern')).toHaveValue('blocked.example.invalid');
+});
+
+test('supports quick-add suggestions, validation, duration units, and the full editor link', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const currentTabUrl = 'https://suggested-current-tab.example.test/focus';
+  await page.addInitScript((suggestedUrl) => {
+    const originalQuery = chrome.tabs.query.bind(chrome.tabs);
+    chrome.tabs.query = ((queryInfo, callback) => {
+      if (queryInfo.active && queryInfo.currentWindow) {
+        callback([
+          {
+            id: 1,
+            active: true,
+            currentWindow: true,
+            url: suggestedUrl,
+          } as unknown as chrome.tabs.Tab,
+        ]);
+        return;
+      }
+
+      return originalQuery(queryInfo, callback);
+    }) as typeof chrome.tabs.query;
+  }, currentTabUrl);
+
+  await page.goto(extensionPage(PAGES.POPUP));
+  await page.getByRole('button', { name: 'New temporary filter' }).click();
+  const quickAdd = page.locator('#quick-add');
+
+  await expect(quickAdd).toHaveClass(/is-open/);
+  await expect(page.getByLabel('Site or pattern')).toHaveValue(currentTabUrl);
+
+  await quickAdd.locator('button[data-duration="2"][data-unit="hours"]').click();
+  await expect(page.getByLabel('Block for')).toHaveValue('2');
+  await expect(page.getByRole('combobox')).toHaveValue('hours');
+
+  await page.getByLabel('Block for').fill('2');
+  await page.evaluate(() => {
+    const unitSelect = document.querySelector<HTMLSelectElement>('#quick-add-unit');
+    if (unitSelect) {
+      unitSelect.value = 'weeks';
+    }
+  });
+  await page.getByRole('button', { name: 'Start block' }).click();
+  await expect(page.locator('#status-message')).toHaveText('Enter a valid duration.');
+
+  await page.getByRole('combobox').selectOption('hours');
+  await page.getByRole('button', { name: 'Start block' }).click();
+
+  const hoursFilter = page.locator('.filter-item').filter({ hasText: currentTabUrl });
+  await expect(hoursFilter).toContainText('Temporary - 2h left');
+  await expectTemporaryFilterExpiration(page, currentTabUrl, 119 * 60_000, 121 * 60_000);
+
+  await hoursFilter.getByRole('button', { name: 'Delete Filter' }).click();
+
+  await page.getByRole('button', { name: 'New temporary filter' }).click();
+  await page.getByLabel('Site or pattern').fill('multi-day.example.invalid');
+  await page.getByLabel('Block for').fill('3');
+  await page.getByRole('combobox').selectOption('days');
+  await page.getByRole('button', { name: 'Start block' }).click();
+
+  const daysFilter = page.locator('.filter-item').filter({ hasText: 'multi-day.example.invalid' });
+  await expect(daysFilter).toContainText('Temporary - 3d left');
+  await expectTemporaryFilterExpiration(
+    page,
+    'multi-day.example.invalid',
+    3 * 24 * 60 * 60_000 - 60_000,
+    3 * 24 * 60 * 60_000 + 60_000
+  );
+
+  const optionsPagePromise = context.waitForEvent('page');
+  await page.getByRole('button', { name: 'New temporary filter' }).click();
+  await page.locator('#quick-add button[data-action="open-full-editor"]').click();
+  const optionsPage = await optionsPagePromise;
+  await optionsPage.waitForLoadState();
+
+  await expect(optionsPage.locator('#filter-modal.active')).toBeVisible();
+  await expect.poll(() => new URL(optionsPage.url()).pathname).toBe(`/${PAGES.OPTIONS}`);
 });
 
 test('snoozes and resumes filtering from the popup', async ({ extensionPage, page }) => {

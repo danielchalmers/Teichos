@@ -49,3 +49,22 @@ test('opens settings from the blocked page', async ({ context, extensionPage, pa
   await expect(optionsPage.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await expect.poll(() => new URL(optionsPage.url()).pathname).toBe(`/${PAGES.OPTIONS}`);
 });
+
+test('handles missing or malformed blocked urls and no-op go back safely', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.BLOCKED));
+  await expect(page.getByLabel('Blocked URL')).toHaveText('Unknown URL');
+
+  const missingUrlPage = page.url();
+  await page.getByRole('button', { name: 'Go Back' }).click();
+  await expect.poll(() => page.url()).toBe(missingUrlPage);
+
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?url=%E0%A4%A`);
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+
+  const malformedUrlPage = page.url();
+  await page.getByRole('button', { name: 'Go Back' }).click();
+  await expect.poll(() => page.url()).toBe(malformedUrlPage);
+});

@@ -17,7 +17,7 @@
     "playwright:install": "playwright install --with-deps chromium",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run build && playwright test",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
@@ -25,7 +25,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "check:fast": "npm run format:check && npm run lint && npm run typecheck && npm run typecheck:test && npm run test:unit",
-    "check": "npm run check:fast && npm run build && npm run test:e2e",
+    "check": "npm run check:fast && npm run test:e2e",
     "clean": "rimraf dist",
     "package": "npm run build && cd dist && zip -r ../teichos.zip ."
   },
