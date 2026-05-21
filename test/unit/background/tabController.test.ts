@@ -67,6 +67,33 @@ describe('TabController', () => {
     });
   });
 
+  it('allows matching navigations when the owning group is disabled', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        groups: [{ id: 'work', name: 'Work', schedules: [], is24x7: true, enabled: false }],
+        filters: [
+          {
+            id: 'filter-1',
+            pattern: 'blocked.com',
+            groupId: 'work',
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 8,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(6, 'https://blocked.com/focus');
+
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+    await expect(getBlockedTabState(6)).resolves.toBeUndefined();
+    await expect(getLastAllowedUrl(6)).resolves.toBe('https://blocked.com/focus');
+  });
+
   it('stores the last allowed url for allowed navigations', async () => {
     const { getTabController } = await import('../../../src/background/tabController');
     await getTabController().evaluateNavigation(9, 'https://allowed.com');

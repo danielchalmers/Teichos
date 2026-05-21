@@ -39,7 +39,7 @@ test('shows schedule hints in the group header', async ({ extensionPage, page },
   await captureScreenshot(page, testInfo, 'options-schedule-hint.png');
 });
 
-test('toggles groups without mutating child states and restores disabled groups collapsed', async ({
+test('toggles groups by disabling child filters and restores disabled groups collapsed', async ({
   extensionPage,
   page,
 }, testInfo) => {
@@ -109,7 +109,7 @@ test('toggles groups without mutating child states and restores disabled groups 
       async () =>
         (await readStorage(page)).filters.find((filter) => filter.id === 'work-filter')?.enabled
     )
-    .toBe(true);
+    .toBe(false);
   await expect
     .poll(
       async () =>
@@ -139,11 +139,6 @@ test('toggles groups without mutating child states and restores disabled groups 
   const workExceptionToggle = workHoursGroup.locator(
     'input[data-action="toggle-whitelist"][data-whitelist-id="work-exception"]'
   );
-  await workHoursGroup
-    .locator('.filter-item')
-    .filter({ hasText: 'Work Block' })
-    .locator('label.toggle')
-    .click();
   await workHoursGroup
     .locator('.filter-item')
     .filter({ hasText: 'Work Docs' })
