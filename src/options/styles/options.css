@@ -513,6 +513,10 @@ label {
   box-shadow: var(--shadow-sm);
 }
 
+.options-placeholder-group {
+  margin-top: 1.25rem;
+}
+
 .group-header {
   display: flex;
   align-items: center;
