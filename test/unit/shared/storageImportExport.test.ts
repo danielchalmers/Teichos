@@ -30,6 +30,7 @@ function createSampleData(): StorageData {
         groupId: DEFAULT_GROUP_ID,
         enabled: true,
         matchMode: 'contains',
+        blockType: 'default',
         description: 'News',
       },
       {
@@ -38,6 +39,7 @@ function createSampleData(): StorageData {
         groupId: 'work-hours',
         enabled: true,
         matchMode: 'regex',
+        blockType: 'default',
       },
     ],
     whitelist: [

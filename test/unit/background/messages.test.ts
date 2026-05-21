@@ -115,7 +115,10 @@ describe('handleMessage', () => {
     expect(
       handleMessage(
         { type: MessageType.CONTINUE_WARNING_ACTIVE_TAB },
-        { id: 'test-extension-id', tab: { id: 12, url: 'chrome-extension://test-extension-id/warn' } },
+        {
+          id: 'test-extension-id',
+          tab: { id: 12, url: 'chrome-extension://test-extension-id/warn' } as chrome.tabs.Tab,
+        },
         sendResponse
       )
     ).toBe(true);

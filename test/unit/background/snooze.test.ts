@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createDefaultSettings } from '../../../src/shared/api/storage';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
 import { ALARMS } from '../../../src/shared/constants';
 import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
@@ -61,6 +62,7 @@ describe('registerSnoozeHandlers', () => {
         filters: [],
         whitelist: [],
         snooze: { active: false },
+        settings: createDefaultSettings(),
         rulesVersion: 1,
       });
     });
@@ -136,6 +138,7 @@ describe('registerSnoozeHandlers', () => {
         filters: [],
         whitelist: [],
         snooze: { active: false },
+        settings: createDefaultSettings(),
         rulesVersion: 2,
       });
     });

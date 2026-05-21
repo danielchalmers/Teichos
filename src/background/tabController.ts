@@ -368,7 +368,7 @@ class TabController {
     }
 
     const interstitial = parseInterstitialTarget(warningPageUrl);
-    if (!interstitial || interstitial.blockType !== 'warning') {
+    if (interstitial?.blockType !== 'warning') {
       return undefined;
     }
 
