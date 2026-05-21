@@ -11,6 +11,8 @@ export const MessageType = {
   DATA_UPDATED: 'DATA_UPDATED',
   CHECK_URL: 'CHECK_URL',
   URL_BLOCKED: 'URL_BLOCKED',
+  GET_BLOCKED_PAGE_INFO: 'GET_BLOCKED_PAGE_INFO',
+  GO_BACK_ACTIVE_TAB: 'GO_BACK_ACTIVE_TAB',
   CLOSE_INFO_PANEL: 'CLOSE_INFO_PANEL',
 } as const;
 
@@ -26,6 +28,14 @@ export interface CheckUrlMessage {
   readonly url: string;
 }
 
+export interface GetBlockedPageInfoMessage {
+  readonly type: typeof MessageType.GET_BLOCKED_PAGE_INFO;
+}
+
+export interface GoBackActiveTabMessage {
+  readonly type: typeof MessageType.GO_BACK_ACTIVE_TAB;
+}
+
 // Response messages
 export interface GetDataResponse {
   readonly success: true;
@@ -34,6 +44,17 @@ export interface GetDataResponse {
 
 export interface CheckUrlResponse {
   readonly blocked: boolean;
+}
+
+export interface GetBlockedPageInfoResponse {
+  readonly blocked: boolean;
+  readonly targetUrl?: string;
+  readonly filterLabel?: string;
+  readonly groupLabel?: string;
+}
+
+export interface GoBackActiveTabResponse {
+  readonly restored: boolean;
 }
 
 // Notification messages (broadcast)
@@ -56,6 +77,8 @@ export interface CloseInfoPanelMessage {
 export type ExtensionMessage =
   | GetDataMessage
   | CheckUrlMessage
+  | GetBlockedPageInfoMessage
+  | GoBackActiveTabMessage
   | DataUpdatedMessage
   | UrlBlockedMessage
   | CloseInfoPanelMessage;
@@ -65,6 +88,10 @@ export type MessageResponse<T extends ExtensionMessage> = T extends GetDataMessa
   ? GetDataResponse
   : T extends CheckUrlMessage
     ? CheckUrlResponse
+    : T extends GetBlockedPageInfoMessage
+      ? GetBlockedPageInfoResponse
+      : T extends GoBackActiveTabMessage
+        ? GoBackActiveTabResponse
     : undefined;
 
 // Type guards for message validation
@@ -82,6 +109,24 @@ export function isCheckUrlMessage(msg: unknown): msg is CheckUrlMessage {
     msg.type === MessageType.CHECK_URL &&
     'url' in msg &&
     typeof msg.url === 'string'
+  );
+}
+
+export function isGetBlockedPageInfoMessage(msg: unknown): msg is GetBlockedPageInfoMessage {
+  return (
+    typeof msg === 'object' &&
+    msg !== null &&
+    'type' in msg &&
+    msg.type === MessageType.GET_BLOCKED_PAGE_INFO
+  );
+}
+
+export function isGoBackActiveTabMessage(msg: unknown): msg is GoBackActiveTabMessage {
+  return (
+    typeof msg === 'object' &&
+    msg !== null &&
+    'type' in msg &&
+    msg.type === MessageType.GO_BACK_ACTIVE_TAB
   );
 }
 

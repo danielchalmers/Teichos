@@ -5,7 +5,9 @@ import {
   isCheckUrlMessage,
   isCloseInfoPanelMessage,
   isDataUpdatedMessage,
+  isGetBlockedPageInfoMessage,
   isGetDataMessage,
+  isGoBackActiveTabMessage,
   isUrlBlockedMessage,
 } from '../../../src/shared/types';
 
@@ -17,6 +19,8 @@ describe('shared/types/messages', () => {
       true
     );
     expect(isCheckUrlMessage({ type: MessageType.CHECK_URL, url: 42 })).toBe(false);
+    expect(isGetBlockedPageInfoMessage({ type: MessageType.GET_BLOCKED_PAGE_INFO })).toBe(true);
+    expect(isGoBackActiveTabMessage({ type: MessageType.GO_BACK_ACTIVE_TAB })).toBe(true);
   });
 
   it('recognizes broadcast messages', () => {

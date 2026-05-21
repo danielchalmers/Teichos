@@ -24,6 +24,7 @@ export function createStorageData(overrides: Partial<StorageData> = {}): Storage
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
+    rulesVersion: overrides.rulesVersion ?? 0,
   };
 }
 

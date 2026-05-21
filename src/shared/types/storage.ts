@@ -55,12 +55,26 @@ export interface SnoozeState {
   readonly until?: number; // Epoch ms when snooze expires; omitted means "Always"
 }
 
+export interface BlockedBy {
+  readonly filterId: string;
+  readonly groupId: string;
+}
+
+export interface BlockedTabState {
+  readonly tabId: number;
+  readonly targetUrl: string;
+  readonly blockedBy: BlockedBy;
+  readonly blockedAt: number;
+  readonly rulesVersion: number;
+}
+
 /** Root storage schema */
 export interface StorageData {
   readonly groups: readonly FilterGroup[];
   readonly filters: readonly Filter[];
   readonly whitelist: readonly Whitelist[];
   readonly snooze: SnoozeState;
+  readonly rulesVersion: number;
 }
 
 /** Default group ID constant */

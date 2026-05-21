@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  clearBlockedTabState,
+  getBlockedTabState,
   getLastAllowedUrl,
   getSessionSnooze,
+  setBlockedTabState,
   setLastAllowedUrl,
   setSessionSnooze,
 } from '../../../src/shared/api/session';
@@ -18,6 +21,33 @@ describe('shared/api/session', () => {
 
     await expect(getLastAllowedUrl(4)).resolves.toBe('https://example.com/allowed');
     await expect(getLastAllowedUrl(5)).resolves.toBeUndefined();
+  });
+
+  it('stores, retrieves, and clears blocked tab state by tab id', async () => {
+    await setBlockedTabState({
+      tabId: 7,
+      targetUrl: 'https://blocked.com/focus',
+      blockedAt: 1234,
+      rulesVersion: 5,
+      blockedBy: {
+        filterId: 'filter-1',
+        groupId: 'group-1',
+      },
+    });
+
+    await expect(getBlockedTabState(7)).resolves.toEqual({
+      tabId: 7,
+      targetUrl: 'https://blocked.com/focus',
+      blockedAt: 1234,
+      rulesVersion: 5,
+      blockedBy: {
+        filterId: 'filter-1',
+        groupId: 'group-1',
+      },
+    });
+
+    await clearBlockedTabState(7);
+    await expect(getBlockedTabState(7)).resolves.toBeUndefined();
   });
 
   it('normalizes active session snooze values', async () => {

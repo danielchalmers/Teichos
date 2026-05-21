@@ -11,11 +11,10 @@ import {
   setSnooze,
   updateFilter,
 } from '../shared/api';
-import { getExtensionUrl, openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
-import { getActiveTab, updateTabUrl } from '../shared/api/tabs';
+import { openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
+import { getActiveTab } from '../shared/api/tabs';
 import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../shared/types';
 import {
-  buildBlockingIndex,
   buildGroupById,
   formatDuration,
   generateId,
@@ -28,12 +27,10 @@ import {
   isTemporaryFilter,
   isTemporaryFilterExpired,
   matchesPattern,
-  shouldBlockUrlWithIndex,
   sortFiltersTemporaryFirst,
 } from '../shared/utils';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
 import type { SnoozeState, StorageData } from '../shared/types';
-import { PAGES } from '../shared/constants';
 
 let cachedData: StorageData | null = null;
 let snoozeTickerId: number | null = null;
@@ -363,14 +360,8 @@ async function applySnoozeSelection(value: number | 'off', onComplete: () => voi
     const latestData = await loadData();
     cachedData = latestData;
     if (isSnoozeActive(latestData.snooze)) {
-      await restoreBlockedPageIfUnblocked(latestData).catch((error: unknown) => {
-        console.error('Failed to restore blocked page:', error);
-      });
       announceStatus(describeSnoozeStatus(latestData.snooze));
     } else {
-      await blockActiveTabIfNowBlocked(latestData).catch((error: unknown) => {
-        console.error('Failed to block page after snooze ended:', error);
-      });
       announceStatus('Filtering resumed.');
     }
 
@@ -583,7 +574,6 @@ async function handleQuickAddSubmit(
   };
   try {
     await addFilter(filter);
-    await blockActiveTabIfMatched(filter);
     announceStatus(`Temporary filter added for ${formatDuration(durationMs)}.`);
     patternInput.value = '';
     await renderFilters();
@@ -602,33 +592,6 @@ async function getSuggestedPattern(): Promise<string | null> {
   }
 
   return url;
-}
-
-async function blockActiveTabIfMatched(filter: {
-  readonly pattern: string;
-  readonly matchMode: 'contains' | 'exact' | 'regex';
-}): Promise<void> {
-  const data = cachedData ?? (await loadData());
-  if (isSnoozeActive(data.snooze)) {
-    return;
-  }
-
-  const activeTab = await getActiveTab();
-  if (!activeTab?.id || !activeTab.url) {
-    return;
-  }
-
-  const url = activeTab.url;
-  if (isInternalUrl(url)) {
-    return;
-  }
-
-  if (!matchesPattern(url, filter.pattern, filter.matchMode)) {
-    return;
-  }
-
-  const blockedUrl = `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(url)}`;
-  await updateTabUrl(activeTab.id, blockedUrl);
 }
 
 async function handleCopyPattern(pattern: string, button: HTMLButtonElement): Promise<void> {
@@ -653,15 +616,6 @@ async function handleToggleFilter(checkbox: HTMLInputElement): Promise<void> {
     await toggleFilter(data, filterId, checkbox.checked);
     const latestData = await loadData();
     cachedData = latestData;
-    if (checkbox.checked) {
-      await blockActiveTabIfNowBlocked(latestData).catch((error: unknown) => {
-        console.error('Failed to block active page:', error);
-      });
-    } else {
-      await restoreBlockedPageIfUnblocked(latestData).catch((error: unknown) => {
-        console.error('Failed to restore blocked page:', error);
-      });
-    }
     await renderFilters();
     const refreshedToggle = document.querySelector<HTMLInputElement>(
       `input[type="checkbox"][data-filter-id="${filterId}"]`
@@ -678,9 +632,6 @@ async function handleDeleteFilter(filterId: string): Promise<void> {
     await deleteFilter(filterId);
     const latestData = await loadData();
     cachedData = latestData;
-    await restoreBlockedPageIfUnblocked(latestData).catch((error: unknown) => {
-      console.error('Failed to restore blocked page:', error);
-    });
     await renderFilters();
     announceStatus('Temporary filter deleted.');
   } catch (error) {
@@ -841,71 +792,6 @@ async function toggleFilter(
   }
 
   return updated;
-}
-
-function getBlockedTargetUrl(tabUrl: string): string | null {
-  const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
-  if (!tabUrl.startsWith(blockedPageUrl)) {
-    return null;
-  }
-
-  try {
-    const parsedUrl = new URL(tabUrl);
-    const blockedTargetUrl = parsedUrl.searchParams.get('url');
-    return blockedTargetUrl && !isInternalUrl(blockedTargetUrl) ? blockedTargetUrl : null;
-  } catch {
-    return null;
-  }
-}
-
-async function restoreBlockedPageIfUnblocked(data: StorageData): Promise<void> {
-  const activeTab = await getActiveTab();
-  if (!activeTab?.id || !activeTab.url) {
-    return;
-  }
-
-  const blockedTargetUrl = getBlockedTargetUrl(activeTab.url);
-  if (!blockedTargetUrl) {
-    return;
-  }
-
-  if (isSnoozeActive(data.snooze)) {
-    await updateTabUrl(activeTab.id, blockedTargetUrl);
-    return;
-  }
-
-  const blockingIndex = buildBlockingIndex(data.filters, data.groups, data.whitelist);
-  const blockingFilter = shouldBlockUrlWithIndex(blockedTargetUrl, blockingIndex);
-  if (blockingFilter) {
-    return;
-  }
-
-  await updateTabUrl(activeTab.id, blockedTargetUrl);
-}
-
-async function blockActiveTabIfNowBlocked(data: StorageData): Promise<void> {
-  if (isSnoozeActive(data.snooze)) {
-    return;
-  }
-
-  const activeTab = await getActiveTab();
-  if (!activeTab?.id || !activeTab.url) {
-    return;
-  }
-
-  const activeUrl = activeTab.url;
-  if (getBlockedTargetUrl(activeUrl) || isInternalUrl(activeUrl)) {
-    return;
-  }
-
-  const blockingIndex = buildBlockingIndex(data.filters, data.groups, data.whitelist);
-  const blockingFilter = shouldBlockUrlWithIndex(activeUrl, blockingIndex);
-  if (!blockingFilter) {
-    return;
-  }
-
-  const blockedUrl = `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(activeUrl)}`;
-  await updateTabUrl(activeTab.id, blockedUrl);
 }
 
 // Initialize on load

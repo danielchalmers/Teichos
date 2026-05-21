@@ -1,16 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  getUrlDecision: vi.fn(),
+  getActiveBlockedPageInfo: vi.fn(),
+  goBackFromActiveTab: vi.fn(),
   loadData: vi.fn(),
-  isSnoozeBypassActive: vi.fn(),
+}));
+
+vi.mock('../../../src/background/tabController', () => ({
+  getTabController: () => ({
+    getUrlDecision: mocks.getUrlDecision,
+    getActiveBlockedPageInfo: mocks.getActiveBlockedPageInfo,
+    goBackFromActiveTab: mocks.goBackFromActiveTab,
+  }),
 }));
 
 vi.mock('../../../src/shared/api/storage', () => ({
   loadData: mocks.loadData,
-}));
-
-vi.mock('../../../src/background/snoozeBypass', () => ({
-  isSnoozeBypassActive: mocks.isSnoozeBypassActive,
 }));
 
 import { handleMessage } from '../../../src/background/handlers/messages';
@@ -19,23 +25,18 @@ import { DEFAULT_GROUP_ID } from '../../../src/shared/types';
 
 const defaultData = {
   groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
-  filters: [
-    {
-      id: 'filter-1',
-      pattern: 'blocked.com',
-      groupId: DEFAULT_GROUP_ID,
-      enabled: true,
-      matchMode: 'contains' as const,
-    },
-  ],
+  filters: [],
   whitelist: [],
   snooze: { active: false },
+  rulesVersion: 1,
 };
 
 describe('handleMessage', () => {
   beforeEach(() => {
     mocks.loadData.mockResolvedValue(defaultData);
-    mocks.isSnoozeBypassActive.mockResolvedValue(false);
+    mocks.getUrlDecision.mockResolvedValue({ action: 'allow', reason: 'no-match' });
+    mocks.getActiveBlockedPageInfo.mockResolvedValue({ blocked: false });
+    mocks.goBackFromActiveTab.mockResolvedValue(false);
   });
 
   it('rejects messages from other extensions', () => {
@@ -59,8 +60,13 @@ describe('handleMessage', () => {
     });
   });
 
-  it('responds with blocked false while snooze bypass is active', async () => {
-    mocks.isSnoozeBypassActive.mockResolvedValue(true);
+  it('responds with blocked state for CHECK_URL messages', async () => {
+    mocks.getUrlDecision.mockResolvedValue({
+      action: 'block',
+      filterId: 'filter-1',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
     const sendResponse = vi.fn();
 
     expect(
@@ -72,35 +78,51 @@ describe('handleMessage', () => {
     ).toBe(true);
 
     await vi.waitFor(() => {
-      expect(sendResponse).toHaveBeenCalledWith({ blocked: false });
-    });
-  });
-
-  it('responds with blocked true when the URL should be blocked', async () => {
-    const sendResponse = vi.fn();
-
-    handleMessage(
-      { type: MessageType.CHECK_URL, url: 'https://blocked.com/page' },
-      { id: 'test-extension-id' },
-      sendResponse
-    );
-
-    await vi.waitFor(() => {
       expect(sendResponse).toHaveBeenCalledWith({ blocked: true });
     });
   });
 
-  it('responds with blocked false when the URL is allowed', async () => {
+  it('responds with blocked page info requests', async () => {
+    mocks.getActiveBlockedPageInfo.mockResolvedValue({
+      blocked: true,
+      targetUrl: 'https://blocked.com',
+      filterLabel: 'Focus Block',
+      groupLabel: '24/7',
+    });
     const sendResponse = vi.fn();
 
-    handleMessage(
-      { type: MessageType.CHECK_URL, url: 'https://allowed.com' },
-      { id: 'test-extension-id' },
-      sendResponse
-    );
+    expect(
+      handleMessage(
+        { type: MessageType.GET_BLOCKED_PAGE_INFO },
+        { id: 'test-extension-id' },
+        sendResponse
+      )
+    ).toBe(true);
 
     await vi.waitFor(() => {
-      expect(sendResponse).toHaveBeenCalledWith({ blocked: false });
+      expect(sendResponse).toHaveBeenCalledWith({
+        blocked: true,
+        targetUrl: 'https://blocked.com',
+        filterLabel: 'Focus Block',
+        groupLabel: '24/7',
+      });
+    });
+  });
+
+  it('responds to go-back requests', async () => {
+    mocks.goBackFromActiveTab.mockResolvedValue(true);
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.GO_BACK_ACTIVE_TAB },
+        { id: 'test-extension-id' },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ restored: true });
     });
   });
 

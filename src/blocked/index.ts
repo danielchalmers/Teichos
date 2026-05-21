@@ -4,24 +4,15 @@
  */
 
 import { openOptionsPage } from '../shared/api/runtime';
-import { getLastAllowedUrl } from '../shared/api/session';
-import { getActiveTab, updateTabUrl } from '../shared/api/tabs';
+import { MessageType, type GetBlockedPageInfoResponse, type GoBackActiveTabResponse } from '../shared/types';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 
 /**
  * Initialize blocked page
  */
-function init(): void {
-  const urlParams = new URLSearchParams(window.location.search);
-  const blockedUrl = urlParams.get('url') ?? 'Unknown URL';
+async function init(): Promise<void> {
+  await renderBlockedState();
 
-  // Display the blocked URL
-  const blockedUrlElement = getElementByIdOrNull('blocked-url');
-  if (blockedUrlElement) {
-    blockedUrlElement.textContent = blockedUrl;
-  }
-
-  // Set up go back button
   const goBackButton = getElementByIdOrNull('go-back');
   goBackButton?.addEventListener('click', () => {
     void handleGoBack().catch((error: unknown) => {
@@ -39,20 +30,37 @@ function init(): void {
 }
 
 async function handleGoBack(): Promise<void> {
-  const activeTab = await getActiveTab();
-  if (!activeTab?.id) {
-    window.history.back();
-    return;
+  const response = (await chrome.runtime.sendMessage({
+    type: MessageType.GO_BACK_ACTIVE_TAB,
+  })) as GoBackActiveTabResponse;
+
+  if (!response.restored) {
+    console.warn('[Teichos] No restorable tab target is available.');
+  }
+}
+
+async function renderBlockedState(): Promise<void> {
+  const response = (await chrome.runtime.sendMessage({
+    type: MessageType.GET_BLOCKED_PAGE_INFO,
+  })) as GetBlockedPageInfoResponse;
+
+  const blockedUrlElement = getElementByIdOrNull('blocked-url');
+  if (blockedUrlElement) {
+    blockedUrlElement.textContent = response.targetUrl ?? 'Unknown URL';
   }
 
-  const lastAllowedUrl = await getLastAllowedUrl(activeTab.id);
-  if (lastAllowedUrl) {
-    await updateTabUrl(activeTab.id, lastAllowedUrl);
-    return;
+  const filterElement = getElementByIdOrNull('blocked-filter');
+  if (filterElement) {
+    filterElement.textContent = response.filterLabel ?? 'Matched filter';
   }
 
-  window.history.back();
+  const groupElement = getElementByIdOrNull('blocked-group');
+  if (groupElement) {
+    groupElement.textContent = response.groupLabel ?? 'Unknown group';
+  }
 }
 
 // Initialize on load
-init();
+void init().catch((error: unknown) => {
+  console.error('Failed to initialize blocked page:', error);
+});

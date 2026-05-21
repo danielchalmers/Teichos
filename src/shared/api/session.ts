@@ -2,13 +2,18 @@
  * Typed wrapper for chrome.storage.session API
  */
 
-import type { SnoozeState } from '../types';
+import type { BlockedTabState, SnoozeState } from '../types';
 
 const LAST_ALLOWED_URL_KEY_PREFIX = 'last_allowed_url_' as const;
 const SNOOZE_OVERRIDE_KEY = 'snooze_override' as const;
+const BLOCKED_TAB_STATE_KEY_PREFIX = 'blocked_tab_state_' as const;
 
 function lastAllowedUrlKey(tabId: number): string {
   return `${LAST_ALLOWED_URL_KEY_PREFIX}${tabId}`;
+}
+
+function blockedTabStateKey(tabId: number): string {
+  return `${BLOCKED_TAB_STATE_KEY_PREFIX}${tabId}`;
 }
 
 /**
@@ -26,6 +31,50 @@ export async function getLastAllowedUrl(tabId: number): Promise<string | undefin
   const result = await chrome.storage.session.get(key);
   const value = result[key];
   return typeof value === 'string' ? value : undefined;
+}
+
+function normalizeBlockedTabState(value: unknown): BlockedTabState | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const candidate = value as Partial<BlockedTabState>;
+  if (
+    typeof candidate.tabId !== 'number' ||
+    typeof candidate.targetUrl !== 'string' ||
+    typeof candidate.blockedAt !== 'number' ||
+    typeof candidate.rulesVersion !== 'number' ||
+    !candidate.blockedBy ||
+    typeof candidate.blockedBy.filterId !== 'string' ||
+    typeof candidate.blockedBy.groupId !== 'string'
+  ) {
+    return undefined;
+  }
+
+  return {
+    tabId: candidate.tabId,
+    targetUrl: candidate.targetUrl,
+    blockedAt: candidate.blockedAt,
+    rulesVersion: candidate.rulesVersion,
+    blockedBy: {
+      filterId: candidate.blockedBy.filterId,
+      groupId: candidate.blockedBy.groupId,
+    },
+  };
+}
+
+export async function setBlockedTabState(state: BlockedTabState): Promise<void> {
+  await chrome.storage.session.set({ [blockedTabStateKey(state.tabId)]: state });
+}
+
+export async function getBlockedTabState(tabId: number): Promise<BlockedTabState | undefined> {
+  const key = blockedTabStateKey(tabId);
+  const result = await chrome.storage.session.get(key);
+  return normalizeBlockedTabState(result[key]);
+}
+
+export async function clearBlockedTabState(tabId: number): Promise<void> {
+  await chrome.storage.session.set({ [blockedTabStateKey(tabId)]: undefined });
 }
 
 function normalizeSessionSnooze(value: unknown): SnoozeState | undefined {

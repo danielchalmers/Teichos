@@ -3,13 +3,11 @@
  */
 
 import { loadData, saveData } from '../shared/api';
-import { getExtensionUrl } from '../shared/api/runtime';
-import { setLastAllowedUrl, setSessionSnooze } from '../shared/api/session';
-import { queryTabs, updateTabUrl } from '../shared/api/tabs';
-import { ALARMS, PAGES } from '../shared/constants';
+import { setSessionSnooze } from '../shared/api/session';
+import { ALARMS } from '../shared/constants';
 import type { SnoozeState } from '../shared/types';
 import { STORAGE_KEY } from '../shared/types';
-import { isInternalUrl, isSnoozeActive, isSnoozeExpired } from '../shared/utils';
+import { isSnoozeExpired } from '../shared/utils';
 
 const INACTIVE_SNOOZE: SnoozeState = { active: false };
 
@@ -36,62 +34,11 @@ function syncAlarmFromSnooze(snooze: SnoozeState): void {
   void chrome.alarms.clear(ALARMS.SNOOZE_EXPIRATION);
 }
 
-function getBlockedTargetUrl(tabUrl: string, blockedPageUrl: string): string | null {
-  if (!tabUrl.startsWith(blockedPageUrl)) {
-    return null;
-  }
-
-  try {
-    const blockedTargetUrl = new URL(tabUrl).searchParams.get('url');
-    if (
-      !blockedTargetUrl ||
-      isInternalUrl(blockedTargetUrl) ||
-      blockedTargetUrl.startsWith(blockedPageUrl)
-    ) {
-      return null;
-    }
-    return blockedTargetUrl;
-  } catch {
-    return null;
-  }
-}
-
-async function restoreBlockedTabsIfSnoozed(snooze: SnoozeState): Promise<void> {
-  if (!isSnoozeActive(snooze)) {
-    return;
-  }
-
-  const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
-  const tabs = await queryTabs({});
-  const results = await Promise.allSettled(
-    tabs.map(async (tab) => {
-      if (!tab.url || typeof tab.id !== 'number') {
-        return;
-      }
-
-      const blockedTargetUrl = getBlockedTargetUrl(tab.url, blockedPageUrl);
-      if (!blockedTargetUrl) {
-        return;
-      }
-
-      await setLastAllowedUrl(tab.id, blockedTargetUrl);
-      await updateTabUrl(tab.id, blockedTargetUrl);
-    })
-  );
-
-  for (const result of results) {
-    if (result.status === 'rejected') {
-      console.error('[Teichos] Failed to restore blocked tab while snoozed:', result.reason);
-    }
-  }
-}
-
 async function syncSnoozeFromStorage(): Promise<void> {
   const data = await loadData();
   if (!isSnoozeExpired(data.snooze)) {
     syncAlarmFromSnooze(data.snooze);
     await setSessionSnooze(data.snooze);
-    await restoreBlockedTabsIfSnoozed(data.snooze);
     return;
   }
 
