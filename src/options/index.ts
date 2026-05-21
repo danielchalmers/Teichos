@@ -38,6 +38,7 @@ import { DAY_NAMES, DEFAULT_SCHEDULE } from '../shared/constants';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const OPTIONS_COLLAPSED_GROUPS_KEY = 'options-collapsed-group-ids';
 
 // Modal state
 let currentEditingFilterId: string | null = null;
@@ -358,6 +359,7 @@ async function renderGroups(): Promise<void> {
   data = await purgeExpiredTemporaryFilters(data);
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
+  const storedCollapsedGroupIds = await loadCollapsedGroupIds();
 
   const focusTarget = document.activeElement as HTMLElement | null;
   const focusSelector =
@@ -410,8 +412,17 @@ async function renderGroups(): Promise<void> {
     });
   } else if (!hadGroups) {
     groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((details) => {
-      details.open = true;
+      const groupId = details.dataset['groupId'];
+      details.open = !groupId || !storedCollapsedGroupIds.has(groupId);
     });
+  }
+
+  const currentGroupIds = new Set(data.groups.map((group) => group.id));
+  const staleCollapsedGroupIds = [...storedCollapsedGroupIds].filter((groupId) => !currentGroupIds.has(groupId));
+  if (staleCollapsedGroupIds.length > 0) {
+    void saveCollapsedGroupIds(
+      [...storedCollapsedGroupIds].filter((groupId) => currentGroupIds.has(groupId))
+    );
   }
 
   if (focusSelector) {
@@ -433,6 +444,9 @@ function renderGroup(
 
   const groupElement = cloneTemplate<HTMLDetailsElement>('options-group-template');
   groupElement.dataset['groupId'] = group.id;
+  groupElement.addEventListener('toggle', () => {
+    void persistCollapsedGroupIds();
+  });
 
   querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent = group.name;
   querySelector<HTMLElement>('[data-role="group-meta"]', groupElement).textContent =
@@ -482,6 +496,36 @@ function renderGroup(
   }
 
   return groupElement;
+}
+
+async function loadCollapsedGroupIds(): Promise<Set<string>> {
+  const result = await chrome.storage.local.get(OPTIONS_COLLAPSED_GROUPS_KEY);
+  const storedGroupIds = result[OPTIONS_COLLAPSED_GROUPS_KEY];
+
+  if (!Array.isArray(storedGroupIds)) {
+    return new Set();
+  }
+
+  return new Set(storedGroupIds.filter((groupId): groupId is string => typeof groupId === 'string'));
+}
+
+async function saveCollapsedGroupIds(groupIds: readonly string[]): Promise<void> {
+  await chrome.storage.local.set({
+    [OPTIONS_COLLAPSED_GROUPS_KEY]: [...new Set(groupIds)].sort(),
+  });
+}
+
+async function persistCollapsedGroupIds(): Promise<void> {
+  const groupsList = getElementByIdOrNull('groups-list');
+  if (!groupsList) return;
+
+  const collapsedGroupIds = Array.from(
+    groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item:not([open])')
+  )
+    .map((details) => details.dataset['groupId'])
+    .filter((groupId): groupId is string => Boolean(groupId));
+
+  await saveCollapsedGroupIds(collapsedGroupIds);
 }
 
 function createEmptyState(message: string): HTMLParagraphElement {

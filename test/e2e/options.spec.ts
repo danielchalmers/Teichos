@@ -38,6 +38,44 @@ test('shows schedule hints in the group header', async ({ extensionPage, page },
   await captureScreenshot(page, testInfo, 'options-schedule-hint.png');
 });
 
+test('restores collapsed groups when reopening the options page', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'work-hours',
+          name: 'Work Hours',
+          is24x7: false,
+          schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
+        },
+      ],
+    })
+  );
+  await page.reload();
+
+  const defaultGroupCard = page
+    .locator('details.group-item')
+    .filter({ hasText: '24/7 (Always Active)' });
+  const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+
+  await expect(defaultGroupCard).toHaveJSProperty('open', true);
+  await expect(workHoursGroup).toHaveJSProperty('open', true);
+
+  await workHoursGroup.locator('summary').click();
+  await expect(workHoursGroup).toHaveJSProperty('open', false);
+
+  await page.reload();
+
+  await expect(defaultGroupCard).toHaveJSProperty('open', true);
+  await expect(workHoursGroup).toHaveJSProperty('open', false);
+});
+
 test('creates, edits, and deletes a scheduled group with filters and exceptions', async ({
   extensionPage,
   page,
