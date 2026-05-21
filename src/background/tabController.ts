@@ -75,21 +75,19 @@ class TabController {
 
   async restoreIfAllowed(tabId: number, blockedPageUrl?: string): Promise<boolean> {
     const state = await this.resolveBlockedTabState(tabId, blockedPageUrl);
-    const fallbackTargetUrl = parseBlockedTargetUrl(blockedPageUrl);
-    const targetUrl = state?.targetUrl ?? fallbackTargetUrl;
-    if (!targetUrl) {
+    if (!state) {
       return false;
     }
 
     const rules = await this.getRules();
-    const decision = rules.engine.evaluate(targetUrl);
+    const decision = rules.engine.evaluate(state.targetUrl);
     if (decision.action === 'block') {
-      await this.setBlockedState(tabId, targetUrl, decision, rules.data.rulesVersion);
+      await this.setBlockedState(tabId, state.targetUrl, decision, rules.data.rulesVersion);
       return false;
     }
 
-    await updateTabUrl(tabId, targetUrl);
-    await this.allowTab(tabId, targetUrl);
+    await updateTabUrl(tabId, state.targetUrl);
+    await this.allowTab(tabId, state.targetUrl);
     return true;
   }
 
@@ -135,8 +133,8 @@ class TabController {
     return {
       blocked: true,
       targetUrl,
-      filterLabel: filter?.description?.trim() || filter?.pattern || 'Matched filter',
-      groupLabel: group?.name || 'Unknown group',
+      filterLabel: filter?.description?.trim() ?? filter?.pattern ?? 'Matched filter',
+      groupLabel: group?.name ?? 'Unknown group',
     };
   }
 
@@ -177,21 +175,20 @@ class TabController {
 
   private async reconcileBlockedTab(tabId: number, blockedPageUrl?: string): Promise<void> {
     const state = await this.resolveBlockedTabState(tabId, blockedPageUrl);
-    const targetUrl = state?.targetUrl ?? parseBlockedTargetUrl(blockedPageUrl);
-    if (!targetUrl) {
+    if (!state) {
       return;
     }
 
     const rules = await this.getRules();
-    const decision = rules.engine.evaluate(targetUrl);
+    const decision = rules.engine.evaluate(state.targetUrl);
 
     if (decision.action === 'allow') {
-      await updateTabUrl(tabId, targetUrl);
-      await this.allowTab(tabId, targetUrl);
+      await updateTabUrl(tabId, state.targetUrl);
+      await this.allowTab(tabId, state.targetUrl);
       return;
     }
 
-    await this.setBlockedState(tabId, targetUrl, decision, rules.data.rulesVersion);
+    await this.setBlockedState(tabId, state.targetUrl, decision, rules.data.rulesVersion);
   }
 
   private async blockTab(

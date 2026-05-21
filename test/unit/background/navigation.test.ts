@@ -5,7 +5,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../src/background/tabController', () => ({
-  getTabController: () => ({
+  getTabController: (): {
+    evaluateNavigation: typeof mocks.evaluateNavigation;
+  } => ({
     evaluateNavigation: mocks.evaluateNavigation,
   }),
 }));

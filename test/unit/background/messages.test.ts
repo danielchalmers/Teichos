@@ -8,7 +8,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../src/background/tabController', () => ({
-  getTabController: () => ({
+  getTabController: (): {
+    getUrlDecision: typeof mocks.getUrlDecision;
+    getActiveBlockedPageInfo: typeof mocks.getActiveBlockedPageInfo;
+    goBackFromActiveTab: typeof mocks.goBackFromActiveTab;
+  } => ({
     getUrlDecision: mocks.getUrlDecision,
     getActiveBlockedPageInfo: mocks.getActiveBlockedPageInfo,
     goBackFromActiveTab: mocks.goBackFromActiveTab,

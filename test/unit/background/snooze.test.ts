@@ -61,7 +61,7 @@ describe('registerSnoozeHandlers', () => {
         filters: [],
         whitelist: [],
         snooze: { active: false },
-        rulesVersion: 2,
+        rulesVersion: 1,
       });
     });
     expect(chromeMock.storage.session._data.get('snooze_override')).toEqual({ active: false });
@@ -125,6 +125,7 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: { active: true, until: Date.now() - 1 },
+      rulesVersion: 1,
     });
 
     onAlarm?.({ name: ALARMS.SNOOZE_EXPIRATION });

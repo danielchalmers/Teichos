@@ -45,7 +45,7 @@ export function createFilteringEngine(data: StorageData): FilteringEngine {
     data,
     groupsById,
     whitelistByGroup,
-    evaluate(url, context = getScheduleContext()) {
+    evaluate(url, context = getScheduleContext()): FilterDecision {
       return evaluateFilterDecision(url, data, {
         context,
         filters: orderedFilters,

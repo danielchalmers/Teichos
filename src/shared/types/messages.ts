@@ -92,7 +92,7 @@ export type MessageResponse<T extends ExtensionMessage> = T extends GetDataMessa
       ? GetBlockedPageInfoResponse
       : T extends GoBackActiveTabMessage
         ? GoBackActiveTabResponse
-    : undefined;
+        : undefined;
 
 // Type guards for message validation
 export function isGetDataMessage(msg: unknown): msg is GetDataMessage {

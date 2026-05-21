@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getBlockedTabState, getLastAllowedUrl, setBlockedTabState } from '../../../src/shared/api/session';
+import {
+  getBlockedTabState,
+  getLastAllowedUrl,
+  setBlockedTabState,
+} from '../../../src/shared/api/session';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
-import { DEFAULT_GROUP_ID, STORAGE_KEY, type BlockedTabState, type StorageData } from '../../../src/shared/types';
+import { DEFAULT_GROUP_ID, STORAGE_KEY, type StorageData } from '../../../src/shared/types';
 import { PAGES } from '../../../src/shared/constants';
 
 function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
   return {
-    groups:
-      overrides.groups ??
-      [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+    groups: overrides.groups ?? [
+      { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true },
+    ],
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
@@ -51,7 +55,7 @@ describe('TabController', () => {
       },
       expect.any(Function)
     );
-    await expect(getBlockedTabState(4)).resolves.toEqual<BlockedTabState>({
+    await expect(getBlockedTabState(4)).resolves.toEqual({
       tabId: 4,
       targetUrl: 'https://blocked.com/focus',
       blockedAt: expect.any(Number),

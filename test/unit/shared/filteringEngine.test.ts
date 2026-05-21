@@ -6,9 +6,9 @@ import { createFilteringEngine, evaluateFilterDecision } from '../../../src/shar
 
 function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
   return {
-    groups:
-      overrides.groups ??
-      [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+    groups: overrides.groups ?? [
+      { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true },
+    ],
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },

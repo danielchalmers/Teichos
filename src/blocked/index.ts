@@ -4,7 +4,11 @@
  */
 
 import { openOptionsPage } from '../shared/api/runtime';
-import { MessageType, type GetBlockedPageInfoResponse, type GoBackActiveTabResponse } from '../shared/types';
+import {
+  MessageType,
+  type GetBlockedPageInfoResponse,
+  type GoBackActiveTabResponse,
+} from '../shared/types';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 
 /**
