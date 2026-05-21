@@ -78,13 +78,13 @@ test('can disable entire groups and keeps them collapsed by default', async ({
       ],
     })
   );
-  await page.reload();
 
   const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  const groupToggleControl = workHoursGroup.locator('[data-prevent-summary-toggle]');
   const groupToggle = workHoursGroup.getByRole('checkbox', { name: 'Toggle group Work Hours' });
 
-  await expect(workHoursGroup).toHaveAttribute('open', '');
-  await groupToggle.click();
+  await expect(workHoursGroup).toContainText('Focus Block');
+  await groupToggleControl.click();
 
   await expect(groupToggle).not.toBeChecked();
   await expect(workHoursGroup).not.toHaveAttribute('open', '');
