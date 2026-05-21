@@ -26,6 +26,7 @@ Want to block sites only during work hours? Create a custom group:
 3. Uncheck **Always Active**
 4. Click **New Schedule** to add days and times
 5. Assign filters to your new group
+6. Use the group toggle to temporarily disable the whole schedule without deleting its filters
 
 ## 🙏 Credits
 

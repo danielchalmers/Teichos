@@ -404,13 +404,13 @@ async function renderGroups(): Promise<void> {
       const details = groupsList.querySelector<HTMLDetailsElement>(
         `details.group-item[data-group-id="${groupId}"]`
       );
-      if (details) {
+      if (details?.dataset['groupEnabled'] !== 'false') {
         details.open = true;
       }
     });
   } else if (!hadGroups) {
     groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((details) => {
-      details.open = true;
+      details.open = details.dataset['groupEnabled'] !== 'false';
     });
   }
 
@@ -433,12 +433,14 @@ function renderGroup(
 
   const groupElement = cloneTemplate<HTMLDetailsElement>('options-group-template');
   groupElement.dataset['groupId'] = group.id;
+  groupElement.dataset['groupEnabled'] = String(group.enabled !== false);
 
   querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent = group.name;
   querySelector<HTMLElement>('[data-role="group-meta"]', groupElement).textContent =
     `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
 
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
+  actions.appendChild(createGroupToggle(group));
   const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
   groupContent.classList.toggle('is-snoozed', snoozeActive);
   if (!isDefault) {
@@ -482,6 +484,25 @@ function renderGroup(
   }
 
   return groupElement;
+}
+
+function createGroupToggle(group: FilterGroup): HTMLLabelElement {
+  const toggle = document.createElement('label');
+  toggle.className = 'toggle';
+  toggle.dataset['preventSummaryToggle'] = 'true';
+
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.checked = group.enabled !== false;
+  input.dataset['action'] = 'toggle-group';
+  input.dataset['groupId'] = group.id;
+  input.setAttribute('aria-label', `Toggle group ${group.name}`);
+
+  const slider = document.createElement('span');
+  slider.className = 'slider';
+
+  toggle.append(input, slider);
+  return toggle;
 }
 
 function createEmptyState(message: string): HTMLParagraphElement {
@@ -813,12 +834,18 @@ async function handleGroupSubmit(e: Event): Promise<void> {
 
   const name = getElementByIdOrNull<HTMLInputElement>('group-name')?.value ?? '';
   const is24x7 = getElementByIdOrNull<HTMLInputElement>('group-24x7')?.checked ?? false;
+  const enabled =
+    currentEditingGroupId === null
+      ? true
+      : (await loadData()).groups.find((group) => group.id === currentEditingGroupId)?.enabled !==
+        false;
 
   const group: FilterGroup = {
     id: currentEditingGroupId ?? generateId(),
     name,
     is24x7,
     schedules: is24x7 ? [] : temporarySchedules,
+    enabled,
   };
 
   try {
@@ -960,6 +987,19 @@ async function handleWhitelistDelete(): Promise<void> {
 
 function handleGroupsListClick(e: Event): void {
   const target = e.target as HTMLElement;
+  const toggle = target.closest<HTMLElement>('[data-prevent-summary-toggle]');
+  if (toggle) {
+    e.preventDefault();
+
+    const input = toggle.querySelector<HTMLInputElement>('input[data-action="toggle-group"]');
+    const groupId = input?.dataset['groupId'];
+    if (input && groupId) {
+      input.checked = !input.checked;
+      void toggleGroup(groupId, input.checked);
+    }
+    return;
+  }
+
   const button = target.closest('button[data-action]') as HTMLButtonElement | null;
   if (!button) return;
 
@@ -1070,6 +1110,15 @@ async function toggleFilter(filterId: string, enabled: boolean): Promise<void> {
   const filter = data.filters.find((f) => f.id === filterId);
   if (filter) {
     await updateFilter({ ...filter, enabled });
+  }
+}
+
+async function toggleGroup(groupId: string, enabled: boolean): Promise<void> {
+  const data = await loadData();
+  const group = data.groups.find((entry) => entry.id === groupId);
+  if (group) {
+    await updateGroup({ ...group, enabled });
+    await renderGroups();
   }
 }
 

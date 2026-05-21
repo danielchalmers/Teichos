@@ -38,6 +38,70 @@ test('shows schedule hints in the group header', async ({ extensionPage, page },
   await captureScreenshot(page, testInfo, 'options-schedule-hint.png');
 });
 
+test('can disable entire groups and keeps them collapsed by default', async ({
+  extensionPage,
+  page,
+}, testInfo) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'work-hours',
+          name: 'Work Hours',
+          is24x7: false,
+          enabled: true,
+          schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
+        },
+      ],
+      filters: [
+        {
+          id: 'focus-block',
+          pattern: 'focus.example.com',
+          groupId: 'work-hours',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Focus Block',
+        },
+      ],
+      whitelist: [
+        {
+          id: 'allow-docs',
+          pattern: 'focus.example.com/docs',
+          groupId: 'work-hours',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Allow Docs',
+        },
+      ],
+    })
+  );
+  await page.reload();
+
+  const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  const groupToggle = workHoursGroup.getByRole('checkbox', { name: 'Toggle group Work Hours' });
+
+  await expect(workHoursGroup).toHaveAttribute('open', '');
+  await groupToggle.click();
+
+  await expect(groupToggle).not.toBeChecked();
+  await expect(workHoursGroup).not.toHaveAttribute('open', '');
+
+  const storage = await readStorage(page);
+  expect(storage.groups.find((group) => group.id === 'work-hours')?.enabled).toBe(false);
+
+  await page.reload();
+
+  const reloadedGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  await expect(reloadedGroup).not.toHaveAttribute('open', '');
+  await expect(
+    reloadedGroup.getByRole('checkbox', { name: 'Toggle group Work Hours' })
+  ).not.toBeChecked();
+  await captureScreenshot(page, testInfo, 'options-group-disabled.png');
+});
+
 test('creates, edits, and deletes a scheduled group with filters and exceptions', async ({
   extensionPage,
   page,

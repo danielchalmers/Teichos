@@ -60,6 +60,17 @@ describe('storage', () => {
       expect(data).toEqual(testData);
     });
 
+    it('should enable groups by default for backwards compatibility', async () => {
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, {
+        groups: [{ id: 'work', name: 'Work', schedules: [], is24x7: false }],
+        filters: [],
+        whitelist: [],
+      });
+
+      const data = await loadData();
+      expect(data.groups[0]?.enabled).toBe(true);
+    });
+
     it('should add empty whitelist for backwards compatibility', async () => {
       const testData = {
         groups: [createDefaultGroup()],
@@ -197,7 +208,10 @@ describe('storage', () => {
       await updateFilter({ ...filter, enabled: false });
 
       let data = await loadData();
-      expect(data.groups).toEqual([createDefaultGroup(), { ...group, name: 'Updated Group' }]);
+      expect(data.groups).toEqual([
+        createDefaultGroup(),
+        { ...group, name: 'Updated Group', enabled: true },
+      ]);
       expect(data.filters).toEqual([{ ...filter, enabled: false }]);
 
       await deleteFilter(filter.id);

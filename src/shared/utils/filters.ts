@@ -371,6 +371,10 @@ function getGroupFromLookup(groupId: string, groups: GroupLookup): FilterGroup |
 }
 
 function isGroupScheduleActive(group: FilterGroup, context: ScheduleContext): boolean {
+  if (group.enabled === false) {
+    return false;
+  }
+
   if (group.is24x7) {
     return true;
   }

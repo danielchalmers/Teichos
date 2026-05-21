@@ -23,6 +23,7 @@ export function createDefaultGroup(): FilterGroup {
     name: '24/7 (Always Active)',
     schedules: [],
     is24x7: true,
+    enabled: true,
   };
 }
 
@@ -116,7 +117,12 @@ export async function loadData(): Promise<StorageData> {
   }
 
   const data = storedData as LegacyStorageData;
-  const groups = data.groups && data.groups.length > 0 ? data.groups : [createDefaultGroup()];
+  const groups = (data.groups && data.groups.length > 0 ? data.groups : [createDefaultGroup()]).map(
+    (group) => ({
+      ...group,
+      enabled: group.enabled !== false,
+    })
+  );
   const groupIds = new Set(groups.map((group) => group.id));
   const filters = normalizeFilters(data.filters);
   const whitelist = normalizeWhitelist(data.whitelist, groupIds);

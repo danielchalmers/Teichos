@@ -133,6 +133,21 @@ describe('isFilterActive', () => {
     expect(isFilterActive(filter, groups)).toBe(true);
   });
 
+  it('should return false when the group is disabled', () => {
+    const filter: Filter = {
+      id: 'filter-1',
+      pattern: 'example',
+      groupId: 'group-1',
+      enabled: true,
+      matchMode: 'contains',
+    };
+    const groups: FilterGroup[] = [
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true, enabled: false },
+    ];
+
+    expect(isFilterActive(filter, groups)).toBe(false);
+  });
+
   it('should return true when current time is within schedule', () => {
     const filter: Filter = {
       id: 'filter-1',
