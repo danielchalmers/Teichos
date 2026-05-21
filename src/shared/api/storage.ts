@@ -8,9 +8,12 @@ import type {
   FilterGroup,
   Filter,
   FilterMatchMode,
+  FilterBlockType,
   TimeSchedule,
   Whitelist,
   SnoozeState,
+  Settings,
+  BlockType,
 } from '../types';
 import { STORAGE_KEY, DEFAULT_GROUP_ID } from '../types';
 import { getRegexValidationError } from '../utils';
@@ -37,12 +40,20 @@ function createDefaultData(): StorageData {
     filters: [],
     whitelist: [],
     snooze: { active: false },
+    settings: createDefaultSettings(),
     rulesVersion: 0,
+  };
+}
+
+export function createDefaultSettings(): Settings {
+  return {
+    defaultBlockType: 'block-page',
   };
 }
 
 type LegacyFilter = Omit<Filter, 'matchMode'> & {
   readonly matchMode?: FilterMatchMode;
+  readonly blockType?: FilterBlockType;
   readonly isRegex?: boolean;
 };
 
@@ -57,6 +68,9 @@ interface LegacyStorageData {
   readonly filters?: readonly LegacyFilter[];
   readonly whitelist?: readonly LegacyWhitelist[];
   readonly rulesVersion?: number;
+  readonly settings?: {
+    readonly defaultBlockType?: BlockType;
+  };
   readonly snooze?: {
     readonly active?: boolean;
     readonly until?: number;
@@ -71,6 +85,14 @@ function isObject(value: unknown): value is JsonObject {
 
 function isValidMatchMode(value: unknown): value is FilterMatchMode {
   return value === 'contains' || value === 'exact' || value === 'regex';
+}
+
+function isValidBlockType(value: unknown): value is BlockType {
+  return value === 'block-page' || value === 'warning';
+}
+
+function isValidFilterBlockType(value: unknown): value is FilterBlockType {
+  return value === 'default' || isValidBlockType(value);
 }
 
 function isOptionalString(value: unknown): value is string | undefined {
@@ -127,6 +149,7 @@ function isValidFilterLike(value: unknown): value is LegacyFilter {
     typeof value['groupId'] === 'string' &&
     typeof value['enabled'] === 'boolean' &&
     (value['matchMode'] === undefined || isValidMatchMode(value['matchMode'])) &&
+    (value['blockType'] === undefined || isValidFilterBlockType(value['blockType'])) &&
     isOptionalBoolean(value['isRegex']) &&
     isOptionalString(value['description']) &&
     isOptionalFiniteNumber(value['expiresAt'])
@@ -159,6 +182,18 @@ function isValidSnooze(value: unknown): value is LegacyStorageData['snooze'] {
   }
 
   return isOptionalBoolean(value['active']) && isOptionalFiniteNumber(value['until']);
+}
+
+function isValidSettings(value: unknown): value is LegacyStorageData['settings'] {
+  if (value === undefined) {
+    return true;
+  }
+
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return value['defaultBlockType'] === undefined || isValidBlockType(value['defaultBlockType']);
 }
 
 function assertUniqueIds(
@@ -259,6 +294,10 @@ function validateImportedStorageShape(raw: JsonObject): void {
     throw new Error('Settings file contains an invalid snooze state.');
   }
 
+  if (!isValidSettings(raw['settings'])) {
+    throw new Error('Settings file contains invalid global settings.');
+  }
+
   if (!isOptionalFiniteNumber(raw['rulesVersion'])) {
     throw new Error('Settings file contains an invalid rules version.');
   }
@@ -275,9 +314,10 @@ function resolveMatchMode(
 }
 
 function normalizeFilters(filters: readonly LegacyFilter[] | undefined): Filter[] {
-  return (filters ?? []).map(({ isRegex, matchMode, ...filter }) => ({
+  return (filters ?? []).map(({ isRegex, matchMode, blockType, ...filter }) => ({
     ...filter,
     matchMode: resolveMatchMode(matchMode, isRegex),
+    blockType: blockType ?? 'default',
   }));
 }
 
@@ -304,6 +344,12 @@ function normalizeSnooze(snooze: LegacyStorageData['snooze']): SnoozeState {
   return { active: true };
 }
 
+function normalizeSettings(settings: LegacyStorageData['settings']): Settings {
+  return {
+    defaultBlockType: settings?.defaultBlockType ?? 'block-page',
+  };
+}
+
 export function normalizeStoredData(raw: LegacyStorageData | undefined): StorageData {
   if (!raw) {
     return createDefaultData();
@@ -315,6 +361,7 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
   const filters = normalizeFilters(data.filters);
   const whitelist = normalizeWhitelist(data.whitelist, groupIds);
   const snooze = normalizeSnooze(data.snooze);
+  const settings = normalizeSettings(data.settings);
   const rulesVersion =
     typeof data.rulesVersion === 'number' && Number.isFinite(data.rulesVersion)
       ? data.rulesVersion
@@ -326,6 +373,7 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
     filters,
     whitelist,
     snooze,
+    settings,
     rulesVersion,
   };
 }

@@ -16,6 +16,7 @@ import {
   updateWhitelist,
   deleteWhitelist,
   createDefaultGroup,
+  createDefaultSettings,
   normalizeStoredData,
 } from '../../../src/shared/api/storage';
 import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
@@ -35,6 +36,7 @@ describe('storage', () => {
         filters: [],
         whitelist: [],
         snooze: { active: false },
+        settings: createDefaultSettings(),
         rulesVersion: 0,
       });
     });
@@ -66,7 +68,11 @@ describe('storage', () => {
       getChromeMock().storage.sync._data.set(STORAGE_KEY, testData);
 
       const data = await loadData();
-      expect(data).toEqual(testData);
+      expect(data).toEqual({
+        ...testData,
+        filters: [{ ...testData.filters[0], blockType: 'default' }],
+        settings: createDefaultSettings(),
+      });
     });
 
     it('should add empty whitelist for backwards compatibility', async () => {
@@ -80,7 +86,20 @@ describe('storage', () => {
       const data = await loadData();
       expect(data.whitelist).toEqual([]);
       expect(data.snooze).toEqual({ active: false });
+      expect(data.settings).toEqual(createDefaultSettings());
       expect(data.rulesVersion).toBe(0);
+    });
+
+    it('defaults settings when they are missing', async () => {
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, {
+        groups: [createDefaultGroup()],
+        filters: [],
+        whitelist: [],
+        snooze: { active: false },
+      });
+
+      const data = await loadData();
+      expect(data.settings).toEqual({ defaultBlockType: 'block-page' });
     });
 
     it('should assign the default group to legacy whitelist entries', async () => {
@@ -110,6 +129,7 @@ describe('storage', () => {
         ],
         whitelist: [],
         snooze: { active: false },
+        settings: createDefaultSettings(),
         rulesVersion: 1,
       };
 
@@ -117,6 +137,26 @@ describe('storage', () => {
 
       const data = await loadData();
       expect(data.filters[0]?.matchMode).toBe('regex');
+    });
+
+    it('defaults missing filter block types to the global default mode marker', async () => {
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, {
+        groups: [createDefaultGroup()],
+        filters: [
+          {
+            id: 'legacy-filter',
+            pattern: 'example.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        whitelist: [],
+        snooze: { active: false },
+      });
+
+      const data = await loadData();
+      expect(data.filters[0]?.blockType).toBe('default');
     });
 
     it('should default whitelist match mode to contains', async () => {
@@ -178,6 +218,7 @@ describe('storage', () => {
             groupId: 'missing-group',
             enabled: true,
             matchMode: 'regex',
+            blockType: 'default',
           },
         ],
         whitelist: [
@@ -190,6 +231,7 @@ describe('storage', () => {
           },
         ],
         snooze: { active: true },
+        settings: createDefaultSettings(),
         rulesVersion: 0,
       });
     });
@@ -210,6 +252,7 @@ describe('storage', () => {
         ],
         whitelist: [],
         snooze: { active: false },
+        settings: createDefaultSettings(),
         rulesVersion: 0,
       };
 
@@ -247,7 +290,7 @@ describe('storage', () => {
 
       let data = await loadData();
       expect(data.groups).toEqual([createDefaultGroup(), { ...group, name: 'Updated Group' }]);
-      expect(data.filters).toEqual([{ ...filter, enabled: false }]);
+      expect(data.filters).toEqual([{ ...filter, enabled: false, blockType: 'default' }]);
 
       await deleteFilter(filter.id);
 

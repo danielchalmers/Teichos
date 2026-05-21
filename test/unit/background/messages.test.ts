@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   getUrlDecision: vi.fn(),
   goBackFromActiveTab: vi.fn(),
+  continueWarningInTab: vi.fn(),
+  continueWarningFromActiveTab: vi.fn(),
   loadData: vi.fn(),
 }));
 
@@ -10,9 +12,13 @@ vi.mock('../../../src/background/tabController', () => ({
   getTabController: (): {
     getUrlDecision: typeof mocks.getUrlDecision;
     goBackFromActiveTab: typeof mocks.goBackFromActiveTab;
+    continueWarningInTab: typeof mocks.continueWarningInTab;
+    continueWarningFromActiveTab: typeof mocks.continueWarningFromActiveTab;
   } => ({
     getUrlDecision: mocks.getUrlDecision,
     goBackFromActiveTab: mocks.goBackFromActiveTab,
+    continueWarningInTab: mocks.continueWarningInTab,
+    continueWarningFromActiveTab: mocks.continueWarningFromActiveTab,
   }),
 }));
 
@@ -29,6 +35,7 @@ const defaultData = {
   filters: [],
   whitelist: [],
   snooze: { active: false },
+  settings: { defaultBlockType: 'block-page' },
   rulesVersion: 1,
 };
 
@@ -37,6 +44,8 @@ describe('handleMessage', () => {
     mocks.loadData.mockResolvedValue(defaultData);
     mocks.getUrlDecision.mockResolvedValue({ action: 'allow', reason: 'no-match' });
     mocks.goBackFromActiveTab.mockResolvedValue(false);
+    mocks.continueWarningInTab.mockResolvedValue({ continued: false });
+    mocks.continueWarningFromActiveTab.mockResolvedValue({ continued: false });
   });
 
   it('rejects messages from other extensions', () => {
@@ -97,6 +106,27 @@ describe('handleMessage', () => {
     await vi.waitFor(() => {
       expect(sendResponse).toHaveBeenCalledWith({ restored: true });
     });
+  });
+
+  it('responds to warning continue requests', async () => {
+    mocks.continueWarningInTab.mockResolvedValue({ continued: true });
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.CONTINUE_WARNING_ACTIVE_TAB },
+        { id: 'test-extension-id', tab: { id: 12, url: 'chrome-extension://test-extension-id/warn' } },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ continued: true });
+    });
+    expect(mocks.continueWarningInTab).toHaveBeenCalledWith(
+      12,
+      'chrome-extension://test-extension-id/warn'
+    );
   });
 
   it('ignores unknown messages from this extension', () => {

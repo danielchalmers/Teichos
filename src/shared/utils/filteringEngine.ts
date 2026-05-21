@@ -1,4 +1,4 @@
-import type { Filter, FilterGroup, StorageData, Whitelist } from '../types';
+import type { BlockType, Filter, FilterGroup, StorageData, Whitelist } from '../types';
 import type { ScheduleContext } from './filters';
 import {
   buildGroupById,
@@ -24,6 +24,12 @@ export type FilterDecision =
   | { readonly action: 'allow'; readonly reason: FilterDecisionAllowReason }
   | {
       readonly action: 'block';
+      readonly filterId: string;
+      readonly groupId: string;
+      readonly reason: 'matched-filter';
+    }
+  | {
+      readonly action: 'warning';
       readonly filterId: string;
       readonly groupId: string;
       readonly reason: 'matched-filter';
@@ -88,6 +94,7 @@ export function evaluateFilterDecision(
   const urlLower = url.toLowerCase();
   const now = Date.now();
   let fallbackReason: FilterDecisionAllowReason = 'no-match';
+  let warningMatch: Extract<FilterDecision, { action: 'warning' }> | undefined;
 
   for (const filter of filters) {
     if (!matchesPattern(url, filter, undefined, urlLower)) {
@@ -117,15 +124,25 @@ export function evaluateFilterDecision(
       }
     }
 
-    return {
-      action: 'block',
+    const blockType = resolveEffectiveBlockType(filter, data.settings.defaultBlockType);
+    if (blockType === 'block-page') {
+      return {
+        action: 'block',
+        filterId: filter.id,
+        groupId: filter.groupId,
+        reason: 'matched-filter',
+      };
+    }
+
+    warningMatch ??= {
+      action: 'warning',
       filterId: filter.id,
       groupId: filter.groupId,
       reason: 'matched-filter',
     };
   }
 
-  return { action: 'allow', reason: fallbackReason };
+  return warningMatch ?? { action: 'allow', reason: fallbackReason };
 }
 
 function selectHigherPriorityReason(
@@ -135,4 +152,10 @@ function selectHigherPriorityReason(
   return FILTER_DECISION_REASON_PRIORITY[candidate] > FILTER_DECISION_REASON_PRIORITY[current]
     ? candidate
     : current;
+}
+
+function resolveEffectiveBlockType(filter: Filter, defaultBlockType: BlockType): BlockType {
+  return filter.blockType === 'block-page' || filter.blockType === 'warning'
+    ? filter.blockType
+    : defaultBlockType;
 }

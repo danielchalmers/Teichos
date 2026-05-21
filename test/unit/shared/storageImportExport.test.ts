@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   createDefaultGroup,
+  createDefaultSettings,
   exportData,
   importData,
   parseImportedData,
@@ -49,6 +50,7 @@ function createSampleData(): StorageData {
       },
     ],
     snooze: { active: true, until: 1_234_567_890 },
+    settings: createDefaultSettings(),
     rulesVersion: 4,
   };
 }

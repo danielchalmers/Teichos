@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  getWarningBypasses,
+  getWarningTabState,
   getBlockedTabState,
   getLastAllowedUrl,
   setBlockedTabState,
@@ -17,6 +19,7 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
+    settings: overrides.settings ?? { defaultBlockType: 'block-page' },
     rulesVersion: overrides.rulesVersion ?? 1,
   };
 }
@@ -62,6 +65,49 @@ describe('TabController', () => {
       rulesVersion: 7,
       blockedBy: {
         filterId: 'filter-1',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+  });
+
+  it('redirects warning matches to the interstitial and stores warning tab state', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        settings: { defaultBlockType: 'warning' },
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'default',
+          },
+        ],
+        rulesVersion: 9,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(14, 'https://warning.com/focus');
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      14,
+      {
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://warning.com/focus')}&mode=warning`,
+      },
+      expect.any(Function)
+    );
+    await expect(getWarningTabState(14)).resolves.toEqual({
+      tabId: 14,
+      targetUrl: 'https://warning.com/focus',
+      warningAt: expect.any(Number),
+      rulesVersion: 9,
+      bypassKey: 'https://warning.com',
+      warnedBy: {
+        filterId: 'warning-filter',
         groupId: DEFAULT_GROUP_ID,
       },
     });
@@ -120,6 +166,169 @@ describe('TabController', () => {
     await getTabController().evaluateNavigation(9, 'https://allowed.com');
 
     await expect(getLastAllowedUrl(9)).resolves.toBe('https://allowed.com');
+  });
+
+  it('continues warning tabs by storing a tab-session bypass and restoring the target url', async () => {
+    const chromeMock = getChromeMock();
+    const warningUrl = `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://warning.com/focus')}&mode=warning`;
+    chromeMock.tabs.query.mockImplementation(
+      (query: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        if (query.active && query.currentWindow) {
+          callback?.([{ id: 15, url: warningUrl, active: true } as chrome.tabs.Tab]);
+          return;
+        }
+        callback?.([]);
+      }
+    );
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        settings: { defaultBlockType: 'warning' },
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 10,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+
+    await expect(getTabController().continueWarningFromActiveTab()).resolves.toEqual({
+      continued: true,
+    });
+    await expect(getWarningBypasses(15)).resolves.toEqual([
+      { filterId: 'warning-filter', urlKey: 'https://warning.com' },
+    ]);
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      15,
+      { url: 'https://warning.com/focus' },
+      expect.any(Function)
+    );
+  });
+
+  it('applies warning bypasses only to the same filter and origin key', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        settings: { defaultBlockType: 'warning' },
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 11,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(16, 'https://warning.com/first');
+
+    const warningUrl = `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://warning.com/first')}&mode=warning`;
+    chromeMock.tabs.query.mockImplementation(
+      (query: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        if (query.active && query.currentWindow) {
+          callback?.([{ id: 16, url: warningUrl, active: true } as chrome.tabs.Tab]);
+          return;
+        }
+        callback?.([]);
+      }
+    );
+    await getTabController().continueWarningFromActiveTab();
+
+    chromeMock.tabs.update.mockClear();
+    await getTabController().evaluateNavigation(16, 'https://warning.com/second');
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+    await expect(getLastAllowedUrl(16)).resolves.toBe('https://warning.com/second');
+
+    await getTabController().evaluateNavigation(16, 'https://other.warning.com/second');
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      16,
+      {
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://other.warning.com/second')}&mode=warning`,
+      },
+      expect.any(Function)
+    );
+  });
+
+  it('lets hard blocks override an existing warning bypass', async () => {
+    const chromeMock = getChromeMock();
+    const warningUrl = `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://warning.com/focus')}&mode=warning`;
+    chromeMock.tabs.query.mockImplementation(
+      (query: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        if (query.active && query.currentWindow) {
+          callback?.([{ id: 17, url: warningUrl, active: true } as chrome.tabs.Tab]);
+          return;
+        }
+        callback?.([]);
+      }
+    );
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        settings: { defaultBlockType: 'warning' },
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 12,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().continueWarningFromActiveTab();
+
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        settings: { defaultBlockType: 'warning' },
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'warning',
+          },
+          {
+            id: 'block-filter',
+            pattern: 'warning.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'block-page',
+          },
+        ],
+        rulesVersion: 13,
+      })
+    );
+
+    chromeMock.tabs.update.mockClear();
+    await getTabController().evaluateNavigation(17, 'https://warning.com/after-bypass');
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      17,
+      {
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://warning.com/after-bypass')}`,
+      },
+      expect.any(Function)
+    );
   });
 
   it('restores blocked tabs when current rules allow them', async () => {

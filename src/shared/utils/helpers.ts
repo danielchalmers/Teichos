@@ -98,3 +98,12 @@ export function isInternalUrl(url: string): boolean {
   const normalizedUrl = url.toLowerCase();
   return INTERNAL_URL_PREFIXES.some((prefix) => normalizedUrl.startsWith(prefix));
 }
+
+export function getUrlOriginKey(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin === 'null' ? parsed.href : parsed.origin;
+  } catch {
+    return url;
+  }
+}

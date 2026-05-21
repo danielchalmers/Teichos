@@ -12,6 +12,7 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
+    settings: overrides.settings ?? { defaultBlockType: 'block-page' },
     rulesVersion: overrides.rulesVersion ?? 0,
   };
 }
@@ -112,6 +113,87 @@ describe('filteringEngine', () => {
     });
   });
 
+  it('uses the global warning default for filters with the default block type', () => {
+    const decision = evaluateFilterDecision(
+      'https://warning.example.test',
+      createStorageData({
+        settings: { defaultBlockType: 'warning' },
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.example.test',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'default',
+          },
+        ],
+      }),
+      { context: activeContext }
+    );
+
+    expect(decision).toEqual({
+      action: 'warning',
+      filterId: 'warning-filter',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
+  });
+
+  it('allows filters to override the global default to block', () => {
+    const decision = evaluateFilterDecision(
+      'https://override-block.example.test',
+      createStorageData({
+        settings: { defaultBlockType: 'warning' },
+        filters: [
+          {
+            id: 'block-filter',
+            pattern: 'override-block.example.test',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'block-page',
+          },
+        ],
+      }),
+      { context: activeContext }
+    );
+
+    expect(decision).toEqual({
+      action: 'block',
+      filterId: 'block-filter',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
+  });
+
+  it('allows filters to override the global default to warning', () => {
+    const decision = evaluateFilterDecision(
+      'https://override-warning.example.test',
+      createStorageData({
+        settings: { defaultBlockType: 'block-page' },
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'override-warning.example.test',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'warning',
+          },
+        ],
+      }),
+      { context: activeContext }
+    );
+
+    expect(decision).toEqual({
+      action: 'warning',
+      filterId: 'warning-filter',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
+  });
+
   it('allows matching urls when the group schedule is inactive', () => {
     const decision = evaluateFilterDecision(
       'https://blocked.com',
@@ -195,5 +277,71 @@ describe('filteringEngine', () => {
       groupId: DEFAULT_GROUP_ID,
       reason: 'matched-filter',
     });
+  });
+
+  it('prefers a block-page match over an earlier warning match', () => {
+    const decision = evaluateFilterDecision(
+      'https://mixed.example.test',
+      createStorageData({
+        settings: { defaultBlockType: 'warning' },
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'mixed.example.test',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'default',
+          },
+          {
+            id: 'block-filter',
+            pattern: 'mixed.example.test',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'block-page',
+          },
+        ],
+      }),
+      { context: activeContext }
+    );
+
+    expect(decision).toEqual({
+      action: 'block',
+      filterId: 'block-filter',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
+  });
+
+  it('keeps allow precedence ahead of warning and block matches', () => {
+    const decision = evaluateFilterDecision(
+      'https://allowed.example.test/docs',
+      createStorageData({
+        settings: { defaultBlockType: 'warning' },
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'allowed.example.test',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'warning',
+          },
+        ],
+        whitelist: [
+          {
+            id: 'allow-docs',
+            pattern: 'allowed.example.test/docs',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+      }),
+      { context: activeContext }
+    );
+
+    expect(decision).toEqual({ action: 'allow', reason: 'whitelisted' });
   });
 });

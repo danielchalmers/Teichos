@@ -9,13 +9,17 @@
   <body>
     <div class="container" role="main">
       <div class="icon" aria-hidden="true">🛡️</div>
-      <h1>Page Blocked</h1>
-      <p>This page has been blocked by Teichos based on your filter settings.</p>
+      <h1 id="interstitial-title">Page Blocked</h1>
+      <p id="interstitial-copy">
+        This page has been blocked by Teichos based on your filter settings.
+      </p>
       <div class="url" id="blocked-url" role="status" aria-label="Blocked URL"></div>
       <div class="actions">
+        <button class="button" id="continue-warning" type="button" hidden>Continue</button>
         <button class="button" id="go-back" type="button">Go Back</button>
         <button class="button secondary" id="open-options" type="button">Manage Filters</button>
       </div>
+      <p id="interstitial-status" role="status" aria-live="polite"></p>
     </div>
     <script src="./index.ts" type="module"></script>
   </body>

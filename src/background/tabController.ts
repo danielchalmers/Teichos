@@ -1,15 +1,25 @@
 import {
+  addWarningBypass,
   clearBlockedTabState,
+  clearWarningTabState,
   getBlockedTabState,
   getLastAllowedUrl,
+  getWarningBypasses,
+  getWarningTabState,
   setBlockedTabState,
   setLastAllowedUrl,
+  setWarningTabState,
 } from '../shared/api/session';
 import { getActiveTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
 import { getExtensionUrl } from '../shared/api/runtime';
 import { PAGES } from '../shared/constants';
-import { STORAGE_KEY, type BlockedTabState } from '../shared/types';
-import { isInternalUrl, type FilterDecision } from '../shared/utils';
+import {
+  STORAGE_KEY,
+  type BlockType,
+  type BlockedTabState,
+  type WarningTabState,
+} from '../shared/types';
+import { getUrlOriginKey, isInternalUrl, type FilterDecision } from '../shared/utils';
 import { getRulesProvider, type CurrentRules, type RulesProvider } from './rulesProvider';
 
 class TabController {
@@ -37,8 +47,13 @@ class TabController {
   }
 
   async evaluateNavigation(tabId: number, url: string): Promise<void> {
-    const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
-    if (url.startsWith(blockedPageUrl)) {
+    const interstitial = parseInterstitialTarget(url);
+    if (interstitial) {
+      if (interstitial.blockType === 'warning') {
+        await this.reconcileWarningTab(tabId, url);
+        return;
+      }
+
       await this.reconcileBlockedTab(tabId, url);
       return;
     }
@@ -52,6 +67,16 @@ class TabController {
 
     if (decision.action === 'block') {
       await this.blockTab(tabId, url, decision, rules.data.rulesVersion);
+      return;
+    }
+
+    if (decision.action === 'warning') {
+      if (await this.isWarningBypassed(tabId, url, decision.filterId)) {
+        await this.allowTab(tabId, url);
+        return;
+      }
+
+      await this.warnTab(tabId, url, decision, rules.data.rulesVersion);
       return;
     }
 
@@ -76,9 +101,49 @@ class TabController {
       return false;
     }
 
+    if (decision.action === 'warning') {
+      await this.warnTab(tabId, state.targetUrl, decision, rules.data.rulesVersion);
+      return false;
+    }
+
     await updateTabUrl(tabId, state.targetUrl);
     await this.allowTab(tabId, state.targetUrl);
     return true;
+  }
+
+  async continueWarningFromActiveTab(): Promise<{ continued: boolean; error?: string }> {
+    const activeTab = await getActiveTab();
+    if (!activeTab?.id) {
+      return { continued: false, error: 'No active tab is available.' };
+    }
+
+    return this.continueWarningInTab(activeTab.id, activeTab.url);
+  }
+
+  async continueWarningInTab(
+    tabId: number,
+    tabUrl?: string
+  ): Promise<{ continued: boolean; error?: string }> {
+    const state = await this.resolveWarningTabState(tabId, tabUrl);
+    if (!state) {
+      return { continued: false, error: 'No warning interstitial is available.' };
+    }
+
+    await addWarningBypass(tabId, {
+      filterId: state.warnedBy.filterId,
+      urlKey: state.bypassKey,
+    });
+
+    try {
+      await updateTabUrl(tabId, state.targetUrl);
+      return { continued: true };
+    } catch (error) {
+      console.error('[Teichos] Failed to continue past warning:', error);
+      return {
+        continued: false,
+        error: error instanceof Error ? error.message : 'Failed to continue to the page.',
+      };
+    }
   }
 
   async reconcileAllOpenTabs(): Promise<void> {
@@ -122,8 +187,13 @@ class TabController {
   }
 
   private async reconcileTab(tabId: number, url: string): Promise<void> {
-    const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
-    if (url.startsWith(blockedPageUrl)) {
+    const interstitial = parseInterstitialTarget(url);
+    if (interstitial) {
+      if (interstitial.blockType === 'warning') {
+        await this.reconcileWarningTab(tabId, url);
+        return;
+      }
+
       await this.reconcileBlockedTab(tabId, url);
       return;
     }
@@ -150,7 +220,35 @@ class TabController {
       return;
     }
 
+    if (decision.action === 'warning') {
+      await this.warnTab(tabId, state.targetUrl, decision, rules.data.rulesVersion);
+      return;
+    }
+
     await this.setBlockedState(tabId, state.targetUrl, decision, rules.data.rulesVersion);
+  }
+
+  private async reconcileWarningTab(tabId: number, warningPageUrl?: string): Promise<void> {
+    const state = await this.resolveWarningTabState(tabId, warningPageUrl);
+    if (!state) {
+      return;
+    }
+
+    const rules = await this.getRules();
+    const decision = rules.engine.evaluate(state.targetUrl);
+
+    if (decision.action === 'block') {
+      await this.blockTab(tabId, state.targetUrl, decision, rules.data.rulesVersion);
+      return;
+    }
+
+    if (decision.action === 'allow') {
+      await updateTabUrl(tabId, state.targetUrl);
+      await this.allowTab(tabId, state.targetUrl);
+      return;
+    }
+
+    await this.setWarningState(tabId, state.targetUrl, decision, rules.data.rulesVersion);
   }
 
   private async blockTab(
@@ -164,8 +262,23 @@ class TabController {
     await updateTabUrl(tabId, blockedUrl);
   }
 
+  private async warnTab(
+    tabId: number,
+    url: string,
+    decision: Extract<FilterDecision, { action: 'warning' }>,
+    rulesVersion: number
+  ): Promise<void> {
+    await this.setWarningState(tabId, url, decision, rulesVersion);
+    const warningUrl = getInterstitialUrl(url, 'warning');
+    await updateTabUrl(tabId, warningUrl);
+  }
+
   private async allowTab(tabId: number, url: string): Promise<void> {
-    await Promise.all([clearBlockedTabState(tabId), setLastAllowedUrl(tabId, url)]);
+    await Promise.all([
+      clearBlockedTabState(tabId),
+      clearWarningTabState(tabId),
+      setLastAllowedUrl(tabId, url),
+    ]);
   }
 
   private async setBlockedState(
@@ -224,6 +337,68 @@ class TabController {
     return state;
   }
 
+  private async setWarningState(
+    tabId: number,
+    targetUrl: string,
+    decision: Extract<FilterDecision, { action: 'warning' }>,
+    rulesVersion: number
+  ): Promise<void> {
+    const state: WarningTabState = {
+      tabId,
+      targetUrl,
+      warningAt: Date.now(),
+      rulesVersion,
+      bypassKey: getUrlOriginKey(targetUrl),
+      warnedBy: {
+        filterId: decision.filterId,
+        groupId: decision.groupId,
+      },
+    };
+
+    await Promise.all([clearBlockedTabState(tabId), setWarningTabState(state)]);
+  }
+
+  private async resolveWarningTabState(
+    tabId: number,
+    warningPageUrl?: string
+  ): Promise<WarningTabState | undefined> {
+    const existingState = await getWarningTabState(tabId);
+    if (existingState) {
+      return existingState;
+    }
+
+    const interstitial = parseInterstitialTarget(warningPageUrl);
+    if (!interstitial || interstitial.blockType !== 'warning') {
+      return undefined;
+    }
+
+    const rules = await this.getRules();
+    const decision = rules.engine.evaluate(interstitial.targetUrl);
+    if (decision.action !== 'warning') {
+      return undefined;
+    }
+
+    const state: WarningTabState = {
+      tabId,
+      targetUrl: interstitial.targetUrl,
+      warningAt: Date.now(),
+      rulesVersion: rules.data.rulesVersion,
+      bypassKey: getUrlOriginKey(interstitial.targetUrl),
+      warnedBy: {
+        filterId: decision.filterId,
+        groupId: decision.groupId,
+      },
+    };
+    await setWarningTabState(state);
+    return state;
+  }
+
+  private async isWarningBypassed(tabId: number, url: string, filterId: string): Promise<boolean> {
+    const bypasses = await getWarningBypasses(tabId);
+    const urlKey = getUrlOriginKey(url);
+    return bypasses.some((bypass) => bypass.filterId === filterId && bypass.urlKey === urlKey);
+  }
+
   private queueReconcile(): void {
     this.reconcileQueue = this.reconcileQueue
       .then(async () => {
@@ -241,6 +416,21 @@ class TabController {
 }
 
 function parseBlockedTargetUrl(tabUrl: string | undefined): string | null {
+  return parseInterstitialTarget(tabUrl)?.targetUrl ?? null;
+}
+
+function getInterstitialUrl(targetUrl: string, blockType: BlockType): string {
+  const url = new URL(getExtensionUrl(PAGES.BLOCKED));
+  url.searchParams.set('url', targetUrl);
+  if (blockType === 'warning') {
+    url.searchParams.set('mode', 'warning');
+  }
+  return url.toString();
+}
+
+function parseInterstitialTarget(
+  tabUrl: string | undefined
+): { targetUrl: string; blockType: BlockType } | null {
   if (!tabUrl) {
     return null;
   }
@@ -251,7 +441,8 @@ function parseBlockedTargetUrl(tabUrl: string | undefined): string | null {
   }
 
   try {
-    const blockedTargetUrl = new URL(tabUrl).searchParams.get('url');
+    const parsedUrl = new URL(tabUrl);
+    const blockedTargetUrl = parsedUrl.searchParams.get('url');
     if (
       !blockedTargetUrl ||
       isInternalUrl(blockedTargetUrl) ||
@@ -260,7 +451,10 @@ function parseBlockedTargetUrl(tabUrl: string | undefined): string | null {
       return null;
     }
 
-    return blockedTargetUrl;
+    return {
+      targetUrl: blockedTargetUrl,
+      blockType: parsedUrl.searchParams.get('mode') === 'warning' ? 'warning' : 'block-page',
+    };
   } catch {
     return null;
   }

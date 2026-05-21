@@ -19,7 +19,9 @@ import {
   deleteWhitelist,
 } from '../shared/api';
 import type {
+  BlockType,
   Filter,
+  FilterBlockType,
   FilterGroup,
   FilterMatchMode,
   StorageData,
@@ -57,6 +59,7 @@ let setInfoPopoverOpen: ((isOpen: boolean) => void) | null = null;
  */
 async function init(): Promise<void> {
   await renderGroups();
+  await renderGlobalSettings();
   setupEventListeners();
   setupStorageSync();
   populateInfoPanel();
@@ -84,6 +87,9 @@ function setupEventListeners(): void {
   getElementByIdOrNull('add-group-btn')?.addEventListener('click', () => openGroupModal());
   getElementByIdOrNull('export-settings-btn')?.addEventListener('click', () => {
     void handleExportSettings();
+  });
+  getElementByIdOrNull('default-block-type')?.addEventListener('change', (event) => {
+    void handleDefaultBlockTypeChange(event);
   });
   getElementByIdOrNull('import-settings-btn')?.addEventListener('click', () => {
     getElementByIdOrNull<HTMLInputElement>('import-settings-input')?.click();
@@ -137,6 +143,9 @@ function setupStorageSync(): void {
     if (!changes[STORAGE_KEY]) return;
     void renderGroups().catch((error: unknown) => {
       console.error('Failed to refresh groups:', error);
+    });
+    void renderGlobalSettings().catch((error: unknown) => {
+      console.error('Failed to refresh global settings:', error);
     });
   });
 }
@@ -293,6 +302,44 @@ async function handleImportSettings(event: Event): Promise<void> {
     setGlobalSettingsStatus(message, true);
   } finally {
     input.value = '';
+  }
+}
+
+async function renderGlobalSettings(): Promise<void> {
+  const select = getElementByIdOrNull<HTMLSelectElement>('default-block-type');
+  if (!select) {
+    return;
+  }
+
+  const data = await loadData();
+  select.value = data.settings.defaultBlockType;
+}
+
+async function handleDefaultBlockTypeChange(event: Event): Promise<void> {
+  const select = event.target as HTMLSelectElement | null;
+  if (!select) {
+    return;
+  }
+
+  const blockType = getBlockTypeSelectValue(select.id);
+  try {
+    const data = await loadData();
+    if (data.settings.defaultBlockType === blockType) {
+      return;
+    }
+
+    await saveData({
+      ...data,
+      settings: {
+        ...data.settings,
+        defaultBlockType: blockType,
+      },
+    });
+    setGlobalSettingsStatus('Default block type updated.');
+  } catch (error) {
+    console.error('Failed to update default block type:', error);
+    select.value = (await loadData()).settings.defaultBlockType;
+    setGlobalSettingsStatus('Failed to update default block type.', true);
   }
 }
 
@@ -570,6 +617,19 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
   return 'contains';
 }
 
+function getBlockTypeSelectValue(selectId: string): BlockType {
+  const value = getElementByIdOrNull<HTMLSelectElement>(selectId)?.value;
+  return value === 'warning' ? 'warning' : 'block-page';
+}
+
+function getFilterBlockTypeSelectValue(selectId: string): FilterBlockType {
+  const value = getElementByIdOrNull<HTMLSelectElement>(selectId)?.value;
+  if (value === 'block-page' || value === 'warning' || value === 'default') {
+    return value;
+  }
+  return 'default';
+}
+
 function ensureValidRegex(pattern: string, matchMode: FilterMatchMode): boolean {
   if (matchMode !== 'regex') {
     return true;
@@ -725,11 +785,13 @@ function openFilterModal(filterId?: string, groupId?: string): void {
         const descInput = getElementByIdOrNull<HTMLInputElement>('filter-description');
         const enabledInput = getElementByIdOrNull<HTMLInputElement>('filter-enabled');
         const matchModeSelect = getElementByIdOrNull<HTMLSelectElement>('filter-match-mode');
+        const blockTypeSelect = getElementByIdOrNull<HTMLSelectElement>('filter-block-type');
 
         if (patternInput) patternInput.value = filter.pattern;
         if (descInput) descInput.value = filter.description ?? '';
         if (enabledInput) enabledInput.checked = filter.enabled;
         if (matchModeSelect) matchModeSelect.value = filter.matchMode ?? 'contains';
+        if (blockTypeSelect) blockTypeSelect.value = filter.blockType ?? 'default';
       }
     })
     .catch((error: unknown) => {
@@ -758,6 +820,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
   const groupId = currentFilterGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('filter-enabled')?.checked ?? true;
   const matchMode = getMatchModeSelectValue('filter-match-mode');
+  const blockType = getFilterBlockTypeSelectValue('filter-block-type');
 
   if (!ensureValidRegex(pattern, matchMode)) {
     return;
@@ -776,6 +839,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     groupId,
     enabled,
     matchMode,
+    blockType,
   };
   const filter: Filter = typeof expiresAt === 'number' ? { ...baseFilter, expiresAt } : baseFilter;
 

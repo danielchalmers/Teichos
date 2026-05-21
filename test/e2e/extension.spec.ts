@@ -2,8 +2,11 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 import {
   captureScreenshot,
+  createFilterViaOptions,
   createStorageData,
   defaultGroup,
+  mockAllowedPage,
+  openOptions,
   readStorage,
   seedStorage,
 } from './helpers';
@@ -98,6 +101,34 @@ test('redirects matching top-level navigations to the blocked page', async ({
   await expect.poll(() => page.url()).toContain(`/${PAGES.BLOCKED}?url=`);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+});
+
+test('shows warning interstitials and continues back to the target page', async ({
+  extensionPage,
+  page,
+}, testInfo) => {
+  const targetUrl = 'https://warning.example.invalid/focus/article';
+  await mockAllowedPage(page, targetUrl, 'Warning target allowed');
+
+  const optionsPage = await openOptions(extensionPage, page);
+  await optionsPage.locator('#default-block-type').selectOption('warning');
+  await createFilterViaOptions(optionsPage, {
+    name: 'Warning Filter',
+    pattern: 'warning.example.invalid',
+  });
+
+  await page.goto(targetUrl).catch(() => undefined);
+
+  await expect
+    .poll(() => new URL(page.url()).pathname + new URL(page.url()).search)
+    .toBe(`/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}&mode=warning`);
+  await expect(page.getByRole('heading', { name: 'Proceed with Caution' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
+  await captureScreenshot(page, testInfo, 'warning-interstitial.png');
+
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect.poll(() => page.url()).toBe(targetUrl);
+  await expect(page.getByText('Warning target allowed')).toBeVisible();
 });
 
 for (const navigationMethod of ['push-state', 'replace-state'] as const) {

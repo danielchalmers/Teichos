@@ -291,6 +291,45 @@ test('keeps existing settings when global settings import fails', async ({
   await expect.poll(() => readStorage(page)).toEqual(originalData);
 });
 
+test('updates global and per-filter block type controls without showing badges in lists', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+
+  await page.locator('#default-block-type').selectOption('warning');
+  await expect
+    .poll(async () => (await readStorage(page))?.settings.defaultBlockType)
+    .toBe('warning');
+
+  await createFilterViaOptions(page, {
+    name: 'Focus Filter',
+    pattern: 'warning-options.example.test',
+    blockType: 'warning',
+  });
+
+  await expect
+    .poll(async () => (await readStorage(page))?.filters.find((filter) => filter.id)?.blockType)
+    .toBe('warning');
+
+  const defaultGroupCard = page
+    .locator('details.group-item')
+    .filter({ hasText: '24/7 (Always Active)' });
+  const filterItem = defaultGroupCard.locator('.filter-item').filter({ hasText: 'Focus Filter' });
+  await expect(filterItem).toContainText('warning-options.example.test');
+  await expect(filterItem).not.toContainText('Warning');
+
+  await filterItem.getByRole('button', { name: 'Edit' }).click();
+  const filterModal = page.locator('#filter-modal.active');
+  await expect(filterModal.getByLabel('Block Type')).toHaveValue('warning');
+  await filterModal.getByLabel('Block Type').selectOption('block-page');
+  await filterModal.getByRole('button', { name: 'Save' }).click();
+
+  await expect
+    .poll(async () => (await readStorage(page))?.filters.find((filter) => filter.id)?.blockType)
+    .toBe('block-page');
+});
+
 test('opens filter, group, and exception modals from query params', async ({
   extensionPage,
   page,

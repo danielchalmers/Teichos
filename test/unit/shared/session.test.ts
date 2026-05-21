@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  addWarningBypass,
   clearBlockedTabState,
+  clearWarningTabState,
   getBlockedTabState,
   getLastAllowedUrl,
   getSessionSnooze,
+  getWarningBypasses,
+  getWarningTabState,
   setBlockedTabState,
   setLastAllowedUrl,
   setSessionSnooze,
+  setWarningTabState,
 } from '../../../src/shared/api/session';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
 
@@ -48,6 +53,46 @@ describe('shared/api/session', () => {
 
     await clearBlockedTabState(7);
     await expect(getBlockedTabState(7)).resolves.toBeUndefined();
+  });
+
+  it('stores, retrieves, and clears warning tab state by tab id', async () => {
+    await setWarningTabState({
+      tabId: 8,
+      targetUrl: 'https://warning.example.test/focus',
+      warningAt: 4321,
+      rulesVersion: 6,
+      bypassKey: 'https://warning.example.test',
+      warnedBy: {
+        filterId: 'filter-2',
+        groupId: 'group-2',
+      },
+    });
+
+    await expect(getWarningTabState(8)).resolves.toEqual({
+      tabId: 8,
+      targetUrl: 'https://warning.example.test/focus',
+      warningAt: 4321,
+      rulesVersion: 6,
+      bypassKey: 'https://warning.example.test',
+      warnedBy: {
+        filterId: 'filter-2',
+        groupId: 'group-2',
+      },
+    });
+
+    await clearWarningTabState(8);
+    await expect(getWarningTabState(8)).resolves.toBeUndefined();
+  });
+
+  it('stores unique warning bypasses by tab id', async () => {
+    await addWarningBypass(3, { filterId: 'filter-1', urlKey: 'https://example.com' });
+    await addWarningBypass(3, { filterId: 'filter-1', urlKey: 'https://example.com' });
+    await addWarningBypass(3, { filterId: 'filter-1', urlKey: 'https://other.example.com' });
+
+    await expect(getWarningBypasses(3)).resolves.toEqual([
+      { filterId: 'filter-1', urlKey: 'https://example.com' },
+      { filterId: 'filter-1', urlKey: 'https://other.example.com' },
+    ]);
   });
 
   it('normalizes active session snooze values', async () => {

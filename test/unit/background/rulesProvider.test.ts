@@ -12,6 +12,7 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
+    settings: overrides.settings ?? { defaultBlockType: 'block-page' },
     rulesVersion: overrides.rulesVersion ?? 0,
   };
 }
@@ -144,6 +145,7 @@ describe('RulesProvider', () => {
       filters: [],
       whitelist: [],
       snooze: { active: false },
+      settings: { defaultBlockType: 'block-page' },
       rulesVersion: 0,
     });
     expect(cachedRules).toBe(rules);

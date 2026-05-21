@@ -4,7 +4,12 @@
  */
 
 import { loadData } from '../../shared/api/storage';
-import { isCheckUrlMessage, isGetDataMessage, isGoBackActiveTabMessage } from '../../shared/types';
+import {
+  isCheckUrlMessage,
+  isContinueWarningActiveTabMessage,
+  isGetDataMessage,
+  isGoBackActiveTabMessage,
+} from '../../shared/types';
 import { getTabController } from '../tabController';
 
 /**
@@ -36,6 +41,11 @@ export function handleMessage(
     return true;
   }
 
+  if (isContinueWarningActiveTabMessage(message)) {
+    void handleContinueWarningActiveTab(sender, sendResponse);
+    return true;
+  }
+
   return false;
 }
 
@@ -54,4 +64,17 @@ async function handleCheckUrl(
 
 async function handleGoBackActiveTab(sendResponse: (response: unknown) => void): Promise<void> {
   sendResponse({ restored: await getTabController().goBackFromActiveTab() });
+}
+
+async function handleContinueWarningActiveTab(
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: unknown) => void
+): Promise<void> {
+  const senderTabId = sender.tab?.id;
+  if (typeof senderTabId === 'number') {
+    sendResponse(await getTabController().continueWarningInTab(senderTabId, sender.tab?.url));
+    return;
+  }
+
+  sendResponse(await getTabController().continueWarningFromActiveTab());
 }
