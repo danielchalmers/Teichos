@@ -9,6 +9,7 @@ import {
   expectAllowed,
   expectBlocked,
   expectPopupHidesFilter,
+  expectPopupShowsInactiveFilter,
   expectPopupShowsFilter,
   openOptions,
   openPopup,
@@ -91,7 +92,7 @@ test('popup toggle changes navigation behavior and direct storage updates refres
     .filter({ hasText: 'Popup Toggle' })
     .locator('label.toggle')
     .click();
-  await expectPopupHidesFilter(popupPage, 'Popup Toggle');
+  await expectPopupShowsInactiveFilter(popupPage, 'Popup Toggle');
   await expectAllowed(browsingPage, targetUrl);
 
   const data = await readStorage(page);

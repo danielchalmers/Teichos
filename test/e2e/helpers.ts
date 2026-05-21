@@ -159,12 +159,14 @@ export async function expectPopupShowsFilter(page: Page, filterLabel: string): P
 }
 
 export async function expectPopupHidesFilter(page: Page, filterLabel: string): Promise<void> {
-  const filterItems = page.locator('.filter-item').filter({ hasText: filterLabel });
-  const count = await filterItems.count();
-  if (count === 0) {
-    return;
-  }
+  await expect(page.locator('.filter-item').filter({ hasText: filterLabel })).toHaveCount(0);
+}
 
+export async function expectPopupShowsInactiveFilter(
+  page: Page,
+  filterLabel: string
+): Promise<void> {
+  const filterItems = page.locator('.filter-item').filter({ hasText: filterLabel });
   await expect(filterItems).toHaveCount(1);
   await expect(filterItems.locator('input[type="checkbox"]')).not.toBeChecked();
 }
