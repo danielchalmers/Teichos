@@ -37,6 +37,31 @@ test('adds and deletes a temporary filter from the popup', async ({ extensionPag
   await expect(page.getByText('No filters configured.')).toBeVisible();
 });
 
+test('shows the URL pattern when a filter name is blank', async ({ extensionPage, page }) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'plain-url-filter',
+          pattern: 'github.com/notifications',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: '',
+        },
+      ],
+    })
+  );
+
+  await page.goto(extensionPage(PAGES.POPUP));
+
+  await expect(
+    page.locator('.filter-item').filter({ hasText: 'github.com/notifications' })
+  ).toBeVisible();
+});
+
 test('supports copy, toggle, and edit actions for popup filters', async ({
   context,
   extensionPage,
