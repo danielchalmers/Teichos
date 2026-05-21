@@ -1,4 +1,5 @@
-import type { Page, TestInfo } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
+import { PAGES } from '../../src/shared/constants';
 import type { StorageData } from '../../src/shared/types';
 
 export const STORAGE_KEY = 'pageblock_data';
@@ -42,6 +43,130 @@ export async function readStorage(page: Page): Promise<StorageData | undefined> 
     const result = await chrome.storage.sync.get(key);
     return result[key] as StorageData | undefined;
   }, STORAGE_KEY);
+}
+
+export function expectBlockedPageFor(targetUrl: string): string {
+  return `/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}`;
+}
+
+export async function expectBlocked(
+  page: Page,
+  targetUrl: string,
+  expectedBlockedUrl = expectBlockedPageFor(targetUrl)
+): Promise<void> {
+  await page.goto(targetUrl).catch(() => undefined);
+  await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe(
+    expectedBlockedUrl
+  );
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+  await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+}
+
+export async function expectAllowed(page: Page, targetUrl: string): Promise<void> {
+  await page.goto(targetUrl).catch(() => undefined);
+  await expect.poll(() => page.url()).not.toContain(`/${PAGES.BLOCKED}`);
+}
+
+export async function openOptions(
+  extensionPage: (relativePath: string) => string,
+  page: Page
+): Promise<Page> {
+  const optionsPage = await page.context().newPage();
+  await optionsPage.goto(extensionPage(PAGES.OPTIONS));
+  await optionsPage.waitForLoadState('domcontentloaded');
+  return optionsPage;
+}
+
+export async function openPopup(
+  extensionPage: (relativePath: string) => string,
+  page: Page
+): Promise<Page> {
+  const popupPage = await page.context().newPage();
+  await popupPage.goto(extensionPage(PAGES.POPUP));
+  await page.bringToFront();
+  await popupPage.reload();
+  await popupPage.waitForLoadState('domcontentloaded');
+  return popupPage;
+}
+
+async function openGroupIfNeeded(optionsPage: Page, groupName: string): Promise<void> {
+  const group = optionsPage.locator('details.group-item').filter({ hasText: groupName });
+  await expect(group).toHaveCount(1);
+  if (!(await group.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await group.locator('summary').click();
+  }
+}
+
+export async function createFilterViaOptions(
+  optionsPage: Page,
+  filter: {
+    groupName?: string;
+    name?: string;
+    pattern: string;
+    matchMode?: 'contains' | 'exact' | 'regex';
+    enabled?: boolean;
+  }
+): Promise<void> {
+  const groupName = filter.groupName ?? defaultGroup.name;
+  await openGroupIfNeeded(optionsPage, groupName);
+
+  const group = optionsPage.locator('details.group-item').filter({ hasText: groupName });
+  await group.getByRole('button', { name: 'New Filter' }).click();
+
+  const modal = optionsPage.locator('#filter-modal.active');
+  await expect(modal).toBeVisible();
+  await modal.getByLabel('Name').fill(filter.name ?? '');
+  await modal.getByLabel('URL Pattern').fill(filter.pattern);
+  await modal.getByLabel('Match Mode').selectOption(filter.matchMode ?? 'contains');
+
+  const enabled = filter.enabled ?? true;
+  const enabledInput = modal.getByLabel('Enabled');
+  if (enabled) {
+    await enabledInput.check();
+  } else {
+    await enabledInput.uncheck();
+  }
+
+  await modal.getByRole('button', { name: 'Save' }).click();
+  await expect(group.locator('.filter-item').filter({ hasText: filter.name ?? filter.pattern })).toHaveCount(
+    1
+  );
+}
+
+export async function toggleFilterViaOptions(
+  optionsPage: Page,
+  filterLabel: string,
+  enabled: boolean
+): Promise<void> {
+  const filterItem = optionsPage.locator('.filter-item').filter({ hasText: filterLabel });
+  const toggle = filterItem.locator('input[data-action="toggle-filter"]');
+  await expect(toggle).toHaveCount(1);
+
+  const isChecked = await toggle.isChecked();
+  if (isChecked !== enabled) {
+    await filterItem.locator('label.toggle').click();
+  }
+
+  if (enabled) {
+    await expect(toggle).toBeChecked();
+  } else {
+    await expect(toggle).not.toBeChecked();
+  }
+}
+
+export async function expectPopupShowsFilter(page: Page, filterLabel: string): Promise<void> {
+  await expect(page.locator('.filter-item').filter({ hasText: filterLabel })).toHaveCount(1);
+}
+
+export async function expectPopupHidesFilter(page: Page, filterLabel: string): Promise<void> {
+  const filterItems = page.locator('.filter-item').filter({ hasText: filterLabel });
+  const count = await filterItems.count();
+  if (count === 0) {
+    return;
+  }
+
+  await expect(filterItems).toHaveCount(1);
+  await expect(filterItems.locator('input[type="checkbox"]')).not.toBeChecked();
 }
 
 export async function captureScreenshot(
