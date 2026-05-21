@@ -708,7 +708,10 @@ async function renderFilters(): Promise<void> {
     const group = groupsById.get(filter.groupId);
     const groupName = group?.name ?? 'Unknown Group';
     const description = filter.description?.trim();
-    const displayName = description ?? filter.pattern;
+    let displayName = filter.pattern;
+    if (description) {
+      displayName = description;
+    }
     const toggleLabel = description
       ? `Toggle filter ${description}`
       : `Toggle filter for ${filter.pattern}`;
