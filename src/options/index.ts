@@ -750,7 +750,9 @@ function openGroupModal(groupId?: string): void {
   const is24x7Checkbox = getElementByIdOrNull<HTMLInputElement>('group-24x7');
   const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-group');
 
-  if (!modal || !title || !form || !schedulesContainer || !is24x7Checkbox) return;
+  if (!modal || !title || !form || !schedulesContainer || !is24x7Checkbox) {
+    return;
+  }
 
   form.reset();
   title.textContent = groupId ? 'Edit Group' : 'Add Group';
