@@ -182,11 +182,14 @@ export async function updateGroup(group: FilterGroup): Promise<void> {
 
   if (index !== -1) {
     const newGroups = [...data.groups];
-    const existingGroup = newGroups[index];
+    const existingGroup = data.groups[index];
+    if (!existingGroup) {
+      throw new Error(`Group ${group.id} was not found at index ${index}`);
+    }
     newGroups[index] = {
       ...existingGroup,
       ...group,
-      enabled: group.enabled ?? existingGroup?.enabled ?? true,
+      enabled: group.enabled ?? existingGroup.enabled ?? true,
     };
     await saveData({ ...data, groups: newGroups });
   }
