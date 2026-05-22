@@ -6,13 +6,7 @@ Keep this file short and repo-specific.
 
 Use this file as a routing layer for agents, not as a second copy of repository config.
 Prefer harness-style guidance: point to the live source of truth, keep instructions compact,
-and avoid examples that can drift from the real files. OpenAI's harness engineering writeup
-recommends treating repository knowledge as the system of record and `AGENTS.md` as a table of
-contents, not an encyclopedia: https://openai.com/index/harness-engineering/
-
-The goal is agent legibility. Future agents should be able to inspect the repository, understand
-the product boundaries, run the checks, and improve the durable harness when the current one is
-missing a rule, test, or source-of-truth document.
+and avoid examples that can drift from the real files.
 
 ## Source-of-truth files
 
@@ -44,8 +38,7 @@ Read the real files before making assumptions:
 4. Inspect nearby implementation and matching tests before changing behavior.
 5. Validate with the repo's existing npm scripts from `package.json`.
 6. If a command fails because local prerequisites are missing, install the documented prerequisite and rerun.
-7. If a repeated issue would be better caught by automation, add or update the relevant test, type,
-   lint rule, script, or documentation source of truth instead of adding more prose here.
+7. Prefer executable checks or source documentation over adding more prose here.
 
 ## Extension-specific reminders
 
@@ -56,18 +49,7 @@ Read the real files before making assumptions:
 - Keep popup, options, blocked-page, background, and shared modules within their existing ownership boundaries
   unless the change intentionally moves behavior into a shared layer.
 
-## Harness maintenance
-
-Use review feedback and recurring defects to improve the harness in durable places:
-
-1. Prefer executable checks: tests, TypeScript types, lint rules, scripts, and CI.
-2. Prefer source documentation for product, architecture, and workflow decisions.
-3. Use this file only for stable repo-wide routing and invariants.
-4. When documentation and code disagree, trust the code and tests first, then update the stale document.
-
 ## When updating this file
 
 Only add durable, repo-wide guidance here.
 If a detail already lives in a committed file, link to that file instead of copying its contents.
-Keep this file small enough that agents can read it at the start of every task without crowding out
-the task, code, tests, and source-of-truth files.
