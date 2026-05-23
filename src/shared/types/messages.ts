@@ -12,6 +12,7 @@ export const MessageType = {
   CHECK_URL: 'CHECK_URL',
   URL_BLOCKED: 'URL_BLOCKED',
   GO_BACK_ACTIVE_TAB: 'GO_BACK_ACTIVE_TAB',
+  CONTINUE_ACTIVE_TAB_WARNING: 'CONTINUE_ACTIVE_TAB_WARNING',
   CLOSE_INFO_PANEL: 'CLOSE_INFO_PANEL',
 } as const;
 
@@ -31,6 +32,10 @@ export interface GoBackActiveTabMessage {
   readonly type: typeof MessageType.GO_BACK_ACTIVE_TAB;
 }
 
+export interface ContinueActiveTabWarningMessage {
+  readonly type: typeof MessageType.CONTINUE_ACTIVE_TAB_WARNING;
+}
+
 // Response messages
 export interface GetDataResponse {
   readonly success: true;
@@ -43,6 +48,10 @@ export interface CheckUrlResponse {
 
 export interface GoBackActiveTabResponse {
   readonly restored: boolean;
+}
+
+export interface ContinueActiveTabWarningResponse {
+  readonly continued: boolean;
 }
 
 // Notification messages (broadcast)
@@ -66,6 +75,7 @@ export type ExtensionMessage =
   | GetDataMessage
   | CheckUrlMessage
   | GoBackActiveTabMessage
+  | ContinueActiveTabWarningMessage
   | DataUpdatedMessage
   | UrlBlockedMessage
   | CloseInfoPanelMessage;
@@ -77,7 +87,9 @@ export type MessageResponse<T extends ExtensionMessage> = T extends GetDataMessa
     ? CheckUrlResponse
     : T extends GoBackActiveTabMessage
       ? GoBackActiveTabResponse
-      : undefined;
+      : T extends ContinueActiveTabWarningMessage
+        ? ContinueActiveTabWarningResponse
+        : undefined;
 
 // Type guards for message validation
 export function isGetDataMessage(msg: unknown): msg is GetDataMessage {
@@ -103,6 +115,17 @@ export function isGoBackActiveTabMessage(msg: unknown): msg is GoBackActiveTabMe
     msg !== null &&
     'type' in msg &&
     msg.type === MessageType.GO_BACK_ACTIVE_TAB
+  );
+}
+
+export function isContinueActiveTabWarningMessage(
+  msg: unknown
+): msg is ContinueActiveTabWarningMessage {
+  return (
+    typeof msg === 'object' &&
+    msg !== null &&
+    'type' in msg &&
+    msg.type === MessageType.CONTINUE_ACTIVE_TAB_WARNING
   );
 }
 

@@ -133,6 +133,51 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
   await expect.poll(() => readStorage(page)).toBeUndefined();
 });
 
+test('updates global and per-filter block type controls', async ({
+  extensionPage,
+  page,
+}, testInfo) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+
+  const globalBlockType = page.getByLabel('Block Type').first();
+  await expect(globalBlockType).toHaveValue('block');
+  await globalBlockType.selectOption('warning');
+  await expect
+    .poll(async () => {
+      const data = await readStorage(page);
+      return data?.blockType;
+    })
+    .toBe('warning');
+
+  await createFilterViaOptions(page, {
+    name: 'Warning By Default',
+    pattern: 'warning-default.example.test',
+  });
+
+  const defaultGroupCard = page
+    .locator('details.group-item')
+    .filter({ hasText: '24/7 (Always Active)' });
+  await defaultGroupCard
+    .locator('.filter-item')
+    .filter({ hasText: 'Warning By Default' })
+    .getByRole('button', { name: 'Edit' })
+    .click();
+
+  const filterModal = page.locator('#filter-modal.active');
+  await expect(filterModal).toBeVisible();
+  await expect(filterModal.getByLabel('Block Type')).toHaveValue('default');
+  await filterModal.getByLabel('Block Type').selectOption('block');
+  await captureScreenshot(page, testInfo, 'options-block-type-controls.png');
+  await filterModal.getByRole('button', { name: 'Save' }).click();
+
+  await expect
+    .poll(async () => {
+      const data = await readStorage(page);
+      return data?.filters.find((filter) => filter.description === 'Warning By Default')?.blockType;
+    })
+    .toBe('block');
+});
+
 test('exports current settings from global settings', async ({ extensionPage, page }) => {
   await page.goto(extensionPage(PAGES.OPTIONS));
   const expectedData = createStorageData({

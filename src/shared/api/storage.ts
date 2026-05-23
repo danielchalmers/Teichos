@@ -7,10 +7,12 @@ import type {
   StorageData,
   FilterGroup,
   Filter,
+  FilterBlockType,
   FilterMatchMode,
   TimeSchedule,
   Whitelist,
   SnoozeState,
+  BlockType,
 } from '../types';
 import { STORAGE_KEY, DEFAULT_GROUP_ID } from '../types';
 import { getRegexValidationError } from '../utils';
@@ -36,6 +38,7 @@ function createDefaultData(): StorageData {
     groups: [createDefaultGroup()],
     filters: [],
     whitelist: [],
+    blockType: 'block',
     snooze: { active: false },
     rulesVersion: 0,
   };
@@ -43,6 +46,7 @@ function createDefaultData(): StorageData {
 
 type LegacyFilter = Omit<Filter, 'matchMode'> & {
   readonly matchMode?: FilterMatchMode;
+  readonly blockType?: FilterBlockType;
   readonly isRegex?: boolean;
 };
 
@@ -56,6 +60,7 @@ interface LegacyStorageData {
   readonly groups?: readonly FilterGroup[];
   readonly filters?: readonly LegacyFilter[];
   readonly whitelist?: readonly LegacyWhitelist[];
+  readonly blockType?: BlockType;
   readonly rulesVersion?: number;
   readonly snooze?: {
     readonly active?: boolean;
@@ -71,6 +76,14 @@ function isObject(value: unknown): value is JsonObject {
 
 function isValidMatchMode(value: unknown): value is FilterMatchMode {
   return value === 'contains' || value === 'exact' || value === 'regex';
+}
+
+function isValidBlockType(value: unknown): value is BlockType {
+  return value === 'block' || value === 'warning';
+}
+
+function isValidFilterBlockType(value: unknown): value is FilterBlockType {
+  return value === 'default' || isValidBlockType(value);
 }
 
 function isOptionalString(value: unknown): value is string | undefined {
@@ -127,6 +140,7 @@ function isValidFilterLike(value: unknown): value is LegacyFilter {
     typeof value['groupId'] === 'string' &&
     typeof value['enabled'] === 'boolean' &&
     (value['matchMode'] === undefined || isValidMatchMode(value['matchMode'])) &&
+    (value['blockType'] === undefined || isValidFilterBlockType(value['blockType'])) &&
     isOptionalBoolean(value['isRegex']) &&
     isOptionalString(value['description']) &&
     isOptionalFiniteNumber(value['expiresAt'])
@@ -259,6 +273,10 @@ function validateImportedStorageShape(raw: JsonObject): void {
     throw new Error('Settings file contains an invalid snooze state.');
   }
 
+  if (raw['blockType'] !== undefined && !isValidBlockType(raw['blockType'])) {
+    throw new Error('Settings file contains an invalid global block type.');
+  }
+
   if (!isOptionalFiniteNumber(raw['rulesVersion'])) {
     throw new Error('Settings file contains an invalid rules version.');
   }
@@ -274,10 +292,15 @@ function resolveMatchMode(
   return isRegex ? 'regex' : 'contains';
 }
 
+function resolveFilterBlockType(blockType: FilterBlockType | undefined): FilterBlockType {
+  return isValidFilterBlockType(blockType) ? blockType : 'default';
+}
+
 function normalizeFilters(filters: readonly LegacyFilter[] | undefined): Filter[] {
-  return (filters ?? []).map(({ isRegex, matchMode, ...filter }) => ({
+  return (filters ?? []).map(({ isRegex, matchMode, blockType, ...filter }) => ({
     ...filter,
     matchMode: resolveMatchMode(matchMode, isRegex),
+    blockType: resolveFilterBlockType(blockType),
   }));
 }
 
@@ -314,6 +337,7 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
   const groupIds = new Set(groups.map((group) => group.id));
   const filters = normalizeFilters(data.filters);
   const whitelist = normalizeWhitelist(data.whitelist, groupIds);
+  const blockType = isValidBlockType(data.blockType) ? data.blockType : 'block';
   const snooze = normalizeSnooze(data.snooze);
   const rulesVersion =
     typeof data.rulesVersion === 'number' && Number.isFinite(data.rulesVersion)
@@ -325,6 +349,7 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
     groups,
     filters,
     whitelist,
+    blockType,
     snooze,
     rulesVersion,
   };

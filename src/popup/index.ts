@@ -570,6 +570,7 @@ async function handleQuickAddSubmit(
     groupId: DEFAULT_GROUP_ID,
     enabled: true,
     matchMode: 'contains' as const,
+    blockType: 'default' as const,
     expiresAt,
   };
   try {

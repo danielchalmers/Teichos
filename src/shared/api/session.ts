@@ -2,11 +2,12 @@
  * Typed wrapper for chrome.storage.session API
  */
 
-import type { BlockedTabState, SnoozeState } from '../types';
+import type { BlockedTabState, SnoozeState, WarningBypassState } from '../types';
 
 const LAST_ALLOWED_URL_KEY_PREFIX = 'last_allowed_url_' as const;
 const SNOOZE_OVERRIDE_KEY = 'snooze_override' as const;
 const BLOCKED_TAB_STATE_KEY_PREFIX = 'blocked_tab_state_' as const;
+const WARNING_BYPASS_KEY_PREFIX = 'warning_bypass_' as const;
 
 function lastAllowedUrlKey(tabId: number): string {
   return `${LAST_ALLOWED_URL_KEY_PREFIX}${tabId}`;
@@ -14,6 +15,10 @@ function lastAllowedUrlKey(tabId: number): string {
 
 function blockedTabStateKey(tabId: number): string {
   return `${BLOCKED_TAB_STATE_KEY_PREFIX}${tabId}`;
+}
+
+function warningBypassKey(tabId: number): string {
+  return `${WARNING_BYPASS_KEY_PREFIX}${tabId}`;
 }
 
 /**
@@ -54,6 +59,7 @@ function normalizeBlockedTabState(value: unknown): BlockedTabState | undefined {
   return {
     tabId: candidate.tabId,
     targetUrl: candidate.targetUrl,
+    blockType: candidate.blockType === 'warning' ? 'warning' : 'block',
     blockedAt: candidate.blockedAt,
     rulesVersion: candidate.rulesVersion,
     blockedBy: {
@@ -75,6 +81,52 @@ export async function getBlockedTabState(tabId: number): Promise<BlockedTabState
 
 export async function clearBlockedTabState(tabId: number): Promise<void> {
   await chrome.storage.session.remove(blockedTabStateKey(tabId));
+}
+
+function normalizeWarningBypasses(value: unknown): WarningBypassState[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (
+      !entry ||
+      typeof entry !== 'object' ||
+      typeof (entry as WarningBypassState).filterId !== 'string' ||
+      typeof (entry as WarningBypassState).scopeKey !== 'string'
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        filterId: (entry as WarningBypassState).filterId,
+        scopeKey: (entry as WarningBypassState).scopeKey,
+      },
+    ];
+  });
+}
+
+export async function getWarningBypasses(tabId: number): Promise<WarningBypassState[]> {
+  const key = warningBypassKey(tabId);
+  const result = await chrome.storage.session.get(key);
+  return normalizeWarningBypasses(result[key]);
+}
+
+export async function addWarningBypass(
+  tabId: number,
+  warningBypass: WarningBypassState
+): Promise<void> {
+  const key = warningBypassKey(tabId);
+  const existing = await getWarningBypasses(tabId);
+  const next = [
+    ...existing.filter(
+      (entry) =>
+        entry.filterId !== warningBypass.filterId || entry.scopeKey !== warningBypass.scopeKey
+    ),
+    warningBypass,
+  ];
+  await chrome.storage.session.set({ [key]: next });
 }
 
 function normalizeSessionSnooze(value: unknown): SnoozeState | undefined {

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   getUrlDecision: vi.fn(),
   goBackFromActiveTab: vi.fn(),
+  continueWarningFromActiveTab: vi.fn(),
   loadData: vi.fn(),
 }));
 
@@ -10,9 +11,11 @@ vi.mock('../../../src/background/tabController', () => ({
   getTabController: (): {
     getUrlDecision: typeof mocks.getUrlDecision;
     goBackFromActiveTab: typeof mocks.goBackFromActiveTab;
+    continueWarningFromActiveTab: typeof mocks.continueWarningFromActiveTab;
   } => ({
     getUrlDecision: mocks.getUrlDecision,
     goBackFromActiveTab: mocks.goBackFromActiveTab,
+    continueWarningFromActiveTab: mocks.continueWarningFromActiveTab,
   }),
 }));
 
@@ -28,6 +31,7 @@ const defaultData = {
   groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
   filters: [],
   whitelist: [],
+  blockType: 'block',
   snooze: { active: false },
   rulesVersion: 1,
 };
@@ -37,6 +41,7 @@ describe('handleMessage', () => {
     mocks.loadData.mockResolvedValue(defaultData);
     mocks.getUrlDecision.mockResolvedValue({ action: 'allow', reason: 'no-match' });
     mocks.goBackFromActiveTab.mockResolvedValue(false);
+    mocks.continueWarningFromActiveTab.mockResolvedValue(false);
   });
 
   it('rejects messages from other extensions', () => {
@@ -96,6 +101,23 @@ describe('handleMessage', () => {
 
     await vi.waitFor(() => {
       expect(sendResponse).toHaveBeenCalledWith({ restored: true });
+    });
+  });
+
+  it('responds to warning-continue requests', async () => {
+    mocks.continueWarningFromActiveTab.mockResolvedValue(true);
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.CONTINUE_ACTIVE_TAB_WARNING },
+        { id: 'test-extension-id' },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ continued: true });
     });
   });
 

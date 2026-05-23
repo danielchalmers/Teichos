@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { StorageData } from '../../../src/shared/types';
 import { DEFAULT_GROUP_ID } from '../../../src/shared/types';
-import { createFilteringEngine, evaluateFilterDecision } from '../../../src/shared/utils';
+import {
+  createFilteringEngine,
+  evaluateFilterDecision,
+  getWarningBypassScopeKey,
+} from '../../../src/shared/utils';
 
 function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
   return {
@@ -11,6 +15,7 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     ],
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
+    blockType: overrides.blockType ?? 'block',
     snooze: overrides.snooze ?? { active: false },
     rulesVersion: overrides.rulesVersion ?? 0,
   };
@@ -108,8 +113,75 @@ describe('filteringEngine', () => {
       action: 'block',
       filterId: 'filter-1',
       groupId: DEFAULT_GROUP_ID,
+      blockType: 'block',
       reason: 'matched-filter',
     });
+  });
+
+  it('uses the global warning block type by default', () => {
+    const decision = evaluateFilterDecision(
+      'https://warning.com',
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+      }),
+      { context: activeContext }
+    );
+
+    expect(decision).toEqual({
+      action: 'block',
+      filterId: 'warning-filter',
+      groupId: DEFAULT_GROUP_ID,
+      blockType: 'warning',
+      reason: 'matched-filter',
+    });
+  });
+
+  it('respects per-filter block type overrides', () => {
+    const warningDecision = evaluateFilterDecision(
+      'https://warning-override.com',
+      createStorageData({
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning-override.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'warning',
+          },
+        ],
+      }),
+      { context: activeContext }
+    );
+    const hardBlockDecision = evaluateFilterDecision(
+      'https://hard-override.com',
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'block-filter',
+            pattern: 'hard-override.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'block',
+          },
+        ],
+      }),
+      { context: activeContext }
+    );
+
+    expect(warningDecision).toMatchObject({ action: 'block', blockType: 'warning' });
+    expect(hardBlockDecision).toMatchObject({ action: 'block', blockType: 'block' });
   });
 
   it('allows matching urls when the group schedule is inactive', () => {
@@ -193,6 +265,111 @@ describe('filteringEngine', () => {
       action: 'block',
       filterId: 'active-filter',
       groupId: DEFAULT_GROUP_ID,
+      blockType: 'block',
+      reason: 'matched-filter',
+    });
+  });
+
+  it('prefers a hard block over an earlier warning match', () => {
+    const decision = evaluateFilterDecision(
+      'https://mixed.example.com',
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'mixed.example.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+          {
+            id: 'block-filter',
+            pattern: 'mixed.example.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'block',
+          },
+        ],
+      }),
+      { context: activeContext }
+    );
+
+    expect(decision).toEqual({
+      action: 'block',
+      filterId: 'block-filter',
+      groupId: DEFAULT_GROUP_ID,
+      blockType: 'block',
+      reason: 'matched-filter',
+    });
+  });
+
+  it('allows warning matches that were bypassed for the same filter and origin', () => {
+    const bypassedUrl = 'https://warning.example.com/path';
+    const bypassedDecision = evaluateFilterDecision(
+      bypassedUrl,
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.example.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+      }),
+      {
+        context: activeContext,
+        warningBypasses: [
+          {
+            filterId: 'warning-filter',
+            scopeKey: getWarningBypassScopeKey(bypassedUrl),
+          },
+        ],
+      }
+    );
+    const unbypassedDecision = evaluateFilterDecision(
+      'https://warning.example.com/path',
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.example.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+          {
+            id: 'other-warning-filter',
+            pattern: 'warning.example.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'warning',
+          },
+        ],
+      }),
+      {
+        context: activeContext,
+        warningBypasses: [
+          {
+            filterId: 'warning-filter',
+            scopeKey: getWarningBypassScopeKey('https://warning.example.com/path'),
+          },
+        ],
+      }
+    );
+
+    expect(bypassedDecision).toEqual({ action: 'allow', reason: 'warning-bypassed' });
+    expect(unbypassedDecision).toEqual({
+      action: 'block',
+      filterId: 'other-warning-filter',
+      groupId: DEFAULT_GROUP_ID,
+      blockType: 'warning',
       reason: 'matched-filter',
     });
   });

@@ -29,6 +29,7 @@ function createSampleData(): StorageData {
         groupId: DEFAULT_GROUP_ID,
         enabled: true,
         matchMode: 'contains',
+        blockType: 'default',
         description: 'News',
       },
       {
@@ -37,6 +38,7 @@ function createSampleData(): StorageData {
         groupId: 'work-hours',
         enabled: true,
         matchMode: 'regex',
+        blockType: 'default',
       },
     ],
     whitelist: [
@@ -48,6 +50,7 @@ function createSampleData(): StorageData {
         matchMode: 'exact',
       },
     ],
+    blockType: 'block',
     snooze: { active: true, until: 1_234_567_890 },
     rulesVersion: 4,
   };
@@ -112,6 +115,7 @@ describe('storage import/export', () => {
           matchMode: 'contains',
         },
       ],
+      blockType: 'block',
       snooze: { active: false },
       rulesVersion: 0,
     });

@@ -11,6 +11,7 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     groups: overrides.groups ?? [createDefaultGroup()],
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
+    blockType: overrides.blockType ?? 'block',
     snooze: overrides.snooze ?? { active: false },
     rulesVersion: overrides.rulesVersion ?? 0,
   };
@@ -51,6 +52,7 @@ describe('RulesProvider', () => {
       action: 'block',
       filterId: 'filter-1',
       groupId: DEFAULT_GROUP_ID,
+      blockType: 'block',
       reason: 'matched-filter',
     });
   });
@@ -127,6 +129,7 @@ describe('RulesProvider', () => {
       action: 'block',
       filterId: 'filter-2',
       groupId: DEFAULT_GROUP_ID,
+      blockType: 'block',
       reason: 'matched-filter',
     });
   });
@@ -143,6 +146,7 @@ describe('RulesProvider', () => {
       groups: [createDefaultGroup()],
       filters: [],
       whitelist: [],
+      blockType: 'block',
       snooze: { active: false },
       rulesVersion: 0,
     });

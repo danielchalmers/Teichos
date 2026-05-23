@@ -9,10 +9,13 @@
   <body>
     <div class="container" role="main">
       <div class="icon" aria-hidden="true">🛡️</div>
-      <h1>Page Blocked</h1>
-      <p>This page has been blocked by Teichos based on your filter settings.</p>
+      <h1 id="blocked-heading">Page Blocked</h1>
+      <p id="blocked-message">
+        This page has been blocked by Teichos based on your filter settings.
+      </p>
       <div class="url" id="blocked-url" role="status" aria-label="Blocked URL"></div>
       <div class="actions">
+        <button class="button" id="continue" type="button" hidden>Continue</button>
         <button class="button" id="go-back" type="button">Go Back</button>
         <button class="button secondary" id="open-options" type="button">Manage Filters</button>
       </div>

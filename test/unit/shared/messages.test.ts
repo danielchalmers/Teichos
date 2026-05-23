@@ -4,6 +4,7 @@ import {
   MessageType,
   isCheckUrlMessage,
   isCloseInfoPanelMessage,
+  isContinueActiveTabWarningMessage,
   isDataUpdatedMessage,
   isGetDataMessage,
   isGoBackActiveTabMessage,
@@ -19,6 +20,9 @@ describe('shared/types/messages', () => {
     );
     expect(isCheckUrlMessage({ type: MessageType.CHECK_URL, url: 42 })).toBe(false);
     expect(isGoBackActiveTabMessage({ type: MessageType.GO_BACK_ACTIVE_TAB })).toBe(true);
+    expect(
+      isContinueActiveTabWarningMessage({ type: MessageType.CONTINUE_ACTIVE_TAB_WARNING })
+    ).toBe(true);
   });
 
   it('recognizes broadcast messages', () => {

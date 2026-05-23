@@ -4,7 +4,12 @@
  */
 
 import { loadData } from '../../shared/api/storage';
-import { isCheckUrlMessage, isGetDataMessage, isGoBackActiveTabMessage } from '../../shared/types';
+import {
+  isCheckUrlMessage,
+  isContinueActiveTabWarningMessage,
+  isGetDataMessage,
+  isGoBackActiveTabMessage,
+} from '../../shared/types';
 import { getTabController } from '../tabController';
 
 /**
@@ -36,6 +41,11 @@ export function handleMessage(
     return true;
   }
 
+  if (isContinueActiveTabWarningMessage(message)) {
+    void handleContinueActiveTabWarning(sendResponse);
+    return true;
+  }
+
   return false;
 }
 
@@ -54,4 +64,10 @@ async function handleCheckUrl(
 
 async function handleGoBackActiveTab(sendResponse: (response: unknown) => void): Promise<void> {
   sendResponse({ restored: await getTabController().goBackFromActiveTab() });
+}
+
+async function handleContinueActiveTabWarning(
+  sendResponse: (response: unknown) => void
+): Promise<void> {
+  sendResponse({ continued: await getTabController().continueWarningFromActiveTab() });
 }

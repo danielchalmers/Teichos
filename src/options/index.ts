@@ -20,6 +20,7 @@ import {
 } from '../shared/api';
 import type {
   Filter,
+  FilterBlockType,
   FilterGroup,
   FilterMatchMode,
   StorageData,
@@ -85,6 +86,12 @@ function setupEventListeners(): void {
   getElementByIdOrNull('export-settings-btn')?.addEventListener('click', () => {
     void handleExportSettings();
   });
+  getElementByIdOrNull<HTMLSelectElement>('global-block-type')?.addEventListener(
+    'change',
+    (event) => {
+      void handleGlobalBlockTypeChange(event);
+    }
+  );
   getElementByIdOrNull('import-settings-btn')?.addEventListener('click', () => {
     getElementByIdOrNull<HTMLInputElement>('import-settings-input')?.click();
   });
@@ -427,6 +434,7 @@ async function purgeExpiredTemporaryFilters(data: StorageData): Promise<StorageD
 async function renderGroups(): Promise<void> {
   let data = await loadData();
   data = await purgeExpiredTemporaryFilters(data);
+  renderGlobalSettings(data);
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
 
@@ -568,6 +576,37 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
     return value;
   }
   return 'contains';
+}
+
+function getFilterBlockTypeSelectValue(selectId: string): FilterBlockType {
+  const value = getElementByIdOrNull<HTMLSelectElement>(selectId)?.value;
+  if (value === 'default' || value === 'block' || value === 'warning') {
+    return value;
+  }
+  return 'default';
+}
+
+function renderGlobalSettings(data: StorageData): void {
+  const blockTypeSelect = getElementByIdOrNull<HTMLSelectElement>('global-block-type');
+  if (blockTypeSelect) {
+    blockTypeSelect.value = data.blockType;
+  }
+}
+
+async function handleGlobalBlockTypeChange(event: Event): Promise<void> {
+  const select = event.target as HTMLSelectElement | null;
+  if (!select || (select.value !== 'block' && select.value !== 'warning')) {
+    return;
+  }
+
+  try {
+    const data = await loadData();
+    await saveData({ ...data, blockType: select.value });
+    setGlobalSettingsStatus('Global block type updated.');
+  } catch (error) {
+    console.error('Failed to update global block type:', error);
+    setGlobalSettingsStatus('Failed to update global block type.', true);
+  }
 }
 
 function ensureValidRegex(pattern: string, matchMode: FilterMatchMode): boolean {
@@ -725,11 +764,13 @@ function openFilterModal(filterId?: string, groupId?: string): void {
         const descInput = getElementByIdOrNull<HTMLInputElement>('filter-description');
         const enabledInput = getElementByIdOrNull<HTMLInputElement>('filter-enabled');
         const matchModeSelect = getElementByIdOrNull<HTMLSelectElement>('filter-match-mode');
+        const blockTypeSelect = getElementByIdOrNull<HTMLSelectElement>('filter-block-type');
 
         if (patternInput) patternInput.value = filter.pattern;
         if (descInput) descInput.value = filter.description ?? '';
         if (enabledInput) enabledInput.checked = filter.enabled;
         if (matchModeSelect) matchModeSelect.value = filter.matchMode ?? 'contains';
+        if (blockTypeSelect) blockTypeSelect.value = filter.blockType ?? 'default';
       }
     })
     .catch((error: unknown) => {
@@ -758,6 +799,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
   const groupId = currentFilterGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('filter-enabled')?.checked ?? true;
   const matchMode = getMatchModeSelectValue('filter-match-mode');
+  const blockType = getFilterBlockTypeSelectValue('filter-block-type');
 
   if (!ensureValidRegex(pattern, matchMode)) {
     return;
@@ -776,6 +818,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     groupId,
     enabled,
     matchMode,
+    blockType,
   };
   const filter: Filter = typeof expiresAt === 'number' ? { ...baseFilter, expiresAt } : baseFilter;
 

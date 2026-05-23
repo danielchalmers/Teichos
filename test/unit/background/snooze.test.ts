@@ -22,6 +22,7 @@ describe('registerSnoozeHandlers', () => {
       groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
       filters: [],
       whitelist: [],
+      blockType: 'block',
       snooze: activeTimedSnooze,
       rulesVersion: 1,
     });
@@ -49,6 +50,7 @@ describe('registerSnoozeHandlers', () => {
       groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
       filters: [],
       whitelist: [],
+      blockType: 'block',
       snooze: expired,
     });
 
@@ -60,6 +62,7 @@ describe('registerSnoozeHandlers', () => {
         groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
         filters: [],
         whitelist: [],
+        blockType: 'block',
         snooze: { active: false },
         rulesVersion: 1,
       });
@@ -80,6 +83,7 @@ describe('registerSnoozeHandlers', () => {
       groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
       filters: [],
       whitelist: [],
+      blockType: 'block',
       snooze: activeTimedSnooze,
       rulesVersion: 2,
     });
@@ -102,6 +106,7 @@ describe('registerSnoozeHandlers', () => {
       groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
       filters: [],
       whitelist: [],
+      blockType: 'block',
       snooze: { active: true, until: Date.now() - 1 },
       rulesVersion: 1,
     });
@@ -115,6 +120,7 @@ describe('registerSnoozeHandlers', () => {
       groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
       filters: [],
       whitelist: [],
+      blockType: 'block',
       snooze: { active: true, until: Date.now() - 1 },
       rulesVersion: 1,
     });
@@ -124,6 +130,7 @@ describe('registerSnoozeHandlers', () => {
       groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
       filters: [],
       whitelist: [],
+      blockType: 'block',
       snooze: { active: true, until: Date.now() - 1 },
       rulesVersion: 1,
     });
@@ -135,6 +142,7 @@ describe('registerSnoozeHandlers', () => {
         groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
         filters: [],
         whitelist: [],
+        blockType: 'block',
         snooze: { active: false },
         rulesVersion: 2,
       });

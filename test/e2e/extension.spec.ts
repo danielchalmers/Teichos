@@ -4,6 +4,7 @@ import {
   captureScreenshot,
   createStorageData,
   defaultGroup,
+  mockAllowedPage,
   readStorage,
   seedStorage,
 } from './helpers';
@@ -98,6 +99,74 @@ test('redirects matching top-level navigations to the blocked page', async ({
   await expect.poll(() => page.url()).toContain(`/${PAGES.BLOCKED}?url=`);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+});
+
+test('shows warning interstitials with continue and scopes bypasses to the same tab and origin', async ({
+  context,
+  extensionPage,
+  page,
+}, testInfo) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      blockType: 'warning',
+      filters: [
+        {
+          id: 'warning-filter',
+          pattern: 'warning.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'E2E Warning',
+        },
+        {
+          id: 'hard-filter',
+          pattern: 'warning.example.test/hard',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          blockType: 'block',
+          description: 'E2E Hard Block',
+        },
+      ],
+    })
+  );
+
+  const firstTargetUrl = 'https://warning.example.test/focus';
+  const sameOriginTargetUrl = 'https://warning.example.test/next';
+  const hardBlockUrl = 'https://warning.example.test/hard';
+  const newTabWarningUrl = 'https://warning.example.test/fresh';
+
+  await mockAllowedPage(page, firstTargetUrl, 'Warning Continue Page');
+  await mockAllowedPage(page, sameOriginTargetUrl, 'Warning Same Origin Page');
+  await mockAllowedPage(page, hardBlockUrl, 'Warning Hard Block Page');
+
+  await page.goto(firstTargetUrl).catch(() => undefined);
+  await expect.poll(() => page.url()).toContain(`/${PAGES.BLOCKED}?url=`);
+  await expect(page.getByRole('heading', { name: 'Warning' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
+  await captureScreenshot(page, testInfo, 'warning-interstitial.png');
+
+  await Promise.all([
+    page.waitForURL(firstTargetUrl),
+    page.getByRole('button', { name: 'Continue' }).click(),
+  ]);
+  await expect(page.getByText('Warning Continue Page')).toBeVisible();
+
+  await page.goto(sameOriginTargetUrl).catch(() => undefined);
+  await expect(page.getByText('Warning Same Origin Page')).toBeVisible();
+
+  const secondPage = await context.newPage();
+  await mockAllowedPage(secondPage, newTabWarningUrl, 'Second Tab Warning Page');
+  await secondPage.goto(newTabWarningUrl).catch(() => undefined);
+  await expect.poll(() => secondPage.url()).toContain(`/${PAGES.BLOCKED}?url=`);
+  await expect(secondPage.getByRole('heading', { name: 'Warning' })).toBeVisible();
+  await secondPage.close();
+
+  await page.goto(hardBlockUrl).catch(() => undefined);
+  await expect.poll(() => page.url()).toContain(`/${PAGES.BLOCKED}?url=`);
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
 });
 
 for (const navigationMethod of ['push-state', 'replace-state'] as const) {

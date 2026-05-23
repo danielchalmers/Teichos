@@ -16,6 +16,7 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     ],
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
+    blockType: overrides.blockType ?? 'block',
     snooze: overrides.snooze ?? { active: false },
     rulesVersion: overrides.rulesVersion ?? 1,
   };
@@ -51,13 +52,14 @@ describe('TabController', () => {
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(
       4,
       {
-        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}`,
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}&mode=block`,
       },
       expect.any(Function)
     );
     await expect(getBlockedTabState(4)).resolves.toEqual({
       tabId: 4,
       targetUrl: 'https://blocked.com/focus',
+      blockType: 'block',
       blockedAt: expect.any(Number),
       rulesVersion: 7,
       blockedBy: {
@@ -99,13 +101,14 @@ describe('TabController', () => {
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(
       6,
       {
-        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}`,
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}&mode=block`,
       },
       expect.any(Function)
     );
     await expect(getBlockedTabState(6)).resolves.toEqual({
       tabId: 6,
       targetUrl: 'https://blocked.com/focus',
+      blockType: 'block',
       blockedAt: expect.any(Number),
       rulesVersion: 8,
       blockedBy: {
@@ -128,6 +131,7 @@ describe('TabController', () => {
     await setBlockedTabState({
       tabId: 5,
       targetUrl: 'https://blocked.com/focus',
+      blockType: 'block',
       blockedAt: Date.now(),
       rulesVersion: 3,
       blockedBy: {
@@ -186,7 +190,7 @@ describe('TabController', () => {
       expect(chromeMock.tabs.update).toHaveBeenCalledWith(
         8,
         {
-          url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}`,
+          url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}&mode=block`,
         },
         expect.any(Function)
       );
@@ -225,7 +229,7 @@ describe('TabController', () => {
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(
       12,
       {
-        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com')}`,
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com')}&mode=block`,
       },
       expect.any(Function)
     );
@@ -263,7 +267,121 @@ describe('TabController', () => {
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(
       13,
       {
-        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com')}`,
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com')}&mode=block`,
+      },
+      expect.any(Function)
+    );
+  });
+
+  it('redirects warning matches to the interstitial and records warning state', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 9,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(10, 'https://warning.com/focus');
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      10,
+      {
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://warning.com/focus')}&mode=warning`,
+      },
+      expect.any(Function)
+    );
+    await expect(getBlockedTabState(10)).resolves.toEqual({
+      tabId: 10,
+      targetUrl: 'https://warning.com/focus',
+      blockType: 'warning',
+      blockedAt: expect.any(Number),
+      rulesVersion: 9,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+  });
+
+  it('continues past a warning in the active tab and scopes the bypass to the warning filter origin', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+          {
+            id: 'hard-filter',
+            pattern: 'warning.com/hard',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'block',
+          },
+        ],
+        rulesVersion: 10,
+      })
+    );
+    chromeMock.tabs.query.mockImplementation(
+      (_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        callback?.([
+          {
+            id: 11,
+            active: true,
+            url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://warning.com/focus')}&mode=warning`,
+          } as chrome.tabs.Tab,
+        ]);
+      }
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await setBlockedTabState({
+      tabId: 11,
+      targetUrl: 'https://warning.com/focus',
+      blockType: 'warning',
+      blockedAt: Date.now(),
+      rulesVersion: 10,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+
+    await expect(getTabController().continueWarningFromActiveTab()).resolves.toBe(true);
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      11,
+      { url: 'https://warning.com/focus' },
+      expect.any(Function)
+    );
+
+    chromeMock.tabs.update.mockClear();
+    await getTabController().evaluateNavigation(11, 'https://warning.com/another-path');
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+
+    await getTabController().evaluateNavigation(11, 'https://warning.com/hard');
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      11,
+      {
+        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://warning.com/hard')}&mode=block`,
       },
       expect.any(Function)
     );

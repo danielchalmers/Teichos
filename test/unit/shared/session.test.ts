@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  addWarningBypass,
   clearBlockedTabState,
   getBlockedTabState,
   getLastAllowedUrl,
   getSessionSnooze,
+  getWarningBypasses,
   setBlockedTabState,
   setLastAllowedUrl,
   setSessionSnooze,
@@ -27,6 +29,7 @@ describe('shared/api/session', () => {
     await setBlockedTabState({
       tabId: 7,
       targetUrl: 'https://blocked.com/focus',
+      blockType: 'block',
       blockedAt: 1234,
       rulesVersion: 5,
       blockedBy: {
@@ -38,6 +41,7 @@ describe('shared/api/session', () => {
     await expect(getBlockedTabState(7)).resolves.toEqual({
       tabId: 7,
       targetUrl: 'https://blocked.com/focus',
+      blockType: 'block',
       blockedAt: 1234,
       rulesVersion: 5,
       blockedBy: {
@@ -48,6 +52,18 @@ describe('shared/api/session', () => {
 
     await clearBlockedTabState(7);
     await expect(getBlockedTabState(7)).resolves.toBeUndefined();
+  });
+
+  it('stores warning bypasses by tab id and deduplicates repeated entries', async () => {
+    await addWarningBypass(4, { filterId: 'filter-1', scopeKey: 'https://example.com' });
+    await addWarningBypass(4, { filterId: 'filter-1', scopeKey: 'https://example.com' });
+    await addWarningBypass(4, { filterId: 'filter-2', scopeKey: 'https://other.example.com' });
+
+    await expect(getWarningBypasses(4)).resolves.toEqual([
+      { filterId: 'filter-1', scopeKey: 'https://example.com' },
+      { filterId: 'filter-2', scopeKey: 'https://other.example.com' },
+    ]);
+    await expect(getWarningBypasses(5)).resolves.toEqual([]);
   });
 
   it('normalizes active session snooze values', async () => {

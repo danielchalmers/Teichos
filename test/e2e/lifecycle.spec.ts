@@ -14,6 +14,7 @@ import {
   expectPopupHidesFilter,
   expectPopupShowsInactiveFilter,
   expectPopupShowsFilter,
+  getBlockedPagePathFor,
   openOptions,
   openPopup,
   readBlockedTabStateForTarget,
@@ -486,8 +487,12 @@ test('editing a schedule through options changes navigation from off-schedule al
   await groupModal.getByRole('button', { name: 'Save' }).click();
 
   await expect
-    .poll(() => new URL(browsingPage.url()).pathname + new URL(browsingPage.url()).search)
-    .toBe(`/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}`);
+    .poll(() => {
+      const currentUrl = new URL(browsingPage.url());
+      const blockedUrl = currentUrl.searchParams.get('url');
+      return blockedUrl ? `${currentUrl.pathname}?url=${encodeURIComponent(blockedUrl)}` : '';
+    })
+    .toBe(getBlockedPagePathFor(targetUrl));
   await expect(browsingPage.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await captureScreenshot(browsingPage, testInfo, 'schedule-lifecycle-blocked.png');
 });

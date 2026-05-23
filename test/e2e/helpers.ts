@@ -24,6 +24,7 @@ export function createStorageData(overrides: Partial<StorageData> = {}): Storage
     groups: overrides.groups ?? [defaultGroup],
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
+    blockType: overrides.blockType ?? 'block',
     snooze: overrides.snooze ?? { active: false },
     rulesVersion: overrides.rulesVersion ?? 0,
   };
@@ -56,7 +57,11 @@ export async function expectBlocked(
 ): Promise<void> {
   await page.goto(targetUrl).catch(() => undefined);
   await expect
-    .poll(() => new URL(page.url()).pathname + new URL(page.url()).search)
+    .poll(() => {
+      const currentUrl = new URL(page.url());
+      const blockedUrl = currentUrl.searchParams.get('url');
+      return blockedUrl ? `${currentUrl.pathname}?url=${encodeURIComponent(blockedUrl)}` : '';
+    })
     .toBe(expectedBlockedUrl);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
@@ -104,6 +109,7 @@ export async function createFilterViaOptions(
     name?: string;
     pattern: string;
     matchMode?: 'contains' | 'exact' | 'regex';
+    blockType?: 'default' | 'block' | 'warning';
     enabled?: boolean;
   }
 ): Promise<void> {
@@ -118,6 +124,7 @@ export async function createFilterViaOptions(
   await modal.getByLabel('Name').fill(filter.name ?? '');
   await modal.getByLabel('URL Pattern').fill(filter.pattern);
   await modal.getByLabel('Match Mode').selectOption(filter.matchMode ?? 'contains');
+  await modal.getByLabel('Block Type').selectOption(filter.blockType ?? 'default');
 
   const enabled = filter.enabled ?? true;
   const enabledInput = modal.getByLabel('Enabled');
@@ -279,9 +286,23 @@ export async function readBlockedTabStateForTarget(
 ): Promise<BlockedTabState | undefined> {
   return page.evaluate(
     async ({ blockedPagePath, url }) => {
-      const blockedUrl = `${chrome.runtime.getURL(blockedPagePath)}?url=${encodeURIComponent(url)}`;
+      const blockedPageUrl = chrome.runtime.getURL(blockedPagePath);
       const tabs = await chrome.tabs.query({});
-      const tab = tabs.find((candidate) => candidate.url === url || candidate.url === blockedUrl);
+      const tab = tabs.find((candidate) => {
+        if (candidate.url === url) {
+          return true;
+        }
+
+        if (!candidate.url?.startsWith(blockedPageUrl)) {
+          return false;
+        }
+
+        try {
+          return new URL(candidate.url).searchParams.get('url') === url;
+        } catch {
+          return false;
+        }
+      });
       if (typeof tab?.id !== 'number') {
         return undefined;
       }

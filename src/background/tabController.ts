@@ -1,6 +1,8 @@
 import {
+  addWarningBypass,
   clearBlockedTabState,
   getBlockedTabState,
+  getWarningBypasses,
   getLastAllowedUrl,
   setBlockedTabState,
   setLastAllowedUrl,
@@ -9,7 +11,7 @@ import { getActiveTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
 import { getExtensionUrl } from '../shared/api/runtime';
 import { PAGES } from '../shared/constants';
 import { STORAGE_KEY, type BlockedTabState } from '../shared/types';
-import { isInternalUrl, type FilterDecision } from '../shared/utils';
+import { getWarningBypassScopeKey, isInternalUrl, type FilterDecision } from '../shared/utils';
 import { getRulesProvider, type CurrentRules, type RulesProvider } from './rulesProvider';
 
 class TabController {
@@ -48,7 +50,7 @@ class TabController {
     }
 
     const rules = await this.getRules();
-    const decision = rules.engine.evaluate(url);
+    const decision = await this.getTabUrlDecision(tabId, url, rules);
 
     if (decision.action === 'block') {
       await this.blockTab(tabId, url, decision, rules.data.rulesVersion);
@@ -70,7 +72,7 @@ class TabController {
     }
 
     const rules = await this.getRules();
-    const decision = rules.engine.evaluate(state.targetUrl);
+    const decision = await this.getTabUrlDecision(tabId, state.targetUrl, rules);
     if (decision.action === 'block') {
       await this.setBlockedState(tabId, state.targetUrl, decision, rules.data.rulesVersion);
       return false;
@@ -111,13 +113,47 @@ class TabController {
       return false;
     }
 
-    const decision = await this.getUrlDecision(lastAllowedUrl);
+    const rules = await this.getRules();
+    const decision = await this.getTabUrlDecision(activeTab.id, lastAllowedUrl, rules);
     if (decision.action === 'block') {
       return false;
     }
 
     await updateTabUrl(activeTab.id, lastAllowedUrl);
     await this.allowTab(activeTab.id, lastAllowedUrl);
+    return true;
+  }
+
+  async continueWarningFromActiveTab(): Promise<boolean> {
+    const activeTab = await getActiveTab();
+    if (!activeTab?.id) {
+      return false;
+    }
+
+    const state = await this.resolveBlockedTabState(activeTab.id, activeTab.url);
+    if (!state) {
+      return false;
+    }
+
+    const rules = await this.getRules();
+    const decision = rules.engine.evaluate(state.targetUrl);
+    if (decision.action !== 'block') {
+      await updateTabUrl(activeTab.id, state.targetUrl);
+      await this.allowTab(activeTab.id, state.targetUrl);
+      return true;
+    }
+
+    if (decision.blockType !== 'warning') {
+      await this.setBlockedState(activeTab.id, state.targetUrl, decision, rules.data.rulesVersion);
+      return false;
+    }
+
+    await addWarningBypass(activeTab.id, {
+      filterId: decision.filterId,
+      scopeKey: getWarningBypassScopeKey(state.targetUrl),
+    });
+    await updateTabUrl(activeTab.id, state.targetUrl);
+    await this.allowTab(activeTab.id, state.targetUrl);
     return true;
   }
 
@@ -142,7 +178,7 @@ class TabController {
     }
 
     const rules = await this.getRules();
-    const decision = rules.engine.evaluate(state.targetUrl);
+    const decision = await this.getTabUrlDecision(tabId, state.targetUrl, rules);
 
     if (decision.action === 'allow') {
       await updateTabUrl(tabId, state.targetUrl);
@@ -160,7 +196,7 @@ class TabController {
     rulesVersion: number
   ): Promise<void> {
     await this.setBlockedState(tabId, url, decision, rulesVersion);
-    const blockedUrl = `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(url)}`;
+    const blockedUrl = `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(url)}&mode=${decision.blockType}`;
     await updateTabUrl(tabId, blockedUrl);
   }
 
@@ -177,6 +213,7 @@ class TabController {
     const state: BlockedTabState = {
       tabId,
       targetUrl,
+      blockType: decision.blockType,
       blockedAt: Date.now(),
       rulesVersion,
       blockedBy: {
@@ -213,6 +250,7 @@ class TabController {
     const state: BlockedTabState = {
       tabId,
       targetUrl: fallbackTargetUrl,
+      blockType: decision.blockType,
       blockedAt: Date.now(),
       rulesVersion: rules.data.rulesVersion,
       blockedBy: {
@@ -237,6 +275,15 @@ class TabController {
 
   private async getRules(): Promise<CurrentRules> {
     return this.rulesProvider.loadCurrentRules();
+  }
+
+  private async getTabUrlDecision(
+    tabId: number,
+    url: string,
+    rules: CurrentRules
+  ): Promise<FilterDecision> {
+    const warningBypasses = await getWarningBypasses(tabId);
+    return rules.engine.evaluate(url, undefined, warningBypasses);
   }
 }
 
