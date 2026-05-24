@@ -370,6 +370,65 @@ describe('TabController', () => {
     });
   });
 
+  it('refreshes stale blocked-tab state when the blocked page requests current state', async () => {
+    const targetUrl = 'https://state-refresh.example.test/focus';
+    const blockedPageUrl = `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}&mode=block`;
+
+    getChromeMock().storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'state-refresh.example.test',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'warning',
+          },
+        ],
+        rulesVersion: 12,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await setBlockedTabState({
+      tabId: 15,
+      targetUrl,
+      blockType: 'block',
+      blockedAt: 1234,
+      rulesVersion: 11,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+
+    await expect(getTabController().getBlockedStateFromTab(15, blockedPageUrl)).resolves.toEqual({
+      tabId: 15,
+      targetUrl,
+      blockType: 'warning',
+      blockedAt: 1234,
+      rulesVersion: 12,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+    await expect(getBlockedTabState(15)).resolves.toEqual({
+      tabId: 15,
+      targetUrl,
+      blockType: 'warning',
+      blockedAt: 1234,
+      rulesVersion: 12,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+  });
+
   it('continues past a warning in the active tab and scopes the bypass to the warning filter origin', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(

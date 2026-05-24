@@ -234,6 +234,76 @@ test('direct storage updates allow navigation after background rules are already
   await expectBlockedTabStateCleared(page, targetUrl);
 });
 
+test('an already-blocked tab updates from hard block to warning after rules change', async ({
+  context,
+  extensionPage,
+  page,
+}, testInfo) => {
+  const targetUrl = 'https://stale-warning.example.test/focus';
+  await mockAllowedPage(page, targetUrl, 'Stale warning allowed');
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'stale-warning-filter',
+          pattern: 'stale-warning.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          blockType: 'block',
+          description: 'Stale Warning Filter',
+        },
+      ],
+      rulesVersion: 1,
+    })
+  );
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, targetUrl);
+  await expect
+    .poll(async () => await readBlockedTabStateForTarget(page, targetUrl))
+    .toMatchObject({
+      blockType: 'block',
+      blockedBy: {
+        filterId: 'stale-warning-filter',
+        groupId: defaultGroup.id,
+      },
+    });
+
+  const data = await readStorage(page);
+  expect(data).toBeDefined();
+  await seedStorage(page, {
+    ...data!,
+    blockType: 'warning',
+    filters: data!.filters.map((filter) =>
+      filter.id === 'stale-warning-filter' ? { ...filter, blockType: 'warning' } : filter
+    ),
+    rulesVersion: data!.rulesVersion + 1,
+  });
+
+  await expect(browsingPage.getByRole('heading', { name: 'Warning' })).toBeVisible();
+  await expect(browsingPage.getByRole('button', { name: 'Continue' })).toBeVisible();
+  await expect
+    .poll(async () => await readBlockedTabStateForTarget(page, targetUrl))
+    .toMatchObject({
+      blockType: 'warning',
+      blockedBy: {
+        filterId: 'stale-warning-filter',
+        groupId: defaultGroup.id,
+      },
+    });
+  await captureScreenshot(browsingPage, testInfo, 'blocked-tab-warning-refresh.png');
+
+  await Promise.all([
+    browsingPage.waitForURL(targetUrl),
+    browsingPage.getByRole('button', { name: 'Continue' }).click(),
+  ]);
+  await expect(browsingPage.getByText('Stale warning allowed')).toBeVisible();
+});
+
 test('whitelisting keeps navigation allowed and hides the matching popup filter for the current url', async ({
   context,
   extensionPage,

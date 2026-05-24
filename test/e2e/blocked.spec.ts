@@ -86,49 +86,58 @@ test('shows continue for warning mode and continues to the target url', async ({
     });
   });
 
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  const tabId = await page.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tab?.id ?? null;
+  });
   await page.goto(
     `${extensionPage(PAGES.BLOCKED)}?url=${encodeURIComponent(targetUrl)}&mode=warning`
   );
-  await page.evaluate(async (url) => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (typeof tab?.id !== 'number') {
-      return;
-    }
+  await page.evaluate(
+    async ({ id, url }) => {
+      if (typeof id !== 'number') {
+        return;
+      }
 
-    await chrome.storage.session.set({
-      [`blocked_tab_state_${tab.id}`]: {
-        tabId: tab.id,
-        targetUrl: url,
-        blockType: 'warning',
-        blockedAt: Date.now(),
-        rulesVersion: 1,
-        blockedBy: {
-          filterId: 'warning-filter',
-          groupId: 'default-24x7',
-        },
-      },
-      [`pageblock_data`]: undefined,
-    });
-    await chrome.storage.sync.set({
-      pageblock_data: {
-        groups: [{ id: 'default-24x7', name: '24/7 (Always Active)', schedules: [], is24x7: true }],
-        filters: [
-          {
-            id: 'warning-filter',
-            pattern: 'warning-blocked.example.test',
+      await chrome.storage.session.set({
+        [`blocked_tab_state_${id}`]: {
+          tabId: id,
+          targetUrl: url,
+          blockType: 'warning',
+          blockedAt: Date.now(),
+          rulesVersion: 1,
+          blockedBy: {
+            filterId: 'warning-filter',
             groupId: 'default-24x7',
-            enabled: true,
-            matchMode: 'contains',
-            blockType: 'warning',
           },
-        ],
-        whitelist: [],
-        blockType: 'block',
-        snooze: { active: false },
-        rulesVersion: 1,
-      },
-    });
-  }, targetUrl);
+        },
+        [`pageblock_data`]: undefined,
+      });
+      await chrome.storage.sync.set({
+        pageblock_data: {
+          groups: [
+            { id: 'default-24x7', name: '24/7 (Always Active)', schedules: [], is24x7: true },
+          ],
+          filters: [
+            {
+              id: 'warning-filter',
+              pattern: 'warning-blocked.example.test',
+              groupId: 'default-24x7',
+              enabled: true,
+              matchMode: 'contains',
+              blockType: 'warning',
+            },
+          ],
+          whitelist: [],
+          blockType: 'block',
+          snooze: { active: false },
+          rulesVersion: 1,
+        },
+      });
+    },
+    { id: tabId, url: targetUrl }
+  );
 
   await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Warning' })).toBeVisible();

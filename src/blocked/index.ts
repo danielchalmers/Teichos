@@ -6,6 +6,7 @@
 import { openOptionsPage } from '../shared/api/runtime';
 import {
   MessageType,
+  STORAGE_KEY,
   type BlockedTabState,
   type ContinueActiveTabWarningResponse,
   type GetBlockedTabStateResponse,
@@ -62,8 +63,7 @@ function isBlockedTabState(state: unknown): state is BlockedTabState {
  * Initialize blocked page
  */
 async function init(): Promise<void> {
-  const interstitialState = await getBlockedState();
-  renderInterstitial(interstitialState);
+  await refreshInterstitial();
 
   const goBackButton = getElementByIdOrNull('go-back');
   goBackButton?.addEventListener('click', () => {
@@ -72,22 +72,51 @@ async function init(): Promise<void> {
     });
   });
 
-  if (interstitialState.warningMode) {
-    const continueButton = getElementByIdOrNull('continue');
-    continueButton?.addEventListener('click', () => {
-      void handleContinue().catch((error: unknown) => {
-        console.error('Failed to continue past warning:', error);
-      });
-    });
-  }
-
-  // Set up options button
-  const openOptionsButton = getElementByIdOrNull('open-options');
-  openOptionsButton?.addEventListener('click', () => {
-    openOptionsPage().catch((error: unknown) => {
-      console.error('Failed to open options page:', error);
+  const continueButton = getElementByIdOrNull('continue');
+  continueButton?.addEventListener('click', () => {
+    void handleContinue().catch((error: unknown) => {
+      console.error('Failed to continue past warning:', error);
     });
   });
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (!shouldRefreshOnStorageChange(changes, areaName)) {
+      return;
+    }
+
+    void refreshInterstitial().catch((error: unknown) => {
+      console.error('Failed to refresh blocked page state:', error);
+    });
+  });
+
+  chrome.runtime.onMessage.addListener((message, sender) => {
+    if (sender.id !== chrome.runtime.id || message.type !== MessageType.DATA_UPDATED) {
+      return;
+    }
+
+    void refreshInterstitial().catch((error: unknown) => {
+      console.error('Failed to refresh blocked page after data update:', error);
+    });
+  });
+}
+
+async function refreshInterstitial(): Promise<void> {
+  renderInterstitial(await getBlockedState());
+}
+
+function shouldRefreshOnStorageChange(
+  changes: Record<string, chrome.storage.StorageChange>,
+  areaName: string
+): boolean {
+  if (areaName === 'sync' && STORAGE_KEY in changes) {
+    return true;
+  }
+
+  if (areaName !== 'session') {
+    return false;
+  }
+
+  return Object.keys(changes).some((key) => key.startsWith('blocked_tab_state_'));
 }
 
 async function handleContinue(): Promise<void> {
@@ -96,6 +125,7 @@ async function handleContinue(): Promise<void> {
   })) as ContinueActiveTabWarningResponse;
 
   if (!response.continued) {
+    await refreshInterstitial();
     console.warn('[Teichos] No bypassable warning is available for this tab.');
   }
 }
@@ -144,6 +174,14 @@ function renderInterstitial(state: InterstitialState): void {
     blockedUrlElement.textContent = state.targetUrl;
   }
 }
+
+// Set up options button
+const openOptionsButton = getElementByIdOrNull('open-options');
+openOptionsButton?.addEventListener('click', () => {
+  openOptionsPage().catch((error: unknown) => {
+    console.error('Failed to open options page:', error);
+  });
+});
 
 // Initialize on load
 void init().catch((error: unknown) => {
