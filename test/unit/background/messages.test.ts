@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   getUrlDecision: vi.fn(),
+  getBlockedStateFromTab: vi.fn(),
   goBackFromActiveTab: vi.fn(),
   goBackFromTab: vi.fn(),
   continueWarningFromActiveTab: vi.fn(),
@@ -12,12 +13,14 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../src/background/tabController', () => ({
   getTabController: (): {
     getUrlDecision: typeof mocks.getUrlDecision;
+    getBlockedStateFromTab: typeof mocks.getBlockedStateFromTab;
     goBackFromActiveTab: typeof mocks.goBackFromActiveTab;
     goBackFromTab: typeof mocks.goBackFromTab;
     continueWarningFromActiveTab: typeof mocks.continueWarningFromActiveTab;
     continueWarningFromTab: typeof mocks.continueWarningFromTab;
   } => ({
     getUrlDecision: mocks.getUrlDecision,
+    getBlockedStateFromTab: mocks.getBlockedStateFromTab,
     goBackFromActiveTab: mocks.goBackFromActiveTab,
     goBackFromTab: mocks.goBackFromTab,
     continueWarningFromActiveTab: mocks.continueWarningFromActiveTab,
@@ -46,6 +49,7 @@ describe('handleMessage', () => {
   beforeEach(() => {
     mocks.loadData.mockResolvedValue(defaultData);
     mocks.getUrlDecision.mockResolvedValue({ action: 'allow', reason: 'no-match' });
+    mocks.getBlockedStateFromTab.mockResolvedValue(undefined);
     mocks.goBackFromActiveTab.mockResolvedValue(false);
     mocks.goBackFromTab.mockResolvedValue(false);
     mocks.continueWarningFromActiveTab.mockResolvedValue(false);
@@ -111,6 +115,44 @@ describe('handleMessage', () => {
       expect(sendResponse).toHaveBeenCalledWith({ restored: true });
     });
     expect(mocks.goBackFromTab).toHaveBeenCalledWith(4);
+  });
+
+  it('responds to blocked-tab state requests', async () => {
+    const blockedState = {
+      tabId: 7,
+      targetUrl: 'https://warning.com',
+      blockType: 'warning',
+      blockedAt: 1234,
+      rulesVersion: 2,
+      blockedBy: {
+        filterId: 'filter-1',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    };
+    mocks.getBlockedStateFromTab.mockResolvedValue(blockedState);
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.GET_BLOCKED_TAB_STATE },
+        {
+          id: 'test-extension-id',
+          tab: {
+            id: 7,
+            url: 'chrome-extension://test-extension-id/src/blocked/index.html',
+          } as chrome.tabs.Tab,
+        },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ state: blockedState });
+    });
+    expect(mocks.getBlockedStateFromTab).toHaveBeenCalledWith(
+      7,
+      'chrome-extension://test-extension-id/src/blocked/index.html'
+    );
   });
 
   it('responds to warning-continue requests', async () => {

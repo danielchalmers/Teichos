@@ -140,3 +140,72 @@ test('shows continue for warning mode and continues to the target url', async ({
   ]);
   await expect(page.getByText('Warning target')).toBeVisible();
 });
+
+test('uses blocked tab state for warning UI when the blocked URL mode is stale', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://warning-state.example.test/focus';
+
+  await context.route(targetUrl, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>Warning state target</title><main>Warning state target</main>',
+    });
+  });
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await page.evaluate(async (url) => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (typeof tab?.id !== 'number') {
+      return;
+    }
+
+    await chrome.storage.session.set({
+      [`blocked_tab_state_${tab.id}`]: {
+        tabId: tab.id,
+        targetUrl: url,
+        blockType: 'warning',
+        blockedAt: Date.now(),
+        rulesVersion: 1,
+        blockedBy: {
+          filterId: 'warning-filter',
+          groupId: 'default-24x7',
+        },
+      },
+    });
+    await chrome.storage.sync.set({
+      pageblock_data: {
+        groups: [{ id: 'default-24x7', name: '24/7 (Always Active)', schedules: [], is24x7: true }],
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning-state.example.test',
+            groupId: 'default-24x7',
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'warning',
+          },
+        ],
+        whitelist: [],
+        blockType: 'warning',
+        snooze: { active: false },
+        rulesVersion: 1,
+      },
+    });
+  }, targetUrl);
+
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?url=${encodeURIComponent(targetUrl)}`);
+
+  await expect(page.getByRole('heading', { name: 'Warning' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
+  await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+
+  await Promise.all([
+    page.waitForURL(targetUrl),
+    page.getByRole('button', { name: 'Continue' }).click(),
+  ]);
+  await expect(page.getByText('Warning state target')).toBeVisible();
+});

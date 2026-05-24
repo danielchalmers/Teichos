@@ -6,21 +6,64 @@
 import { openOptionsPage } from '../shared/api/runtime';
 import {
   MessageType,
+  type BlockedTabState,
   type ContinueActiveTabWarningResponse,
+  type GetBlockedTabStateResponse,
   type GoBackActiveTabResponse,
 } from '../shared/types';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 
-function isWarningMode(): boolean {
-  return new URLSearchParams(window.location.search).get('mode') === 'warning';
+interface InterstitialState {
+  readonly targetUrl: string;
+  readonly warningMode: boolean;
+}
+
+function getFallbackState(): InterstitialState {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    targetUrl: params.get('url') ?? 'Unknown URL',
+    warningMode: params.get('mode') === 'warning',
+  };
+}
+
+async function getBlockedState(): Promise<InterstitialState> {
+  const fallbackState = getFallbackState();
+
+  try {
+    const response = (await chrome.runtime.sendMessage({
+      type: MessageType.GET_BLOCKED_TAB_STATE,
+    })) as GetBlockedTabStateResponse;
+
+    if (isBlockedTabState(response.state)) {
+      return {
+        targetUrl: response.state.targetUrl,
+        warningMode: response.state.blockType === 'warning',
+      };
+    }
+  } catch (error: unknown) {
+    console.warn('[Teichos] Failed to load blocked tab state:', error);
+  }
+
+  return fallbackState;
+}
+
+function isBlockedTabState(state: unknown): state is BlockedTabState {
+  return (
+    typeof state === 'object' &&
+    state !== null &&
+    'targetUrl' in state &&
+    typeof state.targetUrl === 'string' &&
+    'blockType' in state &&
+    (state.blockType === 'block' || state.blockType === 'warning')
+  );
 }
 
 /**
  * Initialize blocked page
  */
 async function init(): Promise<void> {
-  const warningMode = isWarningMode();
-  renderInterstitial(warningMode);
+  const interstitialState = await getBlockedState();
+  renderInterstitial(interstitialState);
 
   const goBackButton = getElementByIdOrNull('go-back');
   goBackButton?.addEventListener('click', () => {
@@ -29,7 +72,7 @@ async function init(): Promise<void> {
     });
   });
 
-  if (warningMode) {
+  if (interstitialState.warningMode) {
     const continueButton = getElementByIdOrNull('continue');
     continueButton?.addEventListener('click', () => {
       void handleContinue().catch((error: unknown) => {
@@ -67,7 +110,7 @@ async function handleGoBack(): Promise<void> {
   }
 }
 
-function renderInterstitial(warningMode: boolean): void {
+function renderInterstitial(state: InterstitialState): void {
   const headingElement = getElementByIdOrNull('blocked-heading');
   const messageElement = getElementByIdOrNull('blocked-message');
   const continueButton = getElementByIdOrNull<HTMLButtonElement>('continue');
@@ -75,31 +118,30 @@ function renderInterstitial(warningMode: boolean): void {
   const iconElement = document.querySelector<HTMLElement>('.icon');
 
   if (headingElement) {
-    headingElement.textContent = warningMode ? 'Warning' : 'Page Blocked';
+    headingElement.textContent = state.warningMode ? 'Warning' : 'Page Blocked';
   }
 
   if (messageElement) {
-    messageElement.textContent = warningMode
+    messageElement.textContent = state.warningMode
       ? 'This page matches a Teichos warning filter. You can continue for this tab or go back.'
       : 'This page has been blocked by Teichos based on your filter settings.';
   }
 
   if (continueButton) {
-    continueButton.hidden = !warningMode;
+    continueButton.hidden = !state.warningMode;
   }
 
   if (goBackButton) {
-    goBackButton.classList.toggle('secondary', warningMode);
+    goBackButton.classList.toggle('secondary', state.warningMode);
   }
 
   if (iconElement) {
-    iconElement.textContent = warningMode ? '⚠️' : '🛡️';
+    iconElement.textContent = state.warningMode ? '⚠️' : '🛡️';
   }
 
-  const urlParams = new URLSearchParams(window.location.search);
   const blockedUrlElement = getElementByIdOrNull('blocked-url');
   if (blockedUrlElement) {
-    blockedUrlElement.textContent = urlParams.get('url') ?? 'Unknown URL';
+    blockedUrlElement.textContent = state.targetUrl;
   }
 }
 

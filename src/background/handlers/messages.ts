@@ -7,6 +7,7 @@ import { loadData } from '../../shared/api/storage';
 import {
   isCheckUrlMessage,
   isContinueActiveTabWarningMessage,
+  isGetBlockedTabStateMessage,
   isGetDataMessage,
   isGoBackActiveTabMessage,
 } from '../../shared/types';
@@ -38,6 +39,11 @@ export function handleMessage(
 
   if (isGoBackActiveTabMessage(message)) {
     void handleGoBackActiveTab(sender, sendResponse);
+    return true;
+  }
+
+  if (isGetBlockedTabStateMessage(message)) {
+    void handleGetBlockedTabState(sender, sendResponse);
     return true;
   }
 
@@ -73,6 +79,21 @@ async function handleGoBackActiveTab(
   }
 
   sendResponse({ restored: await getTabController().goBackFromActiveTab() });
+}
+
+async function handleGetBlockedTabState(
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: unknown) => void
+): Promise<void> {
+  const senderTabId = sender.tab?.id;
+  if (typeof senderTabId !== 'number') {
+    sendResponse({});
+    return;
+  }
+
+  sendResponse({
+    state: await getTabController().getBlockedStateFromTab(senderTabId, sender.tab?.url),
+  });
 }
 
 async function handleContinueActiveTabWarning(

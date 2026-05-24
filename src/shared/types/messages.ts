@@ -3,7 +3,7 @@
  * Uses discriminated unions for type-safe message handling
  */
 
-import type { Filter, StorageData } from './storage';
+import type { BlockedTabState, Filter, StorageData } from './storage';
 
 // Message types enum for discriminated union
 export const MessageType = {
@@ -11,6 +11,7 @@ export const MessageType = {
   DATA_UPDATED: 'DATA_UPDATED',
   CHECK_URL: 'CHECK_URL',
   URL_BLOCKED: 'URL_BLOCKED',
+  GET_BLOCKED_TAB_STATE: 'GET_BLOCKED_TAB_STATE',
   GO_BACK_ACTIVE_TAB: 'GO_BACK_ACTIVE_TAB',
   CONTINUE_ACTIVE_TAB_WARNING: 'CONTINUE_ACTIVE_TAB_WARNING',
   CLOSE_INFO_PANEL: 'CLOSE_INFO_PANEL',
@@ -32,6 +33,10 @@ export interface GoBackActiveTabMessage {
   readonly type: typeof MessageType.GO_BACK_ACTIVE_TAB;
 }
 
+export interface GetBlockedTabStateMessage {
+  readonly type: typeof MessageType.GET_BLOCKED_TAB_STATE;
+}
+
 export interface ContinueActiveTabWarningMessage {
   readonly type: typeof MessageType.CONTINUE_ACTIVE_TAB_WARNING;
 }
@@ -48,6 +53,10 @@ export interface CheckUrlResponse {
 
 export interface GoBackActiveTabResponse {
   readonly restored: boolean;
+}
+
+export interface GetBlockedTabStateResponse {
+  readonly state?: BlockedTabState;
 }
 
 export interface ContinueActiveTabWarningResponse {
@@ -75,6 +84,7 @@ export type ExtensionMessage =
   | GetDataMessage
   | CheckUrlMessage
   | GoBackActiveTabMessage
+  | GetBlockedTabStateMessage
   | ContinueActiveTabWarningMessage
   | DataUpdatedMessage
   | UrlBlockedMessage
@@ -87,9 +97,11 @@ export type MessageResponse<T extends ExtensionMessage> = T extends GetDataMessa
     ? CheckUrlResponse
     : T extends GoBackActiveTabMessage
       ? GoBackActiveTabResponse
-      : T extends ContinueActiveTabWarningMessage
-        ? ContinueActiveTabWarningResponse
-        : undefined;
+      : T extends GetBlockedTabStateMessage
+        ? GetBlockedTabStateResponse
+        : T extends ContinueActiveTabWarningMessage
+          ? ContinueActiveTabWarningResponse
+          : undefined;
 
 // Type guards for message validation
 export function isGetDataMessage(msg: unknown): msg is GetDataMessage {
@@ -115,6 +127,15 @@ export function isGoBackActiveTabMessage(msg: unknown): msg is GoBackActiveTabMe
     msg !== null &&
     'type' in msg &&
     msg.type === MessageType.GO_BACK_ACTIVE_TAB
+  );
+}
+
+export function isGetBlockedTabStateMessage(msg: unknown): msg is GetBlockedTabStateMessage {
+  return (
+    typeof msg === 'object' &&
+    msg !== null &&
+    'type' in msg &&
+    msg.type === MessageType.GET_BLOCKED_TAB_STATE
   );
 }
 

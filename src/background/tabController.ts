@@ -83,6 +83,17 @@ class TabController {
     return true;
   }
 
+  async getBlockedStateFromTab(
+    tabId: number,
+    blockedPageUrl?: string
+  ): Promise<BlockedTabState | undefined> {
+    if (!Number.isInteger(tabId)) {
+      return undefined;
+    }
+
+    return this.resolveBlockedTabState(tabId, blockedPageUrl);
+  }
+
   async reconcileAllOpenTabs(): Promise<void> {
     const tabs = await queryTabs({});
     const results = await Promise.allSettled(
