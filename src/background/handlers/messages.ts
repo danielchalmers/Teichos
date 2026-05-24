@@ -4,7 +4,12 @@
  */
 
 import { loadData } from '../../shared/api/storage';
-import { isCheckUrlMessage, isGetDataMessage, isGoBackActiveTabMessage } from '../../shared/types';
+import {
+  isCheckUrlMessage,
+  isGetBlockedPageStateMessage,
+  isGetDataMessage,
+  isGoBackActiveTabMessage,
+} from '../../shared/types';
 import { getTabController } from '../tabController';
 
 /**
@@ -36,6 +41,11 @@ export function handleMessage(
     return true;
   }
 
+  if (isGetBlockedPageStateMessage(message)) {
+    void handleGetBlockedPageState(sender, sendResponse);
+    return true;
+  }
+
   return false;
 }
 
@@ -54,4 +64,17 @@ async function handleCheckUrl(
 
 async function handleGoBackActiveTab(sendResponse: (response: unknown) => void): Promise<void> {
   sendResponse({ restored: await getTabController().goBackFromActiveTab() });
+}
+
+async function handleGetBlockedPageState(
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: unknown) => void
+): Promise<void> {
+  const senderTabId = sender.tab?.id;
+  if (typeof senderTabId !== 'number') {
+    sendResponse({ status: 'unavailable' });
+    return;
+  }
+
+  sendResponse(await getTabController().getFreshBlockedPageState(senderTabId, sender.tab?.url));
 }
