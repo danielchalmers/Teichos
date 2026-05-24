@@ -97,7 +97,7 @@ describe('RulesProvider', () => {
   });
 
   it('starts a fresh load after invalidate during an in-flight read', async () => {
-    let resolves: Array<(data: StorageData) => void> = [];
+    const resolves: ((data: StorageData) => void)[] = [];
     const loadStorageData = vi.fn(
       () =>
         new Promise<StorageData>((resolve) => {
