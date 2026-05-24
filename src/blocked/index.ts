@@ -6,6 +6,7 @@
 import { openOptionsPage } from '../shared/api/runtime';
 import {
   MessageType,
+  type BlockedPageRuleSummary,
   type GetBlockedPageStateResponse,
   type GoBackActiveTabResponse,
 } from '../shared/types';
@@ -13,6 +14,7 @@ import { getElementByIdOrNull } from '../shared/utils/dom';
 
 interface BlockedPageState {
   readonly targetUrl: string;
+  readonly details?: BlockedPageRuleSummary;
 }
 
 /**
@@ -50,7 +52,7 @@ async function getBlockedPageState(): Promise<BlockedPageState> {
     }
 
     if (response.status === 'blocked') {
-      return { targetUrl: response.state.targetUrl };
+      return { targetUrl: response.state.targetUrl, details: response.details };
     }
 
     if (response.status === 'allowed') {
@@ -84,10 +86,21 @@ function isBlockedPageStateResponse(response: unknown): response is GetBlockedPa
   return (
     response.status === 'blocked' &&
     'state' in response &&
+    'details' in response &&
     typeof response.state === 'object' &&
     response.state !== null &&
+    typeof response.details === 'object' &&
+    response.details !== null &&
     'targetUrl' in response.state &&
-    typeof response.state.targetUrl === 'string'
+    typeof response.state.targetUrl === 'string' &&
+    'filterName' in response.details &&
+    typeof response.details.filterName === 'string' &&
+    'filterPattern' in response.details &&
+    typeof response.details.filterPattern === 'string' &&
+    'groupName' in response.details &&
+    typeof response.details.groupName === 'string' &&
+    'groupSchedule' in response.details &&
+    typeof response.details.groupSchedule === 'string'
   );
 }
 
@@ -106,6 +119,35 @@ function renderBlockedUrl(state: BlockedPageState): void {
   if (blockedUrlElement) {
     blockedUrlElement.textContent = state.targetUrl;
   }
+
+  const detailsSection = getElementByIdOrNull('block-details');
+  const filterElement = getElementByIdOrNull('blocked-filter');
+  const filterPatternRow = getElementByIdOrNull('blocked-pattern-row');
+  const filterPatternElement = getElementByIdOrNull('blocked-pattern');
+  const groupElement = getElementByIdOrNull('blocked-group');
+  const scheduleElement = getElementByIdOrNull('blocked-schedule');
+
+  if (
+    !state.details ||
+    !detailsSection ||
+    !filterElement ||
+    !filterPatternRow ||
+    !filterPatternElement ||
+    !groupElement ||
+    !scheduleElement
+  ) {
+    detailsSection?.setAttribute('hidden', '');
+    return;
+  }
+
+  filterElement.textContent = state.details.filterName;
+  groupElement.textContent = state.details.groupName;
+  scheduleElement.textContent = state.details.groupSchedule;
+
+  const shouldShowFilterPattern = state.details.filterName !== state.details.filterPattern;
+  filterPatternElement.textContent = state.details.filterPattern;
+  filterPatternRow.toggleAttribute('hidden', !shouldShowFilterPattern);
+  detailsSection.removeAttribute('hidden');
 }
 
 // Initialize on load

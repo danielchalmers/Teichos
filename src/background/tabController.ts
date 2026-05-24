@@ -11,9 +11,10 @@ import { PAGES } from '../shared/constants';
 import {
   STORAGE_KEY,
   type BlockedTabState,
+  type BlockedPageRuleSummary,
   type GetBlockedPageStateResponse,
 } from '../shared/types';
-import { isInternalUrl, type FilterDecision } from '../shared/utils';
+import { formatGroupScheduleSummary, isInternalUrl, type FilterDecision } from '../shared/utils';
 import { getRulesProvider, type CurrentRules, type RulesProvider } from './rulesProvider';
 
 interface ResolvedBlockedTarget {
@@ -118,9 +119,10 @@ class TabController {
       return { status: 'unavailable' };
     }
 
-    const state = await this.refreshBlockedTabState(tabId, resolvedTarget.targetUrl);
+    const rules = await this.getRules();
+    const state = await this.refreshBlockedTabState(tabId, resolvedTarget.targetUrl, rules);
     if (state) {
-      return { status: 'blocked', state };
+      return { status: 'blocked', state, details: getBlockedPageRuleSummary(rules, state) };
     }
 
     return { status: 'allowed', targetUrl: resolvedTarget.targetUrl };
@@ -312,4 +314,24 @@ const tabController = new TabController(getRulesProvider());
 
 export function getTabController(): TabController {
   return tabController;
+}
+
+function getBlockedPageRuleSummary(
+  rules: CurrentRules,
+  state: BlockedTabState
+): BlockedPageRuleSummary {
+  const filter = rules.data.filters.find((candidate) => candidate.id === state.blockedBy.filterId);
+  const group = rules.data.groups.find((candidate) => candidate.id === state.blockedBy.groupId);
+  const filterDescription = filter?.description?.trim();
+  const filterName =
+    filterDescription && filterDescription.length > 0
+      ? filterDescription
+      : (filter?.pattern ?? 'Unknown Filter');
+
+  return {
+    filterName,
+    filterPattern: filter?.pattern ?? 'Unknown Pattern',
+    groupName: group?.name ?? 'Unknown Group',
+    groupSchedule: group ? formatGroupScheduleSummary(group) : 'Unknown Schedule',
+  };
 }

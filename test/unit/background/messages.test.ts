@@ -114,7 +114,16 @@ describe('handleMessage', () => {
         groupId: DEFAULT_GROUP_ID,
       },
     };
-    mocks.getFreshBlockedPageState.mockResolvedValue({ status: 'blocked', state: blockedState });
+    mocks.getFreshBlockedPageState.mockResolvedValue({
+      status: 'blocked',
+      state: blockedState,
+      details: {
+        filterName: 'Focus Block',
+        filterPattern: 'blocked.com',
+        groupName: '24/7',
+        groupSchedule: 'Always Active',
+      },
+    });
     const sendResponse = vi.fn();
 
     expect(
@@ -132,7 +141,16 @@ describe('handleMessage', () => {
     ).toBe(true);
 
     await vi.waitFor(() => {
-      expect(sendResponse).toHaveBeenCalledWith({ status: 'blocked', state: blockedState });
+      expect(sendResponse).toHaveBeenCalledWith({
+        status: 'blocked',
+        state: blockedState,
+        details: {
+          filterName: 'Focus Block',
+          filterPattern: 'blocked.com',
+          groupName: '24/7',
+          groupSchedule: 'Always Active',
+        },
+      });
     });
     expect(mocks.getFreshBlockedPageState).toHaveBeenCalledWith(
       7,

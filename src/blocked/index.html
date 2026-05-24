@@ -12,6 +12,27 @@
       <h1>Page Blocked</h1>
       <p>This page has been blocked by Teichos based on your filter settings.</p>
       <div class="url" id="blocked-url" role="status" aria-label="Blocked URL"></div>
+      <section class="details" id="block-details" aria-label="Blocking details" hidden>
+        <h2>Blocking details</h2>
+        <dl class="details-list">
+          <div class="detail-row">
+            <dt>Filter</dt>
+            <dd id="blocked-filter"></dd>
+          </div>
+          <div class="detail-row" id="blocked-pattern-row" hidden>
+            <dt>Pattern</dt>
+            <dd id="blocked-pattern"></dd>
+          </div>
+          <div class="detail-row">
+            <dt>Group</dt>
+            <dd id="blocked-group"></dd>
+          </div>
+          <div class="detail-row">
+            <dt>Schedule</dt>
+            <dd id="blocked-schedule"></dd>
+          </div>
+        </dl>
+      </section>
       <div class="actions">
         <button class="button" id="go-back" type="button">Go Back</button>
         <button class="button secondary" id="open-options" type="button">Manage Filters</button>

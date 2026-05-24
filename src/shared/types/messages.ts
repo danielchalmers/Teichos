@@ -50,10 +50,18 @@ export interface GoBackActiveTabResponse {
   readonly restored: boolean;
 }
 
+export interface BlockedPageRuleSummary {
+  readonly filterName: string;
+  readonly filterPattern: string;
+  readonly groupName: string;
+  readonly groupSchedule: string;
+}
+
 export type GetBlockedPageStateResponse =
   | {
       readonly status: 'blocked';
       readonly state: BlockedTabState;
+      readonly details: BlockedPageRuleSummary;
     }
   | {
       readonly status: 'allowed';

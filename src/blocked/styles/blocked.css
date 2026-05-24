@@ -77,6 +77,44 @@ p {
   font-size: var(--text-md);
 }
 
+.details {
+  text-align: left;
+  background: var(--url-bg);
+  border: 1px solid var(--url-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+.details h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.details-list {
+  margin: 0;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: minmax(80px, auto) 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.detail-row + .detail-row {
+  margin-top: 0.75rem;
+}
+
+.detail-row dt {
+  font-weight: 700;
+}
+
+.detail-row dd {
+  margin: 0;
+  word-break: break-word;
+}
+
 .actions {
   display: flex;
   justify-content: center;

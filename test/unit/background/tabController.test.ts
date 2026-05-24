@@ -243,6 +243,68 @@ describe('TabController', () => {
     });
   });
 
+  it('returns blocking details for the current blocked page target', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        groups: [
+          { id: DEFAULT_GROUP_ID, name: 'Deep Work', schedules: [], is24x7: true },
+          {
+            id: 'office-hours',
+            name: 'Office Hours',
+            is24x7: false,
+            schedules: [
+              {
+                daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+                startTime: '00:00',
+                endTime: '23:59',
+              },
+            ],
+          },
+        ],
+        filters: [
+          {
+            id: 'office-filter',
+            pattern: 'focus.example.test',
+            groupId: 'office-hours',
+            enabled: true,
+            matchMode: 'contains',
+            description: 'Focus Block',
+          },
+        ],
+        rulesVersion: 11,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+
+    await expect(
+      getTabController().getFreshBlockedPageState(
+        11,
+        `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://focus.example.test/tasks')}`
+      )
+    ).resolves.toEqual({
+      status: 'blocked',
+      state: {
+        tabId: 11,
+        targetUrl: 'https://focus.example.test/tasks',
+        blockedAt: expect.any(Number),
+        rulesVersion: 11,
+        blockedBy: {
+          filterId: 'office-filter',
+          groupId: 'office-hours',
+        },
+      },
+      details: {
+        filterName: 'Focus Block',
+        filterPattern: 'focus.example.test',
+        groupName: 'Office Hours',
+        groupSchedule: 'Daily 00:00-23:59',
+      },
+    });
+  });
+
   it('reconciles open tabs after storage changes', async () => {
     const chromeMock = getChromeMock();
     chromeMock.tabs.query.mockImplementation(

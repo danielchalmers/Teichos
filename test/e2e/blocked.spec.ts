@@ -64,10 +64,25 @@ test('renders the blocked url from fresh tab state when query params are missing
         {
           id: 'blocked-state-filter',
           pattern: 'blocked-state.example.test',
-          groupId: defaultGroup.id,
+          groupId: 'work-hours',
           enabled: true,
           matchMode: 'contains',
-          description: 'Blocked State',
+          description: 'Focus Block',
+        },
+      ],
+      groups: [
+        defaultGroup,
+        {
+          id: 'work-hours',
+          name: 'Work Hours',
+          schedules: [
+            {
+              daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+              startTime: '00:00',
+              endTime: '23:59',
+            },
+          ],
+          is24x7: false,
         },
       ],
       rulesVersion: 1,
@@ -87,7 +102,7 @@ test('renders the blocked url from fresh tab state when query params are missing
         rulesVersion: 1,
         blockedBy: {
           filterId: 'blocked-state-filter',
-          groupId: 'default-24x7',
+          groupId: 'work-hours',
         },
       },
     });
@@ -97,6 +112,10 @@ test('renders the blocked url from fresh tab state when query params are missing
 
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+  await expect(page.getByLabel('Blocking details')).toContainText('Focus Block');
+  await expect(page.getByLabel('Blocking details')).toContainText('blocked-state.example.test');
+  await expect(page.getByLabel('Blocking details')).toContainText('Work Hours');
+  await expect(page.getByLabel('Blocking details')).toContainText('Daily 00:00-23:59');
 });
 
 test('handles missing or malformed blocked urls and no-op go back safely', async ({
