@@ -55,11 +55,14 @@ export async function expectBlocked(
   expectedBlockedUrl = getBlockedPagePathFor(targetUrl)
 ): Promise<void> {
   await expect
-    .poll(async () => {
-      await page.goto(targetUrl).catch(() => undefined);
-      const currentUrl = page.url();
-      return new URL(currentUrl).pathname + new URL(currentUrl).search;
-    }, { timeout: 15_000 })
+    .poll(
+      async () => {
+        await page.goto(targetUrl).catch(() => undefined);
+        const currentUrl = page.url();
+        return new URL(currentUrl).pathname + new URL(currentUrl).search;
+      },
+      { timeout: 15_000 }
+    )
     .toBe(expectedBlockedUrl);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
@@ -67,10 +70,13 @@ export async function expectBlocked(
 
 export async function expectAllowed(page: Page, targetUrl: string): Promise<void> {
   await expect
-    .poll(async () => {
-      await page.goto(targetUrl).catch(() => undefined);
-      return page.url();
-    }, { timeout: 15_000 })
+    .poll(
+      async () => {
+        await page.goto(targetUrl).catch(() => undefined);
+        return page.url();
+      },
+      { timeout: 15_000 }
+    )
     .not.toContain(`/${PAGES.BLOCKED}`);
 }
 
