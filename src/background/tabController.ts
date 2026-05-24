@@ -203,6 +203,10 @@ class TabController {
     }
 
     await this.setBlockedState(tabId, state.targetUrl, decision, rules.data.rulesVersion);
+    const nextBlockedPageUrl = getBlockedPageUrl(state.targetUrl, decision.blockType);
+    if (blockedPageUrl && blockedPageUrl !== nextBlockedPageUrl) {
+      await updateTabUrl(tabId, nextBlockedPageUrl);
+    }
   }
 
   private async blockTab(
@@ -212,8 +216,7 @@ class TabController {
     rulesVersion: number
   ): Promise<void> {
     await this.setBlockedState(tabId, url, decision, rulesVersion);
-    const blockedUrl = `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(url)}&mode=${decision.blockType}`;
-    await updateTabUrl(tabId, blockedUrl);
+    await updateTabUrl(tabId, getBlockedPageUrl(url, decision.blockType));
   }
 
   private async allowTab(tabId: number, url: string): Promise<void> {
@@ -327,6 +330,13 @@ function parseBlockedTargetUrl(tabUrl: string | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+function getBlockedPageUrl(
+  targetUrl: string,
+  mode: Extract<FilterDecision, { action: 'block' }>['blockType']
+): string {
+  return `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(targetUrl)}&mode=${mode}`;
 }
 
 const tabController = new TabController(getRulesProvider());

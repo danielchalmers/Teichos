@@ -315,6 +315,61 @@ describe('TabController', () => {
     });
   });
 
+  it('updates an already-blocked interstitial when rules change from block to warning', async () => {
+    const chromeMock = getChromeMock();
+    const targetUrl = 'https://warning.com/focus';
+    const hardBlockedPageUrl = `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}&mode=block`;
+    const warningBlockedPageUrl = `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}&mode=warning`;
+
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 11,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await setBlockedTabState({
+      tabId: 14,
+      targetUrl,
+      blockType: 'block',
+      blockedAt: Date.now(),
+      rulesVersion: 10,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+
+    await getTabController().evaluateNavigation(14, hardBlockedPageUrl);
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      14,
+      { url: warningBlockedPageUrl },
+      expect.any(Function)
+    );
+    await expect(getBlockedTabState(14)).resolves.toMatchObject({
+      tabId: 14,
+      targetUrl,
+      blockType: 'warning',
+      rulesVersion: 11,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+  });
+
   it('continues past a warning in the active tab and scopes the bypass to the warning filter origin', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(
