@@ -21,8 +21,9 @@ export function handleMessage(
   sender: chrome.runtime.MessageSender,
   sendResponse: (response: unknown) => void
 ): boolean {
-  // Validate sender is from our extension
-  if (sender.id !== chrome.runtime.id) {
+  // Validate sender is from our extension. Extension pages may provide a URL
+  // without an id, depending on the runtime context.
+  if (!isInternalSender(sender)) {
     return false;
   }
 
@@ -78,4 +79,16 @@ async function handleGetBlockedPageState(
   }
 
   sendResponse(await getTabController().getFreshBlockedPageState(senderTabId, sender.tab?.url));
+}
+
+function isInternalSender(sender: chrome.runtime.MessageSender): boolean {
+  if (sender.id === chrome.runtime.id) {
+    return true;
+  }
+
+  if (!sender.url) {
+    return false;
+  }
+
+  return sender.url.startsWith(chrome.runtime.getURL(''));
 }

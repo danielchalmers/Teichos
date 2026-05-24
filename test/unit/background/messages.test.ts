@@ -182,6 +182,28 @@ describe('handleMessage', () => {
     expect(mocks.getBlockedPageStateByBlockId).toHaveBeenCalledWith(blockId);
   });
 
+  it('accepts extension page senders when chrome omits the sender id', async () => {
+    const blockId = 'block-from-extension-page';
+    const response = { status: 'allowed', targetUrl: 'https://allowed.com/focus' };
+    mocks.getBlockedPageStateByBlockId.mockResolvedValue(response);
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.GET_BLOCKED_PAGE_STATE, blockId },
+        {
+          url: 'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-from-extension-page',
+        },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith(response);
+    });
+    expect(mocks.getBlockedPageStateByBlockId).toHaveBeenCalledWith(blockId);
+  });
+
   it('forwards allowed blocked-page state responses', async () => {
     const response = { status: 'allowed', targetUrl: 'https://allowed.com/focus' };
     mocks.getFreshBlockedPageState.mockResolvedValue(response);
