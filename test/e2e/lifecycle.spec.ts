@@ -111,7 +111,6 @@ test('an already-blocked tab becomes allowed and clears stale state after popup 
       ],
     })
   );
-
   const browsingPage = await context.newPage();
   await expectBlocked(browsingPage, targetUrl);
   await expect
@@ -158,6 +157,13 @@ test('popup toggle changes navigation behavior and direct storage updates refres
       ],
     })
   );
+  await expect
+    .poll(async () =>
+      (await readStorage(page))?.filters.some(
+        (filter) => filter.id === 'primed-filter' && filter.enabled
+      )
+    )
+    .toBe(true);
 
   const browsingPage = await context.newPage();
   const popupPage = await openPopup(extensionPage, page);
