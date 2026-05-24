@@ -45,6 +45,7 @@ async function getBlockedPageState(): Promise<BlockedPageState> {
   try {
     const response = (await chrome.runtime.sendMessage({
       type: MessageType.GET_BLOCKED_PAGE_STATE,
+      blockedPageUrl: window.location.href,
     })) as GetBlockedPageStateResponse;
 
     if (!isBlockedPageStateResponse(response)) {

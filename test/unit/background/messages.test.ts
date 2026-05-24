@@ -128,7 +128,11 @@ describe('handleMessage', () => {
 
     expect(
       handleMessage(
-        { type: MessageType.GET_BLOCKED_PAGE_STATE },
+        {
+          type: MessageType.GET_BLOCKED_PAGE_STATE,
+          blockedPageUrl:
+            'chrome-extension://test-extension-id/src/blocked/index.html?url=https%3A%2F%2Fblocked.com%2Ffocus',
+        },
         {
           id: 'test-extension-id',
           tab: {
@@ -154,7 +158,33 @@ describe('handleMessage', () => {
     });
     expect(mocks.getFreshBlockedPageState).toHaveBeenCalledWith(
       7,
-      'chrome-extension://test-extension-id/src/blocked/index.html'
+      'chrome-extension://test-extension-id/src/blocked/index.html?url=https%3A%2F%2Fblocked.com%2Ffocus'
+    );
+  });
+
+  it('falls back to sender tab url for blocked-page state requests without a page url', async () => {
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.GET_BLOCKED_PAGE_STATE },
+        {
+          id: 'test-extension-id',
+          tab: {
+            id: 9,
+            url: 'chrome-extension://test-extension-id/src/blocked/index.html?url=https%3A%2F%2Fblocked.com',
+          } as chrome.tabs.Tab,
+        },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ status: 'unavailable' });
+    });
+    expect(mocks.getFreshBlockedPageState).toHaveBeenCalledWith(
+      9,
+      'chrome-extension://test-extension-id/src/blocked/index.html?url=https%3A%2F%2Fblocked.com'
     );
   });
 

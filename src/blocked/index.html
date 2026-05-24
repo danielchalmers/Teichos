@@ -8,12 +8,32 @@
   </head>
   <body>
     <div class="container" role="main">
-      <div class="icon" aria-hidden="true">🛡️</div>
+      <div class="icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path
+            d="M12 3.25 5.75 5.6v5.15c0 4.05 2.55 7.7 6.25 9.05 3.7-1.35 6.25-5 6.25-9.05V5.6L12 3.25Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-linejoin="round"
+            stroke-width="1.8"
+          />
+          <path
+            d="m8.6 12.1 2.15 2.15 4.85-5"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.8"
+          />
+        </svg>
+      </div>
       <h1>Page Blocked</h1>
       <p>This page has been blocked by Teichos based on your filter settings.</p>
       <div class="url" id="blocked-url" role="status" aria-label="Blocked URL"></div>
       <section class="details" id="block-details" aria-label="Blocking details" hidden>
-        <h2>Blocking details</h2>
+        <div class="details-header">
+          <h2>Blocking details</h2>
+        </div>
         <dl class="details-list">
           <div class="detail-row">
             <dt>Filter</dt>

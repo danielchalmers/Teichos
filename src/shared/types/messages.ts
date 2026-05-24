@@ -34,6 +34,7 @@ export interface GoBackActiveTabMessage {
 
 export interface GetBlockedPageStateMessage {
   readonly type: typeof MessageType.GET_BLOCKED_PAGE_STATE;
+  readonly blockedPageUrl?: string;
 }
 
 // Response messages
@@ -140,7 +141,8 @@ export function isGetBlockedPageStateMessage(msg: unknown): msg is GetBlockedPag
     typeof msg === 'object' &&
     msg !== null &&
     'type' in msg &&
-    msg.type === MessageType.GET_BLOCKED_PAGE_STATE
+    msg.type === MessageType.GET_BLOCKED_PAGE_STATE &&
+    (!('blockedPageUrl' in msg) || typeof msg.blockedPageUrl === 'string')
   );
 }
 

@@ -42,7 +42,7 @@ export function handleMessage(
   }
 
   if (isGetBlockedPageStateMessage(message)) {
-    void handleGetBlockedPageState(sender, sendResponse);
+    void handleGetBlockedPageState(sender, message.blockedPageUrl, sendResponse);
     return true;
   }
 
@@ -68,6 +68,7 @@ async function handleGoBackActiveTab(sendResponse: (response: unknown) => void):
 
 async function handleGetBlockedPageState(
   sender: chrome.runtime.MessageSender,
+  blockedPageUrl: string | undefined,
   sendResponse: (response: unknown) => void
 ): Promise<void> {
   const senderTabId = sender.tab?.id;
@@ -76,5 +77,10 @@ async function handleGetBlockedPageState(
     return;
   }
 
-  sendResponse(await getTabController().getFreshBlockedPageState(senderTabId, sender.tab?.url));
+  sendResponse(
+    await getTabController().getFreshBlockedPageState(
+      senderTabId,
+      blockedPageUrl ?? sender.tab?.url
+    )
+  );
 }
