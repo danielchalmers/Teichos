@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { captureScreenshot } from './helpers';
+import { captureScreenshot, createStorageData, defaultGroup, seedStorage } from './helpers';
 import { PAGES } from '../../src/shared/constants';
 
 test('go back restores the last allowed url', async ({
@@ -48,6 +48,55 @@ test('opens settings from the blocked page', async ({ context, extensionPage, pa
 
   await expect(optionsPage.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await expect.poll(() => new URL(optionsPage.url()).pathname).toBe(`/${PAGES.OPTIONS}`);
+});
+
+test('renders the blocked url from fresh tab state when query params are missing', async ({
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://blocked-state.example.test/focus';
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'blocked-state-filter',
+          pattern: 'blocked-state.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Blocked State',
+        },
+      ],
+      rulesVersion: 1,
+    })
+  );
+  await page.evaluate(async (url) => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (typeof tab?.id !== 'number') {
+      return;
+    }
+
+    await chrome.storage.session.set({
+      [`blocked_tab_state_${tab.id}`]: {
+        tabId: tab.id,
+        targetUrl: url,
+        blockedAt: Date.now(),
+        rulesVersion: 1,
+        blockedBy: {
+          filterId: 'blocked-state-filter',
+          groupId: 'default-24x7',
+        },
+      },
+    });
+  }, targetUrl);
+
+  await page.goto(extensionPage(PAGES.BLOCKED));
+
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+  await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
 });
 
 test('handles missing or malformed blocked urls and no-op go back safely', async ({

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   getUrlDecision: vi.fn(),
+  getFreshBlockedPageState: vi.fn(),
   goBackFromActiveTab: vi.fn(),
   loadData: vi.fn(),
 }));
@@ -9,9 +10,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../src/background/tabController', () => ({
   getTabController: (): {
     getUrlDecision: typeof mocks.getUrlDecision;
+    getFreshBlockedPageState: typeof mocks.getFreshBlockedPageState;
     goBackFromActiveTab: typeof mocks.goBackFromActiveTab;
   } => ({
     getUrlDecision: mocks.getUrlDecision,
+    getFreshBlockedPageState: mocks.getFreshBlockedPageState,
     goBackFromActiveTab: mocks.goBackFromActiveTab,
   }),
 }));
@@ -36,6 +39,7 @@ describe('handleMessage', () => {
   beforeEach(() => {
     mocks.loadData.mockResolvedValue(defaultData);
     mocks.getUrlDecision.mockResolvedValue({ action: 'allow', reason: 'no-match' });
+    mocks.getFreshBlockedPageState.mockResolvedValue({ status: 'unavailable' });
     mocks.goBackFromActiveTab.mockResolvedValue(false);
   });
 
@@ -96,6 +100,78 @@ describe('handleMessage', () => {
 
     await vi.waitFor(() => {
       expect(sendResponse).toHaveBeenCalledWith({ restored: true });
+    });
+  });
+
+  it('responds to blocked-page state requests', async () => {
+    const blockedState = {
+      tabId: 7,
+      targetUrl: 'https://blocked.com/focus',
+      blockedAt: 1234,
+      rulesVersion: 2,
+      blockedBy: {
+        filterId: 'filter-1',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    };
+    mocks.getFreshBlockedPageState.mockResolvedValue({ status: 'blocked', state: blockedState });
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.GET_BLOCKED_PAGE_STATE },
+        {
+          id: 'test-extension-id',
+          tab: {
+            id: 7,
+            url: 'chrome-extension://test-extension-id/src/blocked/index.html',
+          } as chrome.tabs.Tab,
+        },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ status: 'blocked', state: blockedState });
+    });
+    expect(mocks.getFreshBlockedPageState).toHaveBeenCalledWith(
+      7,
+      'chrome-extension://test-extension-id/src/blocked/index.html'
+    );
+  });
+
+  it('returns unavailable blocked-page state when the sender tab is unavailable', async () => {
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.GET_BLOCKED_PAGE_STATE },
+        { id: 'test-extension-id' },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ status: 'unavailable' });
+    });
+    expect(mocks.getFreshBlockedPageState).not.toHaveBeenCalled();
+  });
+
+  it('forwards allowed blocked-page state responses', async () => {
+    const response = { status: 'allowed', targetUrl: 'https://allowed.com/focus' };
+    mocks.getFreshBlockedPageState.mockResolvedValue(response);
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.GET_BLOCKED_PAGE_STATE },
+        { id: 'test-extension-id', tab: { id: 8 } as chrome.tabs.Tab },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith(response);
     });
   });
 

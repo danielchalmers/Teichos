@@ -4,14 +4,22 @@
  */
 
 import { openOptionsPage } from '../shared/api/runtime';
-import { MessageType, type GoBackActiveTabResponse } from '../shared/types';
+import {
+  MessageType,
+  type GetBlockedPageStateResponse,
+  type GoBackActiveTabResponse,
+} from '../shared/types';
 import { getElementByIdOrNull } from '../shared/utils/dom';
+
+interface BlockedPageState {
+  readonly targetUrl: string;
+}
 
 /**
  * Initialize blocked page
  */
 async function init(): Promise<void> {
-  renderBlockedUrl();
+  renderBlockedUrl(await getBlockedPageState());
 
   const goBackButton = getElementByIdOrNull('go-back');
   goBackButton?.addEventListener('click', () => {
@@ -29,6 +37,60 @@ async function init(): Promise<void> {
   });
 }
 
+async function getBlockedPageState(): Promise<BlockedPageState> {
+  const fallbackState = getFallbackBlockedPageState();
+
+  try {
+    const response = (await chrome.runtime.sendMessage({
+      type: MessageType.GET_BLOCKED_PAGE_STATE,
+    })) as GetBlockedPageStateResponse;
+
+    if (!isBlockedPageStateResponse(response)) {
+      return fallbackState;
+    }
+
+    if (response.status === 'blocked') {
+      return { targetUrl: response.state.targetUrl };
+    }
+
+    if (response.status === 'allowed') {
+      return { targetUrl: response.targetUrl };
+    }
+  } catch (error: unknown) {
+    console.warn('[Teichos] Failed to load blocked tab state:', error);
+  }
+
+  return fallbackState;
+}
+
+function getFallbackBlockedPageState(): BlockedPageState {
+  const urlParams = new URLSearchParams(window.location.search);
+  return { targetUrl: urlParams.get('url') ?? 'Unknown URL' };
+}
+
+function isBlockedPageStateResponse(response: unknown): response is GetBlockedPageStateResponse {
+  if (!response || typeof response !== 'object' || !('status' in response)) {
+    return false;
+  }
+
+  if (response.status === 'unavailable') {
+    return true;
+  }
+
+  if (response.status === 'allowed') {
+    return 'targetUrl' in response && typeof response.targetUrl === 'string';
+  }
+
+  return (
+    response.status === 'blocked' &&
+    'state' in response &&
+    typeof response.state === 'object' &&
+    response.state !== null &&
+    'targetUrl' in response.state &&
+    typeof response.state.targetUrl === 'string'
+  );
+}
+
 async function handleGoBack(): Promise<void> {
   const response = (await chrome.runtime.sendMessage({
     type: MessageType.GO_BACK_ACTIVE_TAB,
@@ -39,11 +101,10 @@ async function handleGoBack(): Promise<void> {
   }
 }
 
-function renderBlockedUrl(): void {
-  const urlParams = new URLSearchParams(window.location.search);
+function renderBlockedUrl(state: BlockedPageState): void {
   const blockedUrlElement = getElementByIdOrNull('blocked-url');
   if (blockedUrlElement) {
-    blockedUrlElement.textContent = urlParams.get('url') ?? 'Unknown URL';
+    blockedUrlElement.textContent = state.targetUrl;
   }
 }
 

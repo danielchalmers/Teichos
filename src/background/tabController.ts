@@ -8,7 +8,11 @@ import {
 import { getActiveTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
 import { getExtensionUrl } from '../shared/api/runtime';
 import { PAGES } from '../shared/constants';
-import { STORAGE_KEY, type BlockedTabState } from '../shared/types';
+import {
+  STORAGE_KEY,
+  type BlockedTabState,
+  type GetBlockedPageStateResponse,
+} from '../shared/types';
 import { isInternalUrl, type FilterDecision } from '../shared/utils';
 import { getRulesProvider, type CurrentRules, type RulesProvider } from './rulesProvider';
 
@@ -99,6 +103,27 @@ class TabController {
     }
 
     return this.refreshBlockedTabState(tabId, resolvedTarget.targetUrl);
+  }
+
+  async getFreshBlockedPageState(
+    tabId: number,
+    blockedPageUrl?: string
+  ): Promise<GetBlockedPageStateResponse> {
+    if (!Number.isInteger(tabId)) {
+      return { status: 'unavailable' };
+    }
+
+    const resolvedTarget = await this.resolveBlockedTarget(tabId, blockedPageUrl);
+    if (!resolvedTarget) {
+      return { status: 'unavailable' };
+    }
+
+    const state = await this.refreshBlockedTabState(tabId, resolvedTarget.targetUrl);
+    if (state) {
+      return { status: 'blocked', state };
+    }
+
+    return { status: 'allowed', targetUrl: resolvedTarget.targetUrl };
   }
 
   async reconcileAllOpenTabs(): Promise<void> {
