@@ -96,6 +96,84 @@ describe('RulesProvider', () => {
     expect(second).toBe(first);
   });
 
+  it('starts a fresh load after invalidate during an in-flight read', async () => {
+    const resolves: ((data: StorageData) => void)[] = [];
+    const loadStorageData = vi.fn(
+      () =>
+        new Promise<StorageData>((resolve) => {
+          resolves.push(resolve);
+        })
+    );
+    const createEngine = vi.fn((data: StorageData) => createFilteringEngine(data));
+    const provider = new RulesProvider({ loadStorageData, createEngine });
+
+    const staleLoad = provider.loadCurrentRules();
+    provider.invalidate();
+    const refreshedLoad = provider.loadCurrentRules();
+
+    expect(loadStorageData).toHaveBeenCalledTimes(2);
+
+    resolves[0]?.(
+      createStorageData({
+        filters: [
+          {
+            id: 'stale-filter',
+            pattern: 'stale.example',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 1,
+      })
+    );
+    resolves[1]?.(
+      createStorageData({
+        filters: [
+          {
+            id: 'fresh-filter',
+            pattern: 'fresh.example',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 2,
+      })
+    );
+
+    const [staleRules, refreshedRules, cachedRules] = await Promise.all([
+      staleLoad,
+      refreshedLoad,
+      provider.loadCurrentRules(),
+    ]);
+
+    expect(loadStorageData).toHaveBeenCalledTimes(2);
+    expect(createEngine).toHaveBeenCalledTimes(2);
+    expect(staleRules.engine.evaluate('https://stale.example')).toEqual({
+      action: 'block',
+      filterId: 'stale-filter',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
+    expect(refreshedRules.engine.evaluate('https://fresh.example')).toEqual({
+      action: 'block',
+      filterId: 'fresh-filter',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
+    expect(cachedRules.engine.evaluate('https://fresh.example')).toEqual({
+      action: 'block',
+      filterId: 'fresh-filter',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
+    expect(cachedRules.engine.evaluate('https://stale.example')).toEqual({
+      action: 'allow',
+      reason: 'no-match',
+    });
+  });
+
   it('reloads rules when storage changes', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ rulesVersion: 1 }));
