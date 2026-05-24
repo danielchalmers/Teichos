@@ -118,6 +118,10 @@ p {
   background: var(--button-alt-bg-hover);
 }
 
+[hidden] {
+  display: none !important;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;

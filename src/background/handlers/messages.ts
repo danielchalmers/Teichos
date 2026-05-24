@@ -37,12 +37,12 @@ export function handleMessage(
   }
 
   if (isGoBackActiveTabMessage(message)) {
-    void handleGoBackActiveTab(sendResponse);
+    void handleGoBackActiveTab(sender, sendResponse);
     return true;
   }
 
   if (isContinueActiveTabWarningMessage(message)) {
-    void handleContinueActiveTabWarning(sendResponse);
+    void handleContinueActiveTabWarning(sender, sendResponse);
     return true;
   }
 
@@ -62,12 +62,30 @@ async function handleCheckUrl(
   sendResponse({ blocked: decision.action === 'block' });
 }
 
-async function handleGoBackActiveTab(sendResponse: (response: unknown) => void): Promise<void> {
+async function handleGoBackActiveTab(
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: unknown) => void
+): Promise<void> {
+  const senderTabId = sender.tab?.id;
+  if (typeof senderTabId === 'number') {
+    sendResponse({ restored: await getTabController().goBackFromTab(senderTabId) });
+    return;
+  }
+
   sendResponse({ restored: await getTabController().goBackFromActiveTab() });
 }
 
 async function handleContinueActiveTabWarning(
+  sender: chrome.runtime.MessageSender,
   sendResponse: (response: unknown) => void
 ): Promise<void> {
+  const senderTabId = sender.tab?.id;
+  if (typeof senderTabId === 'number') {
+    sendResponse({
+      continued: await getTabController().continueWarningFromTab(senderTabId, sender.tab?.url),
+    });
+    return;
+  }
+
   sendResponse({ continued: await getTabController().continueWarningFromActiveTab() });
 }

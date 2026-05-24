@@ -140,8 +140,22 @@ test('updates global and per-filter block type controls', async ({
   await page.goto(extensionPage(PAGES.OPTIONS));
 
   const globalBlockType = page.getByLabel('Block Type').first();
+  await expect(
+    page.evaluate(() => {
+      const actions = document.querySelector('.global-settings-actions');
+      const blockTypeRow = document.getElementById('global-block-type')?.closest('.form-row');
+      if (!actions || !blockTypeRow) {
+        return false;
+      }
+
+      return Boolean(
+        actions.compareDocumentPosition(blockTypeRow) & Node.DOCUMENT_POSITION_FOLLOWING
+      );
+    })
+  ).resolves.toBe(true);
   await expect(globalBlockType).toHaveValue('block');
   await globalBlockType.selectOption('warning');
+  await expect(page.locator('#global-settings-status')).toHaveText('');
   await expect
     .poll(async () => {
       const data = await readStorage(page);

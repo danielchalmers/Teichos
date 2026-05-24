@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   getUrlDecision: vi.fn(),
   goBackFromActiveTab: vi.fn(),
+  goBackFromTab: vi.fn(),
   continueWarningFromActiveTab: vi.fn(),
+  continueWarningFromTab: vi.fn(),
   loadData: vi.fn(),
 }));
 
@@ -11,11 +13,15 @@ vi.mock('../../../src/background/tabController', () => ({
   getTabController: (): {
     getUrlDecision: typeof mocks.getUrlDecision;
     goBackFromActiveTab: typeof mocks.goBackFromActiveTab;
+    goBackFromTab: typeof mocks.goBackFromTab;
     continueWarningFromActiveTab: typeof mocks.continueWarningFromActiveTab;
+    continueWarningFromTab: typeof mocks.continueWarningFromTab;
   } => ({
     getUrlDecision: mocks.getUrlDecision,
     goBackFromActiveTab: mocks.goBackFromActiveTab,
+    goBackFromTab: mocks.goBackFromTab,
     continueWarningFromActiveTab: mocks.continueWarningFromActiveTab,
+    continueWarningFromTab: mocks.continueWarningFromTab,
   }),
 }));
 
@@ -41,7 +47,9 @@ describe('handleMessage', () => {
     mocks.loadData.mockResolvedValue(defaultData);
     mocks.getUrlDecision.mockResolvedValue({ action: 'allow', reason: 'no-match' });
     mocks.goBackFromActiveTab.mockResolvedValue(false);
+    mocks.goBackFromTab.mockResolvedValue(false);
     mocks.continueWarningFromActiveTab.mockResolvedValue(false);
+    mocks.continueWarningFromTab.mockResolvedValue(false);
   });
 
   it('rejects messages from other extensions', () => {
@@ -88,13 +96,13 @@ describe('handleMessage', () => {
   });
 
   it('responds to go-back requests', async () => {
-    mocks.goBackFromActiveTab.mockResolvedValue(true);
+    mocks.goBackFromTab.mockResolvedValue(true);
     const sendResponse = vi.fn();
 
     expect(
       handleMessage(
         { type: MessageType.GO_BACK_ACTIVE_TAB },
-        { id: 'test-extension-id' },
+        { id: 'test-extension-id', tab: { id: 4 } as chrome.tabs.Tab },
         sendResponse
       )
     ).toBe(true);
@@ -102,16 +110,23 @@ describe('handleMessage', () => {
     await vi.waitFor(() => {
       expect(sendResponse).toHaveBeenCalledWith({ restored: true });
     });
+    expect(mocks.goBackFromTab).toHaveBeenCalledWith(4);
   });
 
   it('responds to warning-continue requests', async () => {
-    mocks.continueWarningFromActiveTab.mockResolvedValue(true);
+    mocks.continueWarningFromTab.mockResolvedValue(true);
     const sendResponse = vi.fn();
 
     expect(
       handleMessage(
         { type: MessageType.CONTINUE_ACTIVE_TAB_WARNING },
-        { id: 'test-extension-id' },
+        {
+          id: 'test-extension-id',
+          tab: {
+            id: 7,
+            url: 'chrome-extension://test-extension-id/src/blocked/index.html',
+          } as chrome.tabs.Tab,
+        },
         sendResponse
       )
     ).toBe(true);
@@ -119,6 +134,10 @@ describe('handleMessage', () => {
     await vi.waitFor(() => {
       expect(sendResponse).toHaveBeenCalledWith({ continued: true });
     });
+    expect(mocks.continueWarningFromTab).toHaveBeenCalledWith(
+      7,
+      'chrome-extension://test-extension-id/src/blocked/index.html'
+    );
   });
 
   it('ignores unknown messages from this extension', () => {

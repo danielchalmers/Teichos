@@ -19,7 +19,8 @@ function isWarningMode(): boolean {
  * Initialize blocked page
  */
 async function init(): Promise<void> {
-  renderInterstitial();
+  const warningMode = isWarningMode();
+  renderInterstitial(warningMode);
 
   const goBackButton = getElementByIdOrNull('go-back');
   goBackButton?.addEventListener('click', () => {
@@ -28,12 +29,14 @@ async function init(): Promise<void> {
     });
   });
 
-  const continueButton = getElementByIdOrNull('continue');
-  continueButton?.addEventListener('click', () => {
-    void handleContinue().catch((error: unknown) => {
-      console.error('Failed to continue past warning:', error);
+  if (warningMode) {
+    const continueButton = getElementByIdOrNull('continue');
+    continueButton?.addEventListener('click', () => {
+      void handleContinue().catch((error: unknown) => {
+        console.error('Failed to continue past warning:', error);
+      });
     });
-  });
+  }
 
   // Set up options button
   const openOptionsButton = getElementByIdOrNull('open-options');
@@ -64,8 +67,7 @@ async function handleGoBack(): Promise<void> {
   }
 }
 
-function renderInterstitial(): void {
-  const warningMode = isWarningMode();
+function renderInterstitial(warningMode: boolean): void {
   const headingElement = getElementByIdOrNull('blocked-heading');
   const messageElement = getElementByIdOrNull('blocked-message');
   const continueButton = getElementByIdOrNull<HTMLButtonElement>('continue');

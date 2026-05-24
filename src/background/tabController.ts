@@ -108,19 +108,27 @@ class TabController {
       return false;
     }
 
-    const lastAllowedUrl = await getLastAllowedUrl(activeTab.id);
+    return this.goBackFromTab(activeTab.id);
+  }
+
+  async goBackFromTab(tabId: number): Promise<boolean> {
+    if (!Number.isInteger(tabId)) {
+      return false;
+    }
+
+    const lastAllowedUrl = await getLastAllowedUrl(tabId);
     if (!lastAllowedUrl || isInternalUrl(lastAllowedUrl)) {
       return false;
     }
 
     const rules = await this.getRules();
-    const decision = await this.getTabUrlDecision(activeTab.id, lastAllowedUrl, rules);
+    const decision = await this.getTabUrlDecision(tabId, lastAllowedUrl, rules);
     if (decision.action === 'block') {
       return false;
     }
 
-    await updateTabUrl(activeTab.id, lastAllowedUrl);
-    await this.allowTab(activeTab.id, lastAllowedUrl);
+    await updateTabUrl(tabId, lastAllowedUrl);
+    await this.allowTab(tabId, lastAllowedUrl);
     return true;
   }
 
@@ -130,7 +138,15 @@ class TabController {
       return false;
     }
 
-    const state = await this.resolveBlockedTabState(activeTab.id, activeTab.url);
+    return this.continueWarningFromTab(activeTab.id, activeTab.url);
+  }
+
+  async continueWarningFromTab(tabId: number, tabUrl?: string): Promise<boolean> {
+    if (!Number.isInteger(tabId)) {
+      return false;
+    }
+
+    const state = await this.resolveBlockedTabState(tabId, tabUrl);
     if (!state) {
       return false;
     }
@@ -138,22 +154,22 @@ class TabController {
     const rules = await this.getRules();
     const decision = rules.engine.evaluate(state.targetUrl);
     if (decision.action !== 'block') {
-      await updateTabUrl(activeTab.id, state.targetUrl);
-      await this.allowTab(activeTab.id, state.targetUrl);
+      await updateTabUrl(tabId, state.targetUrl);
+      await this.allowTab(tabId, state.targetUrl);
       return true;
     }
 
     if (decision.blockType !== 'warning') {
-      await this.setBlockedState(activeTab.id, state.targetUrl, decision, rules.data.rulesVersion);
+      await this.setBlockedState(tabId, state.targetUrl, decision, rules.data.rulesVersion);
       return false;
     }
 
-    await addWarningBypass(activeTab.id, {
+    await addWarningBypass(tabId, {
       filterId: decision.filterId,
       scopeKey: getWarningBypassScopeKey(state.targetUrl),
     });
-    await updateTabUrl(activeTab.id, state.targetUrl);
-    await this.allowTab(activeTab.id, state.targetUrl);
+    await updateTabUrl(tabId, state.targetUrl);
+    await this.allowTab(tabId, state.targetUrl);
     return true;
   }
 

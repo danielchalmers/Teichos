@@ -602,10 +602,9 @@ async function handleGlobalBlockTypeChange(event: Event): Promise<void> {
   try {
     const data = await loadData();
     await saveData({ ...data, blockType: select.value });
-    setGlobalSettingsStatus('Global block type updated.');
   } catch (error) {
     console.error('Failed to update global block type:', error);
-    setGlobalSettingsStatus('Failed to update global block type.', true);
+    await renderGroups();
   }
 }
 
