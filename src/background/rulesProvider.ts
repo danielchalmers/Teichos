@@ -18,6 +18,7 @@ export class RulesProvider {
   private cachedRules: CurrentRules | null = null;
   private cachedSignature: string | null = null;
   private loadingRules: Promise<CurrentRules> | null = null;
+  private invalidationVersion = 0;
 
   constructor(options: RulesProviderOptions = {}) {
     this.loadStorageData = options.loadStorageData ?? loadData;
@@ -25,14 +26,22 @@ export class RulesProvider {
   }
 
   invalidate(): void {
+    this.invalidationVersion += 1;
     this.cachedRules = null;
     this.cachedSignature = null;
+    this.loadingRules = null;
   }
 
   async loadCurrentRules(): Promise<CurrentRules> {
-    this.loadingRules ??= this.loadStorageData()
+    if (this.loadingRules) {
+      return this.loadingRules;
+    }
+
+    const loadVersion = this.invalidationVersion;
+    const loadPromise = this.loadStorageData()
       .then((data) => {
         const signature = serializeRulesData(data);
+        const cacheCanBeUpdated = this.invalidationVersion === loadVersion;
 
         if (this.cachedRules && this.cachedSignature === signature) {
           return this.cachedRules;
@@ -43,15 +52,21 @@ export class RulesProvider {
           engine: this.createEngine(data),
         };
 
-        this.cachedRules = currentRules;
-        this.cachedSignature = signature;
+        if (cacheCanBeUpdated) {
+          this.cachedRules = currentRules;
+          this.cachedSignature = signature;
+        }
+
         return currentRules;
       })
       .finally(() => {
-        this.loadingRules = null;
+        if (this.loadingRules === loadPromise) {
+          this.loadingRules = null;
+        }
       });
 
-    return this.loadingRules;
+    this.loadingRules = loadPromise;
+    return loadPromise;
   }
 }
 
