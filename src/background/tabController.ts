@@ -12,6 +12,11 @@ import { STORAGE_KEY, type BlockedTabState } from '../shared/types';
 import { isInternalUrl, type FilterDecision } from '../shared/utils';
 import { getRulesProvider, type CurrentRules, type RulesProvider } from './rulesProvider';
 
+interface ResolvedBlockedTarget {
+  readonly targetUrl: string;
+  readonly hasSessionState: boolean;
+}
+
 class TabController {
   private didRegister = false;
   private reconcileQueue: Promise<void> = Promise.resolve();
@@ -64,21 +69,36 @@ class TabController {
   }
 
   async restoreIfAllowed(tabId: number, blockedPageUrl?: string): Promise<boolean> {
-    const state = await this.resolveBlockedTabState(tabId, blockedPageUrl);
-    if (!state) {
+    const resolvedTarget = await this.resolveBlockedTarget(tabId, blockedPageUrl);
+    if (!resolvedTarget) {
       return false;
     }
 
     const rules = await this.getRules();
-    const decision = rules.engine.evaluate(state.targetUrl);
-    if (decision.action === 'block') {
-      await this.setBlockedState(tabId, state.targetUrl, decision, rules.data.rulesVersion);
+    const state = await this.refreshBlockedTabState(tabId, resolvedTarget.targetUrl, rules);
+    if (state) {
       return false;
     }
 
-    await updateTabUrl(tabId, state.targetUrl);
-    await this.allowTab(tabId, state.targetUrl);
+    await updateTabUrl(tabId, resolvedTarget.targetUrl);
+    await this.allowTab(tabId, resolvedTarget.targetUrl);
     return true;
+  }
+
+  async getFreshBlockedTabState(
+    tabId: number,
+    blockedPageUrl?: string
+  ): Promise<BlockedTabState | undefined> {
+    if (!Number.isInteger(tabId)) {
+      return undefined;
+    }
+
+    const resolvedTarget = await this.resolveBlockedTarget(tabId, blockedPageUrl);
+    if (!resolvedTarget) {
+      return undefined;
+    }
+
+    return this.refreshBlockedTabState(tabId, resolvedTarget.targetUrl);
   }
 
   async reconcileAllOpenTabs(): Promise<void> {
@@ -136,21 +156,20 @@ class TabController {
   }
 
   private async reconcileBlockedTab(tabId: number, blockedPageUrl?: string): Promise<void> {
-    const state = await this.resolveBlockedTabState(tabId, blockedPageUrl);
-    if (!state) {
+    const resolvedTarget = await this.resolveBlockedTarget(tabId, blockedPageUrl);
+    if (!resolvedTarget) {
       return;
     }
 
     const rules = await this.getRules();
-    const decision = rules.engine.evaluate(state.targetUrl);
-
-    if (decision.action === 'allow') {
-      await updateTabUrl(tabId, state.targetUrl);
-      await this.allowTab(tabId, state.targetUrl);
+    const state = await this.refreshBlockedTabState(tabId, resolvedTarget.targetUrl, rules);
+    if (!state) {
+      if (resolvedTarget.hasSessionState) {
+        await updateTabUrl(tabId, resolvedTarget.targetUrl);
+        await this.allowTab(tabId, resolvedTarget.targetUrl);
+      }
       return;
     }
-
-    await this.setBlockedState(tabId, state.targetUrl, decision, rules.data.rulesVersion);
   }
 
   private async blockTab(
@@ -173,7 +192,7 @@ class TabController {
     targetUrl: string,
     decision: Extract<FilterDecision, { action: 'block' }>,
     rulesVersion: number
-  ): Promise<void> {
+  ): Promise<BlockedTabState> {
     const state: BlockedTabState = {
       tabId,
       targetUrl,
@@ -186,42 +205,40 @@ class TabController {
     };
 
     await setBlockedTabState(state);
+    return state;
   }
 
-  private async resolveBlockedTabState(
+  private async resolveBlockedTarget(
     tabId: number,
     blockedPageUrl?: string
-  ): Promise<BlockedTabState | undefined> {
+  ): Promise<ResolvedBlockedTarget | undefined> {
     const existingState = await getBlockedTabState(tabId);
-    if (existingState) {
-      return existingState;
-    }
-
     const fallbackTargetUrl = parseBlockedTargetUrl(blockedPageUrl);
-    if (!fallbackTargetUrl) {
-      return undefined;
+    if (fallbackTargetUrl) {
+      return {
+        targetUrl: fallbackTargetUrl,
+        hasSessionState: Boolean(existingState),
+      };
     }
 
-    // Migration path for blocked tabs that were created before blocked-tab
-    // session state started being recorded.
-    const rules = await this.getRules();
-    const decision = rules.engine.evaluate(fallbackTargetUrl);
+    return existingState
+      ? { targetUrl: existingState.targetUrl, hasSessionState: true }
+      : undefined;
+  }
+
+  private async refreshBlockedTabState(
+    tabId: number,
+    targetUrl: string,
+    currentRules?: CurrentRules
+  ): Promise<BlockedTabState | undefined> {
+    const rules = currentRules ?? (await this.getRules());
+    const decision = rules.engine.evaluate(targetUrl);
     if (decision.action !== 'block') {
+      await clearBlockedTabState(tabId);
       return undefined;
     }
 
-    const state: BlockedTabState = {
-      tabId,
-      targetUrl: fallbackTargetUrl,
-      blockedAt: Date.now(),
-      rulesVersion: rules.data.rulesVersion,
-      blockedBy: {
-        filterId: decision.filterId,
-        groupId: decision.groupId,
-      },
-    };
-    await setBlockedTabState(state);
-    return state;
+    return this.setBlockedState(tabId, targetUrl, decision, rules.data.rulesVersion);
   }
 
   private queueReconcile(): void {

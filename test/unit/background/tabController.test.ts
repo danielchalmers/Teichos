@@ -152,6 +152,97 @@ describe('TabController', () => {
     await expect(getLastAllowedUrl(5)).resolves.toBe('https://blocked.com/focus');
   });
 
+  it('reconciles the target from the current blocked page before stale session state', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'stale-filter',
+            pattern: 'stale-blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 9,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await setBlockedTabState({
+      tabId: 7,
+      targetUrl: 'https://stale-blocked.com/focus',
+      blockedAt: Date.now(),
+      rulesVersion: 8,
+      blockedBy: {
+        filterId: 'stale-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+
+    await getTabController().evaluateNavigation(
+      7,
+      `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://allowed.com/focus')}`
+    );
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      7,
+      { url: 'https://allowed.com/focus' },
+      expect.any(Function)
+    );
+    await expect(getBlockedTabState(7)).resolves.toBeUndefined();
+    await expect(getLastAllowedUrl(7)).resolves.toBe('https://allowed.com/focus');
+  });
+
+  it('returns freshly evaluated blocked tab state for the current blocked page target', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'fresh-filter',
+            pattern: 'fresh-blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 10,
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await setBlockedTabState({
+      tabId: 10,
+      targetUrl: 'https://stale-blocked.com/focus',
+      blockedAt: Date.now(),
+      rulesVersion: 9,
+      blockedBy: {
+        filterId: 'stale-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+
+    await expect(
+      getTabController().getFreshBlockedTabState(
+        10,
+        `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://fresh-blocked.com/focus')}`
+      )
+    ).resolves.toEqual({
+      tabId: 10,
+      targetUrl: 'https://fresh-blocked.com/focus',
+      blockedAt: expect.any(Number),
+      rulesVersion: 10,
+      blockedBy: {
+        filterId: 'fresh-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+  });
+
   it('reconciles open tabs after storage changes', async () => {
     const chromeMock = getChromeMock();
     chromeMock.tabs.query.mockImplementation(
