@@ -3,10 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getBlockedTabState,
   getLastAllowedUrl,
+  setBlockedPageState,
   setBlockedTabState,
 } from '../../../src/shared/api/session';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
-import { DEFAULT_GROUP_ID, STORAGE_KEY, type StorageData } from '../../../src/shared/types';
+import {
+  DEFAULT_GROUP_ID,
+  STORAGE_KEY,
+  type BlockedPageState,
+  type StorageData,
+} from '../../../src/shared/types';
 import { PAGES } from '../../../src/shared/constants';
 
 function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
@@ -18,6 +24,31 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
     rulesVersion: overrides.rulesVersion ?? 1,
+  };
+}
+
+function createBlockedPageState(overrides: Partial<BlockedPageState>): BlockedPageState {
+  return {
+    blockId: overrides.blockId ?? 'block-1',
+    tabId: overrides.tabId ?? 1,
+    targetUrl: overrides.targetUrl ?? 'https://blocked.com/focus',
+    blockedAt: overrides.blockedAt ?? Date.now(),
+    rulesVersion: overrides.rulesVersion ?? 1,
+    blockedBy: overrides.blockedBy ?? {
+      filterId: 'filter-1',
+      groupId: DEFAULT_GROUP_ID,
+    },
+    filter: overrides.filter ?? {
+      id: 'filter-1',
+      pattern: 'blocked.com',
+      matchMode: 'contains',
+    },
+    group: overrides.group ?? {
+      id: DEFAULT_GROUP_ID,
+      name: '24/7',
+      schedules: [],
+      is24x7: true,
+    },
   };
 }
 
@@ -51,11 +82,14 @@ describe('TabController', () => {
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(
       4,
       {
-        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}`,
+        url: expect.stringContaining(
+          `chrome-extension://test-extension-id/${PAGES.BLOCKED}?blockId=`
+        ),
       },
       expect.any(Function)
     );
     await expect(getBlockedTabState(4)).resolves.toEqual({
+      blockId: expect.any(String),
       tabId: 4,
       targetUrl: 'https://blocked.com/focus',
       blockedAt: expect.any(Number),
@@ -99,11 +133,14 @@ describe('TabController', () => {
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(
       6,
       {
-        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}`,
+        url: expect.stringContaining(
+          `chrome-extension://test-extension-id/${PAGES.BLOCKED}?blockId=`
+        ),
       },
       expect.any(Function)
     );
     await expect(getBlockedTabState(6)).resolves.toEqual({
+      blockId: expect.any(String),
       tabId: 6,
       targetUrl: 'https://blocked.com/focus',
       blockedAt: expect.any(Number),
@@ -126,6 +163,7 @@ describe('TabController', () => {
     const chromeMock = getChromeMock();
     const { getTabController } = await import('../../../src/background/tabController');
     await setBlockedTabState({
+      blockId: 'restore-block',
       tabId: 5,
       targetUrl: 'https://blocked.com/focus',
       blockedAt: Date.now(),
@@ -135,11 +173,18 @@ describe('TabController', () => {
         groupId: DEFAULT_GROUP_ID,
       },
     });
+    await setBlockedPageState(
+      createBlockedPageState({
+        blockId: 'restore-block',
+        tabId: 5,
+        targetUrl: 'https://blocked.com/focus',
+      })
+    );
 
     await expect(
       getTabController().restoreIfAllowed(
         5,
-        `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}`
+        `chrome-extension://test-extension-id/${PAGES.BLOCKED}?blockId=restore-block`
       )
     ).resolves.toBe(true);
 
@@ -172,6 +217,7 @@ describe('TabController', () => {
 
     const { getTabController } = await import('../../../src/background/tabController');
     await setBlockedTabState({
+      blockId: 'stale-block',
       tabId: 7,
       targetUrl: 'https://stale-blocked.com/focus',
       blockedAt: Date.now(),
@@ -181,10 +227,17 @@ describe('TabController', () => {
         groupId: DEFAULT_GROUP_ID,
       },
     });
+    await setBlockedPageState(
+      createBlockedPageState({
+        blockId: 'stale-block',
+        tabId: 7,
+        targetUrl: 'https://allowed.com/focus',
+      })
+    );
 
     await getTabController().evaluateNavigation(
       7,
-      `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://allowed.com/focus')}`
+      `chrome-extension://test-extension-id/${PAGES.BLOCKED}?blockId=stale-block`
     );
 
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(
@@ -216,6 +269,7 @@ describe('TabController', () => {
 
     const { getTabController } = await import('../../../src/background/tabController');
     await setBlockedTabState({
+      blockId: 'fresh-block',
       tabId: 10,
       targetUrl: 'https://stale-blocked.com/focus',
       blockedAt: Date.now(),
@@ -225,13 +279,21 @@ describe('TabController', () => {
         groupId: DEFAULT_GROUP_ID,
       },
     });
+    await setBlockedPageState(
+      createBlockedPageState({
+        blockId: 'fresh-block',
+        tabId: 10,
+        targetUrl: 'https://fresh-blocked.com/focus',
+      })
+    );
 
     await expect(
       getTabController().getFreshBlockedTabState(
         10,
-        `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://fresh-blocked.com/focus')}`
+        `chrome-extension://test-extension-id/${PAGES.BLOCKED}?blockId=fresh-block`
       )
     ).resolves.toEqual({
+      blockId: expect.any(String),
       tabId: 10,
       targetUrl: 'https://fresh-blocked.com/focus',
       blockedAt: expect.any(Number),
@@ -239,6 +301,72 @@ describe('TabController', () => {
       blockedBy: {
         filterId: 'fresh-filter',
         groupId: DEFAULT_GROUP_ID,
+      },
+    });
+  });
+
+  it('returns blocked-page state by block id without tab sender state', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'matched-tab-filter',
+            pattern: 'matched-tab.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 11,
+      })
+    );
+    await setBlockedPageState(
+      createBlockedPageState({
+        blockId: 'matched-tab-block',
+        tabId: 14,
+        targetUrl: 'https://matched-tab.com/focus',
+        rulesVersion: 11,
+        blockedBy: {
+          filterId: 'matched-tab-filter',
+          groupId: DEFAULT_GROUP_ID,
+        },
+        filter: {
+          id: 'matched-tab-filter',
+          pattern: 'matched-tab.com',
+          matchMode: 'contains',
+        },
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+
+    await expect(
+      getTabController().getBlockedPageStateByBlockId('matched-tab-block')
+    ).resolves.toEqual({
+      status: 'blocked',
+      state: {
+        blockId: 'matched-tab-block',
+        tabId: 14,
+        targetUrl: 'https://matched-tab.com/focus',
+        blockedAt: expect.any(Number),
+        rulesVersion: 11,
+        blockedBy: {
+          filterId: 'matched-tab-filter',
+          groupId: DEFAULT_GROUP_ID,
+        },
+        filter: {
+          id: 'matched-tab-filter',
+          pattern: 'matched-tab.com',
+          matchMode: 'contains',
+        },
+        group: {
+          id: DEFAULT_GROUP_ID,
+          name: '24/7',
+          schedules: [],
+          is24x7: true,
+        },
       },
     });
   });
@@ -277,7 +405,9 @@ describe('TabController', () => {
       expect(chromeMock.tabs.update).toHaveBeenCalledWith(
         8,
         {
-          url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com/focus')}`,
+          url: expect.stringContaining(
+            `chrome-extension://test-extension-id/${PAGES.BLOCKED}?blockId=`
+          ),
         },
         expect.any(Function)
       );
@@ -316,7 +446,9 @@ describe('TabController', () => {
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(
       12,
       {
-        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com')}`,
+        url: expect.stringContaining(
+          `chrome-extension://test-extension-id/${PAGES.BLOCKED}?blockId=`
+        ),
       },
       expect.any(Function)
     );
@@ -354,7 +486,9 @@ describe('TabController', () => {
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(
       13,
       {
-        url: `chrome-extension://test-extension-id/${PAGES.BLOCKED}?url=${encodeURIComponent('https://blocked.com')}`,
+        url: expect.stringContaining(
+          `chrome-extension://test-extension-id/${PAGES.BLOCKED}?blockId=`
+        ),
       },
       expect.any(Function)
     );

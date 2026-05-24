@@ -5,8 +5,10 @@
 :root {
   color-scheme: light;
   --text-2xl: 2.25rem;
+  --text-xl: 1.35rem;
   --text-lg: 1.1rem;
   --text-md: 0.98rem;
+  --text-sm: 0.82rem;
   --bg-glow-primary: rgba(172, 210, 246, 0.3);
   --bg-glow-secondary: rgba(102, 109, 220, 0.22);
   --bg-gradient-start: #4e4cd3;
@@ -15,6 +17,10 @@
   --text-on-bg: #f7f8ff;
   --url-bg: rgba(255, 255, 255, 0.2);
   --url-border: rgba(255, 255, 255, 0.28);
+  --panel-bg: rgba(255, 255, 255, 0.18);
+  --panel-border: rgba(255, 255, 255, 0.24);
+  --panel-divider: rgba(255, 255, 255, 0.18);
+  --muted-text: rgba(247, 248, 255, 0.72);
   --button-bg: #f8fbff;
   --button-text: #4e4cd3;
   --button-bg-hover: #ecefff;
@@ -72,9 +78,69 @@ p {
   padding: 1rem;
   border-radius: 8px;
   word-break: break-all;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   font-family: monospace;
   font-size: var(--text-md);
+}
+
+.responsible-filter {
+  text-align: left;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 18px 52px rgba(24, 27, 72, 0.18);
+}
+
+.responsible-filter-header {
+  margin-bottom: 0.9rem;
+}
+
+.responsible-filter-kicker {
+  display: block;
+  color: var(--muted-text);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h2 {
+  font-size: var(--text-xl);
+  line-height: 1.25;
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--panel-divider);
+}
+
+.detail-item {
+  min-width: 0;
+  padding: 0.85rem 0.9rem 0 0;
+}
+
+.detail-item dt {
+  color: var(--muted-text);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.detail-item dd {
+  margin: 0;
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.detail-item:first-child dd {
+  font-family: monospace;
 }
 
 .actions {
@@ -129,6 +195,10 @@ p {
     --text-on-bg: #f0f2ff;
     --url-bg: rgba(12, 22, 39, 0.44);
     --url-border: rgba(173, 203, 244, 0.18);
+    --panel-bg: rgba(12, 22, 39, 0.34);
+    --panel-border: rgba(173, 203, 244, 0.2);
+    --panel-divider: rgba(173, 203, 244, 0.16);
+    --muted-text: rgba(240, 242, 255, 0.72);
     --button-bg: #ddecff;
     --button-text: #3a32a9;
     --button-bg-hover: #cfd8ff;
@@ -136,5 +206,27 @@ p {
     --button-alt-bg-hover: rgba(24, 27, 72, 0.66);
     --button-alt-text: #f0f2ff;
     --focus-ring: rgba(228, 232, 255, 0.9);
+  }
+}
+
+@media (max-width: 520px) {
+  body {
+    align-items: flex-start;
+  }
+
+  .container {
+    padding: 1.5rem;
+  }
+
+  .icon {
+    font-size: 64px;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .button {
+    width: 100%;
   }
 }

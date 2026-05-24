@@ -46,18 +46,19 @@ export async function readStorage(page: Page): Promise<StorageData | undefined> 
 }
 
 export function getBlockedPagePathFor(targetUrl: string): string {
-  return `/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}`;
+  void targetUrl;
+  return `/${PAGES.BLOCKED}`;
 }
 
 export async function expectBlocked(
   page: Page,
   targetUrl: string,
-  expectedBlockedUrl = getBlockedPagePathFor(targetUrl)
+  expectedBlockedPath = getBlockedPagePathFor(targetUrl)
 ): Promise<void> {
   await page.goto(targetUrl).catch(() => undefined);
   await expect
     .poll(() => new URL(page.url()).pathname + new URL(page.url()).search)
-    .toBe(expectedBlockedUrl);
+    .toContain(`${expectedBlockedPath}?blockId=`);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
 }
@@ -279,16 +280,32 @@ export async function readBlockedTabStateForTarget(
 ): Promise<BlockedTabState | undefined> {
   return page.evaluate(
     async ({ blockedPagePath, url }) => {
-      const blockedUrl = `${chrome.runtime.getURL(blockedPagePath)}?url=${encodeURIComponent(url)}`;
+      const blockedPageUrl = chrome.runtime.getURL(blockedPagePath);
       const tabs = await chrome.tabs.query({});
-      const tab = tabs.find((candidate) => candidate.url === url || candidate.url === blockedUrl);
-      if (typeof tab?.id !== 'number') {
-        return undefined;
+      const directTab = tabs.find((candidate) => candidate.url === url);
+      if (typeof directTab?.id === 'number') {
+        const key = `blocked_tab_state_${directTab.id}`;
+        const result = await chrome.storage.session.get(key);
+        return result[key] as BlockedTabState | undefined;
       }
 
-      const key = `blocked_tab_state_${tab.id}`;
-      const result = await chrome.storage.session.get(key);
-      return result[key] as BlockedTabState | undefined;
+      for (const candidate of tabs) {
+        if (
+          typeof candidate.id !== 'number' ||
+          !candidate.url?.startsWith(`${blockedPageUrl}?blockId=`)
+        ) {
+          continue;
+        }
+
+        const key = `blocked_tab_state_${candidate.id}`;
+        const result = await chrome.storage.session.get(key);
+        const state = result[key] as BlockedTabState | undefined;
+        if (state?.targetUrl === url) {
+          return state;
+        }
+      }
+
+      return undefined;
     },
     { blockedPagePath: PAGES.BLOCKED, url: targetUrl }
   );

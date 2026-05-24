@@ -61,11 +61,32 @@ export interface BlockedBy {
 }
 
 export interface BlockedTabState {
+  readonly blockId: string;
   readonly tabId: number;
   readonly targetUrl: string;
   readonly blockedBy: BlockedBy;
   readonly blockedAt: number;
   readonly rulesVersion: number;
+}
+
+export interface BlockedFilterSnapshot {
+  readonly id: string;
+  readonly pattern: string;
+  readonly matchMode: FilterMatchMode;
+  readonly description?: string;
+}
+
+export type BlockedGroupSnapshot = FilterGroup;
+
+export interface BlockedPageState {
+  readonly blockId: string;
+  readonly tabId: number;
+  readonly targetUrl: string;
+  readonly blockedBy: BlockedBy;
+  readonly blockedAt: number;
+  readonly rulesVersion: number;
+  readonly filter: BlockedFilterSnapshot;
+  readonly group: BlockedGroupSnapshot | undefined;
 }
 
 /** Root storage schema */

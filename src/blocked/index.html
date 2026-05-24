@@ -12,6 +12,35 @@
       <h1>Page Blocked</h1>
       <p>This page has been blocked by Teichos based on your filter settings.</p>
       <div class="url" id="blocked-url" role="status" aria-label="Blocked URL"></div>
+      <section
+        class="responsible-filter"
+        id="responsible-filter"
+        aria-label="Responsible filter"
+        hidden
+      >
+        <div class="responsible-filter-header">
+          <span class="responsible-filter-kicker">Blocked by</span>
+          <h2 id="responsible-filter-name"></h2>
+        </div>
+        <dl class="detail-grid">
+          <div class="detail-item">
+            <dt>Pattern</dt>
+            <dd id="responsible-filter-pattern"></dd>
+          </div>
+          <div class="detail-item">
+            <dt>Match</dt>
+            <dd id="responsible-filter-match"></dd>
+          </div>
+          <div class="detail-item">
+            <dt>Group</dt>
+            <dd id="responsible-filter-group"></dd>
+          </div>
+          <div class="detail-item">
+            <dt>Schedule</dt>
+            <dd id="responsible-filter-schedule"></dd>
+          </div>
+        </dl>
+      </section>
       <div class="actions">
         <button class="button" id="go-back" type="button">Go Back</button>
         <button class="button secondary" id="open-options" type="button">Manage Filters</button>

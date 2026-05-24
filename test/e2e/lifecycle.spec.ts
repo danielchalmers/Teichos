@@ -487,7 +487,7 @@ test('editing a schedule through options changes navigation from off-schedule al
 
   await expect
     .poll(() => new URL(browsingPage.url()).pathname + new URL(browsingPage.url()).search)
-    .toBe(`/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}`);
+    .toContain(`/${PAGES.BLOCKED}?blockId=`);
   await expect(browsingPage.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await captureScreenshot(browsingPage, testInfo, 'schedule-lifecycle-blocked.png');
 });

@@ -3,7 +3,7 @@
  * Uses discriminated unions for type-safe message handling
  */
 
-import type { BlockedTabState, Filter, StorageData } from './storage';
+import type { BlockedPageState, Filter, StorageData } from './storage';
 
 // Message types enum for discriminated union
 export const MessageType = {
@@ -34,6 +34,7 @@ export interface GoBackActiveTabMessage {
 
 export interface GetBlockedPageStateMessage {
   readonly type: typeof MessageType.GET_BLOCKED_PAGE_STATE;
+  readonly blockId?: string;
 }
 
 // Response messages
@@ -53,7 +54,7 @@ export interface GoBackActiveTabResponse {
 export type GetBlockedPageStateResponse =
   | {
       readonly status: 'blocked';
-      readonly state: BlockedTabState;
+      readonly state: BlockedPageState;
     }
   | {
       readonly status: 'allowed';
@@ -132,7 +133,8 @@ export function isGetBlockedPageStateMessage(msg: unknown): msg is GetBlockedPag
     typeof msg === 'object' &&
     msg !== null &&
     'type' in msg &&
-    msg.type === MessageType.GET_BLOCKED_PAGE_STATE
+    msg.type === MessageType.GET_BLOCKED_PAGE_STATE &&
+    (!('blockId' in msg) || typeof msg.blockId === 'string')
   );
 }
 
