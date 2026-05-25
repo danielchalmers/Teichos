@@ -1,0 +1,29 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="128"
+  height="128"
+  viewBox="0 0 128 128"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Teichos shield</title>
+  <desc id="desc">A dark theme friendly shield with a calm blue highlight.</desc>
+  <defs>
+    <linearGradient id="shield" x1="30" y1="18" x2="98" y2="113" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7d8fe5" />
+      <stop offset="1" stop-color="#4e4cd3" />
+    </linearGradient>
+    <linearGradient id="rim" x1="38" y1="19" x2="90" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f7f8ff" />
+      <stop offset="1" stop-color="#95b0ed" />
+    </linearGradient>
+  </defs>
+  <path
+    fill="url(#rim)"
+    d="M64 14.5 101.5 27.7v27.6c0 26.5-13.9 45.6-37.5 58.4-23.6-12.8-37.5-31.9-37.5-58.4V27.7L64 14.5Z"
+  />
+  <path
+    fill="url(#shield)"
+    d="M64 22.5 94 33.1v22.2c0 21.5-10.9 37.5-30 48.5-19.1-11-30-27-30-48.5V33.1l30-10.6Z"
+  />
+</svg>
