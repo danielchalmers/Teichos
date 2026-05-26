@@ -39,4 +39,3 @@ Want to block sites only during work hours? Create a custom group:
 - Vitest — MIT
 - rimraf — ISC
 - @types/chrome, @types/node — MIT
-- Shield icons created by Freepik - Flaticon

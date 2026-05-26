@@ -120,12 +120,16 @@ body {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1.75rem;
+  line-height: 1;
   letter-spacing: 0.3px;
 }
 
 .app-icon {
   width: 36px;
   height: 36px;
+  display: block;
+  flex: 0 0 36px;
+  transform: translateY(1px);
   filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.2));
 }
 

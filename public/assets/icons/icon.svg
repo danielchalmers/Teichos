@@ -1,0 +1,30 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="128"
+  height="128"
+  viewBox="0 0 128 128"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Teichos shield</title>
+  <desc id="desc">A balanced rounded shield with a light rim and Teichos gradient fill.</desc>
+  <defs>
+    <linearGradient id="rim" x1="18" y1="15" x2="110" y2="115" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#edf0ff" />
+      <stop offset="1" stop-color="#acd2f6" />
+    </linearGradient>
+    <linearGradient id="shield" x1="28" y1="20" x2="101" y2="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#95b0ed" />
+      <stop offset="0.46" stop-color="#666ddc" />
+      <stop offset="1" stop-color="#4e4cd3" />
+    </linearGradient>
+  </defs>
+  <path
+    fill="url(#rim)"
+    d="M64 11.5c11.5 3.7 25.5 8.4 43.9 14.8a9.7 9.7 0 0 1 6.6 9.2v21.7c0 29.1-18.4 49.2-50.5 60.3-32.1-11.1-50.5-31.2-50.5-60.3V35.5a9.7 9.7 0 0 1 6.6-9.2C38.5 19.9 52.5 15.2 64 11.5Z"
+  />
+  <path
+    fill="url(#shield)"
+    d="M64 23.5c9.2 3 20.9 6.9 34.6 11.7a5.6 5.6 0 0 1 3.9 5.3v16.7c0 22.7-13.6 38.6-38.5 48.7-24.9-10.1-38.5-26-38.5-48.7V40.5a5.6 5.6 0 0 1 3.9-5.3C43.1 30.4 54.8 26.5 64 23.5Z"
+  />
+</svg>
