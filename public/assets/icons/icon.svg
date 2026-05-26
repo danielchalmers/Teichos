@@ -7,23 +7,24 @@
   aria-labelledby="title desc"
 >
   <title id="title">Teichos shield</title>
-  <desc id="desc">A dark theme friendly shield with a calm blue highlight.</desc>
+  <desc id="desc">A compact wide shield with a thick light rim and saturated purple gradient.</desc>
   <defs>
-    <linearGradient id="shield" x1="30" y1="18" x2="98" y2="113" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#7d8fe5" />
-      <stop offset="1" stop-color="#4e4cd3" />
-    </linearGradient>
-    <linearGradient id="rim" x1="38" y1="19" x2="90" y2="104" gradientUnits="userSpaceOnUse">
+    <linearGradient id="rim" x1="14" y1="15" x2="114" y2="113" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#f7f8ff" />
-      <stop offset="1" stop-color="#95b0ed" />
+      <stop offset="1" stop-color="#acd2f6" />
+    </linearGradient>
+    <linearGradient id="shield" x1="24" y1="19" x2="105" y2="109" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#95b0ed" />
+      <stop offset="0.46" stop-color="#666ddc" />
+      <stop offset="1" stop-color="#4e4cd3" />
     </linearGradient>
   </defs>
   <path
     fill="url(#rim)"
-    d="M64 14.5 101.5 27.7v27.6c0 26.5-13.9 45.6-37.5 58.4-23.6-12.8-37.5-31.9-37.5-58.4V27.7L64 14.5Z"
+    d="M64 10 115 27.8V57c0 30-19.1 50.7-51 62-31.9-11.3-51-32-51-62V27.8L64 10Z"
   />
   <path
     fill="url(#shield)"
-    d="M64 22.5 94 33.1v22.2c0 21.5-10.9 37.5-30 48.5-19.1-11-30-27-30-48.5V33.1l30-10.6Z"
+    d="M64 23 101.5 36.1V57c0 22.5-13.9 38.8-37.5 48.3C40.4 95.8 26.5 79.5 26.5 57V36.1L64 23Z"
   />
 </svg>
