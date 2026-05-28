@@ -93,6 +93,31 @@ describe('storage', () => {
       ]);
     });
 
+    it('preserves an explicitly disabled group state', async () => {
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, {
+        groups: [
+          {
+            id: 'disabled-group',
+            name: 'Disabled Group',
+            schedules: [],
+            is24x7: false,
+            enabled: false,
+          },
+        ],
+      });
+
+      const data = await loadData();
+      expect(data.groups).toEqual([
+        {
+          id: 'disabled-group',
+          name: 'Disabled Group',
+          schedules: [],
+          is24x7: false,
+          enabled: false,
+        },
+      ]);
+    });
+
     it('should add empty whitelist for backwards compatibility', async () => {
       const testData = {
         groups: [createDefaultGroup()],
