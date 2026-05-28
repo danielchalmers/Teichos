@@ -6,6 +6,7 @@
 import { loadData } from '../../shared/api/storage';
 import {
   isCheckUrlMessage,
+  isContinueActiveTabMessage,
   isGetBlockedPageStateMessage,
   isGetDataMessage,
   isGoBackActiveTabMessage,
@@ -40,6 +41,11 @@ export function handleMessage(
     return true;
   }
 
+  if (isContinueActiveTabMessage(message)) {
+    void handleContinueActiveTab(sendResponse);
+    return true;
+  }
+
   if (isGetBlockedPageStateMessage(message)) {
     void handleGetBlockedPageState(message.blockId, sender, sendResponse);
     return true;
@@ -65,23 +71,27 @@ async function handleGoBackActiveTab(sendResponse: (response: unknown) => void):
   sendResponse({ restored: await getTabController().goBackFromActiveTab() });
 }
 
+async function handleContinueActiveTab(sendResponse: (response: unknown) => void): Promise<void> {
+  sendResponse({ continued: await getTabController().continueFromActiveTab() });
+}
+
 async function handleGetBlockedPageState(
   blockId: string | undefined,
   sender: chrome.runtime.MessageSender,
   sendResponse: (response: unknown) => void
 ): Promise<void> {
+  const senderTabId = sender.tab?.id;
+  if (typeof senderTabId === 'number') {
+    sendResponse(await getTabController().getFreshBlockedPageState(senderTabId, sender.tab?.url));
+    return;
+  }
+
   if (blockId) {
     sendResponse(await getTabController().getBlockedPageStateByBlockId(blockId));
     return;
   }
 
-  const senderTabId = sender.tab?.id;
-  if (typeof senderTabId !== 'number') {
-    sendResponse({ status: 'unavailable' });
-    return;
-  }
-
-  sendResponse(await getTabController().getFreshBlockedPageState(senderTabId, sender.tab?.url));
+  sendResponse({ status: 'unavailable' });
 }
 
 function isInternalSender(sender: chrome.runtime.MessageSender): boolean {

@@ -4,6 +4,7 @@ import {
   MessageType,
   isCheckUrlMessage,
   isCloseInfoPanelMessage,
+  isContinueActiveTabMessage,
   isDataUpdatedMessage,
   isGetBlockedPageStateMessage,
   isGetDataMessage,
@@ -20,6 +21,7 @@ describe('shared/types/messages', () => {
     );
     expect(isCheckUrlMessage({ type: MessageType.CHECK_URL, url: 42 })).toBe(false);
     expect(isGoBackActiveTabMessage({ type: MessageType.GO_BACK_ACTIVE_TAB })).toBe(true);
+    expect(isContinueActiveTabMessage({ type: MessageType.CONTINUE_ACTIVE_TAB })).toBe(true);
     expect(isGetBlockedPageStateMessage({ type: MessageType.GET_BLOCKED_PAGE_STATE })).toBe(true);
     expect(
       isGetBlockedPageStateMessage({

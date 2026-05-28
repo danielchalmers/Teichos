@@ -18,6 +18,7 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
+    blockType: overrides.blockType ?? 'block',
     rulesVersion: overrides.rulesVersion ?? 1,
   };
 }
@@ -317,6 +318,290 @@ describe('TabController', () => {
         groupId: DEFAULT_GROUP_ID,
       },
     });
+  });
+
+  it('re-evaluates a blocked page as warning when rules change from hard block to warning', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning-blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 11,
+        blockType: 'warning',
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await setBlockedTabState({
+      blockId: 'hard-block',
+      tabId: 11,
+      targetUrl: 'https://warning-blocked.com/focus',
+      blockType: 'block',
+      blockedAt: Date.now(),
+      rulesVersion: 10,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+    await setBlockedPageState({
+      blockId: 'hard-block',
+      tabId: 11,
+      targetUrl: 'https://warning-blocked.com/focus',
+      blockType: 'block',
+      blockedAt: Date.now(),
+      rulesVersion: 10,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+      filter: {
+        id: 'warning-filter',
+        pattern: 'warning-blocked.com',
+        matchMode: 'contains',
+      },
+      group: {
+        id: DEFAULT_GROUP_ID,
+        name: '24/7',
+        schedules: [],
+        is24x7: true,
+      },
+      effectiveState: {
+        filterEnabled: true,
+        groupActive: true,
+        snoozeActive: false,
+      },
+    });
+
+    await expect(
+      getTabController().getFreshBlockedPageState(11, blockedPageUrl('hard-block'))
+    ).resolves.toEqual({
+      status: 'blocked',
+      state: expect.objectContaining({
+        targetUrl: 'https://warning-blocked.com/focus',
+        blockType: 'warning',
+        blockedBy: {
+          filterId: 'warning-filter',
+          groupId: DEFAULT_GROUP_ID,
+        },
+      }),
+    });
+
+    const refreshedState = await getBlockedTabState(11);
+    expect(refreshedState?.blockType).toBe('warning');
+    expect(refreshedState?.blockId).not.toBe('hard-block');
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+  });
+
+  it('continues past warning blocks for the same tab and origin only', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'warning.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 12,
+      })
+    );
+    chromeMock.tabs.query.mockImplementation(
+      (_query, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        callback?.([
+          {
+            id: 12,
+            active: true,
+            url: blockedPageUrl('warning-block'),
+          } as chrome.tabs.Tab,
+        ]);
+      }
+    );
+    await setBlockedTabState({
+      blockId: 'warning-block',
+      tabId: 12,
+      targetUrl: 'https://warning.com/focus',
+      blockType: 'warning',
+      blockedAt: Date.now(),
+      rulesVersion: 12,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+    await setBlockedPageState({
+      blockId: 'warning-block',
+      tabId: 12,
+      targetUrl: 'https://warning.com/focus',
+      blockType: 'warning',
+      blockedAt: Date.now(),
+      rulesVersion: 12,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+      filter: {
+        id: 'warning-filter',
+        pattern: 'warning.com',
+        matchMode: 'contains',
+      },
+      group: {
+        id: DEFAULT_GROUP_ID,
+        name: '24/7',
+        schedules: [],
+        is24x7: true,
+      },
+      effectiveState: {
+        filterEnabled: true,
+        groupActive: true,
+        snoozeActive: false,
+      },
+    });
+
+    const { getTabController } = await import('../../../src/background/tabController');
+
+    await expect(getTabController().continueFromActiveTab()).resolves.toBe(true);
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      12,
+      { url: 'https://warning.com/focus' },
+      expect.any(Function)
+    );
+
+    chromeMock.tabs.update.mockClear();
+    await getTabController().evaluateNavigation(12, 'https://warning.com/next');
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+
+    await getTabController().evaluateNavigation(12, 'https://elsewhere.com');
+    await getTabController().evaluateNavigation(12, 'https://warning.com/blocked-again');
+    expect(chromeMock.tabs.update).toHaveBeenLastCalledWith(
+      12,
+      { url: expect.stringContaining(`/${PAGES.BLOCKED}?blockId=`) },
+      expect.any(Function)
+    );
+  });
+
+  it('lets hard blocks override an existing warning bypass', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.tabs.query.mockImplementation(
+      (_query, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        callback?.([
+          {
+            id: 14,
+            active: true,
+            url: blockedPageUrl('warning-first'),
+          } as chrome.tabs.Tab,
+        ]);
+      }
+    );
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'override.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        rulesVersion: 13,
+      })
+    );
+    await setBlockedTabState({
+      blockId: 'warning-first',
+      tabId: 14,
+      targetUrl: 'https://override.com/focus',
+      blockType: 'warning',
+      blockedAt: Date.now(),
+      rulesVersion: 13,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+    });
+    await setBlockedPageState({
+      blockId: 'warning-first',
+      tabId: 14,
+      targetUrl: 'https://override.com/focus',
+      blockType: 'warning',
+      blockedAt: Date.now(),
+      rulesVersion: 13,
+      blockedBy: {
+        filterId: 'warning-filter',
+        groupId: DEFAULT_GROUP_ID,
+      },
+      filter: {
+        id: 'warning-filter',
+        pattern: 'override.com',
+        matchMode: 'contains',
+      },
+      group: {
+        id: DEFAULT_GROUP_ID,
+        name: '24/7',
+        schedules: [],
+        is24x7: true,
+      },
+      effectiveState: {
+        filterEnabled: true,
+        groupActive: true,
+        snoozeActive: false,
+      },
+    });
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await expect(getTabController().continueFromActiveTab()).resolves.toBe(true);
+
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        blockType: 'warning',
+        filters: [
+          {
+            id: 'warning-filter',
+            pattern: 'override.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+          {
+            id: 'hard-filter',
+            pattern: 'override.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            blockType: 'block',
+          },
+        ],
+        rulesVersion: 14,
+      })
+    );
+
+    chromeMock.tabs.update.mockClear();
+    await getTabController().evaluateNavigation(14, 'https://override.com/still-blocked');
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      14,
+      { url: expect.stringContaining(`/${PAGES.BLOCKED}?blockId=`) },
+      expect.any(Function)
+    );
+
+    const state = await getBlockedTabState(14);
+    expect(state?.blockType).toBe('block');
+    expect(state?.blockedBy.filterId).toBe('hard-filter');
   });
 
   it('reconciles open tabs after storage changes', async () => {

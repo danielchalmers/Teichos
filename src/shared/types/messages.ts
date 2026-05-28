@@ -13,6 +13,7 @@ export const MessageType = {
   URL_BLOCKED: 'URL_BLOCKED',
   GET_BLOCKED_PAGE_STATE: 'GET_BLOCKED_PAGE_STATE',
   GO_BACK_ACTIVE_TAB: 'GO_BACK_ACTIVE_TAB',
+  CONTINUE_ACTIVE_TAB: 'CONTINUE_ACTIVE_TAB',
   CLOSE_INFO_PANEL: 'CLOSE_INFO_PANEL',
 } as const;
 
@@ -32,6 +33,10 @@ export interface GoBackActiveTabMessage {
   readonly type: typeof MessageType.GO_BACK_ACTIVE_TAB;
 }
 
+export interface ContinueActiveTabMessage {
+  readonly type: typeof MessageType.CONTINUE_ACTIVE_TAB;
+}
+
 export interface GetBlockedPageStateMessage {
   readonly type: typeof MessageType.GET_BLOCKED_PAGE_STATE;
   readonly blockId?: string;
@@ -49,6 +54,10 @@ export interface CheckUrlResponse {
 
 export interface GoBackActiveTabResponse {
   readonly restored: boolean;
+}
+
+export interface ContinueActiveTabResponse {
+  readonly continued: boolean;
 }
 
 export type GetBlockedPageStateResponse =
@@ -85,6 +94,7 @@ export type ExtensionMessage =
   | GetDataMessage
   | CheckUrlMessage
   | GoBackActiveTabMessage
+  | ContinueActiveTabMessage
   | GetBlockedPageStateMessage
   | DataUpdatedMessage
   | UrlBlockedMessage
@@ -97,6 +107,8 @@ export type MessageResponse<T extends ExtensionMessage> = T extends GetDataMessa
     ? CheckUrlResponse
     : T extends GoBackActiveTabMessage
       ? GoBackActiveTabResponse
+      : T extends ContinueActiveTabMessage
+        ? ContinueActiveTabResponse
       : T extends GetBlockedPageStateMessage
         ? GetBlockedPageStateResponse
         : undefined;
@@ -125,6 +137,15 @@ export function isGoBackActiveTabMessage(msg: unknown): msg is GoBackActiveTabMe
     msg !== null &&
     'type' in msg &&
     msg.type === MessageType.GO_BACK_ACTIVE_TAB
+  );
+}
+
+export function isContinueActiveTabMessage(msg: unknown): msg is ContinueActiveTabMessage {
+  return (
+    typeof msg === 'object' &&
+    msg !== null &&
+    'type' in msg &&
+    msg.type === MessageType.CONTINUE_ACTIVE_TAB
   );
 }
 

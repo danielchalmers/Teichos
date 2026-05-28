@@ -2,14 +2,17 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   clearBlockedTabState,
+  clearWarningBypassState,
   getBlockedPageState,
   getBlockedTabState,
   getLastAllowedUrl,
+  getWarningBypassState,
   setBlockedPageState,
   getSessionSnooze,
   setBlockedTabState,
   setLastAllowedUrl,
   setSessionSnooze,
+  setWarningBypassState,
 } from '../../../src/shared/api/session';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
 
@@ -130,6 +133,21 @@ describe('shared/api/session', () => {
     await setSessionSnooze({ active: false });
 
     await expect(getSessionSnooze()).resolves.toEqual({ active: false });
+  });
+
+  it('stores, retrieves, and clears warning bypass state by tab id', async () => {
+    await setWarningBypassState(9, {
+      filterId: 'warning-filter',
+      urlKey: 'https://warning.example.test',
+    });
+
+    await expect(getWarningBypassState(9)).resolves.toEqual({
+      filterId: 'warning-filter',
+      urlKey: 'https://warning.example.test',
+    });
+
+    await clearWarningBypassState(9);
+    await expect(getWarningBypassState(9)).resolves.toBeUndefined();
   });
 
   it('ignores malformed session snooze values', async () => {

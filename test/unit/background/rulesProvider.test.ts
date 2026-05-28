@@ -12,6 +12,7 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
+    blockType: overrides.blockType ?? 'block',
     rulesVersion: overrides.rulesVersion ?? 0,
   };
 }
