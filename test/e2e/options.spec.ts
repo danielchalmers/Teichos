@@ -26,6 +26,33 @@ function getGroupToggle(page: Page, groupId: string): Locator {
   );
 }
 
+async function expectBlockedWithState(page: Page): Promise<void> {
+  await expect
+    .poll(() => {
+      const currentUrl = new URL(page.url());
+      return (
+        currentUrl.pathname === `/${PAGES.BLOCKED}` &&
+        currentUrl.searchParams.has('blockId') &&
+        !currentUrl.searchParams.has('url')
+      );
+    })
+    .toBe(true);
+}
+
+async function expectNotBlocked(page: Page): Promise<void> {
+  await expect.poll(() => new URL(page.url()).pathname).not.toBe(`/${PAGES.BLOCKED}`);
+}
+
+async function readRequiredStorage(
+  page: Page
+): Promise<NonNullable<Awaited<ReturnType<typeof readStorage>>>> {
+  const data = await readStorage(page);
+  if (!data) {
+    throw new Error('Expected storage data.');
+  }
+  return data;
+}
+
 test('shows schedule hints in the group header', async ({ extensionPage, page }, testInfo) => {
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(
@@ -124,7 +151,6 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
     };
   });
   await page.goto(extensionPage(PAGES.OPTIONS));
-  await seedStorage(page, createStorageData());
 
   await page
     .locator('details.group-item')
@@ -526,16 +552,7 @@ test('stops blocking after a group is disabled from options storage updates', as
   );
 
   await page.goto(targetUrl).catch(() => undefined);
-  await expect
-    .poll(() => {
-      const currentUrl = new URL(page.url());
-      return (
-        currentUrl.pathname === `/${PAGES.BLOCKED}` &&
-        currentUrl.searchParams.has('blockId') &&
-        !currentUrl.searchParams.has('url')
-      );
-    })
-    .toBe(true);
+  await expectBlockedWithState(page);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
 
   await page.goto(extensionPage(PAGES.OPTIONS));
@@ -561,7 +578,7 @@ test('stops blocking after a group is disabled from options storage updates', as
   await captureScreenshot(page, testInfo, 'options-group-disabled-storage-update.png');
 
   await page.goto(targetUrl).catch(() => undefined);
-  await expect.poll(() => new URL(page.url()).pathname).not.toBe(`/${PAGES.BLOCKED}`);
+  await expectNotBlocked(page);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toHaveCount(0);
 });
 
@@ -599,14 +616,14 @@ test('stops blocking after a custom group is disabled with the visible options t
   await page.reload();
 
   await page.goto(targetUrl).catch(() => undefined);
-  await expect.poll(() => page.url()).toContain(`/${PAGES.BLOCKED}?url=`);
+  await expectBlockedWithState(page);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
 
   await page.goto(extensionPage(PAGES.OPTIONS));
   await getGroupToggle(page, 'focus-group').click();
   await expect
     .poll(async () => {
-      const data = await readStorage(page);
+      const data = await readRequiredStorage(page);
       return {
         groupEnabled: data.groups.find((group) => group.id === 'focus-group')?.enabled,
         filterEnabled: data.filters.find((filter) => filter.id === 'focus-filter')?.enabled,
@@ -619,7 +636,7 @@ test('stops blocking after a custom group is disabled with the visible options t
   await captureScreenshot(page, testInfo, 'options-custom-group-toggle-stop-blocking.png');
 
   await page.goto(targetUrl).catch(() => undefined);
-  await expect.poll(() => page.url().includes(`/${PAGES.BLOCKED}?url=`)).toBe(false);
+  await expectNotBlocked(page);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toHaveCount(0);
 });
 
@@ -647,14 +664,14 @@ test('stops blocking after the default group is disabled with the visible option
   await page.reload();
 
   await page.goto(targetUrl).catch(() => undefined);
-  await expect.poll(() => page.url()).toContain(`/${PAGES.BLOCKED}?url=`);
+  await expectBlockedWithState(page);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
 
   await page.goto(extensionPage(PAGES.OPTIONS));
   await getGroupToggle(page, defaultGroup.id).click();
   await expect
     .poll(async () => {
-      const data = await readStorage(page);
+      const data = await readRequiredStorage(page);
       return {
         groupEnabled: data.groups.find((group) => group.id === defaultGroup.id)?.enabled,
         filterEnabled: data.filters.find((filter) => filter.id === 'default-filter')?.enabled,
@@ -666,7 +683,7 @@ test('stops blocking after the default group is disabled with the visible option
     });
 
   await page.goto(targetUrl).catch(() => undefined);
-  await expect.poll(() => page.url().includes(`/${PAGES.BLOCKED}?url=`)).toBe(false);
+  await expectNotBlocked(page);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toHaveCount(0);
 });
 
@@ -743,7 +760,7 @@ test('toggles default and custom groups without mutating child state and reloads
 
   await expect
     .poll(async () => {
-      const data = await readStorage(page);
+      const data = await readRequiredStorage(page);
       return {
         groups: data.groups.map((group) => ({ id: group.id, enabled: group.enabled ?? true })),
         filters: data.filters.map((filter) => ({ id: filter.id, enabled: filter.enabled })),
@@ -826,7 +843,8 @@ test('keeps child controls editable inside a disabled group', async ({ extension
   await expect
     .poll(
       async () =>
-        (await readStorage(page)).filters.find((filter) => filter.id === 'focus-filter')?.enabled
+        (await readRequiredStorage(page)).filters.find((filter) => filter.id === 'focus-filter')
+          ?.enabled
     )
     .toBe(false);
 
@@ -836,7 +854,8 @@ test('keeps child controls editable inside a disabled group', async ({ extension
   await expect
     .poll(
       async () =>
-        (await readStorage(page)).whitelist.find((entry) => entry.id === 'focus-exception')?.enabled
+        (await readRequiredStorage(page)).whitelist.find((entry) => entry.id === 'focus-exception')
+          ?.enabled
     )
     .toBe(false);
 

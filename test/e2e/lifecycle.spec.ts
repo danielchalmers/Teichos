@@ -306,6 +306,7 @@ test('adding a whitelist from blocked state restores the target and clears stale
     .poll(async () => (await readBlockedTabStateForTarget(page, targetUrl))?.targetUrl)
     .toBe(targetUrl);
 
+  await page.reload();
   await createWhitelistViaOptions(page, {
     name: 'Allow Blocked Docs',
     pattern: targetUrl,

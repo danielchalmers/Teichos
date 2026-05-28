@@ -39,6 +39,16 @@ async function expectTemporaryFilterExpiration(
   expect(remainingMs).toBeLessThan(maxMs);
 }
 
+async function readRequiredStorage(
+  page: Parameters<typeof readStorage>[0]
+): Promise<NonNullable<Awaited<ReturnType<typeof readStorage>>>> {
+  const data = await readStorage(page);
+  if (!data) {
+    throw new Error('Expected storage data.');
+  }
+  return data;
+}
+
 test('adds and deletes a temporary filter from the popup', async ({ extensionPage, page }) => {
   await page.goto(extensionPage(PAGES.POPUP));
 
@@ -134,16 +144,6 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
     .poll(() => page.evaluate(() => (globalThis as ClipboardCaptureGlobal).__e2eClipboardText))
     .toBe('blocked.example.invalid');
 
-  const toggle = regularItem.locator('input[type="checkbox"][data-filter-id="regular-filter"]');
-  await regularItem.locator('label.toggle').click();
-  await expect(toggle).not.toBeChecked();
-  await expect
-    .poll(async () => {
-      const data = await readStorage(page);
-      return data.filters.find((filter) => filter.id === 'regular-filter')?.enabled;
-    })
-    .toBe(false);
-
   const optionsPagePromise = context.waitForEvent('page');
   await regularItem.getByRole('button', { name: 'Edit Filter' }).click();
   const optionsPage = await optionsPagePromise;
@@ -153,6 +153,25 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
   await expect(filterModal).toBeVisible();
   await expect(filterModal.getByLabel('Name')).toHaveValue('Focus Block');
   await expect(filterModal.getByLabel('URL Pattern')).toHaveValue('blocked.example.invalid');
+
+  const popupPage = await context.newPage();
+  await popupPage.goto(extensionPage(PAGES.POPUP));
+
+  const toggledItem = popupPage.locator('.filter-item').filter({ hasText: 'Focus Block' });
+  const toggledInput = toggledItem.locator(
+    'input[type="checkbox"][data-filter-id="regular-filter"]'
+  );
+  await toggledItem.locator('label.toggle').click();
+  await expect(toggledItem).toHaveCount(1);
+  await expect(toggledInput).not.toBeChecked();
+  await expect(popupPage.locator('.inactive-summary')).toHaveCount(0);
+  await expect
+    .poll(async () => {
+      const data = await readRequiredStorage(popupPage);
+      return data.filters.find((filter) => filter.id === 'regular-filter')?.enabled;
+    })
+    .toBe(false);
+  await popupPage.close();
 });
 
 test('supports quick-add suggestions, validation, duration units, and the full editor link', async ({
@@ -310,6 +329,7 @@ test('hides filters from disabled groups in the popup active list', async ({
   await expect(page.locator('.filter-item').filter({ hasText: 'Visible Filter' })).toBeVisible();
   await expect(page.locator('.filter-item').filter({ hasText: 'Hidden Filter' })).toHaveCount(0);
   expect(
-    (await readStorage(page)).filters.find((filter) => filter.id === 'hidden-filter')?.enabled
+    (await readRequiredStorage(page)).filters.find((filter) => filter.id === 'hidden-filter')
+      ?.enabled
   ).toBe(true);
 });

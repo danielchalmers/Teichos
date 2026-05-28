@@ -240,6 +240,6 @@ test('does not redirect when an enabled filter belongs to a disabled group', asy
   const targetUrl = 'https://example.com/teichos-disabled-group';
   await page.goto(targetUrl).catch(() => undefined);
 
-  await expect.poll(() => page.url().includes(`/${PAGES.BLOCKED}?url=`)).toBe(false);
+  await expect.poll(() => new URL(page.url()).pathname).not.toBe(`/${PAGES.BLOCKED}`);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toHaveCount(0);
 });
