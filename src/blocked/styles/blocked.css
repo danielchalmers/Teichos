@@ -15,6 +15,8 @@
   --text-on-bg: #f7f8ff;
   --url-bg: rgba(255, 255, 255, 0.2);
   --url-border: rgba(255, 255, 255, 0.28);
+  --detail-bg: rgba(255, 255, 255, 0.16);
+  --detail-border: rgba(255, 255, 255, 0.22);
   --button-bg: #f8fbff;
   --button-text: #4e4cd3;
   --button-bg-hover: #ecefff;
@@ -85,6 +87,50 @@ p {
   font-size: var(--text-md);
 }
 
+.details {
+  margin: 0 0 2rem;
+  padding: 1rem;
+  border: 1px solid var(--detail-border);
+  border-radius: 8px;
+  background: var(--detail-bg);
+  text-align: left;
+}
+
+.details[hidden] {
+  display: none;
+}
+
+.details dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.details dl > div {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 0.35fr) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.details dt {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .details dl > div {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+}
+
 .actions {
   display: flex;
   justify-content: center;
@@ -137,6 +183,8 @@ p {
     --text-on-bg: #f0f2ff;
     --url-bg: rgba(12, 22, 39, 0.44);
     --url-border: rgba(173, 203, 244, 0.18);
+    --detail-bg: rgba(12, 22, 39, 0.34);
+    --detail-border: rgba(173, 203, 244, 0.18);
     --button-bg: #ddecff;
     --button-text: #3a32a9;
     --button-bg-hover: #cfd8ff;

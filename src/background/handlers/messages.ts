@@ -21,8 +21,7 @@ export function handleMessage(
   sender: chrome.runtime.MessageSender,
   sendResponse: (response: unknown) => void
 ): boolean {
-  // Validate sender is from our extension
-  if (sender.id !== chrome.runtime.id) {
+  if (!isInternalSender(sender)) {
     return false;
   }
 
@@ -42,7 +41,7 @@ export function handleMessage(
   }
 
   if (isGetBlockedPageStateMessage(message)) {
-    void handleGetBlockedPageState(sender, sendResponse);
+    void handleGetBlockedPageState(message.blockId, sender, sendResponse);
     return true;
   }
 
@@ -67,9 +66,15 @@ async function handleGoBackActiveTab(sendResponse: (response: unknown) => void):
 }
 
 async function handleGetBlockedPageState(
+  blockId: string | undefined,
   sender: chrome.runtime.MessageSender,
   sendResponse: (response: unknown) => void
 ): Promise<void> {
+  if (blockId) {
+    sendResponse(await getTabController().getBlockedPageStateByBlockId(blockId));
+    return;
+  }
+
   const senderTabId = sender.tab?.id;
   if (typeof senderTabId !== 'number') {
     sendResponse({ status: 'unavailable' });
@@ -77,4 +82,18 @@ async function handleGetBlockedPageState(
   }
 
   sendResponse(await getTabController().getFreshBlockedPageState(senderTabId, sender.tab?.url));
+}
+
+function isInternalSender(sender: chrome.runtime.MessageSender): boolean {
+  if (sender.id === chrome.runtime.id) {
+    return true;
+  }
+
+  const extensionRoot = chrome.runtime.getURL('');
+  if (sender.url?.startsWith(extensionRoot)) {
+    return true;
+  }
+
+  const senderOrigin = (sender as { readonly origin?: string }).origin;
+  return senderOrigin === new URL(extensionRoot).origin;
 }

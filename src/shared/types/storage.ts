@@ -28,6 +28,8 @@ export interface FilterGroup {
 /** URL matching modes for filters and whitelist entries */
 export type FilterMatchMode = 'contains' | 'exact' | 'regex';
 
+export type BlockType = 'block' | 'warning';
+
 /** URL filter pattern */
 export interface Filter {
   readonly id: string;
@@ -61,11 +63,34 @@ export interface BlockedBy {
 }
 
 export interface BlockedTabState {
+  readonly blockId: string;
   readonly tabId: number;
   readonly targetUrl: string;
   readonly blockedBy: BlockedBy;
+  readonly blockType: BlockType;
   readonly blockedAt: number;
   readonly rulesVersion: number;
+}
+
+export interface BlockedFilterSnapshot {
+  readonly id: string;
+  readonly pattern: string;
+  readonly matchMode: FilterMatchMode;
+  readonly description?: string;
+}
+
+export type BlockedGroupSnapshot = FilterGroup;
+
+export interface BlockedEffectiveState {
+  readonly filterEnabled: boolean;
+  readonly groupActive: boolean;
+  readonly snoozeActive: boolean;
+}
+
+export interface BlockedPageState extends BlockedTabState {
+  readonly filter: BlockedFilterSnapshot;
+  readonly group: BlockedGroupSnapshot | undefined;
+  readonly effectiveState: BlockedEffectiveState;
 }
 
 /** Root storage schema */

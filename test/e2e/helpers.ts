@@ -45,21 +45,21 @@ export async function readStorage(page: Page): Promise<StorageData | undefined> 
   }, STORAGE_KEY);
 }
 
-export function getBlockedPagePathFor(targetUrl: string): string {
-  return `/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}`;
-}
-
-export async function expectBlocked(
-  page: Page,
-  targetUrl: string,
-  expectedBlockedUrl = getBlockedPagePathFor(targetUrl)
-): Promise<void> {
+export async function expectBlocked(page: Page, targetUrl: string): Promise<void> {
   await page.goto(targetUrl).catch(() => undefined);
   await expect
-    .poll(() => new URL(page.url()).pathname + new URL(page.url()).search)
-    .toBe(expectedBlockedUrl);
+    .poll(() => {
+      const currentUrl = new URL(page.url());
+      return (
+        currentUrl.pathname === `/${PAGES.BLOCKED}` &&
+        currentUrl.searchParams.has('blockId') &&
+        !currentUrl.searchParams.has('url')
+      );
+    })
+    .toBe(true);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+  await expect(page.getByLabel('Responsible filter')).toBeVisible();
 }
 
 export async function expectAllowed(page: Page, targetUrl: string): Promise<void> {
@@ -277,21 +277,23 @@ export async function readBlockedTabStateForTarget(
   page: Page,
   targetUrl: string
 ): Promise<BlockedTabState | undefined> {
-  return page.evaluate(
-    async ({ blockedPagePath, url }) => {
-      const blockedUrl = `${chrome.runtime.getURL(blockedPagePath)}?url=${encodeURIComponent(url)}`;
-      const tabs = await chrome.tabs.query({});
-      const tab = tabs.find((candidate) => candidate.url === url || candidate.url === blockedUrl);
-      if (typeof tab?.id !== 'number') {
-        return undefined;
+  return page.evaluate(async (url) => {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (typeof tab.id !== 'number') {
+        continue;
       }
 
       const key = `blocked_tab_state_${tab.id}`;
       const result = await chrome.storage.session.get(key);
-      return result[key] as BlockedTabState | undefined;
-    },
-    { blockedPagePath: PAGES.BLOCKED, url: targetUrl }
-  );
+      const state = result[key] as BlockedTabState | undefined;
+      if (state?.targetUrl === url) {
+        return state;
+      }
+    }
+
+    return undefined;
+  }, targetUrl);
 }
 
 export async function expectBlockedTabStateCleared(page: Page, targetUrl: string): Promise<void> {
