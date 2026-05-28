@@ -4,9 +4,11 @@
  */
 
 import type {
+  BlockType,
   StorageData,
   FilterGroup,
   Filter,
+  FilterBlockType,
   FilterMatchMode,
   TimeSchedule,
   Whitelist,
@@ -38,12 +40,14 @@ function createDefaultData(): StorageData {
     filters: [],
     whitelist: [],
     snooze: { active: false },
+    blockType: 'block',
     rulesVersion: 0,
   };
 }
 
 type LegacyFilter = Omit<Filter, 'matchMode'> & {
   readonly matchMode?: FilterMatchMode;
+  readonly blockType?: FilterBlockType;
   readonly isRegex?: boolean;
 };
 
@@ -58,6 +62,7 @@ interface LegacyStorageData {
   readonly filters?: readonly LegacyFilter[];
   readonly whitelist?: readonly LegacyWhitelist[];
   readonly rulesVersion?: number;
+  readonly blockType?: BlockType;
   readonly snooze?: {
     readonly active?: boolean;
     readonly until?: number;
@@ -72,6 +77,14 @@ function isObject(value: unknown): value is JsonObject {
 
 function isValidMatchMode(value: unknown): value is FilterMatchMode {
   return value === 'contains' || value === 'exact' || value === 'regex';
+}
+
+function isValidBlockType(value: unknown): value is BlockType {
+  return value === 'block' || value === 'warning';
+}
+
+function isValidFilterBlockType(value: unknown): value is FilterBlockType {
+  return value === 'default' || isValidBlockType(value);
 }
 
 function isOptionalString(value: unknown): value is string | undefined {
@@ -129,6 +142,7 @@ function isValidFilterLike(value: unknown): value is LegacyFilter {
     typeof value['groupId'] === 'string' &&
     typeof value['enabled'] === 'boolean' &&
     (value['matchMode'] === undefined || isValidMatchMode(value['matchMode'])) &&
+    (value['blockType'] === undefined || isValidFilterBlockType(value['blockType'])) &&
     isOptionalBoolean(value['isRegex']) &&
     isOptionalString(value['description']) &&
     isOptionalFiniteNumber(value['expiresAt'])
@@ -264,6 +278,10 @@ function validateImportedStorageShape(raw: JsonObject): void {
   if (!isOptionalFiniteNumber(raw['rulesVersion'])) {
     throw new Error('Settings file contains an invalid rules version.');
   }
+
+  if (raw['blockType'] !== undefined && !isValidBlockType(raw['blockType'])) {
+    throw new Error('Settings file contains an invalid block type.');
+  }
 }
 
 function resolveMatchMode(
@@ -277,9 +295,10 @@ function resolveMatchMode(
 }
 
 function normalizeFilters(filters: readonly LegacyFilter[] | undefined): Filter[] {
-  return (filters ?? []).map(({ isRegex, matchMode, ...filter }) => ({
+  return (filters ?? []).map(({ isRegex, matchMode, blockType, ...filter }) => ({
     ...filter,
     matchMode: resolveMatchMode(matchMode, isRegex),
+    blockType: isValidFilterBlockType(blockType) ? blockType : 'default',
   }));
 }
 
@@ -328,6 +347,7 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
     typeof data.rulesVersion === 'number' && Number.isFinite(data.rulesVersion)
       ? data.rulesVersion
       : 0;
+  const blockType = isValidBlockType(data.blockType) ? data.blockType : 'block';
 
   return {
     ...data,
@@ -335,6 +355,7 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
     filters,
     whitelist,
     snooze,
+    blockType,
     rulesVersion,
   };
 }

@@ -3,6 +3,7 @@ import {
   captureScreenshot,
   createStorageData,
   defaultGroup,
+  expectAllowed,
   expectBlocked,
   seedStorage,
 } from './helpers';
@@ -97,6 +98,35 @@ test('renders the blocked url and responsible filter from block id state', async
   await expectBlocked(page, targetUrl);
   await expect(page.getByLabel('Responsible filter')).toContainText('Blocked State');
   await expect(page.getByLabel('Responsible filter')).toContainText('blocked-state.example.test');
+});
+
+test('warning blocks show Continue and allow same-tab bypass', async ({ extensionPage, page }) => {
+  const targetUrl = 'https://example.com/warning-focus';
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      blockType: 'warning',
+      filters: [
+        {
+          id: 'warning-filter',
+          pattern: 'example.com/warning',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Warning Filter',
+        },
+      ],
+    })
+  );
+
+  await expectBlocked(page, targetUrl);
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect.poll(() => page.url()).not.toContain(`/${PAGES.BLOCKED}`);
+  await expectAllowed(page, targetUrl);
 });
 
 test('handles missing or stale block ids and no-op go back safely', async ({

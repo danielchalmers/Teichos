@@ -35,6 +35,7 @@ describe('storage', () => {
         filters: [],
         whitelist: [],
         snooze: { active: false },
+        blockType: 'block',
         rulesVersion: 0,
       });
     });
@@ -56,10 +57,12 @@ describe('storage', () => {
             groupId: DEFAULT_GROUP_ID,
             enabled: true,
             matchMode: 'contains' as const,
+            blockType: 'default' as const,
           },
         ],
         whitelist: [],
         snooze: { active: false },
+        blockType: 'warning' as const,
         rulesVersion: 2,
       };
 
@@ -129,6 +132,7 @@ describe('storage', () => {
       const data = await loadData();
       expect(data.whitelist).toEqual([]);
       expect(data.snooze).toEqual({ active: false });
+      expect(data.blockType).toBe('block');
       expect(data.rulesVersion).toBe(0);
     });
 
@@ -166,6 +170,7 @@ describe('storage', () => {
 
       const data = await loadData();
       expect(data.filters[0]?.matchMode).toBe('regex');
+      expect(data.filters[0]?.blockType).toBe('default');
     });
 
     it('should default whitelist match mode to contains', async () => {
@@ -227,6 +232,7 @@ describe('storage', () => {
             groupId: 'missing-group',
             enabled: true,
             matchMode: 'regex',
+            blockType: 'default',
           },
         ],
         whitelist: [
@@ -239,8 +245,28 @@ describe('storage', () => {
           },
         ],
         snooze: { active: true },
+        blockType: 'block',
         rulesVersion: 0,
       });
+    });
+
+    it('defaults missing block type values for storage and filters', async () => {
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, {
+        groups: [createDefaultGroup()],
+        filters: [
+          {
+            id: 'legacy-filter',
+            pattern: 'example.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+      });
+
+      const data = await loadData();
+      expect(data.blockType).toBe('block');
+      expect(data.filters[0]?.blockType).toBe('default');
     });
   });
 
@@ -299,7 +325,7 @@ describe('storage', () => {
         createDefaultGroup(),
         { ...group, name: 'Updated Group', enabled: true },
       ]);
-      expect(data.filters).toEqual([{ ...filter, enabled: false }]);
+      expect(data.filters).toEqual([{ ...filter, enabled: false, blockType: 'default' }]);
 
       await deleteFilter(filter.id);
 

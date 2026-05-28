@@ -7,6 +7,7 @@ import { openOptionsPage } from '../shared/api/runtime';
 import {
   MessageType,
   type BlockedPageState,
+  type ContinueActiveTabResponse,
   type FilterMatchMode,
   type GetBlockedPageStateResponse,
   type GoBackActiveTabResponse,
@@ -23,14 +24,19 @@ interface BlockedPageViewModel {
  * Initialize blocked page
  */
 async function init(): Promise<void> {
-  const state = await getBlockedPageState();
-  renderBlockedUrl(state);
-  renderResponsibleFilter(state);
+  await renderPage();
 
   const goBackButton = getElementByIdOrNull('go-back');
   goBackButton?.addEventListener('click', () => {
     void handleGoBack().catch((error: unknown) => {
       console.error('Failed to navigate back:', error);
+    });
+  });
+
+  const continueButton = getElementByIdOrNull('continue');
+  continueButton?.addEventListener('click', () => {
+    void handleContinue().catch((error: unknown) => {
+      console.error('Failed to continue past warning:', error);
     });
   });
 
@@ -41,6 +47,21 @@ async function init(): Promise<void> {
       console.error('Failed to open options page:', error);
     });
   });
+
+  chrome.storage.onChanged.addListener((_changes, areaName) => {
+    if (areaName !== 'sync' && areaName !== 'session') {
+      return;
+    }
+
+    void renderPage();
+  });
+}
+
+async function renderPage(): Promise<void> {
+  const state = await getBlockedPageState();
+  renderBlockedUrl(state);
+  renderResponsibleFilter(state);
+  renderActions(state);
 }
 
 async function getBlockedPageState(): Promise<BlockedPageViewModel> {
@@ -129,6 +150,16 @@ async function handleGoBack(): Promise<void> {
   }
 }
 
+async function handleContinue(): Promise<void> {
+  const response = (await chrome.runtime.sendMessage({
+    type: MessageType.CONTINUE_ACTIVE_TAB,
+  })) as ContinueActiveTabResponse;
+
+  if (!response.continued) {
+    console.warn('[Teichos] No warning bypass is available for this tab.');
+  }
+}
+
 function renderBlockedUrl(state: BlockedPageViewModel): void {
   const blockedUrlElement = getElementByIdOrNull('blocked-url');
   if (blockedUrlElement) {
@@ -138,7 +169,12 @@ function renderBlockedUrl(state: BlockedPageViewModel): void {
 
 function renderResponsibleFilter(state: BlockedPageViewModel): void {
   const detailSection = getElementByIdOrNull<HTMLElement>('responsible-filter');
-  if (!detailSection || !state.state) {
+  if (!detailSection) {
+    return;
+  }
+
+  if (!state.state) {
+    detailSection.hidden = true;
     return;
   }
 
@@ -152,6 +188,13 @@ function renderResponsibleFilter(state: BlockedPageViewModel): void {
   );
 
   detailSection.hidden = false;
+}
+
+function renderActions(state: BlockedPageViewModel): void {
+  const continueButton = getElementByIdOrNull<HTMLButtonElement>('continue');
+  if (continueButton) {
+    continueButton.hidden = state.state?.blockType !== 'warning';
+  }
 }
 
 function setText(elementId: string, value: string): void {

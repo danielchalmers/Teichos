@@ -19,7 +19,9 @@ import {
   deleteWhitelist,
 } from '../shared/api';
 import type {
+  BlockType,
   Filter,
+  FilterBlockType,
   FilterGroup,
   FilterMatchMode,
   StorageData,
@@ -95,6 +97,9 @@ function setupEventListeners(): void {
       void handleImportSettings(event);
     }
   );
+  getElementByIdOrNull<HTMLSelectElement>('global-block-type')?.addEventListener('change', () => {
+    void handleGlobalBlockTypeChange();
+  });
 
   // Filter modal
   getElementByIdOrNull('close-filter-modal')?.addEventListener('click', closeFilterModal);
@@ -297,6 +302,27 @@ async function handleImportSettings(event: Event): Promise<void> {
   }
 }
 
+function renderGlobalSettings(data: StorageData): void {
+  const blockTypeSelect = getElementByIdOrNull<HTMLSelectElement>('global-block-type');
+  if (blockTypeSelect) {
+    blockTypeSelect.value = data.blockType === 'warning' ? 'warning' : 'block';
+  }
+}
+
+async function handleGlobalBlockTypeChange(): Promise<void> {
+  const blockType = getGlobalBlockTypeSelectValue();
+
+  try {
+    const data = await loadData();
+    await saveData({ ...data, blockType });
+    setGlobalSettingsStatus('Block type updated.');
+  } catch (error) {
+    console.error('Failed to update global block type:', error);
+    setGlobalSettingsStatus('Failed to update block type.', true);
+    renderGlobalSettings(await loadData());
+  }
+}
+
 // ============================================================================
 // Accessibility Helpers
 // ============================================================================
@@ -428,6 +454,7 @@ async function purgeExpiredTemporaryFilters(data: StorageData): Promise<StorageD
 async function renderGroups(): Promise<void> {
   let data = await loadData();
   data = await purgeExpiredTemporaryFilters(data);
+  renderGlobalSettings(data);
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
 
@@ -605,6 +632,20 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
   return 'contains';
 }
 
+function getGlobalBlockTypeSelectValue(): BlockType {
+  return getElementByIdOrNull<HTMLSelectElement>('global-block-type')?.value === 'warning'
+    ? 'warning'
+    : 'block';
+}
+
+function getFilterBlockTypeSelectValue(selectId: string): FilterBlockType {
+  const value = getElementByIdOrNull<HTMLSelectElement>(selectId)?.value;
+  if (value === 'block' || value === 'warning' || value === 'default') {
+    return value;
+  }
+  return 'default';
+}
+
 function ensureValidRegex(pattern: string, matchMode: FilterMatchMode): boolean {
   if (matchMode !== 'regex') {
     return true;
@@ -760,11 +801,13 @@ function openFilterModal(filterId?: string, groupId?: string): void {
         const descInput = getElementByIdOrNull<HTMLInputElement>('filter-description');
         const enabledInput = getElementByIdOrNull<HTMLInputElement>('filter-enabled');
         const matchModeSelect = getElementByIdOrNull<HTMLSelectElement>('filter-match-mode');
+        const blockTypeSelect = getElementByIdOrNull<HTMLSelectElement>('filter-block-type');
 
         if (patternInput) patternInput.value = filter.pattern;
         if (descInput) descInput.value = filter.description ?? '';
         if (enabledInput) enabledInput.checked = filter.enabled;
         if (matchModeSelect) matchModeSelect.value = filter.matchMode ?? 'contains';
+        if (blockTypeSelect) blockTypeSelect.value = filter.blockType ?? 'default';
       }
     })
     .catch((error: unknown) => {
@@ -793,6 +836,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
   const groupId = currentFilterGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('filter-enabled')?.checked ?? true;
   const matchMode = getMatchModeSelectValue('filter-match-mode');
+  const blockType = getFilterBlockTypeSelectValue('filter-block-type');
 
   if (!ensureValidRegex(pattern, matchMode)) {
     return;
@@ -811,6 +855,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     groupId,
     enabled,
     matchMode,
+    blockType,
   };
   const filter: Filter = typeof expiresAt === 'number' ? { ...baseFilter, expiresAt } : baseFilter;
 

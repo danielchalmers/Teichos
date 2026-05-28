@@ -1,4 +1,4 @@
-import type { Filter, FilterGroup, StorageData, Whitelist } from '../types';
+import type { BlockType, Filter, FilterGroup, StorageData, Whitelist } from '../types';
 import type { ScheduleContext } from './filters';
 import {
   buildGroupById,
@@ -26,6 +26,7 @@ export type FilterDecision =
       readonly action: 'block';
       readonly filterId: string;
       readonly groupId: string;
+      readonly blockType: BlockType;
       readonly reason: 'matched-filter';
     };
 
@@ -88,6 +89,7 @@ export function evaluateFilterDecision(
   const urlLower = url.toLowerCase();
   const now = Date.now();
   let fallbackReason: FilterDecisionAllowReason = 'no-match';
+  let warningDecision: Extract<FilterDecision, { action: 'block' }> | undefined;
 
   for (const filter of filters) {
     if (!matchesPattern(url, filter, undefined, urlLower)) {
@@ -117,15 +119,35 @@ export function evaluateFilterDecision(
       }
     }
 
-    return {
+    const blockType = resolveFilterBlockType(filter, data);
+    const decision: Extract<FilterDecision, { action: 'block' }> = {
       action: 'block',
       filterId: filter.id,
       groupId: filter.groupId,
+      blockType,
       reason: 'matched-filter',
     };
+
+    if (blockType === 'block') {
+      return decision;
+    }
+
+    warningDecision ??= decision;
+  }
+
+  if (warningDecision) {
+    return warningDecision;
   }
 
   return { action: 'allow', reason: fallbackReason };
+}
+
+function resolveFilterBlockType(filter: Filter, data: StorageData): BlockType {
+  if (filter.blockType === 'block' || filter.blockType === 'warning') {
+    return filter.blockType;
+  }
+
+  return data.blockType === 'warning' ? 'warning' : 'block';
 }
 
 function selectHigherPriorityReason(

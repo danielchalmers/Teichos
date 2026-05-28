@@ -183,6 +183,41 @@ test('exports current settings from global settings', async ({ extensionPage, pa
   );
 });
 
+test('persists global and per-filter block types from the options UI', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+
+  await page.getByLabel('Block Type').first().selectOption('warning');
+  await expect(page.locator('#global-settings-status')).toHaveText('Block type updated.');
+
+  await createFilterViaOptions(page, {
+    name: 'Inherited Warning',
+    pattern: 'warning.example.test',
+    blockType: 'default',
+  });
+
+  const filterCard = page.locator('.filter-item').filter({ hasText: 'Inherited Warning' });
+  await filterCard.getByRole('button', { name: 'Edit' }).click();
+  const filterModal = page.locator('#filter-modal.active');
+  await expect(filterModal).toBeVisible();
+  await filterModal.getByLabel('Block Type').selectOption('block');
+  await filterModal.getByRole('button', { name: 'Save' }).click();
+
+  await expect
+    .poll(() => readStorage(page))
+    .toMatchObject({
+      blockType: 'warning',
+      filters: [
+        expect.objectContaining({
+          description: 'Inherited Warning',
+          blockType: 'block',
+        }),
+      ],
+    });
+});
+
 test('imports settings from global settings', async ({ extensionPage, page }) => {
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(
