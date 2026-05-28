@@ -3,8 +3,8 @@ import type { ScheduleContext } from './filters';
 import {
   buildGroupById,
   buildWhitelistByGroup,
+  getFilterEffectiveState,
   getScheduleContext,
-  isFilterScheduledActive,
   isSnoozeActive,
   isTemporaryFilter,
   isTemporaryFilterExpired,
@@ -104,7 +104,7 @@ export function evaluateFilterDecision(
       continue;
     }
 
-    if (!isFilterScheduledActive(filter, groupsById, context)) {
+    if (!getFilterEffectiveState(filter, groupsById, context, now).groupActive) {
       fallbackReason = selectHigherPriorityReason(fallbackReason, 'group-inactive');
       continue;
     }

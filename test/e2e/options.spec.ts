@@ -480,3 +480,86 @@ test('updates selected days and supports empty schedules in the group editor', a
 
   await expect(flexibleHoursGroup).toContainText('No days 09:00-17:00 • 0 filters • 0 exceptions');
 });
+
+test('disabled groups start collapsed and stay readonly until re-enabled', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'work-hours',
+          name: 'Work Hours',
+          is24x7: true,
+          schedules: [],
+          enabled: false,
+        },
+      ],
+      filters: [
+        {
+          id: 'focus-filter',
+          pattern: 'focus.example.test',
+          groupId: 'work-hours',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Focus Block',
+        },
+      ],
+      whitelist: [
+        {
+          id: 'allow-docs',
+          pattern: 'focus.example.test/docs',
+          groupId: 'work-hours',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Allow Docs',
+        },
+      ],
+    })
+  );
+
+  const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  const groupToggle = workHoursGroup.locator('input[data-action="toggle-group"]');
+
+  await expect(groupToggle).not.toBeChecked();
+  await expect
+    .poll(() => workHoursGroup.evaluate((element) => (element as HTMLDetailsElement).open))
+    .toBe(false);
+
+  await workHoursGroup.locator('summary').click();
+  await expect
+    .poll(() => workHoursGroup.evaluate((element) => (element as HTMLDetailsElement).open))
+    .toBe(true);
+
+  await expect(workHoursGroup.locator('button[data-action="edit-group"]')).toBeDisabled();
+  await expect(workHoursGroup.getByRole('button', { name: 'New Filter' })).toBeDisabled();
+  await expect(workHoursGroup.getByRole('button', { name: 'New Exception' })).toBeDisabled();
+
+  const filterItem = workHoursGroup.locator('.filter-item').filter({ hasText: 'Focus Block' });
+  await expect(filterItem.locator('input[data-action="toggle-filter"]')).toBeDisabled();
+  await expect(filterItem.locator('button[data-action="edit-filter"]')).toBeDisabled();
+
+  const whitelistItem = workHoursGroup.locator('.filter-item').filter({ hasText: 'Allow Docs' });
+  await expect(whitelistItem.locator('input[data-action="toggle-whitelist"]')).toBeDisabled();
+  await expect(whitelistItem.locator('button[data-action="edit-whitelist"]')).toBeDisabled();
+
+  await workHoursGroup.locator('label.group-toggle').click();
+  await expect(groupToggle).toBeChecked();
+  await expect
+    .poll(() => workHoursGroup.evaluate((element) => (element as HTMLDetailsElement).open))
+    .toBe(true);
+  await expect
+    .poll(async () => (await readStorage(page))?.groups.find((group) => group.id === 'work-hours')?.enabled)
+    .toBe(true);
+
+  await page.reload();
+  const reloadedGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  await expect(reloadedGroup.locator('input[data-action="toggle-group"]')).toBeChecked();
+  await expect
+    .poll(() => reloadedGroup.evaluate((element) => (element as HTMLDetailsElement).open))
+    .toBe(true);
+});

@@ -32,6 +32,13 @@ export interface BlockingIndex {
   readonly whitelistByGroup: WhitelistByGroup<PreparedWhitelist>;
 }
 
+export interface FilterEffectiveState {
+  readonly filterEnabled: boolean;
+  readonly groupEnabled: boolean;
+  readonly groupActive: boolean;
+  readonly active: boolean;
+}
+
 export function isTemporaryFilter(filter: Filter): filter is Filter & { expiresAt: number } {
   return typeof filter.expiresAt === 'number' && Number.isFinite(filter.expiresAt);
 }
@@ -117,6 +124,10 @@ export function getScheduleContext(): ScheduleContext {
 
 export function buildGroupById(groups: readonly FilterGroup[]): GroupById {
   return new Map(groups.map((group) => [group.id, group]));
+}
+
+export function isGroupEnabled(group: FilterGroup | undefined): boolean {
+  return group?.enabled !== false;
 }
 
 /**
@@ -233,11 +244,7 @@ export function isFilterActive(
   groups: GroupLookup,
   context: ScheduleContext = getScheduleContext()
 ): boolean {
-  if (!filter.enabled) {
-    return false;
-  }
-
-  return isFilterScheduledActive(filter, groups, context);
+  return getFilterEffectiveState(filter, groups, context).active;
 }
 
 /**
@@ -250,16 +257,44 @@ export function isFilterScheduledActive(
   groups: GroupLookup,
   context: ScheduleContext = getScheduleContext()
 ): boolean {
-  if (isTemporaryFilterExpired(filter)) {
-    return false;
+  return getFilterEffectiveState(filter, groups, context).groupActive;
+}
+
+export function getFilterEffectiveState(
+  filter: Filter,
+  groups: GroupLookup,
+  context: ScheduleContext = getScheduleContext(),
+  now = Date.now()
+): FilterEffectiveState {
+  const expired = isTemporaryFilterExpired(filter, now);
+  if (expired) {
+    return {
+      filterEnabled: filter.enabled,
+      groupEnabled: false,
+      groupActive: false,
+      active: false,
+    };
   }
 
   const group = getGroupFromLookup(filter.groupId, groups);
   if (!group) {
-    return false;
+    return {
+      filterEnabled: filter.enabled,
+      groupEnabled: false,
+      groupActive: false,
+      active: false,
+    };
   }
 
-  return isGroupScheduleActive(group, context);
+  const groupEnabled = isGroupEnabled(group);
+  const groupActive = groupEnabled && isGroupScheduleActive(group, context);
+
+  return {
+    filterEnabled: filter.enabled,
+    groupEnabled,
+    groupActive,
+    active: filter.enabled && groupActive,
+  };
 }
 
 export function shouldBlockUrlWithIndex(
@@ -284,7 +319,7 @@ export function shouldBlockUrlWithIndex(
     let isActive = activeGroupStatus.get(filter.groupId);
     if (isActive === undefined) {
       const group = blockingIndex.groupsById.get(filter.groupId);
-      isActive = group ? isGroupScheduleActive(group, context) : false;
+      isActive = group ? isGroupEnabled(group) && isGroupScheduleActive(group, context) : false;
       activeGroupStatus.set(filter.groupId, isActive);
     }
     if (!isActive) {

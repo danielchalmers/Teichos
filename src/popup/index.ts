@@ -18,10 +18,10 @@ import {
   buildGroupById,
   formatDuration,
   generateId,
+  getFilterEffectiveState,
   getScheduleContext,
   getSnoozeRemainingMs,
   getTemporaryFilterRemainingMs,
-  isFilterScheduledActive,
   isInternalUrl,
   isSnoozeActive,
   isTemporaryFilter,
@@ -691,7 +691,7 @@ async function renderFilters(): Promise<void> {
   }
 
   const visibleFilters = data.filters.filter((filter) => {
-    if (!isFilterScheduledActive(filter, groupsById, scheduleContext)) {
+    if (!getFilterEffectiveState(filter, groupsById, scheduleContext).groupActive) {
       return false;
     }
     if (!isTemporaryFilter(filter) && isUrlEligible && whitelistedGroups.has(filter.groupId)) {
