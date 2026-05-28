@@ -571,6 +571,11 @@ function renderGroup(
   return groupElement;
 }
 
+/**
+ * Apply readonly behavior for groups that are snoozed or explicitly disabled.
+ * This disables interactive child controls while leaving the header disclosure and
+ * group enabled toggle available so users can still inspect or re-enable the group.
+ */
 function setGroupReadonlyState(groupElement: HTMLElement, readonly: boolean): void {
   const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
   groupContent.classList.toggle('is-snoozed', readonly);
@@ -1179,6 +1184,9 @@ async function toggleFilter(filterId: string, enabled: boolean): Promise<void> {
   }
 }
 
+/**
+ * Persist a group's enabled state through the normal storage save path so all views refresh.
+ */
 async function toggleGroupEnabled(groupId: string, enabled: boolean): Promise<void> {
   const data = await loadData();
   const group = data.groups.find((entry) => entry.id === groupId);

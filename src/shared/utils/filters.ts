@@ -126,6 +126,10 @@ export function buildGroupById(groups: readonly FilterGroup[]): GroupById {
   return new Map(groups.map((group) => [group.id, group]));
 }
 
+/**
+ * Check whether a group is enabled for runtime evaluation.
+ * Groups without a persisted enabled flag default to enabled for backwards compatibility.
+ */
 export function isGroupEnabled(group: FilterGroup | undefined): boolean {
   return group?.enabled !== false;
 }
@@ -260,6 +264,12 @@ export function isFilterScheduledActive(
   return getFilterEffectiveState(filter, groups, context).groupActive;
 }
 
+/**
+ * Resolve a filter's persisted and effective runtime state.
+ * Returns the child filter's saved enabled flag, the group's saved enabled flag,
+ * whether the group is currently active after enabled+schedule checks, and whether
+ * the filter is fully active for blocking after child, group, and expiry checks.
+ */
 export function getFilterEffectiveState(
   filter: Filter,
   groups: GroupLookup,
