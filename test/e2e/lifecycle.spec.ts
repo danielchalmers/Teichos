@@ -583,17 +583,24 @@ test('disabling the default group hides popup filters and restores blocking when
   const defaultGroupCard = optionsPage
     .locator('details.group-item')
     .filter({ hasText: '24/7 (Always Active)' });
+  await expect(defaultGroupCard).toHaveCount(1);
+  await expect(defaultGroupCard.locator('input[data-action="toggle-group"]')).toBeChecked();
   await defaultGroupCard.locator('label.group-toggle').click();
 
   await expectPopupHidesFilter(popupPage, 'Default Group Filter');
   await expect.poll(() => browsingPage.url()).toBe(targetUrl);
   await expect(browsingPage.getByText('Default group allowed')).toBeVisible();
   await expect
-    .poll(async () => (await readStorage(page))?.groups.find((group) => group.id === defaultGroup.id)?.enabled)
+    .poll(
+      async () =>
+        (await readStorage(page))?.groups.find((group) => group.id === defaultGroup.id)?.enabled
+    )
     .toBe(false);
   await expect
-    .poll(async () =>
-      (await readStorage(page))?.filters.find((filter) => filter.id === 'default-group-filter')?.enabled
+    .poll(
+      async () =>
+        (await readStorage(page))?.filters.find((filter) => filter.id === 'default-group-filter')
+          ?.enabled
     )
     .toBe(true);
 

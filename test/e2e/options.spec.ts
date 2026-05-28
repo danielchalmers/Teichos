@@ -525,6 +525,7 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
   const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
   const groupToggle = workHoursGroup.locator('input[data-action="toggle-group"]');
 
+  await expect(workHoursGroup).toHaveCount(1);
   await expect(groupToggle).not.toBeChecked();
   await expect
     .poll(() => workHoursGroup.evaluate((element) => (element as HTMLDetailsElement).open))
@@ -553,11 +554,15 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
     .poll(() => workHoursGroup.evaluate((element) => (element as HTMLDetailsElement).open))
     .toBe(true);
   await expect
-    .poll(async () => (await readStorage(page))?.groups.find((group) => group.id === 'work-hours')?.enabled)
+    .poll(
+      async () =>
+        (await readStorage(page))?.groups.find((group) => group.id === 'work-hours')?.enabled
+    )
     .toBe(true);
 
   await page.reload();
   const reloadedGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  await expect(reloadedGroup).toHaveCount(1);
   await expect(reloadedGroup.locator('input[data-action="toggle-group"]')).toBeChecked();
   await expect
     .poll(() => reloadedGroup.evaluate((element) => (element as HTMLDetailsElement).open))

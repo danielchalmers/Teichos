@@ -526,7 +526,6 @@ function renderGroup(
   groupToggleInput.addEventListener('keydown', (event) => event.stopPropagation());
 
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
-  const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
   if (!isDefault) {
     const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
     editButton.dataset['groupId'] = group.id;
@@ -546,7 +545,6 @@ function renderGroup(
 
   addFilterButton.dataset['groupId'] = group.id;
   addWhitelistButton.dataset['groupId'] = group.id;
-  setGroupReadonlyState(groupElement, snoozeActive || !groupEnabled);
 
   if (filters.length === 0) {
     filterList.appendChild(createEmptyState('No filters in this group.'));
@@ -568,6 +566,8 @@ function renderGroup(
     whitelistList.appendChild(whitelistFragment);
   }
 
+  setGroupReadonlyState(groupElement, snoozeActive || !groupEnabled);
+
   return groupElement;
 }
 
@@ -577,9 +577,9 @@ function setGroupReadonlyState(groupElement: HTMLElement, readonly: boolean): vo
   groupContent.classList.toggle('is-readonly', readonly);
 
   groupElement
-    .querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
-      '[data-role="group-actions"] button, .group-content button, .group-content input, .group-content select, .group-content textarea'
-    )
+    .querySelectorAll<
+      HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >('[data-role="group-actions"] button, .group-content button, .group-content input, .group-content select, .group-content textarea')
     .forEach((element) => {
       element.disabled = readonly;
     });
