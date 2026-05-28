@@ -300,7 +300,10 @@ class TabController {
     url: string,
     options?: { readonly preserveWarningBypass?: boolean }
   ): Promise<void> {
-    const operations: Promise<void>[] = [clearBlockedTabState(tabId), setLastAllowedUrl(tabId, url)];
+    const operations: Promise<void>[] = [
+      clearBlockedTabState(tabId),
+      setLastAllowedUrl(tabId, url),
+    ];
 
     if (!options?.preserveWarningBypass) {
       const warningBypass = await getWarningBypassState(tabId);
@@ -383,7 +386,8 @@ class TabController {
     const decision = rules.engine.evaluate(targetUrl);
     if (
       decision.action !== 'block' ||
-      (decision.blockType === 'warning' && (await this.isWarningBypassed(tabId, targetUrl, decision)))
+      (decision.blockType === 'warning' &&
+        (await this.isWarningBypassed(tabId, targetUrl, decision)))
     ) {
       await clearBlockedTabState(tabId);
       return undefined;

@@ -23,6 +23,7 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: activeTimedSnooze,
+      blockType: 'block',
       rulesVersion: 1,
     });
 
@@ -50,6 +51,7 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: expired,
+      blockType: 'block',
     });
 
     const { registerSnoozeHandlers } = await import('../../../src/background/snooze');
@@ -63,6 +65,7 @@ describe('registerSnoozeHandlers', () => {
         filters: [],
         whitelist: [],
         snooze: { active: false },
+        blockType: 'block',
         rulesVersion: 1,
       });
     });
@@ -83,6 +86,7 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: activeTimedSnooze,
+      blockType: 'block',
       rulesVersion: 2,
     });
 
@@ -105,6 +109,7 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: { active: true, until: Date.now() - 1 },
+      blockType: 'block',
       rulesVersion: 1,
     });
 
@@ -118,6 +123,7 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: { active: true, until: Date.now() - 1 },
+      blockType: 'block',
       rulesVersion: 1,
     });
 
@@ -127,6 +133,7 @@ describe('registerSnoozeHandlers', () => {
       filters: [],
       whitelist: [],
       snooze: { active: true, until: Date.now() - 1 },
+      blockType: 'block',
       rulesVersion: 1,
     });
 
@@ -140,6 +147,7 @@ describe('registerSnoozeHandlers', () => {
         filters: [],
         whitelist: [],
         snooze: { active: false },
+        blockType: 'block',
         rulesVersion: 2,
       });
     });

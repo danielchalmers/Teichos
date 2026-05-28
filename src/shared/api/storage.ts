@@ -279,9 +279,9 @@ function validateImportedStorageShape(raw: JsonObject): void {
     throw new Error('Settings file contains an invalid rules version.');
   }
 
-   if (raw['blockType'] !== undefined && !isValidBlockType(raw['blockType'])) {
-     throw new Error('Settings file contains an invalid block type.');
-   }
+  if (raw['blockType'] !== undefined && !isValidBlockType(raw['blockType'])) {
+    throw new Error('Settings file contains an invalid block type.');
+  }
 }
 
 function resolveMatchMode(

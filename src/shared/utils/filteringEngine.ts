@@ -26,9 +26,9 @@ export type FilterDecision =
       readonly action: 'block';
       readonly filterId: string;
       readonly groupId: string;
-    readonly blockType: BlockType;
-    readonly reason: 'matched-filter';
-  };
+      readonly blockType: BlockType;
+      readonly reason: 'matched-filter';
+    };
 
 export interface FilteringEngine {
   readonly data: StorageData;
