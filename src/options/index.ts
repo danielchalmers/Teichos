@@ -31,6 +31,7 @@ import {
   formatGroupScheduleSummary,
   generateId,
   getRegexValidationError,
+  isGroupEnabled,
   isSnoozeActive,
   isTemporaryFilterExpired,
   sortFiltersTemporaryFirst,
@@ -481,7 +482,8 @@ async function renderGroups(): Promise<void> {
     });
   } else if (!hadGroups) {
     groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((details) => {
-      details.open = true;
+      const group = data.groups.find((entry) => entry.id === details.dataset['groupId']);
+      details.open = isGroupEnabled(group);
     });
   }
 
@@ -498,20 +500,32 @@ function renderGroup(
   snoozeActive: boolean
 ): HTMLDetailsElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
+  const groupEnabled = isGroupEnabled(group);
   const scheduleSummary = formatGroupScheduleSummary(group);
   const filterSummary = pluralize(filters.length, 'filter');
   const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
   const groupElement = cloneTemplate<HTMLDetailsElement>('options-group-template');
   groupElement.dataset['groupId'] = group.id;
+  groupElement.classList.toggle('group-disabled', !groupEnabled);
 
   querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent = group.name;
   querySelector<HTMLElement>('[data-role="group-meta"]', groupElement).textContent =
     `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
 
+  const groupToggle = querySelector<HTMLLabelElement>('[data-role="group-toggle"]', groupElement);
+  const groupToggleInput = querySelector<HTMLInputElement>(
+    'input[data-action="toggle-group"]',
+    groupToggle
+  );
+  groupToggleInput.checked = groupEnabled;
+  groupToggleInput.dataset['groupId'] = group.id;
+  groupToggleInput.setAttribute('aria-label', `Toggle group ${group.name}`);
+  groupToggle.addEventListener('click', (event) => event.stopPropagation());
+  groupToggle.addEventListener('pointerdown', (event) => event.stopPropagation());
+  groupToggleInput.addEventListener('keydown', (event) => event.stopPropagation());
+
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
-  const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
-  groupContent.classList.toggle('is-snoozed', snoozeActive);
   if (!isDefault) {
     const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
     editButton.dataset['groupId'] = group.id;
@@ -552,7 +566,28 @@ function renderGroup(
     whitelistList.appendChild(whitelistFragment);
   }
 
+  setGroupReadonlyState(groupElement, snoozeActive || !groupEnabled);
+
   return groupElement;
+}
+
+/**
+ * Apply readonly behavior for groups that are snoozed or explicitly disabled.
+ * This disables interactive child controls while leaving the header disclosure and
+ * group enabled toggle available so users can still inspect or re-enable the group.
+ */
+function setGroupReadonlyState(groupElement: HTMLElement, readonly: boolean): void {
+  const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
+  groupContent.classList.toggle('is-snoozed', readonly);
+  groupContent.classList.toggle('is-readonly', readonly);
+
+  groupElement
+    .querySelectorAll<
+      HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >('[data-role="group-actions"] button, .group-content button, .group-content input, .group-content select, .group-content textarea')
+    .forEach((element) => {
+      element.disabled = readonly;
+    });
 }
 
 function createEmptyState(message: string): HTMLParagraphElement {
@@ -1073,6 +1108,11 @@ function handleGroupsListChange(e: Event): void {
     if (filterId) {
       void toggleFilter(filterId, input.checked);
     }
+  } else if (input.dataset['action'] === 'toggle-group') {
+    const groupId = input.dataset['groupId'];
+    if (groupId) {
+      void toggleGroupEnabled(groupId, input.checked);
+    }
   } else if (input.dataset['action'] === 'toggle-whitelist') {
     const whitelistId = input.dataset['whitelistId'];
     if (whitelistId) {
@@ -1141,6 +1181,17 @@ async function toggleFilter(filterId: string, enabled: boolean): Promise<void> {
   const filter = data.filters.find((f) => f.id === filterId);
   if (filter) {
     await updateFilter({ ...filter, enabled });
+  }
+}
+
+/**
+ * Persist a group's enabled state through the normal storage save path so all views refresh.
+ */
+async function toggleGroupEnabled(groupId: string, enabled: boolean): Promise<void> {
+  const data = await loadData();
+  const group = data.groups.find((entry) => entry.id === groupId);
+  if (group) {
+    await updateGroup({ ...group, enabled });
   }
 }
 

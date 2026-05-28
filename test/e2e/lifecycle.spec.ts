@@ -547,3 +547,65 @@ test('popup snooze allows navigation until filtering is resumed', async ({
 
   await expectBlocked(browsingPage, targetUrl);
 });
+
+test('disabling the default group hides popup filters and restores blocking when re-enabled', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://default-group-toggle.example.test/focus';
+  await mockAllowedPage(page, targetUrl, 'Default group allowed');
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'default-group-filter',
+          pattern: 'default-group-toggle.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Default Group Filter',
+        },
+      ],
+    })
+  );
+
+  const browsingPage = await context.newPage();
+  const optionsPage = await openOptions(extensionPage, page);
+  const popupPage = await openPopup(extensionPage, page);
+
+  await expectPopupShowsFilter(popupPage, 'Default Group Filter');
+  await expectBlocked(browsingPage, targetUrl);
+
+  const defaultGroupCard = optionsPage
+    .locator('details.group-item')
+    .filter({ hasText: '24/7 (Always Active)' });
+  await expect(defaultGroupCard).toHaveCount(1);
+  await expect(defaultGroupCard.locator('input[data-action="toggle-group"]')).toBeChecked();
+  await defaultGroupCard.locator('label.group-toggle').click();
+
+  await expectPopupHidesFilter(popupPage, 'Default Group Filter');
+  await expect.poll(() => browsingPage.url()).toBe(targetUrl);
+  await expect(browsingPage.getByText('Default group allowed')).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (await readStorage(page))?.groups.find((group) => group.id === defaultGroup.id)?.enabled
+    )
+    .toBe(false);
+  await expect
+    .poll(
+      async () =>
+        (await readStorage(page))?.filters.find((filter) => filter.id === 'default-group-filter')
+          ?.enabled
+    )
+    .toBe(true);
+
+  await defaultGroupCard.locator('label.group-toggle').click();
+
+  await expectPopupShowsFilter(popupPage, 'Default Group Filter');
+  await expectBlocked(browsingPage, targetUrl);
+});

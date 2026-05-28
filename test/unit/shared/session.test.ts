@@ -79,6 +79,7 @@ describe('shared/api/session', () => {
         name: 'Work',
         schedules: [{ daysOfWeek: [1], startTime: '09:00', endTime: '17:00' }],
         is24x7: false,
+        enabled: true,
       },
       effectiveState: {
         filterEnabled: true,
@@ -109,6 +110,7 @@ describe('shared/api/session', () => {
         name: 'Work',
         schedules: [{ daysOfWeek: [1], startTime: '09:00', endTime: '17:00' }],
         is24x7: false,
+        enabled: true,
       },
       effectiveState: {
         filterEnabled: true,

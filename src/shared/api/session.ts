@@ -171,6 +171,7 @@ function normalizeBlockedGroupSnapshot(value: unknown): BlockedGroupSnapshot | u
     id: candidate.id,
     name: candidate.name,
     is24x7: candidate.is24x7,
+    enabled: typeof candidate.enabled === 'boolean' ? candidate.enabled : true,
     schedules: schedules.filter((schedule): schedule is TimeSchedule => Boolean(schedule)),
   };
 }

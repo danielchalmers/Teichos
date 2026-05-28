@@ -19,6 +19,7 @@ function createSampleData(): StorageData {
         id: 'work-hours',
         name: 'Work Hours',
         is24x7: false,
+        enabled: true,
         schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
       },
     ],

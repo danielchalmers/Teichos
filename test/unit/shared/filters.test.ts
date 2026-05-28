@@ -11,6 +11,7 @@ import {
   isSnoozeExpired,
   matchesPattern,
   isFilterActive,
+  isFilterScheduledActive,
   shouldBlockUrl,
   shouldBlockUrlWithIndex,
   sortFiltersTemporaryFirst,
@@ -131,6 +132,21 @@ describe('isFilterActive', () => {
       { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true },
     ];
     expect(isFilterActive(filter, groups)).toBe(true);
+  });
+
+  it('should return false when the group is disabled', () => {
+    const filter: Filter = {
+      id: 'filter-1',
+      pattern: 'example',
+      groupId: 'group-1',
+      enabled: true,
+      matchMode: 'contains',
+    };
+    const groups: FilterGroup[] = [
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true, enabled: false },
+    ];
+    expect(isFilterActive(filter, groups)).toBe(false);
+    expect(isFilterScheduledActive(filter, groups)).toBe(false);
   });
 
   it('should return true when current time is within schedule', () => {
@@ -626,5 +642,22 @@ describe('shouldBlockUrl', () => {
     expect(
       shouldBlockUrlWithIndex('https://blocked.com', blockingIndex, { dayOfWeek: 3, time: '10:31' })
     ).toBeUndefined();
+  });
+
+  it('should not block when the matching group is disabled', () => {
+    const filters: Filter[] = [
+      {
+        id: 'f1',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
+    ];
+    const disabledGroups: FilterGroup[] = [
+      { id: 'default', name: '24/7', schedules: [], is24x7: true, enabled: false },
+    ];
+
+    expect(shouldBlockUrl('https://blocked.com', filters, disabledGroups, [])).toBeUndefined();
   });
 });

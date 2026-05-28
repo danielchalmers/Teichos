@@ -140,6 +140,35 @@ describe('filteringEngine', () => {
     expect(decision).toEqual({ action: 'allow', reason: 'group-inactive' });
   });
 
+  it('allows matching urls when the group is disabled', () => {
+    const decision = evaluateFilterDecision(
+      'https://blocked.com',
+      createStorageData({
+        groups: [
+          {
+            id: DEFAULT_GROUP_ID,
+            name: '24/7',
+            is24x7: true,
+            schedules: [],
+            enabled: false,
+          },
+        ],
+        filters: [
+          {
+            id: 'filter-1',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+      }),
+      { context: activeContext }
+    );
+
+    expect(decision).toEqual({ action: 'allow', reason: 'group-inactive' });
+  });
+
   it('allows matching urls when a temporary filter has expired', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-01-15T10:00:00Z'));
