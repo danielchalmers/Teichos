@@ -3,6 +3,7 @@ import {
   captureScreenshot,
   createStorageData,
   defaultGroup,
+  expectAllowed,
   expectBlocked,
   seedStorage,
 } from './helpers';
@@ -100,7 +101,7 @@ test('renders the blocked url and responsible filter from block id state', async
 });
 
 test('warning blocks show Continue and allow same-tab bypass', async ({ extensionPage, page }) => {
-  const targetUrl = 'https://warning.example.test/focus';
+  const targetUrl = 'https://example.com/warning-focus';
 
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(
@@ -110,7 +111,7 @@ test('warning blocks show Continue and allow same-tab bypass', async ({ extensio
       filters: [
         {
           id: 'warning-filter',
-          pattern: 'warning.example.test',
+          pattern: 'example.com/warning',
           groupId: defaultGroup.id,
           enabled: true,
           matchMode: 'contains',
@@ -123,11 +124,9 @@ test('warning blocks show Continue and allow same-tab bypass', async ({ extensio
   await expectBlocked(page, targetUrl);
   await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
 
-  await Promise.all([
-    page.waitForURL(targetUrl),
-    page.getByRole('button', { name: 'Continue' }).click(),
-  ]);
-  await expect(page).toHaveURL(targetUrl);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect.poll(() => page.url()).not.toContain(`/${PAGES.BLOCKED}`);
+  await expectAllowed(page, targetUrl);
 });
 
 test('handles missing or stale block ids and no-op go back safely', async ({
