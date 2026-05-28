@@ -49,9 +49,19 @@ async function mockSpaPage(page: Page, pattern: string): Promise<void> {
 }
 
 async function expectBlockedSameTabNavigation(page: Page, targetUrl: string): Promise<void> {
-  await expect.poll(() => page.url()).toContain(`/${PAGES.BLOCKED}?url=`);
+  await expect
+    .poll(() => {
+      const currentUrl = new URL(page.url());
+      return (
+        currentUrl.pathname === `/${PAGES.BLOCKED}` &&
+        currentUrl.searchParams.has('blockId') &&
+        !currentUrl.searchParams.has('url')
+      );
+    })
+    .toBe(true);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+  await expect(page.getByLabel('Responsible filter')).toBeVisible();
 }
 
 test('loads the extension service worker and extension pages', async ({
@@ -95,9 +105,19 @@ test('redirects matching top-level navigations to the blocked page', async ({
   const targetUrl = 'https://blocked.example.invalid/focus';
   await page.goto(targetUrl).catch(() => undefined);
 
-  await expect.poll(() => page.url()).toContain(`/${PAGES.BLOCKED}?url=`);
+  await expect
+    .poll(() => {
+      const currentUrl = new URL(page.url());
+      return (
+        currentUrl.pathname === `/${PAGES.BLOCKED}` &&
+        currentUrl.searchParams.has('blockId') &&
+        !currentUrl.searchParams.has('url')
+      );
+    })
+    .toBe(true);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+  await expect(page.getByLabel('Responsible filter')).toContainText('E2E Block');
 });
 
 for (const navigationMethod of ['push-state', 'replace-state'] as const) {

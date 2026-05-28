@@ -21,6 +21,15 @@ describe('shared/types/messages', () => {
     expect(isCheckUrlMessage({ type: MessageType.CHECK_URL, url: 42 })).toBe(false);
     expect(isGoBackActiveTabMessage({ type: MessageType.GO_BACK_ACTIVE_TAB })).toBe(true);
     expect(isGetBlockedPageStateMessage({ type: MessageType.GET_BLOCKED_PAGE_STATE })).toBe(true);
+    expect(
+      isGetBlockedPageStateMessage({
+        type: MessageType.GET_BLOCKED_PAGE_STATE,
+        blockId: 'block-1',
+      })
+    ).toBe(true);
+    expect(
+      isGetBlockedPageStateMessage({ type: MessageType.GET_BLOCKED_PAGE_STATE, blockId: 42 })
+    ).toBe(false);
   });
 
   it('recognizes broadcast messages', () => {

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   getUrlDecision: vi.fn(),
+  getBlockedPageStateByBlockId: vi.fn(),
   getFreshBlockedPageState: vi.fn(),
   goBackFromActiveTab: vi.fn(),
   loadData: vi.fn(),
@@ -10,10 +11,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../src/background/tabController', () => ({
   getTabController: (): {
     getUrlDecision: typeof mocks.getUrlDecision;
+    getBlockedPageStateByBlockId: typeof mocks.getBlockedPageStateByBlockId;
     getFreshBlockedPageState: typeof mocks.getFreshBlockedPageState;
     goBackFromActiveTab: typeof mocks.goBackFromActiveTab;
   } => ({
     getUrlDecision: mocks.getUrlDecision,
+    getBlockedPageStateByBlockId: mocks.getBlockedPageStateByBlockId,
     getFreshBlockedPageState: mocks.getFreshBlockedPageState,
     goBackFromActiveTab: mocks.goBackFromActiveTab,
   }),
@@ -39,6 +42,7 @@ describe('handleMessage', () => {
   beforeEach(() => {
     mocks.loadData.mockResolvedValue(defaultData);
     mocks.getUrlDecision.mockResolvedValue({ action: 'allow', reason: 'no-match' });
+    mocks.getBlockedPageStateByBlockId.mockResolvedValue({ status: 'unavailable' });
     mocks.getFreshBlockedPageState.mockResolvedValue({ status: 'unavailable' });
     mocks.goBackFromActiveTab.mockResolvedValue(false);
   });
@@ -105,13 +109,26 @@ describe('handleMessage', () => {
 
   it('responds to blocked-page state requests', async () => {
     const blockedState = {
+      blockId: 'block-7',
       tabId: 7,
       targetUrl: 'https://blocked.com/focus',
+      blockType: 'block',
       blockedAt: 1234,
       rulesVersion: 2,
       blockedBy: {
         filterId: 'filter-1',
         groupId: DEFAULT_GROUP_ID,
+      },
+      filter: {
+        id: 'filter-1',
+        pattern: 'blocked.com',
+        matchMode: 'contains',
+      },
+      group: defaultData.groups[0]!,
+      effectiveState: {
+        filterEnabled: true,
+        groupActive: true,
+        snoozeActive: false,
       },
     };
     mocks.getFreshBlockedPageState.mockResolvedValue({ status: 'blocked', state: blockedState });
@@ -140,6 +157,53 @@ describe('handleMessage', () => {
     );
   });
 
+  it('responds to blocked-page state requests by block id without sender tab', async () => {
+    const response = {
+      status: 'blocked',
+      state: {
+        blockId: 'block-8',
+        tabId: 8,
+        targetUrl: 'https://blocked.com/focus',
+        blockType: 'block',
+        blockedAt: 1234,
+        rulesVersion: 2,
+        blockedBy: {
+          filterId: 'filter-1',
+          groupId: DEFAULT_GROUP_ID,
+        },
+        filter: {
+          id: 'filter-1',
+          pattern: 'blocked.com',
+          matchMode: 'contains',
+        },
+        group: defaultData.groups[0]!,
+        effectiveState: {
+          filterEnabled: true,
+          groupActive: true,
+          snoozeActive: false,
+        },
+      },
+    };
+    mocks.getBlockedPageStateByBlockId.mockResolvedValue(response);
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.GET_BLOCKED_PAGE_STATE, blockId: 'block-8' },
+        {
+          url: 'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-8',
+        },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith(response);
+    });
+    expect(mocks.getBlockedPageStateByBlockId).toHaveBeenCalledWith('block-8');
+    expect(mocks.getFreshBlockedPageState).not.toHaveBeenCalled();
+  });
+
   it('returns unavailable blocked-page state when the sender tab is unavailable', async () => {
     const sendResponse = vi.fn();
 
@@ -155,6 +219,7 @@ describe('handleMessage', () => {
       expect(sendResponse).toHaveBeenCalledWith({ status: 'unavailable' });
     });
     expect(mocks.getFreshBlockedPageState).not.toHaveBeenCalled();
+    expect(mocks.getBlockedPageStateByBlockId).not.toHaveBeenCalled();
   });
 
   it('forwards allowed blocked-page state responses', async () => {

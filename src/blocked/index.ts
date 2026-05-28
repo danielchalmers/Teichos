@@ -6,20 +6,26 @@
 import { openOptionsPage } from '../shared/api/runtime';
 import {
   MessageType,
+  type BlockedPageState,
+  type FilterMatchMode,
   type GetBlockedPageStateResponse,
   type GoBackActiveTabResponse,
 } from '../shared/types';
 import { getElementByIdOrNull } from '../shared/utils/dom';
+import { formatGroupScheduleSummary } from '../shared/utils/schedules';
 
-interface BlockedPageState {
+interface BlockedPageViewModel {
   readonly targetUrl: string;
+  readonly state?: BlockedPageState;
 }
 
 /**
  * Initialize blocked page
  */
 async function init(): Promise<void> {
-  renderBlockedUrl(await getBlockedPageState());
+  const state = await getBlockedPageState();
+  renderBlockedUrl(state);
+  renderResponsibleFilter(state);
 
   const goBackButton = getElementByIdOrNull('go-back');
   goBackButton?.addEventListener('click', () => {
@@ -37,20 +43,22 @@ async function init(): Promise<void> {
   });
 }
 
-async function getBlockedPageState(): Promise<BlockedPageState> {
-  const fallbackState = getFallbackBlockedPageState();
-
+async function getBlockedPageState(): Promise<BlockedPageViewModel> {
   try {
     const response = (await chrome.runtime.sendMessage({
       type: MessageType.GET_BLOCKED_PAGE_STATE,
+      blockId: getBlockedPageBlockId(),
     })) as GetBlockedPageStateResponse;
 
     if (!isBlockedPageStateResponse(response)) {
-      return fallbackState;
+      return getUnavailableBlockedPageState();
     }
 
     if (response.status === 'blocked') {
-      return { targetUrl: response.state.targetUrl };
+      return {
+        targetUrl: response.state.targetUrl,
+        state: response.state,
+      };
     }
 
     if (response.status === 'allowed') {
@@ -60,12 +68,25 @@ async function getBlockedPageState(): Promise<BlockedPageState> {
     console.warn('[Teichos] Failed to load blocked tab state:', error);
   }
 
-  return fallbackState;
+  return getUnavailableBlockedPageState();
 }
 
-function getFallbackBlockedPageState(): BlockedPageState {
-  const urlParams = new URLSearchParams(window.location.search);
-  return { targetUrl: urlParams.get('url') ?? 'Unknown URL' };
+function getBlockedPageBlockId(): string | undefined {
+  const blockId = new URLSearchParams(window.location.search).get('blockId');
+  if (blockId === null) {
+    return undefined;
+  }
+
+  const trimmedBlockId = blockId.trim();
+  if (trimmedBlockId.length === 0) {
+    return undefined;
+  }
+
+  return trimmedBlockId;
+}
+
+function getUnavailableBlockedPageState(): BlockedPageViewModel {
+  return { targetUrl: 'Block details unavailable' };
 }
 
 function isBlockedPageStateResponse(response: unknown): response is GetBlockedPageStateResponse {
@@ -87,7 +108,14 @@ function isBlockedPageStateResponse(response: unknown): response is GetBlockedPa
     typeof response.state === 'object' &&
     response.state !== null &&
     'targetUrl' in response.state &&
-    typeof response.state.targetUrl === 'string'
+    typeof response.state.targetUrl === 'string' &&
+    'filter' in response.state &&
+    typeof response.state.filter === 'object' &&
+    response.state.filter !== null &&
+    'pattern' in response.state.filter &&
+    typeof response.state.filter.pattern === 'string' &&
+    'matchMode' in response.state.filter &&
+    isFilterMatchMode(response.state.filter.matchMode)
   );
 }
 
@@ -101,11 +129,61 @@ async function handleGoBack(): Promise<void> {
   }
 }
 
-function renderBlockedUrl(state: BlockedPageState): void {
+function renderBlockedUrl(state: BlockedPageViewModel): void {
   const blockedUrlElement = getElementByIdOrNull('blocked-url');
   if (blockedUrlElement) {
     blockedUrlElement.textContent = state.targetUrl;
   }
+}
+
+function renderResponsibleFilter(state: BlockedPageViewModel): void {
+  const detailSection = getElementByIdOrNull<HTMLElement>('responsible-filter');
+  if (!detailSection || !state.state) {
+    return;
+  }
+
+  setText('responsible-filter-name', getFilterDisplayName(state.state));
+  setText('responsible-filter-pattern', state.state.filter.pattern);
+  setText('responsible-filter-match', formatMatchMode(state.state.filter.matchMode));
+  setText('responsible-filter-group', state.state.group?.name ?? 'Unknown group');
+  setText(
+    'responsible-filter-schedule',
+    state.state.group ? formatGroupScheduleSummary(state.state.group) : 'Unavailable'
+  );
+
+  detailSection.hidden = false;
+}
+
+function setText(elementId: string, value: string): void {
+  const element = getElementByIdOrNull(elementId);
+  if (element) {
+    element.textContent = value;
+  }
+}
+
+function getFilterDisplayName(state: BlockedPageState): string {
+  const name = state.filter.description?.trim();
+  if (typeof name === 'string' && name.length > 0) {
+    return name;
+  }
+
+  return state.filter.pattern;
+}
+
+function formatMatchMode(matchMode: FilterMatchMode): string {
+  if (matchMode === 'regex') {
+    return 'Regular expression';
+  }
+
+  if (matchMode === 'exact') {
+    return 'Exact URL';
+  }
+
+  return 'Contains text';
+}
+
+function isFilterMatchMode(value: unknown): value is FilterMatchMode {
+  return value === 'contains' || value === 'exact' || value === 'regex';
 }
 
 // Initialize on load

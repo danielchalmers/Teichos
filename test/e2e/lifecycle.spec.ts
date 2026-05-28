@@ -486,9 +486,20 @@ test('editing a schedule through options changes navigation from off-schedule al
   await groupModal.getByRole('button', { name: 'Save' }).click();
 
   await expect
-    .poll(() => new URL(browsingPage.url()).pathname + new URL(browsingPage.url()).search)
-    .toBe(`/${PAGES.BLOCKED}?url=${encodeURIComponent(targetUrl)}`);
+    .poll(() => {
+      const currentUrl = new URL(browsingPage.url());
+      return (
+        currentUrl.pathname === `/${PAGES.BLOCKED}` &&
+        currentUrl.searchParams.has('blockId') &&
+        !currentUrl.searchParams.has('url')
+      );
+    })
+    .toBe(true);
   await expect(browsingPage.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+  await expect(browsingPage.getByLabel('Blocked URL')).toHaveText(targetUrl);
+  await expect(browsingPage.getByLabel('Responsible filter')).toContainText(
+    'Schedule Lifecycle Filter'
+  );
   await captureScreenshot(browsingPage, testInfo, 'schedule-lifecycle-blocked.png');
 });
 

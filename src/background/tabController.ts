@@ -1,7 +1,9 @@
 import {
   clearBlockedTabState,
+  getBlockedPageState,
   getBlockedTabState,
   getLastAllowedUrl,
+  setBlockedPageState,
   setBlockedTabState,
   setLastAllowedUrl,
 } from '../shared/api/session';
@@ -9,16 +11,26 @@ import { getActiveTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
 import { getExtensionUrl } from '../shared/api/runtime';
 import { PAGES } from '../shared/constants';
 import {
+  type BlockType,
+  type BlockedPageState,
   STORAGE_KEY,
   type BlockedTabState,
+  type Filter,
   type GetBlockedPageStateResponse,
+  type StorageData,
 } from '../shared/types';
 import { isInternalUrl, type FilterDecision } from '../shared/utils';
 import { getRulesProvider, type CurrentRules, type RulesProvider } from './rulesProvider';
 
 interface ResolvedBlockedTarget {
   readonly targetUrl: string;
+  readonly blockId?: string;
   readonly hasSessionState: boolean;
+}
+
+interface BlockedStateResult {
+  readonly tabState: BlockedTabState;
+  readonly pageState: BlockedPageState;
 }
 
 class TabController {
@@ -60,7 +72,7 @@ class TabController {
     const decision = rules.engine.evaluate(url);
 
     if (decision.action === 'block') {
-      await this.blockTab(tabId, url, decision, rules.data.rulesVersion);
+      await this.blockTab(tabId, url, decision, rules.data);
       return;
     }
 
@@ -79,8 +91,9 @@ class TabController {
     }
 
     const rules = await this.getRules();
-    const state = await this.refreshBlockedTabState(tabId, resolvedTarget.targetUrl, rules);
-    if (state) {
+    const decision = rules.engine.evaluate(resolvedTarget.targetUrl);
+    if (decision.action === 'block') {
+      await this.ensureBlockedState(tabId, resolvedTarget.targetUrl, decision, rules.data);
       return false;
     }
 
@@ -102,13 +115,19 @@ class TabController {
       return undefined;
     }
 
-    return this.refreshBlockedTabState(tabId, resolvedTarget.targetUrl);
+    const state = await this.ensureFreshBlockedState(tabId, resolvedTarget.targetUrl);
+    return state?.tabState;
   }
 
   async getFreshBlockedPageState(
     tabId: number,
     blockedPageUrl?: string
   ): Promise<GetBlockedPageStateResponse> {
+    const blockId = parseBlockedPageBlockId(blockedPageUrl);
+    if (blockId) {
+      return this.getBlockedPageStateByBlockId(blockId);
+    }
+
     if (!Number.isInteger(tabId)) {
       return { status: 'unavailable' };
     }
@@ -118,12 +137,27 @@ class TabController {
       return { status: 'unavailable' };
     }
 
-    const state = await this.refreshBlockedTabState(tabId, resolvedTarget.targetUrl);
+    const state = await this.ensureFreshBlockedState(tabId, resolvedTarget.targetUrl);
     if (state) {
-      return { status: 'blocked', state };
+      return { status: 'blocked', state: state.pageState };
     }
 
     return { status: 'allowed', targetUrl: resolvedTarget.targetUrl };
+  }
+
+  async getBlockedPageStateByBlockId(
+    blockId: string | undefined
+  ): Promise<GetBlockedPageStateResponse> {
+    if (!blockId) {
+      return { status: 'unavailable' };
+    }
+
+    const pageState = await getBlockedPageState(blockId);
+    if (!pageState) {
+      return { status: 'unavailable' };
+    }
+
+    return { status: 'blocked', state: pageState };
   }
 
   async reconcileAllOpenTabs(): Promise<void> {
@@ -187,13 +221,23 @@ class TabController {
     }
 
     const rules = await this.getRules();
-    const state = await this.refreshBlockedTabState(tabId, resolvedTarget.targetUrl, rules);
-    if (!state) {
+    const decision = rules.engine.evaluate(resolvedTarget.targetUrl);
+    if (decision.action !== 'block') {
       if (resolvedTarget.hasSessionState) {
         await updateTabUrl(tabId, resolvedTarget.targetUrl);
         await this.allowTab(tabId, resolvedTarget.targetUrl);
       }
       return;
+    }
+
+    const state = await this.ensureBlockedState(
+      tabId,
+      resolvedTarget.targetUrl,
+      decision,
+      rules.data
+    );
+    if (blockedPageUrl && parseBlockedPageBlockId(blockedPageUrl) !== state.tabState.blockId) {
+      await updateTabUrl(tabId, getBlockedPageUrl(state.tabState.blockId));
     }
   }
 
@@ -201,11 +245,10 @@ class TabController {
     tabId: number,
     url: string,
     decision: Extract<FilterDecision, { action: 'block' }>,
-    rulesVersion: number
+    data: StorageData
   ): Promise<void> {
-    await this.setBlockedState(tabId, url, decision, rulesVersion);
-    const blockedUrl = `${getExtensionUrl(PAGES.BLOCKED)}?url=${encodeURIComponent(url)}`;
-    await updateTabUrl(tabId, blockedUrl);
+    const state = await this.setBlockedState(tabId, url, decision, data);
+    await updateTabUrl(tabId, getBlockedPageUrl(state.tabState.blockId));
   }
 
   private async allowTab(tabId: number, url: string): Promise<void> {
@@ -216,21 +259,36 @@ class TabController {
     tabId: number,
     targetUrl: string,
     decision: Extract<FilterDecision, { action: 'block' }>,
-    rulesVersion: number
-  ): Promise<BlockedTabState> {
-    const state: BlockedTabState = {
+    data: StorageData
+  ): Promise<BlockedStateResult> {
+    const blockType = getDecisionBlockType(decision);
+    const blockId = createBlockId();
+    const tabState: BlockedTabState = {
+      blockId,
       tabId,
       targetUrl,
+      blockType,
       blockedAt: Date.now(),
-      rulesVersion,
+      rulesVersion: data.rulesVersion,
       blockedBy: {
         filterId: decision.filterId,
         groupId: decision.groupId,
       },
     };
+    const filter = data.filters.find((entry) => entry.id === decision.filterId);
+    const pageState: BlockedPageState = {
+      ...tabState,
+      filter: createFilterSnapshot(filter, decision.filterId),
+      group: data.groups.find((entry) => entry.id === decision.groupId),
+      effectiveState: {
+        filterEnabled: filter?.enabled ?? true,
+        groupActive: true,
+        snoozeActive: false,
+      },
+    };
 
-    await setBlockedTabState(state);
-    return state;
+    await Promise.all([setBlockedTabState(tabState), setBlockedPageState(pageState)]);
+    return { tabState, pageState };
   }
 
   private async resolveBlockedTarget(
@@ -238,24 +296,32 @@ class TabController {
     blockedPageUrl?: string
   ): Promise<ResolvedBlockedTarget | undefined> {
     const existingState = await getBlockedTabState(tabId);
-    const fallbackTargetUrl = parseBlockedTargetUrl(blockedPageUrl);
-    if (fallbackTargetUrl) {
-      return {
-        targetUrl: fallbackTargetUrl,
-        hasSessionState: Boolean(existingState),
-      };
+    const blockId = parseBlockedPageBlockId(blockedPageUrl);
+    if (blockId) {
+      const pageState = await getBlockedPageState(blockId);
+      if (pageState) {
+        return {
+          targetUrl: pageState.targetUrl,
+          blockId,
+          hasSessionState: true,
+        };
+      }
     }
 
     return existingState
-      ? { targetUrl: existingState.targetUrl, hasSessionState: true }
+      ? {
+          targetUrl: existingState.targetUrl,
+          blockId: existingState.blockId,
+          hasSessionState: true,
+        }
       : undefined;
   }
 
-  private async refreshBlockedTabState(
+  private async ensureFreshBlockedState(
     tabId: number,
     targetUrl: string,
     currentRules?: CurrentRules
-  ): Promise<BlockedTabState | undefined> {
+  ): Promise<BlockedStateResult | undefined> {
     const rules = currentRules ?? (await this.getRules());
     const decision = rules.engine.evaluate(targetUrl);
     if (decision.action !== 'block') {
@@ -263,7 +329,27 @@ class TabController {
       return undefined;
     }
 
-    return this.setBlockedState(tabId, targetUrl, decision, rules.data.rulesVersion);
+    return this.ensureBlockedState(tabId, targetUrl, decision, rules.data);
+  }
+
+  private async ensureBlockedState(
+    tabId: number,
+    targetUrl: string,
+    decision: Extract<FilterDecision, { action: 'block' }>,
+    data: StorageData
+  ): Promise<BlockedStateResult> {
+    const existingState = await getBlockedTabState(tabId);
+    if (
+      existingState &&
+      isSameBlockedState(existingState, targetUrl, decision, data.rulesVersion)
+    ) {
+      const pageState = await getBlockedPageState(existingState.blockId);
+      if (pageState) {
+        return { tabState: existingState, pageState };
+      }
+    }
+
+    return this.setBlockedState(tabId, targetUrl, decision, data);
   }
 
   private queueReconcile(): void {
@@ -282,7 +368,7 @@ class TabController {
   }
 }
 
-function parseBlockedTargetUrl(tabUrl: string | undefined): string | null {
+function parseBlockedPageBlockId(tabUrl: string | undefined): string | null {
   if (!tabUrl) {
     return null;
   }
@@ -293,19 +379,59 @@ function parseBlockedTargetUrl(tabUrl: string | undefined): string | null {
   }
 
   try {
-    const blockedTargetUrl = new URL(tabUrl).searchParams.get('url');
-    if (
-      !blockedTargetUrl ||
-      isInternalUrl(blockedTargetUrl) ||
-      blockedTargetUrl.startsWith(blockedPageUrl)
-    ) {
-      return null;
-    }
-
-    return blockedTargetUrl;
+    const blockId = new URL(tabUrl).searchParams.get('blockId');
+    return blockId?.trim() ? blockId : null;
   } catch {
     return null;
   }
+}
+
+function getBlockedPageUrl(blockId: string): string {
+  const url = new URL(getExtensionUrl(PAGES.BLOCKED));
+  url.searchParams.set('blockId', blockId);
+  return url.toString();
+}
+
+function createBlockId(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+}
+
+function getDecisionBlockType(decision: Extract<FilterDecision, { action: 'block' }>): BlockType {
+  const candidate = (decision as { readonly blockType?: unknown }).blockType;
+  return isBlockType(candidate) ? candidate : 'block';
+}
+
+function isBlockType(value: unknown): value is BlockType {
+  return value === 'block' || value === 'warning';
+}
+
+function isSameBlockedState(
+  state: BlockedTabState,
+  targetUrl: string,
+  decision: Extract<FilterDecision, { action: 'block' }>,
+  rulesVersion: number
+): boolean {
+  return (
+    state.targetUrl === targetUrl &&
+    state.rulesVersion === rulesVersion &&
+    state.blockedBy.filterId === decision.filterId &&
+    state.blockedBy.groupId === decision.groupId &&
+    state.blockType === getDecisionBlockType(decision)
+  );
+}
+
+function createFilterSnapshot(
+  filter: Filter | undefined,
+  fallbackFilterId: string
+): BlockedPageState['filter'] {
+  return {
+    id: filter?.id ?? fallbackFilterId,
+    pattern: filter?.pattern ?? fallbackFilterId,
+    matchMode: filter?.matchMode ?? 'contains',
+    ...(filter?.description ? { description: filter.description } : {}),
+  };
 }
 
 const tabController = new TabController(getRulesProvider());
