@@ -3,14 +3,11 @@
  * Uses discriminated unions for type-safe message handling
  */
 
-import type { BlockedPageState, Filter, StorageData } from './storage';
+import type { BlockedPageState, StorageData } from './storage';
 
-// Message types enum for discriminated union
 export const MessageType = {
   GET_DATA: 'GET_DATA',
-  DATA_UPDATED: 'DATA_UPDATED',
   CHECK_URL: 'CHECK_URL',
-  URL_BLOCKED: 'URL_BLOCKED',
   GET_BLOCKED_PAGE_STATE: 'GET_BLOCKED_PAGE_STATE',
   GO_BACK_ACTIVE_TAB: 'GO_BACK_ACTIVE_TAB',
   CONTINUE_ACTIVE_TAB: 'CONTINUE_ACTIVE_TAB',
@@ -19,7 +16,6 @@ export const MessageType = {
 
 export type MessageTypeValue = (typeof MessageType)[keyof typeof MessageType];
 
-// Request messages (sent to background)
 export interface GetDataMessage {
   readonly type: typeof MessageType.GET_DATA;
 }
@@ -42,7 +38,6 @@ export interface GetBlockedPageStateMessage {
   readonly blockId?: string;
 }
 
-// Response messages
 export interface GetDataResponse {
   readonly success: true;
   readonly data: StorageData;
@@ -73,34 +68,18 @@ export type GetBlockedPageStateResponse =
       readonly status: 'unavailable';
     };
 
-// Notification messages (broadcast)
-export interface DataUpdatedMessage {
-  readonly type: typeof MessageType.DATA_UPDATED;
-  readonly data: StorageData;
-}
-
-export interface UrlBlockedMessage {
-  readonly type: typeof MessageType.URL_BLOCKED;
-  readonly url: string;
-  readonly filter: Filter;
-}
-
 export interface CloseInfoPanelMessage {
   readonly type: typeof MessageType.CLOSE_INFO_PANEL;
 }
 
-// Discriminated union of all messages
 export type ExtensionMessage =
   | GetDataMessage
   | CheckUrlMessage
   | GoBackActiveTabMessage
   | ContinueActiveTabMessage
   | GetBlockedPageStateMessage
-  | DataUpdatedMessage
-  | UrlBlockedMessage
   | CloseInfoPanelMessage;
 
-// Response type mapping
 export type MessageResponse<T extends ExtensionMessage> = T extends GetDataMessage
   ? GetDataResponse
   : T extends CheckUrlMessage
@@ -113,7 +92,6 @@ export type MessageResponse<T extends ExtensionMessage> = T extends GetDataMessa
           ? GetBlockedPageStateResponse
           : undefined;
 
-// Type guards for message validation
 export function isGetDataMessage(msg: unknown): msg is GetDataMessage {
   return (
     typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === MessageType.GET_DATA
@@ -156,27 +134,6 @@ export function isGetBlockedPageStateMessage(msg: unknown): msg is GetBlockedPag
     'type' in msg &&
     msg.type === MessageType.GET_BLOCKED_PAGE_STATE &&
     (!('blockId' in msg) || typeof msg.blockId === 'string')
-  );
-}
-
-export function isDataUpdatedMessage(msg: unknown): msg is DataUpdatedMessage {
-  return (
-    typeof msg === 'object' &&
-    msg !== null &&
-    'type' in msg &&
-    msg.type === MessageType.DATA_UPDATED &&
-    'data' in msg
-  );
-}
-
-export function isUrlBlockedMessage(msg: unknown): msg is UrlBlockedMessage {
-  return (
-    typeof msg === 'object' &&
-    msg !== null &&
-    'type' in msg &&
-    msg.type === MessageType.URL_BLOCKED &&
-    'url' in msg &&
-    'filter' in msg
   );
 }
 

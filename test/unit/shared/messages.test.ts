@@ -5,11 +5,9 @@ import {
   isCheckUrlMessage,
   isCloseInfoPanelMessage,
   isContinueActiveTabMessage,
-  isDataUpdatedMessage,
   isGetBlockedPageStateMessage,
   isGetDataMessage,
   isGoBackActiveTabMessage,
-  isUrlBlockedMessage,
 } from '../../../src/shared/types';
 
 describe('shared/types/messages', () => {
@@ -34,20 +32,13 @@ describe('shared/types/messages', () => {
     ).toBe(false);
   });
 
-  it('recognizes broadcast messages', () => {
-    expect(isDataUpdatedMessage({ type: MessageType.DATA_UPDATED, data: {} })).toBe(true);
-    expect(
-      isUrlBlockedMessage({ type: MessageType.URL_BLOCKED, url: 'https://blocked.com', filter: {} })
-    ).toBe(true);
+  it('recognizes panel control messages', () => {
     expect(isCloseInfoPanelMessage({ type: MessageType.CLOSE_INFO_PANEL })).toBe(true);
   });
 
   it('rejects malformed values', () => {
     expect(isGetDataMessage(null)).toBe(false);
     expect(isCheckUrlMessage('CHECK_URL')).toBe(false);
-    expect(isDataUpdatedMessage({ type: MessageType.DATA_UPDATED })).toBe(false);
-    expect(isUrlBlockedMessage({ type: MessageType.URL_BLOCKED, url: 'https://blocked.com' })).toBe(
-      false
-    );
+    expect(isCloseInfoPanelMessage({ type: MessageType.GET_DATA })).toBe(false);
   });
 });

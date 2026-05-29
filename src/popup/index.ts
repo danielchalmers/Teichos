@@ -10,6 +10,7 @@ import {
   saveData,
   setSnooze,
   updateFilter,
+  sendExtensionMessage,
 } from '../shared/api';
 import { openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
 import { getActiveTab } from '../shared/api/tabs';
@@ -108,7 +109,7 @@ async function init(): Promise<void> {
 function setupEventListeners(): void {
   const openOptionsButton = getElementByIdOrNull('open-options');
   openOptionsButton?.addEventListener('click', () => {
-    void chrome.runtime.sendMessage({ type: MessageType.CLOSE_INFO_PANEL });
+    void sendExtensionMessage({ type: MessageType.CLOSE_INFO_PANEL });
     openOptionsPage()
       .catch((error: unknown) => {
         console.error('Failed to open options page:', error);

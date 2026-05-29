@@ -4,7 +4,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
-  buildBlockingIndex,
   getSnoozeRemainingMs,
   getRegexValidationError,
   isSnoozeActive,
@@ -12,11 +11,38 @@ import {
   matchesPattern,
   isFilterActive,
   isFilterScheduledActive,
-  shouldBlockUrl,
-  shouldBlockUrlWithIndex,
   sortFiltersTemporaryFirst,
 } from '../../../src/shared/utils/filters';
+import { evaluateFilterDecision } from '../../../src/shared/filtering/engine';
 import type { Filter, FilterGroup, Whitelist } from '../../../src/shared/types';
+
+
+function findBlockingFilter(
+  url: string,
+  filters: Filter[],
+  groups: FilterGroup[],
+  whitelist: Whitelist[],
+  context = { dayOfWeek: 1, time: '10:00' }
+): Filter | undefined {
+  const decision = evaluateFilterDecision(
+    url,
+    {
+      groups,
+      filters,
+      whitelist,
+      snooze: { active: false },
+      blockType: 'block',
+      rulesVersion: 0,
+    },
+    { context }
+  );
+
+  if (decision.action !== 'block') {
+    return undefined;
+  }
+
+  return filters.find((filter) => filter.id === decision.filterId);
+}
 
 describe('matchesPattern', () => {
   it.each([
@@ -312,7 +338,7 @@ describe('snooze helpers', () => {
   });
 });
 
-describe('blocking index', () => {
+describe('runtime filtering path', () => {
   const groups: FilterGroup[] = [
     { id: 'default', name: '24/7', schedules: [], is24x7: true },
     {
@@ -323,80 +349,76 @@ describe('blocking index', () => {
     },
   ];
 
-  it('filters out disabled and orphaned filters and whitelist entries', () => {
-    const blockingIndex = buildBlockingIndex(
-      [
-        {
-          id: 'active',
-          pattern: 'blocked.com',
-          groupId: 'default',
-          enabled: true,
-          matchMode: 'contains',
-        },
-        {
-          id: 'disabled',
-          pattern: 'ignored.com',
-          groupId: 'default',
-          enabled: false,
-          matchMode: 'contains',
-        },
-        {
-          id: 'orphan',
-          pattern: 'orphan.com',
-          groupId: 'missing',
-          enabled: true,
-          matchMode: 'contains',
-        },
-      ],
-      groups,
-      [
-        {
-          id: 'allowed',
-          pattern: 'blocked.com/allowed',
-          groupId: 'default',
-          enabled: true,
-          matchMode: 'contains',
-        },
-        {
-          id: 'disabled-whitelist',
-          pattern: 'disabled.com',
-          groupId: 'default',
-          enabled: false,
-          matchMode: 'contains',
-        },
-        {
-          id: 'orphan-whitelist',
-          pattern: 'orphan.com',
-          groupId: 'missing',
-          enabled: true,
-          matchMode: 'contains',
-        },
-      ]
-    );
+  it('ignores disabled and orphaned filters and whitelist entries', () => {
+    const filters: Filter[] = [
+      {
+        id: 'active',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
+      {
+        id: 'disabled',
+        pattern: 'ignored.com',
+        groupId: 'default',
+        enabled: false,
+        matchMode: 'contains',
+      },
+      {
+        id: 'orphan',
+        pattern: 'orphan.com',
+        groupId: 'missing',
+        enabled: true,
+        matchMode: 'contains',
+      },
+    ];
+    const whitelist: Whitelist[] = [
+      {
+        id: 'allowed',
+        pattern: 'blocked.com/allowed',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
+      {
+        id: 'disabled-whitelist',
+        pattern: 'disabled.com',
+        groupId: 'default',
+        enabled: false,
+        matchMode: 'contains',
+      },
+      {
+        id: 'orphan-whitelist',
+        pattern: 'orphan.com',
+        groupId: 'missing',
+        enabled: true,
+        matchMode: 'contains',
+      },
+    ];
 
-    expect(blockingIndex.filters.map((filter) => filter.id)).toEqual(['active']);
-    expect(blockingIndex.whitelistByGroup.get('default')?.map((entry) => entry.id)).toEqual([
-      'allowed',
-    ]);
+    expect(findBlockingFilter('https://blocked.com', filters, groups, whitelist)?.id).toBe('active');
+    expect(findBlockingFilter('https://blocked.com/allowed', filters, groups, whitelist)).toBeUndefined();
+    expect(findBlockingFilter('https://ignored.com', filters, groups, whitelist)).toBeUndefined();
+    expect(findBlockingFilter('https://orphan.com', filters, groups, whitelist)).toBeUndefined();
   });
 
-  it('treats invalid prepared regex patterns as non-matching', () => {
-    const blockingIndex = buildBlockingIndex(
-      [
-        {
-          id: 'regex-filter',
-          pattern: '[',
-          groupId: 'default',
-          enabled: true,
-          matchMode: 'regex',
-        },
-      ],
-      groups,
-      []
-    );
-
+  it('treats invalid regex patterns as non-matching', () => {
     expect(
-      shouldBlockUrlWithIndex('https://blocked.com', blockingIndex, { dayOfWeek: 1, time: '10:00' })
+      findBlockingFilter(
+        'https://blocked.com',
+        [
+          {
+            id: 'regex-filter',
+            pattern: '[',
+            groupId: 'default',
+            enabled: true,
+            matchMode: 'regex',
+          },
+        ],
+        groups,
+        []
+      )
     ).toBeUndefined();
   });
 });
@@ -421,7 +443,7 @@ describe('shouldBlockUrl', () => {
         matchMode: 'contains',
       },
     ];
-    expect(shouldBlockUrl('https://allowed.com', filters, groups, [])).toBeUndefined();
+    expect(findBlockingFilter('https://allowed.com', filters, groups, [])).toBeUndefined();
   });
 
   it('should return the matching filter when URL matches', () => {
@@ -434,7 +456,7 @@ describe('shouldBlockUrl', () => {
         matchMode: 'contains',
       },
     ];
-    const result = shouldBlockUrl('https://blocked.com/page', filters, groups, []);
+    const result = findBlockingFilter('https://blocked.com/page', filters, groups, []);
     expect(result).toBeDefined();
     expect(result?.id).toBe('f1');
   });
@@ -449,8 +471,8 @@ describe('shouldBlockUrl', () => {
         matchMode: 'exact',
       },
     ];
-    expect(shouldBlockUrl('https://blocked.com', filters, groups, [])).toBeDefined();
-    expect(shouldBlockUrl('https://blocked.com/page', filters, groups, [])).toBeUndefined();
+    expect(findBlockingFilter('https://blocked.com', filters, groups, [])).toBeDefined();
+    expect(findBlockingFilter('https://blocked.com/page', filters, groups, [])).toBeUndefined();
   });
 
   it('should match regex filters when configured', () => {
@@ -463,8 +485,8 @@ describe('shouldBlockUrl', () => {
         matchMode: 'regex',
       },
     ];
-    expect(shouldBlockUrl('https://blocked.com/foo', filters, groups, [])).toBeDefined();
-    expect(shouldBlockUrl('https://blocked.com/baz', filters, groups, [])).toBeUndefined();
+    expect(findBlockingFilter('https://blocked.com/foo', filters, groups, [])).toBeDefined();
+    expect(findBlockingFilter('https://blocked.com/baz', filters, groups, [])).toBeUndefined();
   });
 
   it('should return undefined when URL matches whitelist', () => {
@@ -487,7 +509,7 @@ describe('shouldBlockUrl', () => {
       },
     ];
     expect(
-      shouldBlockUrl('https://blocked.com/allowed', filters, groups, whitelist)
+      findBlockingFilter('https://blocked.com/allowed', filters, groups, whitelist)
     ).toBeUndefined();
   });
 
@@ -511,7 +533,7 @@ describe('shouldBlockUrl', () => {
       },
     ];
     expect(
-      shouldBlockUrl('https://blocked.com/allowed/page', filters, groups, whitelist)
+      findBlockingFilter('https://blocked.com/allowed/page', filters, groups, whitelist)
     ).toBeUndefined();
   });
 
@@ -534,7 +556,7 @@ describe('shouldBlockUrl', () => {
         matchMode: 'contains',
       },
     ];
-    const result = shouldBlockUrl('https://blocked.com/allowed', filters, groups, whitelist);
+    const result = findBlockingFilter('https://blocked.com/allowed', filters, groups, whitelist);
     expect(result).toBeDefined();
   });
 
@@ -551,7 +573,7 @@ describe('shouldBlockUrl', () => {
         matchMode: 'contains',
       },
     ];
-    const result = shouldBlockUrl(
+    const result = findBlockingFilter(
       'https://blocked.com/allowed',
       filters,
       [
@@ -588,7 +610,7 @@ describe('shouldBlockUrl', () => {
       },
     ];
 
-    const result = shouldBlockUrl('https://blocked.com', filters, groups, whitelist);
+    const result = findBlockingFilter('https://blocked.com', filters, groups, whitelist);
     expect(result).toBeDefined();
 
     vi.useRealTimers();
@@ -610,7 +632,7 @@ describe('shouldBlockUrl', () => {
       },
     ];
 
-    const result = shouldBlockUrl('https://blocked.com', filters, groups, []);
+    const result = findBlockingFilter('https://blocked.com', filters, groups, []);
     expect(result).toBeUndefined();
 
     vi.useRealTimers();
@@ -635,12 +657,11 @@ describe('shouldBlockUrl', () => {
       },
     ];
 
-    const blockingIndex = buildBlockingIndex(filters, scheduledGroups, []);
     expect(
-      shouldBlockUrlWithIndex('https://blocked.com', blockingIndex, { dayOfWeek: 3, time: '10:30' })
+      findBlockingFilter('https://blocked.com', filters, scheduledGroups, [], { dayOfWeek: 3, time: '10:30' })
     ).toBeDefined();
     expect(
-      shouldBlockUrlWithIndex('https://blocked.com', blockingIndex, { dayOfWeek: 3, time: '10:31' })
+      findBlockingFilter('https://blocked.com', filters, scheduledGroups, [], { dayOfWeek: 3, time: '10:31' })
     ).toBeUndefined();
   });
 
@@ -658,6 +679,6 @@ describe('shouldBlockUrl', () => {
       { id: 'default', name: '24/7', schedules: [], is24x7: true, enabled: false },
     ];
 
-    expect(shouldBlockUrl('https://blocked.com', filters, disabledGroups, [])).toBeUndefined();
+    expect(findBlockingFilter('https://blocked.com', filters, disabledGroups, [])).toBeUndefined();
   });
 });
