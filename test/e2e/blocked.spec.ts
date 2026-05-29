@@ -5,6 +5,7 @@ import {
   defaultGroup,
   expectAllowed,
   expectBlocked,
+  mockAllowedPage,
   seedStorage,
 } from './helpers';
 import { PAGES } from '../../src/shared/constants';
@@ -47,9 +48,7 @@ test('go back restores the last allowed url', async ({
       await chrome.storage.session.set({ [`last_allowed_url_${tab.id}`]: url });
     }
   }, allowedUrl);
-  await page.goto(blockedUrl).catch(() => undefined);
-
-  await expect(page.getByLabel('Blocked URL')).toHaveText(blockedUrl);
+  await expectBlocked(page, blockedUrl);
   await captureScreenshot(page, testInfo, 'blocked-page.png');
 
   await Promise.all([
@@ -102,6 +101,7 @@ test('renders the blocked url and responsible filter from block id state', async
 
 test('warning blocks show Continue and allow same-tab bypass', async ({ extensionPage, page }) => {
   const targetUrl = 'https://example.com/warning-focus';
+  await mockAllowedPage(page, targetUrl, 'Warning bypass allowed');
 
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(

@@ -59,12 +59,13 @@ let setInfoPopoverOpen: ((isOpen: boolean) => void) | null = null;
  * Initialize options page
  */
 async function init(): Promise<void> {
-  await renderGroups();
   setupEventListeners();
   setupStorageSync();
   populateInfoPanel();
+  await renderGroups();
   openFilterFromQuery();
   openInfoFromQuery();
+  document.documentElement.dataset['optionsReady'] = 'true';
 }
 
 /**

@@ -5,11 +5,9 @@ import {
   isCheckUrlMessage,
   isCloseInfoPanelMessage,
   isContinueActiveTabMessage,
-  isDataUpdatedMessage,
   isGetBlockedPageStateMessage,
   isGetDataMessage,
   isGoBackActiveTabMessage,
-  isUrlBlockedMessage,
 } from '../../../src/shared/types';
 
 describe('shared/types/messages', () => {
@@ -22,6 +20,12 @@ describe('shared/types/messages', () => {
     expect(isCheckUrlMessage({ type: MessageType.CHECK_URL, url: 42 })).toBe(false);
     expect(isGoBackActiveTabMessage({ type: MessageType.GO_BACK_ACTIVE_TAB })).toBe(true);
     expect(isContinueActiveTabMessage({ type: MessageType.CONTINUE_ACTIVE_TAB })).toBe(true);
+    expect(
+      isContinueActiveTabMessage({ type: MessageType.CONTINUE_ACTIVE_TAB, blockId: 'block-1' })
+    ).toBe(true);
+    expect(isContinueActiveTabMessage({ type: MessageType.CONTINUE_ACTIVE_TAB, blockId: 42 })).toBe(
+      false
+    );
     expect(isGetBlockedPageStateMessage({ type: MessageType.GET_BLOCKED_PAGE_STATE })).toBe(true);
     expect(
       isGetBlockedPageStateMessage({
@@ -34,20 +38,13 @@ describe('shared/types/messages', () => {
     ).toBe(false);
   });
 
-  it('recognizes broadcast messages', () => {
-    expect(isDataUpdatedMessage({ type: MessageType.DATA_UPDATED, data: {} })).toBe(true);
-    expect(
-      isUrlBlockedMessage({ type: MessageType.URL_BLOCKED, url: 'https://blocked.com', filter: {} })
-    ).toBe(true);
+  it('recognizes panel control messages', () => {
     expect(isCloseInfoPanelMessage({ type: MessageType.CLOSE_INFO_PANEL })).toBe(true);
   });
 
   it('rejects malformed values', () => {
     expect(isGetDataMessage(null)).toBe(false);
     expect(isCheckUrlMessage('CHECK_URL')).toBe(false);
-    expect(isDataUpdatedMessage({ type: MessageType.DATA_UPDATED })).toBe(false);
-    expect(isUrlBlockedMessage({ type: MessageType.URL_BLOCKED, url: 'https://blocked.com' })).toBe(
-      false
-    );
+    expect(isCloseInfoPanelMessage({ type: MessageType.GET_DATA })).toBe(false);
   });
 });

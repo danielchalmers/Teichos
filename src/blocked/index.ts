@@ -3,14 +3,13 @@
  * Displays information about the blocked URL and provides navigation options
  */
 
+import { sendExtensionMessage } from '../shared/api';
 import { openOptionsPage } from '../shared/api/runtime';
 import {
   MessageType,
   type BlockedPageState,
-  type ContinueActiveTabResponse,
   type FilterMatchMode,
   type GetBlockedPageStateResponse,
-  type GoBackActiveTabResponse,
 } from '../shared/types';
 import { getElementByIdOrNull } from '../shared/utils/dom';
 import { formatGroupScheduleSummary } from '../shared/utils/schedules';
@@ -66,10 +65,12 @@ async function renderPage(): Promise<void> {
 
 async function getBlockedPageState(): Promise<BlockedPageViewModel> {
   try {
-    const response = (await chrome.runtime.sendMessage({
-      type: MessageType.GET_BLOCKED_PAGE_STATE,
-      blockId: getBlockedPageBlockId(),
-    })) as GetBlockedPageStateResponse;
+    const blockId = getBlockedPageBlockId();
+    const response = await sendExtensionMessage(
+      blockId
+        ? { type: MessageType.GET_BLOCKED_PAGE_STATE, blockId }
+        : { type: MessageType.GET_BLOCKED_PAGE_STATE }
+    );
 
     if (!isBlockedPageStateResponse(response)) {
       return getUnavailableBlockedPageState();
@@ -141,9 +142,9 @@ function isBlockedPageStateResponse(response: unknown): response is GetBlockedPa
 }
 
 async function handleGoBack(): Promise<void> {
-  const response = (await chrome.runtime.sendMessage({
+  const response = await sendExtensionMessage({
     type: MessageType.GO_BACK_ACTIVE_TAB,
-  })) as GoBackActiveTabResponse;
+  });
 
   if (!response.restored) {
     console.warn('[Teichos] No restorable tab target is available.');
@@ -151,9 +152,11 @@ async function handleGoBack(): Promise<void> {
 }
 
 async function handleContinue(): Promise<void> {
-  const response = (await chrome.runtime.sendMessage({
+  const blockId = getBlockedPageBlockId();
+  const response = await sendExtensionMessage({
     type: MessageType.CONTINUE_ACTIVE_TAB,
-  })) as ContinueActiveTabResponse;
+    ...(blockId ? { blockId } : {}),
+  });
 
   if (!response.continued) {
     console.warn('[Teichos] No warning bypass is available for this tab.');

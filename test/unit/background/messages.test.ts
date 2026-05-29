@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   continueFromActiveTab: vi.fn(),
+  continueFromBlockedPage: vi.fn(),
+  continueFromTab: vi.fn(),
   getUrlDecision: vi.fn(),
   getBlockedPageStateByBlockId: vi.fn(),
   getFreshBlockedPageState: vi.fn(),
   goBackFromActiveTab: vi.fn(),
+  goBackFromTab: vi.fn(),
   loadData: vi.fn(),
 }));
 
@@ -15,13 +18,19 @@ vi.mock('../../../src/background/tabController', () => ({
     getBlockedPageStateByBlockId: typeof mocks.getBlockedPageStateByBlockId;
     getFreshBlockedPageState: typeof mocks.getFreshBlockedPageState;
     goBackFromActiveTab: typeof mocks.goBackFromActiveTab;
+    goBackFromTab: typeof mocks.goBackFromTab;
     continueFromActiveTab: typeof mocks.continueFromActiveTab;
+    continueFromBlockedPage: typeof mocks.continueFromBlockedPage;
+    continueFromTab: typeof mocks.continueFromTab;
   } => ({
     continueFromActiveTab: mocks.continueFromActiveTab,
+    continueFromBlockedPage: mocks.continueFromBlockedPage,
+    continueFromTab: mocks.continueFromTab,
     getUrlDecision: mocks.getUrlDecision,
     getBlockedPageStateByBlockId: mocks.getBlockedPageStateByBlockId,
     getFreshBlockedPageState: mocks.getFreshBlockedPageState,
     goBackFromActiveTab: mocks.goBackFromActiveTab,
+    goBackFromTab: mocks.goBackFromTab,
   }),
 }));
 
@@ -44,12 +53,16 @@ const defaultData = {
 
 describe('handleMessage', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     mocks.loadData.mockResolvedValue(defaultData);
     mocks.continueFromActiveTab.mockResolvedValue(false);
+    mocks.continueFromBlockedPage.mockResolvedValue(false);
+    mocks.continueFromTab.mockResolvedValue(false);
     mocks.getUrlDecision.mockResolvedValue({ action: 'allow', reason: 'no-match' });
     mocks.getBlockedPageStateByBlockId.mockResolvedValue({ status: 'unavailable' });
     mocks.getFreshBlockedPageState.mockResolvedValue({ status: 'unavailable' });
     mocks.goBackFromActiveTab.mockResolvedValue(false);
+    mocks.goBackFromTab.mockResolvedValue(false);
   });
 
   it('rejects messages from other extensions', () => {
@@ -74,12 +87,69 @@ describe('handleMessage', () => {
   });
 
   it('responds to continue requests', async () => {
-    mocks.continueFromActiveTab.mockResolvedValue(true);
+    mocks.continueFromTab.mockResolvedValue(true);
     const sendResponse = vi.fn();
 
     expect(
       handleMessage(
         { type: MessageType.CONTINUE_ACTIVE_TAB },
+        {
+          id: 'test-extension-id',
+          tab: {
+            id: 9,
+            url: 'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-9',
+          } as chrome.tabs.Tab,
+        },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ continued: true });
+    });
+    expect(mocks.continueFromTab).toHaveBeenCalledWith(
+      9,
+      'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-9',
+      undefined
+    );
+    expect(mocks.continueFromActiveTab).not.toHaveBeenCalled();
+  });
+
+  it('uses the supplied block id for continue requests', async () => {
+    mocks.continueFromTab.mockResolvedValue(true);
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.CONTINUE_ACTIVE_TAB, blockId: 'block-9' },
+        {
+          id: 'test-extension-id',
+          tab: {
+            id: 9,
+            url: 'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-9',
+          } as chrome.tabs.Tab,
+        },
+        sendResponse
+      )
+    ).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ continued: true });
+    });
+    expect(mocks.continueFromTab).toHaveBeenCalledWith(
+      9,
+      'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-9',
+      'block-9'
+    );
+  });
+
+  it('continues by block id when the sender tab is unavailable', async () => {
+    mocks.continueFromBlockedPage.mockResolvedValue(true);
+    const sendResponse = vi.fn();
+
+    expect(
+      handleMessage(
+        { type: MessageType.CONTINUE_ACTIVE_TAB, blockId: 'block-9' },
         { id: 'test-extension-id' },
         sendResponse
       )
@@ -88,6 +158,8 @@ describe('handleMessage', () => {
     await vi.waitFor(() => {
       expect(sendResponse).toHaveBeenCalledWith({ continued: true });
     });
+    expect(mocks.continueFromBlockedPage).toHaveBeenCalledWith('block-9');
+    expect(mocks.continueFromActiveTab).not.toHaveBeenCalled();
   });
 
   it('responds with blocked state for CHECK_URL messages', async () => {
@@ -114,13 +186,16 @@ describe('handleMessage', () => {
   });
 
   it('responds to go-back requests', async () => {
-    mocks.goBackFromActiveTab.mockResolvedValue(true);
+    mocks.goBackFromTab.mockResolvedValue(true);
     const sendResponse = vi.fn();
 
     expect(
       handleMessage(
         { type: MessageType.GO_BACK_ACTIVE_TAB },
-        { id: 'test-extension-id' },
+        {
+          id: 'test-extension-id',
+          tab: { id: 10 } as chrome.tabs.Tab,
+        },
         sendResponse
       )
     ).toBe(true);
@@ -128,6 +203,8 @@ describe('handleMessage', () => {
     await vi.waitFor(() => {
       expect(sendResponse).toHaveBeenCalledWith({ restored: true });
     });
+    expect(mocks.goBackFromTab).toHaveBeenCalledWith(10);
+    expect(mocks.goBackFromActiveTab).not.toHaveBeenCalled();
   });
 
   it('responds to blocked-page state requests', async () => {
