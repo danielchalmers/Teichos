@@ -16,7 +16,6 @@ import {
 import { evaluateFilterDecision } from '../../../src/shared/filtering/engine';
 import type { Filter, FilterGroup, Whitelist } from '../../../src/shared/types';
 
-
 function findBlockingFilter(
   url: string,
   filters: Filter[],
@@ -397,8 +396,12 @@ describe('runtime filtering path', () => {
       },
     ];
 
-    expect(findBlockingFilter('https://blocked.com', filters, groups, whitelist)?.id).toBe('active');
-    expect(findBlockingFilter('https://blocked.com/allowed', filters, groups, whitelist)).toBeUndefined();
+    expect(findBlockingFilter('https://blocked.com', filters, groups, whitelist)?.id).toBe(
+      'active'
+    );
+    expect(
+      findBlockingFilter('https://blocked.com/allowed', filters, groups, whitelist)
+    ).toBeUndefined();
     expect(findBlockingFilter('https://ignored.com', filters, groups, whitelist)).toBeUndefined();
     expect(findBlockingFilter('https://orphan.com', filters, groups, whitelist)).toBeUndefined();
   });
@@ -658,10 +661,16 @@ describe('shouldBlockUrl', () => {
     ];
 
     expect(
-      findBlockingFilter('https://blocked.com', filters, scheduledGroups, [], { dayOfWeek: 3, time: '10:30' })
+      findBlockingFilter('https://blocked.com', filters, scheduledGroups, [], {
+        dayOfWeek: 3,
+        time: '10:30',
+      })
     ).toBeDefined();
     expect(
-      findBlockingFilter('https://blocked.com', filters, scheduledGroups, [], { dayOfWeek: 3, time: '10:31' })
+      findBlockingFilter('https://blocked.com', filters, scheduledGroups, [], {
+        dayOfWeek: 3,
+        time: '10:31',
+      })
     ).toBeUndefined();
   });
 

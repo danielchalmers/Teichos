@@ -11,22 +11,22 @@ import type {
 
 export type JsonObject = Record<string, unknown>;
 
-export type FilterLike = Omit<Filter, 'matchMode'> & {
+export interface FilterLike extends Omit<Filter, 'matchMode'> {
   readonly matchMode?: FilterMatchMode;
   readonly blockType?: FilterBlockType;
   readonly isRegex?: boolean;
-};
+}
 
-export type WhitelistLike = Omit<Whitelist, 'matchMode' | 'groupId'> & {
+export interface WhitelistLike extends Omit<Whitelist, 'matchMode' | 'groupId'> {
   readonly matchMode?: FilterMatchMode;
   readonly isRegex?: boolean;
   readonly groupId?: string;
-};
+}
 
-export type SnoozeLike = {
+export interface SnoozeLike {
   readonly active?: boolean;
   readonly until?: number;
-};
+}
 
 export function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

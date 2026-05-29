@@ -95,7 +95,9 @@ export async function deleteGroup(groupId: string): Promise<void> {
   await updateData((data) => ({
     ...data,
     groups: data.groups.filter((g) => g.id !== groupId),
-    filters: data.filters.map((f) => (f.groupId === groupId ? { ...f, groupId: DEFAULT_GROUP_ID } : f)),
+    filters: data.filters.map((f) =>
+      f.groupId === groupId ? { ...f, groupId: DEFAULT_GROUP_ID } : f
+    ),
     whitelist: data.whitelist.map((entry) =>
       entry.groupId === groupId ? { ...entry, groupId: DEFAULT_GROUP_ID } : entry
     ),

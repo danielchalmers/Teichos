@@ -54,7 +54,10 @@ function assertKnownGroupReferences(
   }
 }
 
-function assertValidRegexEntries(filters: readonly Filter[], whitelist: readonly Whitelist[]): void {
+function assertValidRegexEntries(
+  filters: readonly Filter[],
+  whitelist: readonly Whitelist[]
+): void {
   for (const filter of filters) {
     if (filter.matchMode !== 'regex') {
       continue;
@@ -82,7 +85,9 @@ function isOptionalFiniteNumber(value: unknown): value is number | undefined {
 
 function validateImportedStorageShape(raw: JsonObject): void {
   const hasKnownCollections =
-    Object.hasOwn(raw, 'groups') || Object.hasOwn(raw, 'filters') || Object.hasOwn(raw, 'whitelist');
+    Object.hasOwn(raw, 'groups') ||
+    Object.hasOwn(raw, 'filters') ||
+    Object.hasOwn(raw, 'whitelist');
 
   if (!hasKnownCollections) {
     throw new Error('Settings file does not contain Teichos data.');

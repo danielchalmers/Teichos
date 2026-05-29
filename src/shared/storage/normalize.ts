@@ -95,11 +95,12 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
   const whitelist = normalizeWhitelist(raw.whitelist, groupIds);
   const snooze = normalizeSnooze(raw.snooze);
   const rulesVersion =
-    typeof raw.rulesVersion === 'number' && Number.isFinite(raw.rulesVersion) ? raw.rulesVersion : 0;
+    typeof raw.rulesVersion === 'number' && Number.isFinite(raw.rulesVersion)
+      ? raw.rulesVersion
+      : 0;
   const blockType = isValidBlockType(raw.blockType) ? raw.blockType : 'block';
 
   return {
-    ...raw,
     groups,
     filters,
     whitelist,

@@ -65,10 +65,12 @@ async function renderPage(): Promise<void> {
 
 async function getBlockedPageState(): Promise<BlockedPageViewModel> {
   try {
-    const response = await sendExtensionMessage({
-      type: MessageType.GET_BLOCKED_PAGE_STATE,
-      blockId: getBlockedPageBlockId(),
-    });
+    const blockId = getBlockedPageBlockId();
+    const response = await sendExtensionMessage(
+      blockId
+        ? { type: MessageType.GET_BLOCKED_PAGE_STATE, blockId }
+        : { type: MessageType.GET_BLOCKED_PAGE_STATE }
+    );
 
     if (!isBlockedPageStateResponse(response)) {
       return getUnavailableBlockedPageState();
