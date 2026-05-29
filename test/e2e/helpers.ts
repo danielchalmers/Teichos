@@ -3,6 +3,7 @@ import { DAY_NAMES, PAGES } from '../../src/shared/constants';
 import type { BlockedTabState, StorageData } from '../../src/shared/types';
 
 export const STORAGE_KEY = 'pageblock_data';
+const EXTENSION_NAVIGATION_TIMEOUT_MS = 10_000;
 
 export type ClipboardCaptureGlobal = typeof globalThis & {
   __e2eClipboardText?: string;
@@ -47,7 +48,9 @@ export async function readStorage(page: Page): Promise<StorageData | undefined> 
 }
 
 export async function expectBlocked(page: Page, targetUrl: string): Promise<void> {
-  await page.goto(targetUrl).catch(() => undefined);
+  await page
+    .goto(targetUrl, { waitUntil: 'commit', timeout: EXTENSION_NAVIGATION_TIMEOUT_MS })
+    .catch(() => undefined);
   await expect
     .poll(() => {
       const currentUrl = new URL(page.url());
@@ -64,7 +67,9 @@ export async function expectBlocked(page: Page, targetUrl: string): Promise<void
 }
 
 export async function expectAllowed(page: Page, targetUrl: string): Promise<void> {
-  await page.goto(targetUrl).catch(() => undefined);
+  await page
+    .goto(targetUrl, { waitUntil: 'commit', timeout: EXTENSION_NAVIGATION_TIMEOUT_MS })
+    .catch(() => undefined);
   await expect.poll(() => page.url()).not.toContain(`/${PAGES.BLOCKED}`);
 }
 
@@ -75,7 +80,12 @@ export async function openOptions(
   const optionsPage = await page.context().newPage();
   await optionsPage.goto(extensionPage(PAGES.OPTIONS));
   await optionsPage.waitForLoadState('domcontentloaded');
+  await waitForOptionsReady(optionsPage);
   return optionsPage;
+}
+
+export async function waitForOptionsReady(page: Page): Promise<void> {
+  await expect(page.locator('html[data-options-ready="true"]')).toHaveCount(1);
 }
 
 export async function openPopup(
@@ -87,7 +97,12 @@ export async function openPopup(
   await page.bringToFront();
   await popupPage.reload();
   await popupPage.waitForLoadState('domcontentloaded');
+  await waitForPopupReady(popupPage);
   return popupPage;
+}
+
+export async function waitForPopupReady(page: Page): Promise<void> {
+  await expect(page.locator('html[data-popup-ready="true"]')).toHaveCount(1);
 }
 
 async function openGroupIfNeeded(optionsPage: Page, groupName: string): Promise<void> {
@@ -117,10 +132,10 @@ export async function createFilterViaOptions(
 
   const modal = optionsPage.locator('#filter-modal.active');
   await expect(modal).toBeVisible();
-  await modal.getByLabel('Name').fill(filter.name ?? '');
-  await modal.getByLabel('URL Pattern').fill(filter.pattern);
-  await modal.getByLabel('Match Mode').selectOption(filter.matchMode ?? 'contains');
-  await modal.getByLabel('Block Type').selectOption(filter.blockType ?? 'default');
+  await modal.locator('#filter-description').fill(filter.name ?? '');
+  await modal.locator('#filter-pattern').fill(filter.pattern);
+  await modal.locator('#filter-match-mode').selectOption(filter.matchMode ?? 'contains');
+  await modal.locator('#filter-block-type').selectOption(filter.blockType ?? 'default');
 
   const enabled = filter.enabled ?? true;
   const enabledInput = modal.getByLabel('Enabled');
@@ -152,7 +167,7 @@ export async function createGroupViaOptions(
 
   const modal = optionsPage.locator('#group-modal.active');
   await expect(modal).toBeVisible();
-  await modal.getByLabel('Group Name').fill(group.name);
+  await modal.locator('#group-name').fill(group.name);
 
   const alwaysActive = modal.getByLabel('Always Active (24/7)');
   const is24x7 = group.is24x7 ?? false;
@@ -181,8 +196,12 @@ export async function createGroupViaOptions(
         }
       }
 
-      await modal.getByLabel(`Start time for schedule ${index + 1}`).fill(schedule.startTime);
-      await modal.getByLabel(`End time for schedule ${index + 1}`).fill(schedule.endTime);
+      await modal
+        .locator(`input[aria-label="Start time for schedule ${index + 1}"]`)
+        .fill(schedule.startTime);
+      await modal
+        .locator(`input[aria-label="End time for schedule ${index + 1}"]`)
+        .fill(schedule.endTime);
     }
   }
 
@@ -210,9 +229,9 @@ export async function createWhitelistViaOptions(
 
   const modal = optionsPage.locator('#whitelist-modal.active');
   await expect(modal).toBeVisible();
-  await modal.getByLabel('Name').fill(whitelist.name ?? '');
-  await modal.getByLabel('URL Pattern').fill(whitelist.pattern);
-  await modal.getByLabel('Match Mode').selectOption(whitelist.matchMode ?? 'contains');
+  await modal.locator('#whitelist-description').fill(whitelist.name ?? '');
+  await modal.locator('#whitelist-pattern').fill(whitelist.pattern);
+  await modal.locator('#whitelist-match-mode').selectOption(whitelist.matchMode ?? 'contains');
 
   const enabled = whitelist.enabled ?? true;
   const enabledInput = modal.getByLabel('Enabled');

@@ -11,12 +11,22 @@ import {
   openPopup,
   readStorage,
   seedStorage,
+  waitForOptionsReady,
 } from './helpers';
 
 const OPTIONS_PATHNAME = `/${PAGES.OPTIONS}`;
 
+async function gotoOptions(
+  extensionPage: (relativePath: string) => string,
+  page: Parameters<typeof waitForOptionsReady>[0],
+  path: string = PAGES.OPTIONS
+): Promise<void> {
+  await page.goto(extensionPage(path));
+  await waitForOptionsReady(page);
+}
+
 test('shows schedule hints in the group header', async ({ extensionPage, page }, testInfo) => {
-  await page.goto(extensionPage(PAGES.OPTIONS));
+  await gotoOptions(extensionPage, page);
   await seedStorage(
     page,
     createStorageData({
@@ -46,13 +56,13 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
   extensionPage,
   page,
 }, testInfo) => {
-  await page.goto(extensionPage(PAGES.OPTIONS));
+  await gotoOptions(extensionPage, page);
 
   const groupModal = page.locator('#group-modal.active');
   await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
   await page.getByRole('button', { name: 'New Group' }).click();
   await expect(groupModal).toBeVisible();
-  await groupModal.getByLabel('Group Name').fill('Work Hours');
+  await groupModal.locator('#group-name').fill('Work Hours');
   await groupModal.getByRole('button', { name: 'New Schedule' }).click();
   await expect(groupModal.getByLabel('Start time for schedule 1')).toHaveValue('09:00');
   await expect(groupModal.getByLabel('End time for schedule 1')).toHaveValue('17:00');
@@ -65,16 +75,16 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
   await workHoursGroup.getByRole('button', { name: 'New Filter' }).click();
   const filterModal = page.locator('#filter-modal.active');
   await expect(filterModal).toBeVisible();
-  await filterModal.getByLabel('Name').fill('Focus Block');
-  await filterModal.getByLabel('URL Pattern').fill('focus.example.com');
+  await filterModal.locator('#filter-description').fill('Focus Block');
+  await filterModal.locator('#filter-pattern').fill('focus.example.com');
   await filterModal.getByRole('button', { name: 'Save' }).click();
   await expect(workHoursGroup).toContainText('Focus Block');
 
   await workHoursGroup.getByRole('button', { name: 'New Exception' }).click();
   const whitelistModal = page.locator('#whitelist-modal.active');
   await expect(whitelistModal).toBeVisible();
-  await whitelistModal.getByLabel('Name').fill('Allow Docs');
-  await whitelistModal.getByLabel('URL Pattern').fill('focus.example.com/docs');
+  await whitelistModal.locator('#whitelist-description').fill('Allow Docs');
+  await whitelistModal.locator('#whitelist-pattern').fill('focus.example.com/docs');
   await whitelistModal.getByRole('button', { name: 'Save' }).click();
 
   await expect(workHoursGroup).toContainText('focus.example.com/docs');
@@ -82,7 +92,7 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
 
   await workHoursGroup.locator('button[data-action="edit-group"]').click();
   await expect(groupModal).toBeVisible();
-  await groupModal.getByLabel('Group Name').fill('Deep Work');
+  await groupModal.locator('#group-name').fill('Deep Work');
   await groupModal.getByLabel('Always Active (24/7)').check();
   await groupModal.getByRole('button', { name: 'Save' }).click();
 
@@ -112,7 +122,7 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
       (globalThis as AlertCaptureGlobal).__lastAlertMessage = message ?? '';
     };
   });
-  await page.goto(extensionPage(PAGES.OPTIONS));
+  await gotoOptions(extensionPage, page);
 
   await page
     .locator('details.group-item')
@@ -121,8 +131,8 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
     .click();
 
   const filterModal = page.locator('#filter-modal.active');
-  await filterModal.getByLabel('URL Pattern').fill('(');
-  await filterModal.getByLabel('Match Mode').selectOption('regex');
+  await filterModal.locator('#filter-pattern').fill('(');
+  await filterModal.locator('#filter-match-mode').selectOption('regex');
 
   await filterModal.getByRole('button', { name: 'Save' }).click();
 
@@ -134,7 +144,7 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
 });
 
 test('exports current settings from global settings', async ({ extensionPage, page }) => {
-  await page.goto(extensionPage(PAGES.OPTIONS));
+  await gotoOptions(extensionPage, page);
   const expectedData = createStorageData({
     groups: [
       defaultGroup,
@@ -187,7 +197,7 @@ test('persists global and per-filter block types from the options UI', async ({
   extensionPage,
   page,
 }) => {
-  await page.goto(extensionPage(PAGES.OPTIONS));
+  await gotoOptions(extensionPage, page);
 
   await page.getByLabel('Block Type').first().selectOption('warning');
   await expect(page.locator('#global-settings-status')).toHaveText('Block type updated.');
@@ -202,7 +212,7 @@ test('persists global and per-filter block types from the options UI', async ({
   await filterCard.getByRole('button', { name: 'Edit' }).click();
   const filterModal = page.locator('#filter-modal.active');
   await expect(filterModal).toBeVisible();
-  await filterModal.getByLabel('Block Type').selectOption('block');
+  await filterModal.locator('#filter-block-type').selectOption('block');
   await filterModal.getByRole('button', { name: 'Save' }).click();
 
   await expect
@@ -219,7 +229,7 @@ test('persists global and per-filter block types from the options UI', async ({
 });
 
 test('imports settings from global settings', async ({ extensionPage, page }) => {
-  await page.goto(extensionPage(PAGES.OPTIONS));
+  await gotoOptions(extensionPage, page);
   await seedStorage(
     page,
     createStorageData({
@@ -298,7 +308,7 @@ test('keeps existing settings when global settings import fails', async ({
   extensionPage,
   page,
 }) => {
-  await page.goto(extensionPage(PAGES.OPTIONS));
+  await gotoOptions(extensionPage, page);
   const originalData = createStorageData({
     filters: [
       {
@@ -330,7 +340,7 @@ test('opens filter, group, and exception modals from query params', async ({
   extensionPage,
   page,
 }) => {
-  await page.goto(extensionPage(PAGES.OPTIONS));
+  await gotoOptions(extensionPage, page);
   await seedStorage(
     page,
     createStorageData({
@@ -347,22 +357,22 @@ test('opens filter, group, and exception modals from query params', async ({
     })
   );
 
-  await page.goto(extensionPage(`${PAGES.OPTIONS}?modal=group`));
+  await gotoOptions(extensionPage, page, `${PAGES.OPTIONS}?modal=group`);
   await expect(page.locator('#group-modal.active')).toBeVisible();
   await expect.poll(() => new URL(page.url()).pathname).toBe(OPTIONS_PATHNAME);
   await page.getByRole('button', { name: 'Close group dialog' }).click();
 
-  await page.goto(extensionPage(`${PAGES.OPTIONS}?modal=filter`));
+  await gotoOptions(extensionPage, page, `${PAGES.OPTIONS}?modal=filter`);
   await expect(page.locator('#filter-modal.active')).toBeVisible();
   await expect.poll(() => new URL(page.url()).pathname).toBe(OPTIONS_PATHNAME);
   await page.getByRole('button', { name: 'Close filter dialog' }).click();
 
-  await page.goto(extensionPage(`${PAGES.OPTIONS}?modal=whitelist`));
+  await gotoOptions(extensionPage, page, `${PAGES.OPTIONS}?modal=whitelist`);
   await expect(page.locator('#whitelist-modal.active')).toBeVisible();
   await expect.poll(() => new URL(page.url()).pathname).toBe(OPTIONS_PATHNAME);
   await page.getByRole('button', { name: 'Close exception dialog' }).click();
 
-  await page.goto(extensionPage(`${PAGES.OPTIONS}?editFilter=seeded-filter`));
+  await gotoOptions(extensionPage, page, `${PAGES.OPTIONS}?editFilter=seeded-filter`);
   const filterModal = page.locator('#filter-modal.active');
   await expect(filterModal).toBeVisible();
   await expect.poll(() => new URL(page.url()).pathname).toBe(OPTIONS_PATHNAME);
@@ -375,7 +385,7 @@ test('opens the about panel from query params and closes it when popup settings 
   page,
 }) => {
   const optionsPage = page;
-  await optionsPage.goto(extensionPage(`${PAGES.OPTIONS}?info=1`));
+  await gotoOptions(extensionPage, optionsPage, `${PAGES.OPTIONS}?info=1`);
 
   const infoPopover = optionsPage.locator('.info-popover');
   const infoButton = optionsPage.getByRole('button', { name: 'About' });
@@ -395,7 +405,7 @@ test('edits and deletes individual filters and exceptions from options', async (
   extensionPage,
   page,
 }) => {
-  await page.goto(extensionPage(PAGES.OPTIONS));
+  await gotoOptions(extensionPage, page);
   await createFilterViaOptions(page, {
     name: 'Editable Filter',
     pattern: 'editable-filter.example.test',
@@ -415,9 +425,9 @@ test('edits and deletes individual filters and exceptions from options', async (
   await filterItem.getByRole('button', { name: 'Edit' }).click();
   const filterModal = page.locator('#filter-modal.active');
   await expect(filterModal).toBeVisible();
-  await filterModal.getByLabel('Name').fill('Updated Filter');
-  await filterModal.getByLabel('URL Pattern').fill('https://editable-filter.example.test/focus');
-  await filterModal.getByLabel('Match Mode').selectOption('exact');
+  await filterModal.locator('#filter-description').fill('Updated Filter');
+  await filterModal.locator('#filter-pattern').fill('https://editable-filter.example.test/focus');
+  await filterModal.locator('#filter-match-mode').selectOption('exact');
   await filterModal.getByRole('button', { name: 'Save' }).click();
   await expect(defaultGroupCard).toContainText('Updated Filter');
   await expect(defaultGroupCard).toContainText('https://editable-filter.example.test/focus');
@@ -428,11 +438,11 @@ test('edits and deletes individual filters and exceptions from options', async (
   await exceptionItem.getByRole('button', { name: 'Edit' }).click();
   const whitelistModal = page.locator('#whitelist-modal.active');
   await expect(whitelistModal).toBeVisible();
-  await whitelistModal.getByLabel('Name').fill('Updated Exception');
+  await whitelistModal.locator('#whitelist-description').fill('Updated Exception');
   await whitelistModal
-    .getByLabel('URL Pattern')
+    .locator('#whitelist-pattern')
     .fill('^https://editable-filter\\.example\\.test/docs/\\d+$');
-  await whitelistModal.getByLabel('Match Mode').selectOption('regex');
+  await whitelistModal.locator('#whitelist-match-mode').selectOption('regex');
   await whitelistModal.getByRole('button', { name: 'Save' }).click();
   await expect(defaultGroupCard).toContainText('Updated Exception');
   await expect(defaultGroupCard).toContainText(
@@ -473,12 +483,12 @@ test('updates selected days and supports empty schedules in the group editor', a
   extensionPage,
   page,
 }) => {
-  await page.goto(extensionPage(PAGES.OPTIONS));
+  await gotoOptions(extensionPage, page);
 
   await page.getByRole('button', { name: 'New Group' }).click();
   const groupModal = page.locator('#group-modal.active');
   await expect(groupModal).toBeVisible();
-  await groupModal.getByLabel('Group Name').fill('Flexible Hours');
+  await groupModal.locator('#group-name').fill('Flexible Hours');
   await groupModal.getByRole('button', { name: 'New Schedule' }).click();
 
   const firstSchedule = groupModal.locator('#schedules-list .schedule-item').first();
@@ -520,7 +530,7 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
   extensionPage,
   page,
 }) => {
-  await page.goto(extensionPage(PAGES.OPTIONS));
+  await gotoOptions(extensionPage, page);
   await seedStorage(
     page,
     createStorageData({
@@ -596,6 +606,7 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
     .toBe(true);
 
   await page.reload();
+  await waitForOptionsReady(page);
   const reloadedGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
   await expect(reloadedGroup).toHaveCount(1);
   await expect(reloadedGroup.locator('input[data-action="toggle-group"]')).toBeChecked();

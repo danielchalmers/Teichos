@@ -254,8 +254,8 @@ test('whitelisting keeps navigation allowed and hides the matching popup filter 
 
   const whitelistModal = optionsPage.locator('#whitelist-modal.active');
   await expect(whitelistModal).toBeVisible();
-  await whitelistModal.getByLabel('Name').fill('Allow Docs');
-  await whitelistModal.getByLabel('URL Pattern').fill(targetUrl);
+  await whitelistModal.locator('#whitelist-description').fill('Allow Docs');
+  await whitelistModal.locator('#whitelist-pattern').fill(targetUrl);
   await whitelistModal.getByRole('button', { name: 'Save' }).click();
   await expect(
     defaultGroupCard.locator('.filter-item').filter({ hasText: 'Allow Docs' })

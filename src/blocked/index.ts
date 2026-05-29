@@ -152,8 +152,10 @@ async function handleGoBack(): Promise<void> {
 }
 
 async function handleContinue(): Promise<void> {
+  const blockId = getBlockedPageBlockId();
   const response = await sendExtensionMessage({
     type: MessageType.CONTINUE_ACTIVE_TAB,
+    ...(blockId ? { blockId } : {}),
   });
 
   if (!response.continued) {

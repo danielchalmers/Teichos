@@ -37,12 +37,12 @@ export function handleMessage(
   }
 
   if (isGoBackActiveTabMessage(message)) {
-    void handleGoBackActiveTab(sendResponse);
+    void handleGoBackActiveTab(sender, sendResponse);
     return true;
   }
 
   if (isContinueActiveTabMessage(message)) {
-    void handleContinueActiveTab(sendResponse);
+    void handleContinueActiveTab(message.blockId, sender, sendResponse);
     return true;
   }
 
@@ -67,12 +67,31 @@ async function handleCheckUrl(
   sendResponse({ blocked: decision.action === 'block' });
 }
 
-async function handleGoBackActiveTab(sendResponse: (response: unknown) => void): Promise<void> {
-  sendResponse({ restored: await getTabController().goBackFromActiveTab() });
+async function handleGoBackActiveTab(
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: unknown) => void
+): Promise<void> {
+  const senderTabId = sender.tab?.id;
+  const restored =
+    typeof senderTabId === 'number'
+      ? await getTabController().goBackFromTab(senderTabId)
+      : await getTabController().goBackFromActiveTab();
+  sendResponse({ restored });
 }
 
-async function handleContinueActiveTab(sendResponse: (response: unknown) => void): Promise<void> {
-  sendResponse({ continued: await getTabController().continueFromActiveTab() });
+async function handleContinueActiveTab(
+  blockId: string | undefined,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: unknown) => void
+): Promise<void> {
+  const senderTabId = sender.tab?.id;
+  const continued =
+    typeof senderTabId === 'number'
+      ? await getTabController().continueFromTab(senderTabId, sender.tab?.url, blockId)
+      : blockId
+        ? await getTabController().continueFromBlockedPage(blockId)
+        : await getTabController().continueFromActiveTab();
+  sendResponse({ continued });
 }
 
 async function handleGetBlockedPageState(

@@ -31,6 +31,7 @@ export interface GoBackActiveTabMessage {
 
 export interface ContinueActiveTabMessage {
   readonly type: typeof MessageType.CONTINUE_ACTIVE_TAB;
+  readonly blockId?: string;
 }
 
 export interface GetBlockedPageStateMessage {
@@ -123,7 +124,8 @@ export function isContinueActiveTabMessage(msg: unknown): msg is ContinueActiveT
     typeof msg === 'object' &&
     msg !== null &&
     'type' in msg &&
-    msg.type === MessageType.CONTINUE_ACTIVE_TAB
+    msg.type === MessageType.CONTINUE_ACTIVE_TAB &&
+    (!('blockId' in msg) || typeof msg.blockId === 'string')
   );
 }
 

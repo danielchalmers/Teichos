@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures';
+import type { Locator } from '@playwright/test';
 import type { ClipboardCaptureGlobal } from './helpers';
 import { PAGES } from '../../src/shared/constants';
 import {
@@ -7,6 +8,7 @@ import {
   defaultGroup,
   readStorage,
   seedStorage,
+  waitForPopupReady,
 } from './helpers';
 
 const popupFilterData = createStorageData({
@@ -21,6 +23,21 @@ const popupFilterData = createStorageData({
     },
   ],
 });
+
+async function gotoPopup(
+  extensionPage: (relativePath: string) => string,
+  page: Parameters<typeof waitForPopupReady>[0]
+): Promise<void> {
+  await page.goto(extensionPage(PAGES.POPUP));
+  await waitForPopupReady(page);
+}
+
+async function openQuickAdd(page: Parameters<typeof waitForPopupReady>[0]): Promise<Locator> {
+  await page.locator('#open-quick-add').click();
+  const quickAdd = page.locator('#quick-add');
+  await expect(quickAdd).toHaveClass(/is-open/);
+  return quickAdd;
+}
 
 async function expectTemporaryFilterExpiration(
   page: Parameters<typeof readStorage>[0],
@@ -40,9 +57,9 @@ async function expectTemporaryFilterExpiration(
 }
 
 test('adds and deletes a temporary filter from the popup', async ({ extensionPage, page }) => {
-  await page.goto(extensionPage(PAGES.POPUP));
+  await gotoPopup(extensionPage, page);
 
-  await page.getByRole('button', { name: 'New temporary filter' }).click();
+  await openQuickAdd(page);
   await page.getByLabel('Site or pattern').fill('quick.example.invalid');
   await page.getByLabel('Block for').fill('45');
   await page.getByRole('button', { name: 'Start block' }).click();
@@ -59,7 +76,7 @@ test('opens the full filter editor from the popup empty state', async ({
   extensionPage,
   page,
 }) => {
-  await page.goto(extensionPage(PAGES.POPUP));
+  await gotoPopup(extensionPage, page);
 
   await expect(page.getByText('No filters configured.')).toBeVisible();
 
@@ -92,7 +109,7 @@ test('shows the URL pattern when a filter name is blank', async ({ extensionPage
     })
   );
 
-  await page.goto(extensionPage(PAGES.POPUP));
+  await gotoPopup(extensionPage, page);
 
   await expect(
     page.locator('.filter-item').filter({ hasText: 'github.com/notifications' })
@@ -122,7 +139,7 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
 
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(page, popupFilterData);
-  await page.goto(extensionPage(PAGES.POPUP));
+  await gotoPopup(extensionPage, page);
 
   const regularItem = page.locator('.filter-item').filter({ hasText: 'Focus Block' });
 
@@ -151,8 +168,8 @@ test('supports copy, toggle, and edit actions for popup filters', async ({
 
   const filterModal = optionsPage.locator('#filter-modal.active');
   await expect(filterModal).toBeVisible();
-  await expect(filterModal.getByLabel('Name')).toHaveValue('Focus Block');
-  await expect(filterModal.getByLabel('URL Pattern')).toHaveValue('blocked.example.invalid');
+  await expect(filterModal.locator('#filter-description')).toHaveValue('Focus Block');
+  await expect(filterModal.locator('#filter-pattern')).toHaveValue('blocked.example.invalid');
 });
 
 test('supports quick-add suggestions, validation, duration units, and the full editor link', async ({
@@ -180,11 +197,8 @@ test('supports quick-add suggestions, validation, duration units, and the full e
     }) as typeof chrome.tabs.query;
   }, currentTabUrl);
 
-  await page.goto(extensionPage(PAGES.POPUP));
-  await page.getByRole('button', { name: 'New temporary filter' }).click();
-  const quickAdd = page.locator('#quick-add');
-
-  await expect(quickAdd).toHaveClass(/is-open/);
+  await gotoPopup(extensionPage, page);
+  const quickAdd = await openQuickAdd(page);
   await expect(page.getByLabel('Site or pattern')).toHaveValue(currentTabUrl);
 
   await quickAdd.locator('button[data-duration="2"][data-unit="hours"]').click();
@@ -210,7 +224,7 @@ test('supports quick-add suggestions, validation, duration units, and the full e
 
   await hoursFilter.getByRole('button', { name: 'Delete Filter' }).click();
 
-  await page.getByRole('button', { name: 'New temporary filter' }).click();
+  await openQuickAdd(page);
   await page.getByLabel('Site or pattern').fill('multi-day.example.invalid');
   await page.getByLabel('Block for').fill('3');
   await page.getByRole('combobox').selectOption('days');
@@ -226,7 +240,7 @@ test('supports quick-add suggestions, validation, duration units, and the full e
   );
 
   const optionsPagePromise = context.waitForEvent('page');
-  await page.getByRole('button', { name: 'New temporary filter' }).click();
+  await openQuickAdd(page);
   await page.locator('#quick-add button[data-action="open-full-editor"]').click();
   const optionsPage = await optionsPagePromise;
   await optionsPage.waitForLoadState();
@@ -253,7 +267,7 @@ test('snoozes and resumes filtering from the popup', async ({ extensionPage, pag
     })
   );
 
-  await page.goto(extensionPage(PAGES.POPUP));
+  await gotoPopup(extensionPage, page);
 
   await page.locator('#open-snooze').click();
   await page.getByRole('button', { name: '15m' }).click();
