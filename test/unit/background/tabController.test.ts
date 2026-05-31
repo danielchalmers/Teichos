@@ -320,6 +320,59 @@ describe('TabController', () => {
     });
   });
 
+  it('restores a blocked page when current rules allow its block id target', async () => {
+    const chromeMock = getChromeMock();
+    const targetUrl = 'https://blocked-disabled-group.com/focus';
+    const initialData = createStorageData({
+      groups: [
+        {
+          id: DEFAULT_GROUP_ID,
+          name: '24/7',
+          schedules: [],
+          is24x7: true,
+          enabled: true,
+        },
+      ],
+      filters: [
+        {
+          id: 'disabled-group-filter',
+          pattern: 'blocked-disabled-group.com',
+          groupId: DEFAULT_GROUP_ID,
+          enabled: true,
+          matchMode: 'contains',
+        },
+      ],
+      rulesVersion: 12,
+    });
+    chromeMock.storage.sync._data.set(STORAGE_KEY, initialData);
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(12, targetUrl);
+    const blockedState = await getBlockedTabState(12);
+    expect(blockedState?.blockId).toEqual(expect.any(String));
+
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        ...initialData,
+        groups: initialData.groups.map((group) => ({ ...group, enabled: false })),
+        rulesVersion: 13,
+      })
+    );
+    chromeMock.tabs.update.mockClear();
+
+    await expect(
+      getTabController().getFreshBlockedPageState(12, blockedPageUrl(blockedState!.blockId))
+    ).resolves.toEqual({ status: 'allowed', targetUrl });
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      12,
+      { url: targetUrl },
+      expect.any(Function)
+    );
+    await expect(getBlockedTabState(12)).resolves.toBeUndefined();
+    await expect(getLastAllowedUrl(12)).resolves.toBe(targetUrl);
+  });
+
   it('re-evaluates a blocked page as warning when rules change from hard block to warning', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(

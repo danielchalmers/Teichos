@@ -27,6 +27,7 @@ export interface CheckUrlMessage {
 
 export interface GoBackActiveTabMessage {
   readonly type: typeof MessageType.GO_BACK_ACTIVE_TAB;
+  readonly blockId?: string;
 }
 
 export interface ContinueActiveTabMessage {
@@ -115,7 +116,8 @@ export function isGoBackActiveTabMessage(msg: unknown): msg is GoBackActiveTabMe
     typeof msg === 'object' &&
     msg !== null &&
     'type' in msg &&
-    msg.type === MessageType.GO_BACK_ACTIVE_TAB
+    msg.type === MessageType.GO_BACK_ACTIVE_TAB &&
+    (!('blockId' in msg) || typeof msg.blockId === 'string')
   );
 }
 

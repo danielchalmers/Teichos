@@ -37,7 +37,7 @@ export function handleMessage(
   }
 
   if (isGoBackActiveTabMessage(message)) {
-    void handleGoBackActiveTab(sender, sendResponse);
+    void handleGoBackActiveTab(message.blockId, sender, sendResponse);
     return true;
   }
 
@@ -68,12 +68,14 @@ async function handleCheckUrl(
 }
 
 async function handleGoBackActiveTab(
+  blockId: string | undefined,
   sender: chrome.runtime.MessageSender,
   sendResponse: (response: unknown) => void
 ): Promise<void> {
   const senderTabId = sender.tab?.id;
-  const restored =
-    typeof senderTabId === 'number'
+  const restored = blockId
+    ? await getTabController().goBackFromBlockedPage(blockId)
+    : typeof senderTabId === 'number'
       ? await getTabController().goBackFromTab(senderTabId)
       : await getTabController().goBackFromActiveTab();
   sendResponse({ restored });
@@ -85,12 +87,11 @@ async function handleContinueActiveTab(
   sendResponse: (response: unknown) => void
 ): Promise<void> {
   const senderTabId = sender.tab?.id;
-  const continued =
-    typeof senderTabId === 'number'
-      ? await getTabController().continueFromTab(senderTabId, sender.tab?.url, blockId)
-      : blockId
-        ? await getTabController().continueFromBlockedPage(blockId)
-        : await getTabController().continueFromActiveTab();
+  const continued = blockId
+    ? await getTabController().continueFromBlockedPage(blockId)
+    : typeof senderTabId === 'number'
+      ? await getTabController().continueFromTab(senderTabId, sender.tab?.url)
+      : await getTabController().continueFromActiveTab();
   sendResponse({ continued });
 }
 
@@ -100,13 +101,13 @@ async function handleGetBlockedPageState(
   sendResponse: (response: unknown) => void
 ): Promise<void> {
   const senderTabId = sender.tab?.id;
-  if (typeof senderTabId === 'number') {
-    sendResponse(await getTabController().getFreshBlockedPageState(senderTabId, sender.tab?.url));
+  if (blockId) {
+    sendResponse(await getTabController().getFreshBlockedPageStateByBlockId(blockId));
     return;
   }
 
-  if (blockId) {
-    sendResponse(await getTabController().getBlockedPageStateByBlockId(blockId));
+  if (typeof senderTabId === 'number') {
+    sendResponse(await getTabController().getFreshBlockedPageState(senderTabId, sender.tab?.url));
     return;
   }
 

@@ -42,19 +42,14 @@ test('go back restores the last allowed url', async ({
       ],
     })
   );
-  await page.evaluate(async (url) => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (typeof tab?.id === 'number') {
-      await chrome.storage.session.set({ [`last_allowed_url_${tab.id}`]: url });
-    }
-  }, allowedUrl);
+  await page.goto(allowedUrl);
+  await expect(page.getByText('Allowed page')).toBeVisible();
+
   await expectBlocked(page, blockedUrl);
   await captureScreenshot(page, testInfo, 'blocked-page.png');
 
-  await Promise.all([
-    page.waitForURL(allowedUrl),
-    page.getByRole('button', { name: 'Go Back' }).click(),
-  ]);
+  await page.getByRole('button', { name: 'Go Back' }).click();
+  await expect.poll(() => page.url()).toBe(allowedUrl);
   await expect(page.getByText('Allowed page')).toBeVisible();
 });
 
@@ -129,6 +124,41 @@ test('warning blocks show Continue and allow same-tab bypass', async ({ extensio
   await expectAllowed(page, targetUrl);
 });
 
+test('restores a canonical blocked page when its group is disabled', async ({
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://blocked-group-disabled.example.test/search?q=asdf';
+  await mockAllowedPage(page, targetUrl, 'Disabled group target allowed');
+
+  const initialData = createStorageData({
+    filters: [
+      {
+        id: 'group-disabled-filter',
+        pattern: 'asdf',
+        groupId: defaultGroup.id,
+        enabled: true,
+        matchMode: 'contains',
+        description: 'Group Disabled Filter',
+      },
+    ],
+  });
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(page, initialData);
+
+  await expectBlocked(page, targetUrl);
+  await expect(page.getByLabel('Responsible filter')).toContainText('Group Disabled Filter');
+
+  await seedStorage(page, {
+    ...initialData,
+    groups: initialData.groups.map((group) => ({ ...group, enabled: false })),
+  });
+
+  await expect.poll(() => page.url()).toBe(targetUrl);
+  await expect(page.getByText('Disabled group target allowed')).toBeVisible();
+});
+
 test('handles missing or stale block ids and no-op go back safely', async ({
   extensionPage,
   page,
@@ -139,11 +169,6 @@ test('handles missing or stale block ids and no-op go back safely', async ({
   const missingBlockPage = page.url();
   await page.getByRole('button', { name: 'Go Back' }).click();
   await expect.poll(() => page.url()).toBe(missingBlockPage);
-
-  await page.goto(
-    `${extensionPage(PAGES.BLOCKED)}?url=${encodeURIComponent('https://blocked.example.invalid')}`
-  );
-  await expect(page.getByLabel('Blocked URL')).toHaveText('Block details unavailable');
 
   await page.goto(`${extensionPage(PAGES.BLOCKED)}?blockId=missing-block`);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();

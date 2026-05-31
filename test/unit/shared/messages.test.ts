@@ -19,6 +19,12 @@ describe('shared/types/messages', () => {
     );
     expect(isCheckUrlMessage({ type: MessageType.CHECK_URL, url: 42 })).toBe(false);
     expect(isGoBackActiveTabMessage({ type: MessageType.GO_BACK_ACTIVE_TAB })).toBe(true);
+    expect(
+      isGoBackActiveTabMessage({ type: MessageType.GO_BACK_ACTIVE_TAB, blockId: 'block-1' })
+    ).toBe(true);
+    expect(isGoBackActiveTabMessage({ type: MessageType.GO_BACK_ACTIVE_TAB, blockId: 42 })).toBe(
+      false
+    );
     expect(isContinueActiveTabMessage({ type: MessageType.CONTINUE_ACTIVE_TAB })).toBe(true);
     expect(
       isContinueActiveTabMessage({ type: MessageType.CONTINUE_ACTIVE_TAB, blockId: 'block-1' })
