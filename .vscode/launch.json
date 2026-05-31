@@ -16,7 +16,9 @@
         "--disable-features=DisableLoadExtensionCommandLineSwitch",
         "--enable-unsafe-extension-debugging",
         "--no-first-run",
-        "--no-default-browser-check"
+        "--no-default-browser-check",
+        "--disable-session-crashed-bubble",
+        "--new-window"
       ],
       "webRoot": "${workspaceFolder}/dist",
       "sourceMaps": false,

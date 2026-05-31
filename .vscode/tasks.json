@@ -24,6 +24,12 @@
       "problemMatcher": []
     },
     {
+      "label": "Prepare Chrome Debug Profile",
+      "type": "shell",
+      "command": "$profile = Join-Path (Get-Location) '.vscode\\chrome-debug-profile'; $escapedProfile = [Regex]::Escape($profile); Get-CimInstance Win32_Process -Filter \"name = 'chrome.exe'\" | Where-Object { $_.CommandLine -match $escapedProfile } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 500; @('Default\\Sessions', 'Default\\Service Worker', 'Default\\Extension Scripts', 'Default\\Code Cache', 'Default\\Cache', 'Default\\Session Storage') | ForEach-Object { $path = Join-Path $profile $_; if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force } }; $prefs = Join-Path $profile 'Default\\Preferences'; if (Test-Path -LiteralPath $prefs) { $json = Get-Content -LiteralPath $prefs -Raw | ConvertFrom-Json; if (-not $json.profile) { $json | Add-Member -MemberType NoteProperty -Name profile -Value ([pscustomobject]@{}) }; $json.profile.exit_type = 'Normal'; if ($null -eq $json.profile.exited_cleanly) { $json.profile | Add-Member -MemberType NoteProperty -Name exited_cleanly -Value $true } else { $json.profile.exited_cleanly = $true }; $json | ConvertTo-Json -Depth 100 -Compress | Set-Content -LiteralPath $prefs -Encoding UTF8 }",
+      "problemMatcher": []
+    },
+    {
       "label": "Install Playwright Chromium",
       "type": "npm",
       "script": "playwright:install",
@@ -32,7 +38,12 @@
     {
       "label": "Build Dev and Ensure Playwright Chromium",
       "dependsOrder": "sequence",
-      "dependsOn": ["Ensure Dependencies", "Build Dev", "Install Playwright Chromium"],
+      "dependsOn": [
+        "Ensure Dependencies",
+        "Prepare Chrome Debug Profile",
+        "Build Dev",
+        "Install Playwright Chromium"
+      ],
       "problemMatcher": []
     },
     {
