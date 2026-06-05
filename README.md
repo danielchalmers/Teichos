@@ -34,8 +34,6 @@ Want to block sites only during work hours? Create a custom group:
 - Prettier — MIT
 - TypeScript — Apache-2.0
 - typescript-eslint — MIT
-- Vite — MIT
 - Vitest — MIT
 - WXT — MIT
-- rimraf — ISC
 - @types/chrome, @types/node — MIT

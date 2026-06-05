@@ -20,5 +20,5 @@
     "baseUrl": "."
   },
   "include": ["playwright.config.ts", "vitest.config.ts", "test/**/*", "src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", ".output", ".wxt", "dist"]
 }
