@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import {
+  createFilteringEngine,
+  evaluateFilterDecision,
+} from '../../../src/shared/filtering/engine';
 import type { StorageData } from '../../../src/shared/types';
 import { DEFAULT_GROUP_ID } from '../../../src/shared/types';
-import { createFilteringEngine, evaluateFilterDecision } from '../../../src/shared/utils';
 
 function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
   return {

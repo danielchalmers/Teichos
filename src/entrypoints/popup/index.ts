@@ -10,27 +10,25 @@ import {
   saveData,
   setSnooze,
   updateFilter,
-  sendExtensionMessage,
-} from '../../shared/api';
+} from '../../shared/api/storage';
+import { sendExtensionMessage } from '../../shared/api/messaging';
 import { openOptionsPage, openOptionsPageWithParams } from '../../shared/api/runtime';
 import { getActiveTab } from '../../shared/api/tabs';
-import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../../shared/types';
+import { matchesPattern } from '../../shared/filtering/patterns';
 import {
   buildGroupById,
-  formatDuration,
-  generateId,
   getFilterEffectiveState,
   getScheduleContext,
   getSnoozeRemainingMs,
   getTemporaryFilterRemainingMs,
-  isInternalUrl,
   isSnoozeActive,
   isTemporaryFilter,
   isTemporaryFilterExpired,
-  matchesPattern,
   sortFiltersTemporaryFirst,
-} from '../../shared/utils';
+} from '../../shared/filtering/schedules';
+import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../../shared/types';
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../../shared/utils/dom';
+import { formatDuration, generateId, isInternalUrl } from '../../shared/utils/helpers';
 import type { SnoozeState, StorageData } from '../../shared/types';
 
 let cachedData: StorageData | null = null;

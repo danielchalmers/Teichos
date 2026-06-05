@@ -3,7 +3,7 @@
  * Configures global mocks for chrome.* APIs
  */
 
-import { vi } from 'vitest';
+import { beforeEach, vi } from 'vitest';
 import { createChromeMock } from './fixtures/chrome-mocks';
 
 // Set up global chrome mock before tests

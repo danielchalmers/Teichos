@@ -12,12 +12,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "ignoreDeprecations": "6.0",
-    "types": ["chrome", "node", "vitest/globals"],
-    "noUncheckedIndexedAccess": true,
-    "paths": {
-      "@/*": ["./src/*"]
-    },
-    "baseUrl": "."
+    "types": ["chrome", "node"],
+    "noUncheckedIndexedAccess": true
   },
   "include": ["playwright.config.ts", "vitest.config.ts", "test/**/*", "src/**/*"],
   "exclude": ["node_modules", ".output", ".wxt", "dist"]

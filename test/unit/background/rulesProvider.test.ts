@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RulesProvider } from '../../../src/background/rulesProvider';
 import { createDefaultGroup } from '../../../src/shared/api/storage';
+import { createFilteringEngine } from '../../../src/shared/filtering/engine';
 import { DEFAULT_GROUP_ID, STORAGE_KEY, type StorageData } from '../../../src/shared/types';
-import { createFilteringEngine } from '../../../src/shared/utils';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
 
 function createStorageData(overrides: Partial<StorageData> = {}): StorageData {

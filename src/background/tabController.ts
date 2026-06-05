@@ -13,6 +13,7 @@ import {
 import { getActiveTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
 import { getExtensionUrl } from '../shared/api/runtime';
 import { PAGES } from '../shared/constants';
+import type { FilterDecision } from '../shared/filtering/engine';
 import {
   type BlockType,
   type BlockedPageState,
@@ -22,7 +23,7 @@ import {
   type GetBlockedPageStateResponse,
   type StorageData,
 } from '../shared/types';
-import { isInternalUrl, type FilterDecision } from '../shared/utils';
+import { isInternalUrl } from '../shared/utils/helpers';
 import { getRulesProvider, type CurrentRules, type RulesProvider } from './rulesProvider';
 
 interface ResolvedBlockedTarget {

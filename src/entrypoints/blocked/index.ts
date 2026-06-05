@@ -3,7 +3,7 @@
  * Displays information about the blocked URL and provides navigation options
  */
 
-import { sendExtensionMessage } from '../../shared/api';
+import { sendExtensionMessage } from '../../shared/api/messaging';
 import { openOptionsPage } from '../../shared/api/runtime';
 import {
   MessageType,

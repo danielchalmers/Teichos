@@ -6,8 +6,8 @@
  */
 
 import { getSessionSnooze } from '../shared/api/session';
+import { isSnoozeActive } from '../shared/filtering/schedules';
 import { STORAGE_KEY } from '../shared/types';
-import { isSnoozeActive } from '../shared/utils';
 
 interface RawSnoozeState {
   readonly active?: unknown;
