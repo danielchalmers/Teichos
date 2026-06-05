@@ -60,38 +60,9 @@ export default tseslint.config(
     files: ['scripts/**/*.ts', 'vite.config.ts'],
     languageOptions: {
       parserOptions: scriptsParserOptions,
-      globals: {
-        console: 'readonly',
-        fetch: 'readonly',
-        process: 'readonly',
-        setTimeout: 'readonly',
-      },
     },
     rules: {
       'no-console': 'off',
-    },
-  },
-  {
-    files: ['scripts/**/*.mjs'],
-    languageOptions: {
-      parserOptions: {
-        project: false,
-        projectService: false,
-        tsconfigRootDir: import.meta.dirname,
-      },
-      globals: {
-        console: 'readonly',
-        fetch: 'readonly',
-        process: 'readonly',
-        setTimeout: 'readonly',
-      },
-    },
-    rules: {
-      'no-console': 'off',
-      '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-floating-promises': 'off',
-      '@typescript-eslint/prefer-nullish-coalescing': 'off',
-      '@typescript-eslint/prefer-optional-chain': 'off',
     },
   },
   {

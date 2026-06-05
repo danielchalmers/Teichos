@@ -4,13 +4,20 @@
     {
       "name": "Run Playwright Chromium Extension",
       "type": "chrome",
-      "request": "attach",
-      "preLaunchTask": "Launch Chrome Debug Profile",
-      "postDebugTask": "Stop Chrome Debug Profile",
-      "address": "127.0.0.1",
-      "port": 9333,
+      "request": "launch",
+      "preLaunchTask": "Build Dev and Ensure Playwright Chromium",
+      "runtimeExecutable": "${env:LOCALAPPDATA}\\ms-playwright\\chromium-1217\\chrome-win64\\chrome.exe",
+      "url": "about:blank",
       "urlFilter": "about:blank",
-      "timeout": 30000,
+      "userDataDir": "${workspaceFolder}\\.vscode\\chrome-debug-profile",
+      "runtimeArgs": [
+        "--load-extension=${workspaceFolder}/dist",
+        "--disable-extensions-except=${workspaceFolder}/dist",
+        "--disable-features=DisableLoadExtensionCommandLineSwitch",
+        "--enable-unsafe-extension-debugging",
+        "--no-first-run",
+        "--no-default-browser-check"
+      ],
       "webRoot": "${workspaceFolder}/dist",
       "sourceMaps": false,
       "pauseForSourceMap": false
