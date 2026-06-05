@@ -132,6 +132,7 @@ export async function createFilterViaOptions(
 
   const modal = optionsPage.locator('#filter-modal.active');
   await expect(modal).toBeVisible();
+  await expect(modal.locator('#filter-pattern')).toBeFocused();
   await modal.locator('#filter-description').fill(filter.name ?? '');
   await modal.locator('#filter-pattern').fill(filter.pattern);
   await modal.locator('#filter-match-mode').selectOption(filter.matchMode ?? 'contains');
@@ -167,6 +168,7 @@ export async function createGroupViaOptions(
 
   const modal = optionsPage.locator('#group-modal.active');
   await expect(modal).toBeVisible();
+  await expect(modal.locator('#group-name')).toBeFocused();
   await modal.locator('#group-name').fill(group.name);
 
   const alwaysActive = modal.getByLabel('Always Active (24/7)');
@@ -229,6 +231,7 @@ export async function createWhitelistViaOptions(
 
   const modal = optionsPage.locator('#whitelist-modal.active');
   await expect(modal).toBeVisible();
+  await expect(modal.locator('#whitelist-pattern')).toBeFocused();
   await modal.locator('#whitelist-description').fill(whitelist.name ?? '');
   await modal.locator('#whitelist-pattern').fill(whitelist.pattern);
   await modal.locator('#whitelist-match-mode').selectOption(whitelist.matchMode ?? 'contains');

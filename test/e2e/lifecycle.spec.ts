@@ -254,6 +254,7 @@ test('whitelisting keeps navigation allowed and hides the matching popup filter 
 
   const whitelistModal = optionsPage.locator('#whitelist-modal.active');
   await expect(whitelistModal).toBeVisible();
+  await expect(whitelistModal.locator('#whitelist-pattern')).toBeFocused();
   await whitelistModal.locator('#whitelist-description').fill('Allow Docs');
   await whitelistModal.locator('#whitelist-pattern').fill(targetUrl);
   await whitelistModal.getByRole('button', { name: 'Save' }).click();
