@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run WXT Dev",
+      "name": "Start WXT Dev Server",
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run dev",
