@@ -38,7 +38,8 @@ describe('background entrypoint', () => {
   it('registers all webNavigation listeners with the shared navigation handler', async () => {
     const chromeMock = getChromeMock();
 
-    await import('../../../src/background/index');
+    const { registerBackground } = await import('../../../src/background/index');
+    registerBackground();
 
     expect(chromeMock.webNavigation.onBeforeNavigate.addListener).toHaveBeenCalledTimes(1);
     expect(chromeMock.webNavigation.onHistoryStateUpdated.addListener).toHaveBeenCalledTimes(1);

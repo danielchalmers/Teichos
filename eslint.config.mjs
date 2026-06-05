@@ -57,7 +57,7 @@ export default tseslint.config(
   },
   {
     // Config for scripts folder (Node.js)
-    files: ['scripts/**/*.ts', 'vite.config.ts'],
+    files: ['scripts/**/*.ts', 'wxt.config.ts'],
     languageOptions: {
       parserOptions: scriptsParserOptions,
     },
@@ -81,6 +81,8 @@ export default tseslint.config(
       'artifacts/**',
       'coverage/**',
       'dist/**',
+      '.output/**',
+      '.wxt/**',
       'node_modules/**',
       'playwright-report/**',
       'test-results/**',

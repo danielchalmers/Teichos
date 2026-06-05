@@ -8,10 +8,14 @@
     "npm": ">=11.0.0"
   },
   "scripts": {
-    "dev": "vite",
-    "build:dev": "vite build --mode development",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build:dev": "wxt build --mode development",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "postinstall": "wxt prepare",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "playwright:install": "playwright install --with-deps chromium",
@@ -26,8 +30,8 @@
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "check:fast": "npm run format:check && npm run lint && npm run typecheck && npm run typecheck:test && npm run test:unit",
     "check": "npm run check:fast && npm run test:e2e",
-    "clean": "rimraf dist",
-    "package": "npm run build && cd dist && zip -r ../teichos.zip ."
+    "clean": "rimraf .output",
+    "package": "npm run zip"
   },
   "keywords": [
     "webextension",
@@ -39,7 +43,6 @@
   "author": "Daniel Chalmers",
   "license": "MIT",
   "devDependencies": {
-    "@crxjs/vite-plugin": "^2.4.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.59.1",
     "@types/chrome": "^0.1.42",
@@ -52,7 +55,8 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "wxt": "^0.20.26"
   },
   "overrides": {
     "rollup": "2.80.0"

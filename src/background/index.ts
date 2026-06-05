@@ -12,21 +12,20 @@ import { handleMessage, handleNavigationChange, type NavigationChangeDetails } f
 import { registerSnoozeHandlers } from './snooze';
 import { getTabController } from './tabController';
 
-// Register all event listeners synchronously at top level
-// This is critical for MV3 service workers
+export function registerBackground(): void {
+  // Register all event listeners synchronously.
+  // This is critical for MV3 service workers.
+  const handleNavigationEvent = (details: NavigationChangeDetails): void => {
+    handleNavigationChange(details).catch((error: unknown) => {
+      console.error('[Teichos] Error handling navigation:', error);
+    });
+  };
 
-// Web navigation events - handle main frame navigations
-const handleNavigationEvent = (details: NavigationChangeDetails): void => {
-  handleNavigationChange(details).catch((error: unknown) => {
-    console.error('[Teichos] Error handling navigation:', error);
-  });
-};
+  chrome.webNavigation.onBeforeNavigate.addListener(handleNavigationEvent);
+  chrome.webNavigation.onHistoryStateUpdated.addListener(handleNavigationEvent);
+  chrome.webNavigation.onReferenceFragmentUpdated.addListener(handleNavigationEvent);
 
-chrome.webNavigation.onBeforeNavigate.addListener(handleNavigationEvent);
-chrome.webNavigation.onHistoryStateUpdated.addListener(handleNavigationEvent);
-chrome.webNavigation.onReferenceFragmentUpdated.addListener(handleNavigationEvent);
-
-// Message handling from other extension contexts
-chrome.runtime.onMessage.addListener(handleMessage);
-getTabController().register();
-registerSnoozeHandlers();
+  chrome.runtime.onMessage.addListener(handleMessage);
+  getTabController().register();
+  registerSnoozeHandlers();
+}

@@ -11,10 +11,10 @@ import {
   setSnooze,
   updateFilter,
   sendExtensionMessage,
-} from '../shared/api';
-import { openOptionsPage, openOptionsPageWithParams } from '../shared/api/runtime';
-import { getActiveTab } from '../shared/api/tabs';
-import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../shared/types';
+} from '../../shared/api';
+import { openOptionsPage, openOptionsPageWithParams } from '../../shared/api/runtime';
+import { getActiveTab } from '../../shared/api/tabs';
+import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../../shared/types';
 import {
   buildGroupById,
   formatDuration,
@@ -29,9 +29,9 @@ import {
   isTemporaryFilterExpired,
   matchesPattern,
   sortFiltersTemporaryFirst,
-} from '../shared/utils';
-import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
-import type { SnoozeState, StorageData } from '../shared/types';
+} from '../../shared/utils';
+import { cloneTemplate, getElementByIdOrNull, querySelector } from '../../shared/utils/dom';
+import type { SnoozeState, StorageData } from '../../shared/types';
 
 let cachedData: StorageData | null = null;
 let snoozeTickerId: number | null = null;

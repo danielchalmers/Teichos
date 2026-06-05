@@ -3,16 +3,16 @@
  * Displays information about the blocked URL and provides navigation options
  */
 
-import { sendExtensionMessage } from '../shared/api';
-import { openOptionsPage } from '../shared/api/runtime';
+import { sendExtensionMessage } from '../../shared/api';
+import { openOptionsPage } from '../../shared/api/runtime';
 import {
   MessageType,
   type BlockedPageState,
   type FilterMatchMode,
   type GetBlockedPageStateResponse,
-} from '../shared/types';
-import { getElementByIdOrNull } from '../shared/utils/dom';
-import { formatGroupScheduleSummary } from '../shared/utils/schedules';
+} from '../../shared/types';
+import { getElementByIdOrNull } from '../../shared/utils/dom';
+import { formatGroupScheduleSummary } from '../../shared/utils/schedules';
 
 interface BlockedPageViewModel {
   readonly targetUrl: string;
