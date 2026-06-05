@@ -2,6 +2,21 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Stop Chrome Debug Profile",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\stop-chrome-debug-profile.ps1",
+        "-ProfilePath",
+        "${workspaceFolder}\\.vscode\\chrome-debug-profile"
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "Ensure Dependencies",
       "type": "shell",
       "command": "if (Test-Path .\\node_modules\\.bin\\vite.cmd) { Write-Host 'Dependencies already installed.' } else { npm ci }",
@@ -30,9 +45,38 @@
       "problemMatcher": []
     },
     {
+      "label": "Start Chrome Debug Profile",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}\\scripts\\launch-chrome-debug-profile.mjs",
+        "--chrome",
+        "${env:LOCALAPPDATA}\\ms-playwright\\chromium-1217\\chrome-win64\\chrome.exe",
+        "--profile",
+        "${workspaceFolder}\\.vscode\\chrome-debug-profile",
+        "--extension",
+        "${workspaceFolder}\\dist",
+        "--port",
+        "9333"
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "Build Dev and Ensure Playwright Chromium",
       "dependsOrder": "sequence",
       "dependsOn": ["Ensure Dependencies", "Build Dev", "Install Playwright Chromium"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Launch Chrome Debug Profile",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Stop Chrome Debug Profile",
+        "Ensure Dependencies",
+        "Build Dev",
+        "Install Playwright Chromium",
+        "Start Chrome Debug Profile"
+      ],
       "problemMatcher": []
     },
     {
