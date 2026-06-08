@@ -2,25 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run Playwright Chromium Extension",
-      "type": "chrome",
+      "name": "Start WXT Dev Server",
+      "type": "node-terminal",
       "request": "launch",
-      "preLaunchTask": "Build Dev and Ensure Playwright Chromium",
-      "runtimeExecutable": "${env:LOCALAPPDATA}\\ms-playwright\\chromium-1217\\chrome-win64\\chrome.exe",
-      "url": "about:blank",
-      "urlFilter": "about:blank",
-      "userDataDir": "${workspaceFolder}\\.vscode\\chrome-debug-profile",
-      "runtimeArgs": [
-        "--load-extension=${workspaceFolder}/dist",
-        "--disable-extensions-except=${workspaceFolder}/dist",
-        "--disable-features=DisableLoadExtensionCommandLineSwitch",
-        "--enable-unsafe-extension-debugging",
-        "--no-first-run",
-        "--no-default-browser-check"
-      ],
-      "webRoot": "${workspaceFolder}/dist",
-      "sourceMaps": false,
-      "pauseForSourceMap": false
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}"
     }
   ]
 }

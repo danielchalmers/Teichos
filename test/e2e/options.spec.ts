@@ -425,6 +425,7 @@ test('edits and deletes individual filters and exceptions from options', async (
   await filterItem.getByRole('button', { name: 'Edit' }).click();
   const filterModal = page.locator('#filter-modal.active');
   await expect(filterModal).toBeVisible();
+  await expect(filterModal.locator('#filter-pattern')).toBeFocused();
   await filterModal.locator('#filter-description').fill('Updated Filter');
   await filterModal.locator('#filter-pattern').fill('https://editable-filter.example.test/focus');
   await filterModal.locator('#filter-match-mode').selectOption('exact');
@@ -438,6 +439,7 @@ test('edits and deletes individual filters and exceptions from options', async (
   await exceptionItem.getByRole('button', { name: 'Edit' }).click();
   const whitelistModal = page.locator('#whitelist-modal.active');
   await expect(whitelistModal).toBeVisible();
+  await expect(whitelistModal.locator('#whitelist-pattern')).toBeFocused();
   await whitelistModal.locator('#whitelist-description').fill('Updated Exception');
   await whitelistModal
     .locator('#whitelist-pattern')

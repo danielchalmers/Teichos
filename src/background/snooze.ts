@@ -2,12 +2,12 @@
  * Keeps snooze alarm state in sync with stored snooze settings.
  */
 
-import { loadData, saveData } from '../shared/api';
 import { setSessionSnooze } from '../shared/api/session';
+import { loadData, saveData } from '../shared/api/storage';
 import { ALARMS } from '../shared/constants';
+import { isSnoozeExpired } from '../shared/filtering/schedules';
 import type { SnoozeState } from '../shared/types';
 import { STORAGE_KEY } from '../shared/types';
-import { isSnoozeExpired } from '../shared/utils';
 
 const INACTIVE_SNOOZE: SnoozeState = { active: false };
 

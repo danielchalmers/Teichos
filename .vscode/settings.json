@@ -8,7 +8,10 @@
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "files.exclude": {
     "node_modules": true,
-    "dist": true
+    "dist": true,
+    ".output": true,
+    ".vscode/chrome-debug-profile": true,
+    ".wxt": true
   },
   "files.associations": {
     "*.json": "jsonc"

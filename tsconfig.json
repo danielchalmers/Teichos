@@ -1,10 +1,10 @@
 {
+  "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
     "noEmit": true,
@@ -20,5 +20,5 @@
     "noPropertyAccessFromIndexSignature": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test"]
+  "exclude": ["node_modules", ".output", ".wxt", "dist", "test"]
 }

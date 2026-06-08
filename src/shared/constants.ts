@@ -13,9 +13,9 @@ export const DEFAULT_SCHEDULE = {
 } as const;
 
 export const PAGES = {
-  BLOCKED: 'src/blocked/index.html',
-  OPTIONS: 'src/options/index.html',
-  POPUP: 'src/popup/index.html',
+  BLOCKED: 'blocked.html',
+  OPTIONS: 'options.html',
+  POPUP: 'popup.html',
 } as const;
 
 export const ALARMS = {

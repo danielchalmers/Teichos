@@ -17,7 +17,7 @@ import {
   addWhitelist,
   updateWhitelist,
   deleteWhitelist,
-} from '../shared/api';
+} from '../../shared/api/storage';
 import type {
   BlockType,
   Filter,
@@ -27,19 +27,19 @@ import type {
   StorageData,
   Whitelist,
   MutableTimeSchedule,
-} from '../shared/types';
-import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../shared/types';
+} from '../../shared/types';
+import { getRegexValidationError } from '../../shared/filtering/patterns';
 import {
-  formatGroupScheduleSummary,
-  generateId,
-  getRegexValidationError,
   isGroupEnabled,
   isSnoozeActive,
   isTemporaryFilterExpired,
   sortFiltersTemporaryFirst,
-} from '../shared/utils';
-import { cloneTemplate, getElementByIdOrNull, querySelector } from '../shared/utils/dom';
-import { DAY_NAMES, DEFAULT_SCHEDULE } from '../shared/constants';
+} from '../../shared/filtering/schedules';
+import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../../shared/types';
+import { cloneTemplate, getElementByIdOrNull, querySelector } from '../../shared/utils/dom';
+import { generateId } from '../../shared/utils/helpers';
+import { formatGroupScheduleSummary } from '../../shared/utils/schedules';
+import { DAY_NAMES, DEFAULT_SCHEDULE } from '../../shared/constants';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';

@@ -97,7 +97,7 @@ describe('handleMessage', () => {
           id: 'test-extension-id',
           tab: {
             id: 9,
-            url: 'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-9',
+            url: 'chrome-extension://test-extension-id/blocked.html?blockId=block-9',
           } as chrome.tabs.Tab,
         },
         sendResponse
@@ -109,7 +109,7 @@ describe('handleMessage', () => {
     });
     expect(mocks.continueFromTab).toHaveBeenCalledWith(
       9,
-      'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-9',
+      'chrome-extension://test-extension-id/blocked.html?blockId=block-9',
       undefined
     );
     expect(mocks.continueFromActiveTab).not.toHaveBeenCalled();
@@ -126,7 +126,7 @@ describe('handleMessage', () => {
           id: 'test-extension-id',
           tab: {
             id: 9,
-            url: 'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-9',
+            url: 'chrome-extension://test-extension-id/blocked.html?blockId=block-9',
           } as chrome.tabs.Tab,
         },
         sendResponse
@@ -138,7 +138,7 @@ describe('handleMessage', () => {
     });
     expect(mocks.continueFromTab).toHaveBeenCalledWith(
       9,
-      'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-9',
+      'chrome-extension://test-extension-id/blocked.html?blockId=block-9',
       'block-9'
     );
   });
@@ -241,7 +241,7 @@ describe('handleMessage', () => {
           id: 'test-extension-id',
           tab: {
             id: 7,
-            url: 'chrome-extension://test-extension-id/src/blocked/index.html',
+            url: 'chrome-extension://test-extension-id/blocked.html',
           } as chrome.tabs.Tab,
         },
         sendResponse
@@ -253,7 +253,7 @@ describe('handleMessage', () => {
     });
     expect(mocks.getFreshBlockedPageState).toHaveBeenCalledWith(
       7,
-      'chrome-extension://test-extension-id/src/blocked/index.html'
+      'chrome-extension://test-extension-id/blocked.html'
     );
   });
 
@@ -267,7 +267,7 @@ describe('handleMessage', () => {
           id: 'test-extension-id',
           tab: {
             id: 8,
-            url: 'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-8',
+            url: 'chrome-extension://test-extension-id/blocked.html?blockId=block-8',
           } as chrome.tabs.Tab,
         },
         sendResponse
@@ -277,7 +277,7 @@ describe('handleMessage', () => {
     await vi.waitFor(() => {
       expect(mocks.getFreshBlockedPageState).toHaveBeenCalledWith(
         8,
-        'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-8'
+        'chrome-extension://test-extension-id/blocked.html?blockId=block-8'
       );
     });
     expect(mocks.getBlockedPageStateByBlockId).not.toHaveBeenCalled();
@@ -317,7 +317,7 @@ describe('handleMessage', () => {
       handleMessage(
         { type: MessageType.GET_BLOCKED_PAGE_STATE, blockId: 'block-8' },
         {
-          url: 'chrome-extension://test-extension-id/src/blocked/index.html?blockId=block-8',
+          url: 'chrome-extension://test-extension-id/blocked.html?blockId=block-8',
         },
         sendResponse
       )

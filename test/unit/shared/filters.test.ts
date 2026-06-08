@@ -1,18 +1,17 @@
 /**
- * Tests for shared/utils/filters.ts
+ * Tests for shared filtering helpers.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { getRegexValidationError, matchesPattern } from '../../../src/shared/filtering/patterns';
 import {
   getSnoozeRemainingMs,
-  getRegexValidationError,
   isSnoozeActive,
   isSnoozeExpired,
-  matchesPattern,
   isFilterActive,
   isFilterScheduledActive,
   sortFiltersTemporaryFirst,
-} from '../../../src/shared/utils/filters';
+} from '../../../src/shared/filtering/schedules';
 import { evaluateFilterDecision } from '../../../src/shared/filtering/engine';
 import type { Filter, FilterGroup, Whitelist } from '../../../src/shared/types';
 

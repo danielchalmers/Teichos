@@ -29,13 +29,11 @@ Want to block sites only during work hours? Create a custom group:
 
 ## 🙏 Credits
 
-- @crxjs/vite-plugin — MIT
 - ESLint (@eslint/js, eslint) — MIT
 - Playwright (@playwright/test) — Apache-2.0
 - Prettier — MIT
 - TypeScript — Apache-2.0
 - typescript-eslint — MIT
-- Vite — MIT
 - Vitest — MIT
-- rimraf — ISC
+- WXT — MIT
 - @types/chrome, @types/node — MIT

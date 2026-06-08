@@ -1,6 +1,6 @@
 import { loadData } from '../shared/api/storage';
+import { createFilteringEngine, type FilteringEngine } from '../shared/filtering/engine';
 import type { StorageData } from '../shared/types';
-import { createFilteringEngine, type FilteringEngine } from '../shared/utils';
 
 export interface CurrentRules {
   readonly data: StorageData;
