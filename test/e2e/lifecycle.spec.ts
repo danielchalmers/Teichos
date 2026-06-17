@@ -319,11 +319,11 @@ test('adding a whitelist from blocked state restores the target and clears stale
       )
     )
     .toBe(true);
-  await browsingPage.reload().catch((error: unknown) => {
-    if (browsingPage.url() !== targetUrl) {
-      throw error;
-    }
-  });
+  // The background reconcile restores the already-open blocked tab on its own
+  // once the whitelist lands (same as the primed-storage and popup-disable
+  // siblings). Do not reload manually: a manual reload races the background's
+  // tab navigation and intermittently fails with "Not attached to an active
+  // page" under load.
   await expect.poll(() => browsingPage.url()).toBe(targetUrl);
   await expect(browsingPage.getByText('Blocked whitelist restored')).toBeVisible();
   await expectBlockedTabStateCleared(page, targetUrl);

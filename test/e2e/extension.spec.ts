@@ -155,10 +155,8 @@ for (const navigationMethod of ['push-state', 'replace-state'] as const) {
     await expectBlockedSameTabNavigation(page, targetUrl);
     await captureScreenshot(page, testInfo, `${navigationMethod}-blocked-page.png`);
 
-    await Promise.all([
-      page.waitForURL(initialUrl),
-      page.getByRole('button', { name: 'Go Back' }).click(),
-    ]);
+    await page.getByRole('button', { name: 'Go Back' }).click();
+    await expect.poll(() => page.url(), { timeout: 15_000 }).toBe(initialUrl);
     await expect(page.getByRole('heading', { name: 'SPA Route Test' })).toBeVisible();
     await expect(page.locator('#current-url')).toHaveText(initialUrl);
   });
@@ -198,10 +196,8 @@ test('blocks matching same-tab hash navigations and preserves go back', async ({
   await expectBlockedSameTabNavigation(page, targetUrl);
   await captureScreenshot(page, testInfo, 'hash-blocked-page.png');
 
-  await Promise.all([
-    page.waitForURL(initialUrl),
-    page.getByRole('button', { name: 'Go Back' }).click(),
-  ]);
+  await page.getByRole('button', { name: 'Go Back' }).click();
+  await expect.poll(() => page.url(), { timeout: 15_000 }).toBe(initialUrl);
   await expect(page.getByRole('heading', { name: 'SPA Route Test' })).toBeVisible();
   await expect(page.locator('#current-url')).toHaveText(initialUrl);
 });
