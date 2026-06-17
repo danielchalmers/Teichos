@@ -51,10 +51,8 @@ test('go back restores the last allowed url', async ({
   await expectBlocked(page, blockedUrl);
   await captureScreenshot(page, testInfo, 'blocked-page.png');
 
-  await Promise.all([
-    page.waitForURL(allowedUrl),
-    page.getByRole('button', { name: 'Go Back' }).click(),
-  ]);
+  await page.getByRole('button', { name: 'Go Back' }).click();
+  await expect.poll(() => page.url(), { timeout: 15_000 }).toBe(allowedUrl);
   await expect(page.getByText('Allowed page')).toBeVisible();
 });
 
@@ -100,7 +98,7 @@ test('renders the blocked url and responsible filter from block id state', async
 });
 
 test('warning blocks show Continue and allow same-tab bypass', async ({ extensionPage, page }) => {
-  const targetUrl = 'https://example.com/warning-focus';
+  const targetUrl = 'https://warning-bypass.example.test/warning-focus';
   await mockAllowedPage(page, targetUrl, 'Warning bypass allowed');
 
   await page.goto(extensionPage(PAGES.OPTIONS));
@@ -111,7 +109,7 @@ test('warning blocks show Continue and allow same-tab bypass', async ({ extensio
       filters: [
         {
           id: 'warning-filter',
-          pattern: 'example.com/warning',
+          pattern: 'warning-bypass.example.test/warning',
           groupId: defaultGroup.id,
           enabled: true,
           matchMode: 'contains',
