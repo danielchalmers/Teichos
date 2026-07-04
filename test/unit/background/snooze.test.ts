@@ -66,6 +66,7 @@ describe('registerSnoozeHandlers', () => {
         whitelist: [],
         snooze: { active: false },
         blockType: 'block',
+        expandBlockPageDetails: false,
         rulesVersion: 1,
       });
     });
@@ -148,6 +149,7 @@ describe('registerSnoozeHandlers', () => {
         whitelist: [],
         snooze: { active: false },
         blockType: 'block',
+        expandBlockPageDetails: false,
         rulesVersion: 2,
       });
     });

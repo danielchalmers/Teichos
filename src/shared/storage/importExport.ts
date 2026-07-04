@@ -122,6 +122,13 @@ function validateImportedStorageShape(raw: JsonObject): void {
   if (raw['blockType'] !== undefined && !isValidBlockType(raw['blockType'])) {
     throw new Error('Settings file contains an invalid block type.');
   }
+
+  if (
+    raw['expandBlockPageDetails'] !== undefined &&
+    typeof raw['expandBlockPageDetails'] !== 'boolean'
+  ) {
+    throw new Error('Settings file contains an invalid block page details preference.');
+  }
 }
 
 export function serializeDataForExport(data: StorageData): string {

@@ -106,6 +106,12 @@ function setupEventListeners(): void {
   getElementByIdOrNull<HTMLSelectElement>('global-block-type')?.addEventListener('change', () => {
     void handleGlobalBlockTypeChange();
   });
+  getElementByIdOrNull<HTMLInputElement>('global-expand-details')?.addEventListener(
+    'change',
+    () => {
+      void handleGlobalExpandDetailsChange();
+    }
+  );
 
   // Filter modal
   getElementByIdOrNull('close-filter-modal')?.addEventListener('click', closeFilterModal);
@@ -330,6 +336,11 @@ function renderGlobalSettings(data: StorageData): void {
   if (blockTypeSelect) {
     blockTypeSelect.value = data.blockType === 'warning' ? 'warning' : 'block';
   }
+
+  const expandDetailsCheckbox = getElementByIdOrNull<HTMLInputElement>('global-expand-details');
+  if (expandDetailsCheckbox) {
+    expandDetailsCheckbox.checked = data.expandBlockPageDetails === true;
+  }
 }
 
 async function handleGlobalBlockTypeChange(): Promise<void> {
@@ -342,6 +353,21 @@ async function handleGlobalBlockTypeChange(): Promise<void> {
   } catch (error) {
     console.error('Failed to update global block type:', error);
     setGlobalSettingsStatus('Failed to update block type.', true);
+    renderGlobalSettings(await loadData());
+  }
+}
+
+async function handleGlobalExpandDetailsChange(): Promise<void> {
+  const expandBlockPageDetails =
+    getElementByIdOrNull<HTMLInputElement>('global-expand-details')?.checked === true;
+
+  try {
+    const data = await loadData();
+    await saveData({ ...data, expandBlockPageDetails });
+    setGlobalSettingsStatus('Block page details preference updated.');
+  } catch (error) {
+    console.error('Failed to update block page details preference:', error);
+    setGlobalSettingsStatus('Failed to update block page details preference.', true);
     renderGlobalSettings(await loadData());
   }
 }

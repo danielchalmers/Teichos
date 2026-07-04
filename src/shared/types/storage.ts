@@ -108,6 +108,7 @@ export interface StorageData {
   readonly whitelist: readonly Whitelist[];
   readonly snooze: SnoozeState;
   readonly blockType?: BlockType;
+  readonly expandBlockPageDetails?: boolean;
   readonly rulesVersion: number;
 }
 

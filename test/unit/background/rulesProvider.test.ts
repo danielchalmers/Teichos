@@ -229,6 +229,7 @@ describe('RulesProvider', () => {
       whitelist: [],
       snooze: { active: false },
       blockType: 'block',
+      expandBlockPageDetails: false,
       rulesVersion: 0,
     });
     expect(cachedRules).toBe(rules);

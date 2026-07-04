@@ -27,6 +27,7 @@ export function createStorageData(overrides: Partial<StorageData> = {}): Storage
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
     blockType: overrides.blockType ?? 'block',
+    expandBlockPageDetails: overrides.expandBlockPageDetails ?? false,
     rulesVersion: overrides.rulesVersion ?? 0,
   };
 }
@@ -63,7 +64,15 @@ export async function expectBlocked(page: Page, targetUrl: string): Promise<void
     .toBe(true);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
-  await expect(page.getByLabel('Responsible filter')).toBeVisible();
+}
+
+/**
+ * Expand the block page details and action buttons, which are collapsed behind the
+ * "Learn more" link unless the global expand-by-default setting is enabled.
+ */
+export async function showBlockPageDetails(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Learn more' }).click();
+  await expect(page.locator('#block-extras')).toBeVisible();
 }
 
 export async function expectAllowed(page: Page, targetUrl: string): Promise<void> {

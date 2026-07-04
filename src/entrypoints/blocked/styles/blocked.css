@@ -87,6 +87,34 @@ p {
   font-size: var(--text-md);
 }
 
+.learn-more {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+  color: var(--text-on-bg);
+  font: inherit;
+  font-size: var(--text-md);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.learn-more:hover {
+  opacity: 1;
+}
+
+.learn-more:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.learn-more[hidden] {
+  display: none;
+}
+
 .details {
   margin: 0 0 2rem;
   padding: 1rem;
