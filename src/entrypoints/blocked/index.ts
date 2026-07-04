@@ -8,6 +8,7 @@ import { openOptionsPage } from '../../shared/api/runtime';
 import {
   MessageType,
   type BlockedPageState,
+  type BlockType,
   type FilterMatchMode,
   type GetBlockedPageStateResponse,
 } from '../../shared/types';
@@ -64,6 +65,11 @@ async function renderPage(): Promise<void> {
 }
 
 async function getBlockedPageState(): Promise<BlockedPageViewModel> {
+  const previewBlockType = getPreviewBlockType();
+  if (previewBlockType) {
+    return getSampleBlockedPageState(previewBlockType);
+  }
+
   try {
     const blockId = getBlockedPageBlockId();
     const response = await sendExtensionMessage(
@@ -109,6 +115,59 @@ function getBlockedPageBlockId(): string | undefined {
 
 function getUnavailableBlockedPageState(): BlockedPageViewModel {
   return { targetUrl: 'Block details unavailable' };
+}
+
+/**
+ * Read the sample block type requested via the `preview` query param.
+ * Returns null when the page is showing a real block rather than a preview.
+ */
+function getPreviewBlockType(): BlockType | null {
+  const preview = new URLSearchParams(window.location.search).get('preview');
+  if (preview === 'warning') {
+    return 'warning';
+  }
+  if (preview === 'block') {
+    return 'block';
+  }
+  return null;
+}
+
+/**
+ * Build a representative sample block so users can preview the page from the options screen
+ * without needing to actually trigger a block.
+ */
+function getSampleBlockedPageState(blockType: BlockType): BlockedPageViewModel {
+  const targetUrl = 'https://www.example.com/';
+  return {
+    targetUrl,
+    state: {
+      blockId: 'preview',
+      tabId: -1,
+      targetUrl,
+      blockedBy: { filterId: 'preview-filter', groupId: 'preview-group' },
+      blockType,
+      blockedAt: 0,
+      rulesVersion: 0,
+      filter: {
+        id: 'preview-filter',
+        pattern: 'example.com',
+        matchMode: 'contains',
+        description: 'Example filter',
+      },
+      group: {
+        id: 'preview-group',
+        name: 'Example group',
+        schedules: [],
+        is24x7: true,
+        enabled: true,
+      },
+      effectiveState: {
+        filterEnabled: true,
+        groupActive: true,
+        snoozeActive: false,
+      },
+    },
+  };
 }
 
 function isBlockedPageStateResponse(response: unknown): response is GetBlockedPageStateResponse {

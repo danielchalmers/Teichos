@@ -172,6 +172,11 @@ p {
   background: var(--button-alt-bg-hover);
 }
 
+/* The `.button` display rule outranks the UA `[hidden]` style, so restore hiding explicitly. */
+.button[hidden] {
+  display: none;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;

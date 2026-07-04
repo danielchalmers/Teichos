@@ -7,6 +7,7 @@ import {
   expectBlocked,
   mockAllowedPage,
   seedStorage,
+  waitForOptionsReady,
 } from './helpers';
 import { PAGES } from '../../src/shared/constants';
 
@@ -125,6 +126,40 @@ test('warning blocks show Continue and allow same-tab bypass', async ({ extensio
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect.poll(() => page.url()).not.toContain(`/${PAGES.BLOCKED}`);
   await expectAllowed(page, targetUrl);
+});
+
+test('renders a sample block for each preview block type', async ({ extensionPage, page }) => {
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=block`);
+  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+  await expect(page.getByLabel('Blocked URL')).toHaveText('https://www.example.com/');
+  await expect(page.getByLabel('Responsible filter')).toContainText('Example filter');
+  await expect(page.getByLabel('Responsible filter')).toContainText('example.com');
+  await expect(page.getByLabel('Responsible filter')).toContainText('Example group');
+  await expect(page.locator('#continue')).toBeHidden();
+
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=warning`);
+  await expect(page.getByLabel('Blocked URL')).toHaveText('https://www.example.com/');
+  await expect(page.locator('#continue')).toBeVisible();
+});
+
+test('previews the block page from the options global settings', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await waitForOptionsReady(page);
+  await page.locator('#global-block-type').selectOption('warning');
+
+  const previewPagePromise = context.waitForEvent('page');
+  await page.getByRole('button', { name: 'Preview Block Page' }).click();
+  const previewPage = await previewPagePromise;
+  await previewPage.waitForLoadState('domcontentloaded');
+
+  await expect.poll(() => new URL(previewPage.url()).pathname).toBe(`/${PAGES.BLOCKED}`);
+  await expect(previewPage.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+  await expect(previewPage.getByLabel('Blocked URL')).toHaveText('https://www.example.com/');
+  await expect(previewPage.locator('#continue')).toBeVisible();
 });
 
 test('handles missing or stale block ids and no-op go back safely', async ({

@@ -39,7 +39,9 @@ import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../../sh
 import { cloneTemplate, getElementByIdOrNull, querySelector } from '../../shared/utils/dom';
 import { generateId } from '../../shared/utils/helpers';
 import { formatGroupScheduleSummary } from '../../shared/utils/schedules';
-import { DAY_NAMES, DEFAULT_SCHEDULE } from '../../shared/constants';
+import { getExtensionUrl } from '../../shared/api/runtime';
+import { createTab } from '../../shared/api/tabs';
+import { DAY_NAMES, DEFAULT_SCHEDULE, PAGES } from '../../shared/constants';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -86,6 +88,9 @@ function setupEventListeners(): void {
 
   // Add buttons
   getElementByIdOrNull('add-group-btn')?.addEventListener('click', () => openGroupModal());
+  getElementByIdOrNull('preview-block-btn')?.addEventListener('click', () => {
+    void handlePreviewBlockPage();
+  });
   getElementByIdOrNull('export-settings-btn')?.addEventListener('click', () => {
     void handleExportSettings();
   });
@@ -300,6 +305,23 @@ async function handleImportSettings(event: Event): Promise<void> {
     setGlobalSettingsStatus(message, true);
   } finally {
     input.value = '';
+  }
+}
+
+/**
+ * Open the block page in a new tab using representative sample data so users can preview how a
+ * block looks with the currently selected global block type.
+ */
+async function handlePreviewBlockPage(): Promise<void> {
+  const blockType = getGlobalBlockTypeSelectValue();
+  const url = new URL(getExtensionUrl(PAGES.BLOCKED));
+  url.searchParams.set('preview', blockType);
+
+  try {
+    await createTab({ url: url.toString(), active: true });
+  } catch (error) {
+    console.error('Failed to open block page preview:', error);
+    setGlobalSettingsStatus('Failed to open block page preview.', true);
   }
 }
 
