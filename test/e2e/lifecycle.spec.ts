@@ -19,6 +19,7 @@ import {
   readBlockedTabStateForTarget,
   readStorage,
   seedStorage,
+  showBlockPageDetails,
   toggleFilterViaOptions,
 } from './helpers';
 
@@ -498,6 +499,7 @@ test('editing a schedule through options changes navigation from off-schedule al
     .toBe(true);
   await expect(browsingPage.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(browsingPage.getByLabel('Blocked URL')).toHaveText(targetUrl);
+  await showBlockPageDetails(browsingPage);
   await expect(browsingPage.getByLabel('Responsible filter')).toContainText(
     'Schedule Lifecycle Filter'
   );

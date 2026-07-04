@@ -30,6 +30,7 @@ export interface LegacyStorageData {
   readonly whitelist?: readonly LegacyWhitelist[];
   readonly rulesVersion?: number;
   readonly blockType?: BlockType;
+  readonly expandBlockPageDetails?: boolean;
   readonly snooze?: {
     readonly active?: boolean;
     readonly until?: number;
@@ -99,6 +100,7 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
       ? raw.rulesVersion
       : 0;
   const blockType = isValidBlockType(raw.blockType) ? raw.blockType : 'block';
+  const expandBlockPageDetails = raw.expandBlockPageDetails === true;
 
   return {
     groups,
@@ -106,6 +108,7 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
     whitelist,
     snooze,
     blockType,
+    expandBlockPageDetails,
     rulesVersion,
   };
 }

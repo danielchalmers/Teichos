@@ -53,6 +53,7 @@ function createSampleData(): StorageData {
     ],
     snooze: { active: true, until: 1_234_567_890 },
     blockType: 'block',
+    expandBlockPageDetails: false,
     rulesVersion: 4,
   };
 }
@@ -124,6 +125,30 @@ describe('storage import/export', () => {
 
   it('rejects invalid json imports', () => {
     expect(() => parseImportedData('{')).toThrow('Settings file is not valid JSON.');
+  });
+
+  it('rejects imports with an invalid expand block page details preference', () => {
+    expect(() =>
+      parseImportedData(
+        JSON.stringify({
+          groups: [createDefaultGroup()],
+          filters: [],
+          whitelist: [],
+          expandBlockPageDetails: 'yes',
+        })
+      )
+    ).toThrow('Settings file contains an invalid block page details preference.');
+  });
+
+  it('preserves the expand block page details preference on import', () => {
+    const parsed = parseImportedData(
+      JSON.stringify({
+        ...createSampleData(),
+        expandBlockPageDetails: true,
+      })
+    );
+
+    expect(parsed.expandBlockPageDetails).toBe(true);
   });
 
   it('rejects imports with duplicate ids', () => {

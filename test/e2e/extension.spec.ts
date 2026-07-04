@@ -6,6 +6,7 @@ import {
   defaultGroup,
   readStorage,
   seedStorage,
+  showBlockPageDetails,
 } from './helpers';
 import { PAGES } from '../../src/shared/constants';
 
@@ -61,7 +62,6 @@ async function expectBlockedSameTabNavigation(page: Page, targetUrl: string): Pr
     .toBe(true);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
-  await expect(page.getByLabel('Responsible filter')).toBeVisible();
 }
 
 test('loads the extension service worker and extension pages', async ({
@@ -117,6 +117,7 @@ test('redirects matching top-level navigations to the blocked page', async ({
     .toBe(true);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+  await showBlockPageDetails(page);
   await expect(page.getByLabel('Responsible filter')).toContainText('E2E Block');
 });
 
@@ -155,6 +156,7 @@ for (const navigationMethod of ['push-state', 'replace-state'] as const) {
     await expectBlockedSameTabNavigation(page, targetUrl);
     await captureScreenshot(page, testInfo, `${navigationMethod}-blocked-page.png`);
 
+    await showBlockPageDetails(page);
     await page.getByRole('button', { name: 'Go Back' }).click();
     await expect.poll(() => page.url(), { timeout: 15_000 }).toBe(initialUrl);
     await expect(page.getByRole('heading', { name: 'SPA Route Test' })).toBeVisible();
@@ -196,6 +198,7 @@ test('blocks matching same-tab hash navigations and preserves go back', async ({
   await expectBlockedSameTabNavigation(page, targetUrl);
   await captureScreenshot(page, testInfo, 'hash-blocked-page.png');
 
+  await showBlockPageDetails(page);
   await page.getByRole('button', { name: 'Go Back' }).click();
   await expect.poll(() => page.url(), { timeout: 15_000 }).toBe(initialUrl);
   await expect(page.getByRole('heading', { name: 'SPA Route Test' })).toBeVisible();

@@ -18,6 +18,7 @@ export function createDefaultData(): StorageData {
     whitelist: [],
     snooze: { active: false },
     blockType: 'block',
+    expandBlockPageDetails: false,
     rulesVersion: 0,
   };
 }

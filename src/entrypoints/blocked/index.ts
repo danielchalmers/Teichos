@@ -5,6 +5,7 @@
 
 import { sendExtensionMessage } from '../../shared/api/messaging';
 import { openOptionsPage } from '../../shared/api/runtime';
+import { loadData } from '../../shared/api/storage';
 import {
   MessageType,
   type BlockedPageState,
@@ -20,12 +21,13 @@ interface BlockedPageViewModel {
   readonly state?: BlockedPageState;
 }
 
+/** Once the user clicks "Learn more", keep the extras open across re-renders. */
+let learnMoreClicked = false;
+
 /**
  * Initialize blocked page
  */
 async function init(): Promise<void> {
-  await renderPage();
-
   const goBackButton = getElementByIdOrNull('go-back');
   goBackButton?.addEventListener('click', () => {
     void handleGoBack().catch((error: unknown) => {
@@ -38,6 +40,12 @@ async function init(): Promise<void> {
     void handleContinue().catch((error: unknown) => {
       console.error('Failed to continue past warning:', error);
     });
+  });
+
+  const learnMoreButton = getElementByIdOrNull('learn-more');
+  learnMoreButton?.addEventListener('click', () => {
+    learnMoreClicked = true;
+    setExtrasExpanded(true);
   });
 
   // Set up options button
@@ -55,6 +63,8 @@ async function init(): Promise<void> {
 
     void renderPage();
   });
+
+  await renderPage();
 }
 
 async function renderPage(): Promise<void> {
@@ -62,6 +72,41 @@ async function renderPage(): Promise<void> {
   renderBlockedUrl(state);
   renderResponsibleFilter(state);
   renderActions(state);
+  await renderExtrasExpansion();
+}
+
+/**
+ * Details and action buttons stay collapsed behind the "Learn more" link unless the user has
+ * expanded them or the global "expand details by default" setting is enabled.
+ */
+async function renderExtrasExpansion(): Promise<void> {
+  if (learnMoreClicked) {
+    setExtrasExpanded(true);
+    return;
+  }
+
+  let expandByDefault = false;
+  try {
+    const data = await loadData();
+    expandByDefault = data.expandBlockPageDetails === true;
+  } catch (error: unknown) {
+    console.warn('[Teichos] Failed to load block page display settings:', error);
+  }
+
+  setExtrasExpanded(expandByDefault);
+}
+
+function setExtrasExpanded(expanded: boolean): void {
+  const extras = getElementByIdOrNull<HTMLElement>('block-extras');
+  if (extras) {
+    extras.hidden = !expanded;
+  }
+
+  const learnMoreButton = getElementByIdOrNull<HTMLButtonElement>('learn-more');
+  if (learnMoreButton) {
+    learnMoreButton.hidden = expanded;
+    learnMoreButton.setAttribute('aria-expanded', String(expanded));
+  }
 }
 
 async function getBlockedPageState(): Promise<BlockedPageViewModel> {

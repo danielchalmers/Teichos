@@ -36,6 +36,7 @@ describe('storage', () => {
         whitelist: [],
         snooze: { active: false },
         blockType: 'block',
+        expandBlockPageDetails: false,
         rulesVersion: 0,
       });
     });
@@ -63,6 +64,7 @@ describe('storage', () => {
         whitelist: [],
         snooze: { active: false },
         blockType: 'warning' as const,
+        expandBlockPageDetails: true,
         rulesVersion: 2,
       };
 
@@ -246,6 +248,7 @@ describe('storage', () => {
         ],
         snooze: { active: true },
         blockType: 'block',
+        expandBlockPageDetails: false,
         rulesVersion: 0,
       });
     });
@@ -267,6 +270,27 @@ describe('storage', () => {
       const data = await loadData();
       expect(data.blockType).toBe('block');
       expect(data.filters[0]?.blockType).toBe('default');
+    });
+
+    it('defaults the expand block page details setting to false', async () => {
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, {
+        groups: [createDefaultGroup()],
+        filters: [],
+      });
+
+      const data = await loadData();
+      expect(data.expandBlockPageDetails).toBe(false);
+    });
+
+    it('coerces invalid expand block page details values to false', () => {
+      const data = normalizeStoredData({
+        groups: [createDefaultGroup()],
+        filters: [],
+        whitelist: [],
+        expandBlockPageDetails: 'yes' as unknown as boolean,
+      });
+
+      expect(data.expandBlockPageDetails).toBe(false);
     });
   });
 
