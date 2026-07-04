@@ -173,15 +173,16 @@
     <template id="options-group-template">
       <details class="group-item">
         <summary class="group-header">
-          <label class="toggle group-toggle" data-role="group-toggle">
-            <input type="checkbox" data-action="toggle-group" />
-            <span class="slider"></span>
-          </label>
           <div class="group-info">
             <div class="group-title" data-role="group-title"></div>
             <div class="filter-meta" data-role="group-meta"></div>
           </div>
-          <div class="actions" data-role="group-actions"></div>
+          <div class="actions" data-role="group-actions">
+            <label class="toggle group-toggle" data-role="group-toggle">
+              <input type="checkbox" data-action="toggle-group" />
+              <span class="slider"></span>
+            </label>
+          </div>
         </summary>
         <div class="group-content">
           <div class="group-section">

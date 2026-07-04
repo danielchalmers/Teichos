@@ -740,10 +740,6 @@ label {
   margin-left: auto;
 }
 
-.group-toggle {
-  margin-right: 0.1rem;
-}
-
 .group-disabled .filter-item,
 .group-disabled .empty-state,
 .group-disabled .group-section-header h3,
