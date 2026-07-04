@@ -7,24 +7,29 @@
   aria-labelledby="title desc"
 >
   <title id="title">Teichos shield</title>
-  <desc id="desc">A balanced rounded shield with a light rim and Teichos gradient fill.</desc>
+  <desc id="desc">A tall rounded shield with a light rim, Teichos indigo gradient fill, and a soft top sheen.</desc>
   <defs>
-    <linearGradient id="rim" x1="18" y1="15" x2="110" y2="115" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#edf0ff" />
-      <stop offset="1" stop-color="#acd2f6" />
+    <linearGradient id="rim" x1="34" y1="12" x2="94" y2="118" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e2e9fd" />
+      <stop offset="1" stop-color="#95bef2" />
     </linearGradient>
-    <linearGradient id="shield" x1="28" y1="20" x2="101" y2="110" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#95b0ed" />
-      <stop offset="0.46" stop-color="#666ddc" />
-      <stop offset="1" stop-color="#4e4cd3" />
+    <linearGradient id="shield" x1="42" y1="20" x2="88" y2="112" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#98b1ee" />
+      <stop offset="0.45" stop-color="#666ddc" />
+      <stop offset="1" stop-color="#4743c9" />
     </linearGradient>
+    <linearGradient id="sheen" x1="64" y1="14" x2="64" y2="76" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+    <path
+      id="hull"
+      d="M64 10.5c1.2 0 2.4.2 3.5.6 9.9 3.4 21.6 7.4 35 12.1a9.6 9.6 0 0 1 6.4 9v20.6c0 28.5-15.5 49.5-42.5 62.4a5.6 5.6 0 0 1-4.8 0c-27-12.9-42.5-33.9-42.5-62.4V32.2a9.6 9.6 0 0 1 6.4-9c13.4-4.7 25.1-8.7 35-12.1 1.1-.4 2.3-.6 3.5-.6Z"
+    />
   </defs>
-  <path
-    fill="url(#rim)"
-    d="M64 11.5c11.5 3.7 25.5 8.4 43.9 14.8a9.7 9.7 0 0 1 6.6 9.2v21.7c0 29.1-18.4 49.2-50.5 60.3-32.1-11.1-50.5-31.2-50.5-60.3V35.5a9.7 9.7 0 0 1 6.6-9.2C38.5 19.9 52.5 15.2 64 11.5Z"
-  />
-  <path
-    fill="url(#shield)"
-    d="M64 23.5c9.2 3 20.9 6.9 34.6 11.7a5.6 5.6 0 0 1 3.9 5.3v16.7c0 22.7-13.6 38.6-38.5 48.7-24.9-10.1-38.5-26-38.5-48.7V40.5a5.6 5.6 0 0 1 3.9-5.3C43.1 30.4 54.8 26.5 64 23.5Z"
-  />
+  <g transform="translate(64 64) scale(1.08) translate(-64 -64)">
+    <use href="#hull" fill="url(#rim)" />
+    <use href="#hull" fill="url(#shield)" transform="translate(10.24 10.16) scale(0.84)" />
+    <use href="#hull" fill="url(#sheen)" transform="translate(10.24 10.16) scale(0.84)" />
+  </g>
 </svg>
