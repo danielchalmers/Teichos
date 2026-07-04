@@ -1,4 +1,4 @@
-# 🛡️ Teichos: Page Blocker
+# <img src="public/assets/icons/icon48.png" width="28" height="28" align="top" alt="" /> Teichos: Page Blocker
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/jgioiclbfmdjhonplpifidmmbadbadfa)](https://chromewebstore.google.com/detail/teichos-page-blocker/jgioiclbfmdjhonplpifidmmbadbadfa)
 [![Privacy Policy](https://img.shields.io/badge/privacy-policy-blue.svg)](PRIVACY_POLICY.md)
