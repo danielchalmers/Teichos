@@ -27,7 +27,9 @@
       d="M64 10.5c1.2 0 2.4.2 3.5.6 9.9 3.4 21.6 7.4 35 12.1a9.6 9.6 0 0 1 6.4 9v20.6c0 28.5-15.5 49.5-42.5 62.4a5.6 5.6 0 0 1-4.8 0c-27-12.9-42.5-33.9-42.5-62.4V32.2a9.6 9.6 0 0 1 6.4-9c13.4-4.7 25.1-8.7 35-12.1 1.1-.4 2.3-.6 3.5-.6Z"
     />
   </defs>
-  <use href="#hull" fill="url(#rim)" />
-  <use href="#hull" fill="url(#shield)" transform="translate(10.24 10.16) scale(0.84)" />
-  <use href="#hull" fill="url(#sheen)" transform="translate(10.24 10.16) scale(0.84)" />
+  <g transform="translate(64 64) scale(1.08) translate(-64 -64)">
+    <use href="#hull" fill="url(#rim)" />
+    <use href="#hull" fill="url(#shield)" transform="translate(10.24 10.16) scale(0.84)" />
+    <use href="#hull" fill="url(#sheen)" transform="translate(10.24 10.16) scale(0.84)" />
+  </g>
 </svg>
