@@ -19,9 +19,7 @@ import {
   deleteWhitelist,
 } from '../../shared/api/storage';
 import type {
-  BlockType,
   Filter,
-  FilterBlockType,
   FilterGroup,
   FilterMatchMode,
   StorageData,
@@ -103,9 +101,6 @@ function setupEventListeners(): void {
       void handleImportSettings(event);
     }
   );
-  getElementByIdOrNull<HTMLSelectElement>('global-block-type')?.addEventListener('change', () => {
-    void handleGlobalBlockTypeChange();
-  });
   getElementByIdOrNull<HTMLInputElement>('global-expand-details')?.addEventListener(
     'change',
     () => {
@@ -316,12 +311,11 @@ async function handleImportSettings(event: Event): Promise<void> {
 
 /**
  * Open the block page in a new tab using representative sample data so users can preview how a
- * block looks with the currently selected global block type.
+ * block looks without needing to actually trigger one.
  */
 async function handlePreviewBlockPage(): Promise<void> {
-  const blockType = getGlobalBlockTypeSelectValue();
   const url = new URL(getExtensionUrl(PAGES.BLOCKED));
-  url.searchParams.set('preview', blockType);
+  url.searchParams.set('preview', '1');
 
   try {
     await createTab({ url: url.toString(), active: true });
@@ -332,28 +326,9 @@ async function handlePreviewBlockPage(): Promise<void> {
 }
 
 function renderGlobalSettings(data: StorageData): void {
-  const blockTypeSelect = getElementByIdOrNull<HTMLSelectElement>('global-block-type');
-  if (blockTypeSelect) {
-    blockTypeSelect.value = data.blockType === 'warning' ? 'warning' : 'block';
-  }
-
   const expandDetailsCheckbox = getElementByIdOrNull<HTMLInputElement>('global-expand-details');
   if (expandDetailsCheckbox) {
     expandDetailsCheckbox.checked = data.expandBlockPageDetails === true;
-  }
-}
-
-async function handleGlobalBlockTypeChange(): Promise<void> {
-  const blockType = getGlobalBlockTypeSelectValue();
-
-  try {
-    const data = await loadData();
-    await saveData({ ...data, blockType });
-    setGlobalSettingsStatus('Block type updated.');
-  } catch (error) {
-    console.error('Failed to update global block type:', error);
-    setGlobalSettingsStatus('Failed to update block type.', true);
-    renderGlobalSettings(await loadData());
   }
 }
 
@@ -681,20 +656,6 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
   return 'contains';
 }
 
-function getGlobalBlockTypeSelectValue(): BlockType {
-  return getElementByIdOrNull<HTMLSelectElement>('global-block-type')?.value === 'warning'
-    ? 'warning'
-    : 'block';
-}
-
-function getFilterBlockTypeSelectValue(selectId: string): FilterBlockType {
-  const value = getElementByIdOrNull<HTMLSelectElement>(selectId)?.value;
-  if (value === 'block' || value === 'warning' || value === 'default') {
-    return value;
-  }
-  return 'default';
-}
-
 function ensureValidRegex(pattern: string, matchMode: FilterMatchMode): boolean {
   if (matchMode !== 'regex') {
     return true;
@@ -850,13 +811,11 @@ function openFilterModal(filterId?: string, groupId?: string): void {
         const descInput = getElementByIdOrNull<HTMLInputElement>('filter-description');
         const enabledInput = getElementByIdOrNull<HTMLInputElement>('filter-enabled');
         const matchModeSelect = getElementByIdOrNull<HTMLSelectElement>('filter-match-mode');
-        const blockTypeSelect = getElementByIdOrNull<HTMLSelectElement>('filter-block-type');
 
         if (patternInput) patternInput.value = filter.pattern;
         if (descInput) descInput.value = filter.description ?? '';
         if (enabledInput) enabledInput.checked = filter.enabled;
         if (matchModeSelect) matchModeSelect.value = filter.matchMode ?? 'contains';
-        if (blockTypeSelect) blockTypeSelect.value = filter.blockType ?? 'default';
       }
     })
     .catch((error: unknown) => {
@@ -885,7 +844,6 @@ async function handleFilterSubmit(e: Event): Promise<void> {
   const groupId = currentFilterGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('filter-enabled')?.checked ?? true;
   const matchMode = getMatchModeSelectValue('filter-match-mode');
-  const blockType = getFilterBlockTypeSelectValue('filter-block-type');
 
   if (!ensureValidRegex(pattern, matchMode)) {
     return;
@@ -904,7 +862,6 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     groupId,
     enabled,
     matchMode,
-    blockType,
   };
   const filter: Filter = typeof expiresAt === 'number' ? { ...baseFilter, expiresAt } : baseFilter;
 

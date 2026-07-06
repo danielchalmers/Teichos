@@ -47,7 +47,6 @@ const defaultData = {
   filters: [],
   whitelist: [],
   snooze: { active: false },
-  blockType: 'block' as const,
   rulesVersion: 1,
 };
 
@@ -167,7 +166,6 @@ describe('handleMessage', () => {
       action: 'block',
       filterId: 'filter-1',
       groupId: DEFAULT_GROUP_ID,
-      blockType: 'block',
       reason: 'matched-filter',
     });
     const sendResponse = vi.fn();
@@ -212,7 +210,6 @@ describe('handleMessage', () => {
       blockId: 'block-7',
       tabId: 7,
       targetUrl: 'https://blocked.com/focus',
-      blockType: 'block',
       blockedAt: 1234,
       rulesVersion: 2,
       blockedBy: {
@@ -290,7 +287,6 @@ describe('handleMessage', () => {
         blockId: 'block-8',
         tabId: 8,
         targetUrl: 'https://blocked.com/focus',
-        blockType: 'block',
         blockedAt: 1234,
         rulesVersion: 2,
         blockedBy: {

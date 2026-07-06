@@ -9,7 +9,6 @@ import { loadData } from '../../shared/api/storage';
 import {
   MessageType,
   type BlockedPageState,
-  type BlockType,
   type FilterMatchMode,
   type GetBlockedPageStateResponse,
 } from '../../shared/types';
@@ -38,7 +37,7 @@ async function init(): Promise<void> {
   const continueButton = getElementByIdOrNull('continue');
   continueButton?.addEventListener('click', () => {
     void handleContinue().catch((error: unknown) => {
-      console.error('Failed to continue past warning:', error);
+      console.error('Failed to continue past block:', error);
     });
   });
 
@@ -110,9 +109,8 @@ function setExtrasExpanded(expanded: boolean): void {
 }
 
 async function getBlockedPageState(): Promise<BlockedPageViewModel> {
-  const previewBlockType = getPreviewBlockType();
-  if (previewBlockType) {
-    return getSampleBlockedPageState(previewBlockType);
+  if (isPreviewMode()) {
+    return getSampleBlockedPageState();
   }
 
   try {
@@ -163,25 +161,17 @@ function getUnavailableBlockedPageState(): BlockedPageViewModel {
 }
 
 /**
- * Read the sample block type requested via the `preview` query param.
- * Returns null when the page is showing a real block rather than a preview.
+ * Whether the page was opened as a preview via the `preview` query param rather than a real block.
  */
-function getPreviewBlockType(): BlockType | null {
-  const preview = new URLSearchParams(window.location.search).get('preview');
-  if (preview === 'warning') {
-    return 'warning';
-  }
-  if (preview === 'block') {
-    return 'block';
-  }
-  return null;
+function isPreviewMode(): boolean {
+  return new URLSearchParams(window.location.search).get('preview') !== null;
 }
 
 /**
  * Build a representative sample block so users can preview the page from the options screen
  * without needing to actually trigger a block.
  */
-function getSampleBlockedPageState(blockType: BlockType): BlockedPageViewModel {
+function getSampleBlockedPageState(): BlockedPageViewModel {
   const targetUrl = 'https://www.example.com/';
   return {
     targetUrl,
@@ -190,7 +180,6 @@ function getSampleBlockedPageState(blockType: BlockType): BlockedPageViewModel {
       tabId: -1,
       targetUrl,
       blockedBy: { filterId: 'preview-filter', groupId: 'preview-group' },
-      blockType,
       blockedAt: 0,
       rulesVersion: 0,
       filter: {
@@ -263,7 +252,7 @@ async function handleContinue(): Promise<void> {
   });
 
   if (!response.continued) {
-    console.warn('[Teichos] No warning bypass is available for this tab.');
+    console.warn('[Teichos] No bypass is available for this tab.');
   }
 }
 
@@ -300,7 +289,7 @@ function renderResponsibleFilter(state: BlockedPageViewModel): void {
 function renderActions(state: BlockedPageViewModel): void {
   const continueButton = getElementByIdOrNull<HTMLButtonElement>('continue');
   if (continueButton) {
-    continueButton.hidden = state.state?.blockType !== 'warning';
+    continueButton.hidden = !state.state;
   }
 }
 

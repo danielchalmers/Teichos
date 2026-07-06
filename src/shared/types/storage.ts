@@ -29,9 +29,6 @@ export interface FilterGroup {
 /** URL matching modes for filters and whitelist entries */
 export type FilterMatchMode = 'contains' | 'exact' | 'regex';
 
-export type BlockType = 'block' | 'warning';
-export type FilterBlockType = 'default' | BlockType;
-
 /** URL filter pattern */
 export interface Filter {
   readonly id: string;
@@ -39,7 +36,6 @@ export interface Filter {
   readonly groupId: string;
   readonly enabled: boolean;
   readonly matchMode: FilterMatchMode;
-  readonly blockType?: FilterBlockType;
   readonly description?: string;
   readonly expiresAt?: number; // Epoch ms when a temporary filter expires
 }
@@ -70,7 +66,6 @@ export interface BlockedTabState {
   readonly tabId: number;
   readonly targetUrl: string;
   readonly blockedBy: BlockedBy;
-  readonly blockType: BlockType;
   readonly blockedAt: number;
   readonly rulesVersion: number;
 }
@@ -96,7 +91,8 @@ export interface BlockedPageState extends BlockedTabState {
   readonly effectiveState: BlockedEffectiveState;
 }
 
-export interface WarningBypassState {
+/** Per-tab record of a block the user chose to continue past. */
+export interface BypassState {
   readonly filterId: string;
   readonly urlKey: string;
 }
@@ -107,7 +103,6 @@ export interface StorageData {
   readonly filters: readonly Filter[];
   readonly whitelist: readonly Whitelist[];
   readonly snooze: SnoozeState;
-  readonly blockType?: BlockType;
   readonly expandBlockPageDetails?: boolean;
   readonly rulesVersion: number;
 }

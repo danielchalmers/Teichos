@@ -1,7 +1,5 @@
 import type {
-  BlockType,
   Filter,
-  FilterBlockType,
   FilterGroup,
   FilterMatchMode,
   SnoozeState,
@@ -13,7 +11,7 @@ export type JsonObject = Record<string, unknown>;
 
 export interface FilterLike extends Omit<Filter, 'matchMode'> {
   readonly matchMode?: FilterMatchMode;
-  readonly blockType?: FilterBlockType;
+  readonly blockType?: string;
   readonly isRegex?: boolean;
 }
 
@@ -34,14 +32,6 @@ export function isObject(value: unknown): value is JsonObject {
 
 export function isValidMatchMode(value: unknown): value is FilterMatchMode {
   return value === 'contains' || value === 'exact' || value === 'regex';
-}
-
-export function isValidBlockType(value: unknown): value is BlockType {
-  return value === 'block' || value === 'warning';
-}
-
-export function isValidFilterBlockType(value: unknown): value is FilterBlockType {
-  return value === 'default' || isValidBlockType(value);
 }
 
 function isOptionalString(value: unknown): value is string | undefined {
@@ -99,7 +89,7 @@ export function isValidFilterLike(value: unknown): value is FilterLike {
     typeof value['groupId'] === 'string' &&
     typeof value['enabled'] === 'boolean' &&
     (value['matchMode'] === undefined || isValidMatchMode(value['matchMode'])) &&
-    (value['blockType'] === undefined || isValidFilterBlockType(value['blockType'])) &&
+    isOptionalString(value['blockType']) &&
     isOptionalBoolean(value['isRegex']) &&
     isOptionalString(value['description']) &&
     isOptionalFiniteNumber(value['expiresAt'])

@@ -15,7 +15,6 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
-    blockType: overrides.blockType ?? 'block',
     rulesVersion: overrides.rulesVersion ?? 0,
   };
 }
@@ -112,7 +111,6 @@ describe('filteringEngine', () => {
       action: 'block',
       filterId: 'filter-1',
       groupId: DEFAULT_GROUP_ID,
-      blockType: 'block',
       reason: 'matched-filter',
     });
   });
@@ -227,69 +225,6 @@ describe('filteringEngine', () => {
       action: 'block',
       filterId: 'active-filter',
       groupId: DEFAULT_GROUP_ID,
-      blockType: 'block',
-      reason: 'matched-filter',
-    });
-  });
-
-  it('inherits the global warning block type', () => {
-    const decision = evaluateFilterDecision(
-      'https://warning.example.test',
-      createStorageData({
-        blockType: 'warning',
-        filters: [
-          {
-            id: 'warning-filter',
-            pattern: 'warning.example.test',
-            groupId: DEFAULT_GROUP_ID,
-            enabled: true,
-            matchMode: 'contains',
-          },
-        ],
-      }),
-      { context: activeContext }
-    );
-
-    expect(decision).toEqual({
-      action: 'block',
-      filterId: 'warning-filter',
-      groupId: DEFAULT_GROUP_ID,
-      blockType: 'warning',
-      reason: 'matched-filter',
-    });
-  });
-
-  it('prefers a hard block over an earlier warning match', () => {
-    const decision = evaluateFilterDecision(
-      'https://mixed.example.test',
-      createStorageData({
-        blockType: 'warning',
-        filters: [
-          {
-            id: 'warning-filter',
-            pattern: 'mixed.example.test',
-            groupId: DEFAULT_GROUP_ID,
-            enabled: true,
-            matchMode: 'contains',
-          },
-          {
-            id: 'block-filter',
-            pattern: 'mixed.example.test',
-            groupId: DEFAULT_GROUP_ID,
-            enabled: true,
-            matchMode: 'contains',
-            blockType: 'block',
-          },
-        ],
-      }),
-      { context: activeContext }
-    );
-
-    expect(decision).toEqual({
-      action: 'block',
-      filterId: 'block-filter',
-      groupId: DEFAULT_GROUP_ID,
-      blockType: 'block',
       reason: 'matched-filter',
     });
   });

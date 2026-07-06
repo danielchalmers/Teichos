@@ -29,7 +29,6 @@ function findBlockingFilter(
       filters,
       whitelist,
       snooze: { active: false },
-      blockType: 'block',
       rulesVersion: 0,
     },
     { context }
