@@ -228,11 +228,11 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
     quickAddButton.disabled = isActive;
     quickAddButton.setAttribute(
       'aria-label',
-      isActive ? 'Temporary filters are unavailable while snoozed' : 'New temporary filter'
+      isActive ? 'Temporary blocks are unavailable while snoozed' : 'New temporary block'
     );
     quickAddButton.title = isActive
-      ? 'Temporary filters are unavailable while snoozed'
-      : 'New temporary filter';
+      ? 'Temporary blocks are unavailable while snoozed'
+      : 'New temporary block';
   }
 
   if (isActive && quickAddPopover) {

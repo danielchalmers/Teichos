@@ -1,33 +1,43 @@
-* {
-  box-sizing: border-box;
-}
+@import '../../../shared/styles/theme.css';
 
+/* The block page lives on the brand gradient, so it keeps its own on-gradient tokens. */
 :root {
-  color-scheme: light;
   --text-2xl: 2.25rem;
   --text-lg: 1.1rem;
   --text-md: 0.98rem;
-  --bg-glow-primary: rgba(172, 210, 246, 0.3);
-  --bg-glow-secondary: rgba(102, 109, 220, 0.22);
-  --bg-gradient-start: #4e4cd3;
-  --bg-gradient-mid: #666ddc;
-  --bg-gradient-end: #7d8fe5;
   --text-on-bg: #f7f8ff;
   --url-bg: rgba(255, 255, 255, 0.2);
   --url-border: rgba(255, 255, 255, 0.28);
   --detail-bg: rgba(255, 255, 255, 0.16);
   --detail-border: rgba(255, 255, 255, 0.22);
-  --button-bg: #f8fbff;
-  --button-text: #4e4cd3;
-  --button-bg-hover: #ecefff;
-  --button-alt-bg: rgba(255, 255, 255, 0.2);
-  --button-alt-bg-hover: rgba(255, 255, 255, 0.3);
-  --button-alt-text: #f6fbff;
-  --focus-ring: rgba(240, 248, 255, 0.9);
+  --page-button-bg: #f8fbff;
+  --page-button-text: #4e4cd3;
+  --page-button-bg-hover: #ecefff;
+  --page-button-alt-bg: rgba(255, 255, 255, 0.2);
+  --page-button-alt-bg-hover: rgba(255, 255, 255, 0.3);
+  --page-button-alt-text: #f6fbff;
+  --page-focus-ring: rgba(240, 248, 255, 0.9);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-on-bg: #f0f2ff;
+    --url-bg: rgba(12, 22, 39, 0.44);
+    --url-border: rgba(173, 203, 244, 0.18);
+    --detail-bg: rgba(12, 22, 39, 0.34);
+    --detail-border: rgba(173, 203, 244, 0.18);
+    --page-button-bg: #ddecff;
+    --page-button-text: #3a32a9;
+    --page-button-bg-hover: #cfd8ff;
+    --page-button-alt-bg: rgba(24, 27, 72, 0.52);
+    --page-button-alt-bg-hover: rgba(24, 27, 72, 0.66);
+    --page-button-alt-text: #f0f2ff;
+    --page-focus-ring: rgba(228, 232, 255, 0.9);
+  }
 }
 
 body {
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-sans);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -38,9 +48,9 @@ body {
     radial-gradient(860px 520px at 92% -16%, var(--bg-glow-secondary), transparent 62%),
     linear-gradient(
       135deg,
-      var(--bg-gradient-start) 0%,
-      var(--bg-gradient-mid) 52%,
-      var(--bg-gradient-end) 100%
+      var(--header-gradient-start) 0%,
+      var(--header-gradient-mid) 52%,
+      var(--header-gradient-end) 100%
     );
   color: var(--text-on-bg);
   font-size: 16px;
@@ -67,6 +77,7 @@ body {
 }
 
 h1 {
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
   margin: 0 0 1rem 0;
 }
@@ -76,14 +87,15 @@ p {
   margin: 0 0 2rem 0;
   opacity: 0.9;
 }
+
 .url {
   background: var(--url-bg);
   border: 1px solid var(--url-border);
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   word-break: break-all;
   margin-bottom: 2rem;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: var(--text-md);
 }
 
@@ -106,7 +118,7 @@ p {
 }
 
 .learn-more:focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--page-focus-ring);
   outline-offset: 3px;
   border-radius: 4px;
 }
@@ -119,7 +131,7 @@ p {
   margin: 0 0 2rem;
   padding: 1rem;
   border: 1px solid var(--detail-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--detail-bg);
   text-align: left;
 }
@@ -166,64 +178,36 @@ p {
   flex-wrap: wrap;
 }
 
+/* On-gradient buttons override the shared surface-page styles. */
 .button {
-  display: inline-block;
   padding: 12px 24px;
-  background: var(--button-bg);
-  color: var(--button-text);
-  text-decoration: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
+  background: var(--page-button-bg);
+  color: var(--page-button-text);
   border: none;
   font-size: 1rem;
-  transition:
-    background 0.2s,
-    color 0.2s;
+  box-shadow: none;
 }
 
 .button:hover {
-  background: var(--button-bg-hover);
+  background: var(--page-button-bg-hover);
 }
 
 .button:focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--page-focus-ring);
   outline-offset: 3px;
 }
 
 .button.secondary {
-  background: var(--button-alt-bg);
-  color: var(--button-alt-text);
+  background: var(--page-button-alt-bg);
+  color: var(--page-button-alt-text);
+  border: none;
 }
 
 .button.secondary:hover {
-  background: var(--button-alt-bg-hover);
+  background: var(--page-button-alt-bg-hover);
 }
 
 /* The `.button` display rule outranks the UA `[hidden]` style, so restore hiding explicitly. */
 .button[hidden] {
   display: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --bg-glow-primary: rgba(102, 109, 220, 0.44);
-    --bg-glow-secondary: rgba(78, 76, 211, 0.36);
-    --bg-gradient-start: #3a32a9;
-    --bg-gradient-mid: #4e4cd3;
-    --bg-gradient-end: #666ddc;
-    --text-on-bg: #f0f2ff;
-    --url-bg: rgba(12, 22, 39, 0.44);
-    --url-border: rgba(173, 203, 244, 0.18);
-    --detail-bg: rgba(12, 22, 39, 0.34);
-    --detail-border: rgba(173, 203, 244, 0.18);
-    --button-bg: #ddecff;
-    --button-text: #3a32a9;
-    --button-bg-hover: #cfd8ff;
-    --button-alt-bg: rgba(24, 27, 72, 0.52);
-    --button-alt-bg-hover: rgba(24, 27, 72, 0.66);
-    --button-alt-text: #f0f2ff;
-    --focus-ring: rgba(228, 232, 255, 0.9);
-  }
 }

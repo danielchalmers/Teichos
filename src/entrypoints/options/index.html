@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="manifest.open_in_tab" content="true" />
-    <title>Teichos Options</title>
+    <title>Settings · Teichos</title>
     <link rel="stylesheet" href="styles/options.css" />
   </head>
   <body>
@@ -15,7 +15,7 @@
             <img class="app-icon" src="/assets/icons/icon.svg" alt="" />
             Teichos
           </h1>
-          <p class="subtitle">Configure URL filters and time-based blocking schedules</p>
+          <p class="subtitle">Settings — choose what gets blocked and when</p>
         </div>
         <div class="header-actions">
           <div class="info-popover">
@@ -105,39 +105,40 @@
         </div>
       </header>
 
-      <div class="section-header">
-        <h2>Groups</h2>
-      </div>
-      <div id="groups-list"></div>
-      <div class="list-footer">
-        <button class="button" id="add-group-btn">
-          <span class="button-icon" aria-hidden="true">
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-              <path
-                d="M8 3v10M3 8h10"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              ></path>
-            </svg>
-          </span>
-          New Group
-        </button>
-      </div>
-
-      <details class="group-item options-placeholder-group" open>
-        <summary class="group-header">
-          <div class="group-info">
-            <div class="group-title">Global Settings</div>
-            <div class="filter-meta">Extension-wide preferences and defaults</div>
-          </div>
-        </summary>
-        <div class="group-content">
-          <div class="global-settings-panel">
-            <p class="global-settings-note">
-              Adjust extension-wide preferences, or export/import your current Teichos
-              configuration.
+      <section class="settings-section" aria-labelledby="groups-heading">
+        <div class="section-header">
+          <div class="section-heading-block">
+            <h2 id="groups-heading">Groups</h2>
+            <p class="section-hint">
+              Each group holds filters and exceptions, and decides when they apply.
             </p>
+          </div>
+          <button class="button" id="add-group-btn">
+            <span class="button-icon" aria-hidden="true">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+                <path
+                  d="M8 3v10M3 8h10"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                ></path>
+              </svg>
+            </span>
+            New Group
+          </button>
+        </div>
+        <div id="groups-list"></div>
+      </section>
+
+      <section class="settings-section" aria-labelledby="general-heading">
+        <div class="section-header">
+          <div class="section-heading-block">
+            <h2 id="general-heading">General</h2>
+            <p class="section-hint">Extension-wide preferences and backups.</p>
+          </div>
+        </div>
+        <div class="settings-card">
+          <div class="global-settings-panel">
             <div class="form-row">
               <label class="checkbox-label">
                 <input type="checkbox" id="global-expand-details" />
@@ -169,7 +170,7 @@
             ></p>
           </div>
         </div>
-      </details>
+      </section>
     </div>
 
     <template id="options-group-template">
