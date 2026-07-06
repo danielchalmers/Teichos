@@ -59,7 +59,6 @@ describe('TabController', () => {
       tabId: 4,
       targetUrl: 'https://blocked.com/focus',
       blockedAt: expect.any(Number),
-      rulesVersion: 7,
       blockedBy: {
         filterId: 'filter-1',
         groupId: DEFAULT_GROUP_ID,
@@ -84,6 +83,39 @@ describe('TabController', () => {
         },
       }),
     });
+  });
+
+  it('reuses the existing block when the same tab re-navigates to the same target', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'filter-1',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(4, 'https://blocked.com/focus');
+    const firstState = await getBlockedTabState(4);
+
+    // The browser back button re-commits the blocked target while the tab is still blocked.
+    await getTabController().evaluateNavigation(4, 'https://blocked.com/focus');
+
+    const secondState = await getBlockedTabState(4);
+    expect(secondState?.blockId).toBe(firstState?.blockId);
+    expect(chromeMock.tabs.update).toHaveBeenLastCalledWith(
+      4,
+      { url: blockedPageUrl(firstState!.blockId) },
+      expect.any(Function)
+    );
   });
 
   it('uses a matching regular filter when an earlier temporary match is already expired', async () => {
@@ -121,7 +153,6 @@ describe('TabController', () => {
       tabId: 6,
       targetUrl: 'https://blocked.com/focus',
       blockedAt: expect.any(Number),
-      rulesVersion: 8,
       blockedBy: {
         filterId: 'regular-filter',
         groupId: DEFAULT_GROUP_ID,
@@ -141,7 +172,7 @@ describe('TabController', () => {
     await expect(getLastAllowedUrl(9)).resolves.toBe('https://allowed.com');
   });
 
-  it('restores blocked tabs when current rules allow them', async () => {
+  it('redirects blocked tabs to the target when current rules allow them', async () => {
     const chromeMock = getChromeMock();
     const { getTabController } = await import('../../../src/background/tabController');
     await setBlockedTabState({
@@ -149,16 +180,13 @@ describe('TabController', () => {
       tabId: 5,
       targetUrl: 'https://blocked.com/focus',
       blockedAt: Date.now(),
-      rulesVersion: 3,
       blockedBy: {
         filterId: 'filter-1',
         groupId: DEFAULT_GROUP_ID,
       },
     });
 
-    await expect(getTabController().restoreIfAllowed(5, blockedPageUrl('block-5'))).resolves.toBe(
-      true
-    );
+    await getTabController().evaluateNavigation(5, blockedPageUrl('block-5'));
 
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(
       5,
@@ -193,7 +221,6 @@ describe('TabController', () => {
       tabId: 7,
       targetUrl: 'https://stale-blocked.com/focus',
       blockedAt: Date.now(),
-      rulesVersion: 8,
       blockedBy: {
         filterId: 'stale-filter',
         groupId: DEFAULT_GROUP_ID,
@@ -204,7 +231,6 @@ describe('TabController', () => {
       tabId: 7,
       targetUrl: 'https://allowed.com/focus',
       blockedAt: Date.now(),
-      rulesVersion: 8,
       blockedBy: {
         filterId: 'stale-filter',
         groupId: DEFAULT_GROUP_ID,
@@ -238,49 +264,46 @@ describe('TabController', () => {
     await expect(getLastAllowedUrl(7)).resolves.toBe('https://allowed.com/focus');
   });
 
-  it('returns freshly evaluated blocked tab state for the current blocked page target', async () => {
+  it('returns the stored snapshot without re-evaluating it against current rules', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(
       STORAGE_KEY,
       createStorageData({
         filters: [
           {
-            id: 'fresh-filter',
-            pattern: 'fresh-blocked.com',
+            id: 'replacement-filter',
+            pattern: 'still-blocked.com',
             groupId: DEFAULT_GROUP_ID,
             enabled: true,
             matchMode: 'contains',
           },
         ],
-        rulesVersion: 10,
       })
     );
 
     const { getTabController } = await import('../../../src/background/tabController');
     await setBlockedTabState({
-      blockId: 'stale-block',
+      blockId: 'original-block',
       tabId: 10,
-      targetUrl: 'https://stale-blocked.com/focus',
+      targetUrl: 'https://still-blocked.com/focus',
       blockedAt: Date.now(),
-      rulesVersion: 9,
       blockedBy: {
-        filterId: 'stale-filter',
+        filterId: 'original-filter',
         groupId: DEFAULT_GROUP_ID,
       },
     });
     await setBlockedPageState({
-      blockId: 'fresh-block',
+      blockId: 'original-block',
       tabId: 10,
-      targetUrl: 'https://fresh-blocked.com/focus',
+      targetUrl: 'https://still-blocked.com/focus',
       blockedAt: Date.now(),
-      rulesVersion: 9,
       blockedBy: {
-        filterId: 'fresh-filter',
+        filterId: 'original-filter',
         groupId: DEFAULT_GROUP_ID,
       },
       filter: {
-        id: 'fresh-filter',
-        pattern: 'fresh-blocked.com',
+        id: 'original-filter',
+        pattern: 'original-pattern.com',
         matchMode: 'contains',
       },
       group: {
@@ -296,22 +319,25 @@ describe('TabController', () => {
       },
     });
 
+    // The snapshot still names the filter responsible at the time of the block, even though a
+    // different filter would be responsible under the current rules.
     await expect(
-      getTabController().getFreshBlockedTabState(10, blockedPageUrl('fresh-block'))
+      getTabController().getBlockedPageStateForTab(10, blockedPageUrl('original-block'))
     ).resolves.toEqual({
-      blockId: expect.any(String),
-      tabId: 10,
-      targetUrl: 'https://fresh-blocked.com/focus',
-      blockedAt: expect.any(Number),
-      rulesVersion: 10,
-      blockedBy: {
-        filterId: 'fresh-filter',
-        groupId: DEFAULT_GROUP_ID,
-      },
+      status: 'blocked',
+      state: expect.objectContaining({
+        blockId: 'original-block',
+        targetUrl: 'https://still-blocked.com/focus',
+        blockedBy: {
+          filterId: 'original-filter',
+          groupId: DEFAULT_GROUP_ID,
+        },
+        filter: expect.objectContaining({ id: 'original-filter' }),
+      }),
     });
   });
 
-  it('re-evaluates a stale blocked page in place when rules change', async () => {
+  it('leaves a still-blocked page untouched when rules change', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(
       STORAGE_KEY,
@@ -335,7 +361,6 @@ describe('TabController', () => {
       tabId: 11,
       targetUrl: 'https://still-blocked.com/focus',
       blockedAt: Date.now(),
-      rulesVersion: 10,
       blockedBy: {
         filterId: 'still-blocking-filter',
         groupId: DEFAULT_GROUP_ID,
@@ -346,7 +371,6 @@ describe('TabController', () => {
       tabId: 11,
       targetUrl: 'https://still-blocked.com/focus',
       blockedAt: Date.now(),
-      rulesVersion: 10,
       blockedBy: {
         filterId: 'still-blocking-filter',
         groupId: DEFAULT_GROUP_ID,
@@ -369,23 +393,10 @@ describe('TabController', () => {
       },
     });
 
-    await expect(
-      getTabController().getFreshBlockedPageState(11, blockedPageUrl('stale-block'))
-    ).resolves.toEqual({
-      status: 'blocked',
-      state: expect.objectContaining({
-        targetUrl: 'https://still-blocked.com/focus',
-        rulesVersion: 11,
-        blockedBy: {
-          filterId: 'still-blocking-filter',
-          groupId: DEFAULT_GROUP_ID,
-        },
-      }),
-    });
+    await getTabController().evaluateNavigation(11, blockedPageUrl('stale-block'));
 
-    const refreshedState = await getBlockedTabState(11);
-    expect(refreshedState?.rulesVersion).toBe(11);
-    expect(refreshedState?.blockId).not.toBe('stale-block');
+    const state = await getBlockedTabState(11);
+    expect(state?.blockId).toBe('stale-block');
     expect(chromeMock.tabs.update).not.toHaveBeenCalled();
   });
 
@@ -422,7 +433,6 @@ describe('TabController', () => {
       tabId: 12,
       targetUrl: 'https://bypass.com/focus',
       blockedAt: Date.now(),
-      rulesVersion: 12,
       blockedBy: {
         filterId: 'bypassed-filter',
         groupId: DEFAULT_GROUP_ID,
@@ -433,7 +443,6 @@ describe('TabController', () => {
       tabId: 12,
       targetUrl: 'https://bypass.com/focus',
       blockedAt: Date.now(),
-      rulesVersion: 12,
       blockedBy: {
         filterId: 'bypassed-filter',
         groupId: DEFAULT_GROUP_ID,
@@ -511,7 +520,6 @@ describe('TabController', () => {
       tabId: 14,
       targetUrl: 'https://override.com/focus',
       blockedAt: Date.now(),
-      rulesVersion: 13,
       blockedBy: {
         filterId: 'original-filter',
         groupId: DEFAULT_GROUP_ID,
@@ -522,7 +530,6 @@ describe('TabController', () => {
       tabId: 14,
       targetUrl: 'https://override.com/focus',
       blockedAt: Date.now(),
-      rulesVersion: 13,
       blockedBy: {
         filterId: 'original-filter',
         groupId: DEFAULT_GROUP_ID,

@@ -27,9 +27,7 @@ import { getRulesProvider, type CurrentRules, type RulesProvider } from './rules
 
 interface ResolvedBlockedTarget {
   readonly targetUrl: string;
-  readonly blockId?: string;
   readonly tabId?: number;
-  readonly hasSessionState: boolean;
 }
 
 interface BlockedStateResult {
@@ -93,64 +91,27 @@ class TabController {
     return rules.engine.evaluate(url);
   }
 
-  async restoreIfAllowed(tabId: number, blockedPageUrl?: string): Promise<boolean> {
-    const resolvedTarget = await this.resolveBlockedTarget(tabId, blockedPageUrl);
-    if (!resolvedTarget) {
-      return false;
-    }
-
-    const rules = await this.getRules();
-    const decision = rules.engine.evaluate(resolvedTarget.targetUrl);
-    const bypassed =
-      decision.action === 'block' &&
-      (await this.isBypassed(tabId, resolvedTarget.targetUrl, decision));
-    if (decision.action === 'block' && !bypassed) {
-      await this.ensureBlockedState(tabId, resolvedTarget.targetUrl, decision, rules.data);
-      return false;
-    }
-
-    await updateTabUrl(tabId, resolvedTarget.targetUrl);
-    await this.allowTab(tabId, resolvedTarget.targetUrl, { preserveBypass: bypassed });
-    return true;
-  }
-
-  async getFreshBlockedTabState(
-    tabId: number,
-    blockedPageUrl?: string
-  ): Promise<BlockedTabState | undefined> {
-    if (!Number.isInteger(tabId)) {
-      return undefined;
-    }
-
-    const resolvedTarget = await this.resolveBlockedTarget(tabId, blockedPageUrl);
-    if (!resolvedTarget) {
-      return undefined;
-    }
-
-    const state = await this.ensureFreshBlockedState(tabId, resolvedTarget.targetUrl);
-    return state?.tabState;
-  }
-
-  async getFreshBlockedPageState(
+  /**
+   * Look up the snapshot captured when the tab was blocked. The snapshot is intentionally never
+   * re-evaluated against current settings; if the block ends, reconciliation redirects the tab.
+   */
+  async getBlockedPageStateForTab(
     tabId: number,
     blockedPageUrl?: string
   ): Promise<GetBlockedPageStateResponse> {
-    if (!Number.isInteger(tabId)) {
-      const blockId = parseBlockedPageBlockId(blockedPageUrl);
-      return blockId ? this.getBlockedPageStateByBlockId(blockId) : { status: 'unavailable' };
+    const blockId = parseBlockedPageBlockId(blockedPageUrl);
+    const stateByBlockId = blockId ? await getBlockedPageState(blockId) : undefined;
+    if (stateByBlockId) {
+      return { status: 'blocked', state: stateByBlockId };
     }
 
-    const resolvedTarget = await this.resolveBlockedTarget(tabId, blockedPageUrl);
-    if (!resolvedTarget) {
+    if (!Number.isInteger(tabId)) {
       return { status: 'unavailable' };
     }
 
-    const state = await this.ensureFreshBlockedState(tabId, resolvedTarget.targetUrl);
-    if (state) {
-      return { status: 'blocked', state: state.pageState };
-    }
-
-    return { status: 'allowed', targetUrl: resolvedTarget.targetUrl };
+    const tabState = await getBlockedTabState(tabId);
+    const pageState = tabState ? await getBlockedPageState(tabState.blockId) : undefined;
+    return pageState ? { status: 'blocked', state: pageState } : { status: 'unavailable' };
   }
 
   async getBlockedPageStateByBlockId(
@@ -273,6 +234,10 @@ class TabController {
     await this.evaluateNavigation(tabId, url);
   }
 
+  /**
+   * An open blocked tab keeps showing the snapshot captured when the block happened; the only
+   * settings-driven change is redirecting back to the target once the block ends.
+   */
   private async reconcileBlockedTab(tabId: number, blockedPageUrl?: string): Promise<void> {
     const resolvedTarget = await this.resolveBlockedTarget(tabId, blockedPageUrl);
     if (!resolvedTarget) {
@@ -284,23 +249,12 @@ class TabController {
     const bypassed =
       decision.action === 'block' &&
       (await this.isBypassed(tabId, resolvedTarget.targetUrl, decision));
-    if (decision.action !== 'block' || bypassed) {
-      if (resolvedTarget.hasSessionState) {
-        await updateTabUrl(tabId, resolvedTarget.targetUrl);
-        await this.allowTab(tabId, resolvedTarget.targetUrl, { preserveBypass: bypassed });
-      }
+    if (decision.action === 'block' && !bypassed) {
       return;
     }
 
-    const state = await this.ensureBlockedState(
-      tabId,
-      resolvedTarget.targetUrl,
-      decision,
-      rules.data
-    );
-    if (blockedPageUrl && parseBlockedPageBlockId(blockedPageUrl) !== state.tabState.blockId) {
-      await updateTabUrl(tabId, getBlockedPageUrl(state.tabState.blockId));
-    }
+    await updateTabUrl(tabId, resolvedTarget.targetUrl);
+    await this.allowTab(tabId, resolvedTarget.targetUrl, { preserveBypass: bypassed });
   }
 
   private async blockTab(
@@ -309,7 +263,7 @@ class TabController {
     decision: Extract<FilterDecision, { action: 'block' }>,
     data: StorageData
   ): Promise<void> {
-    const state = await this.setBlockedState(tabId, url, decision, data);
+    const state = await this.ensureBlockedState(tabId, url, decision, data);
     await updateTabUrl(tabId, getBlockedPageUrl(state.tabState.blockId));
   }
 
@@ -345,7 +299,6 @@ class TabController {
       tabId,
       targetUrl,
       blockedAt: Date.now(),
-      rulesVersion: data.rulesVersion,
       blockedBy: {
         filterId: decision.filterId,
         groupId: decision.groupId,
@@ -379,9 +332,7 @@ class TabController {
       if (pageState) {
         return {
           targetUrl: pageState.targetUrl,
-          blockId,
           tabId: pageState.tabId,
-          hasSessionState: true,
         };
       }
     }
@@ -389,28 +340,16 @@ class TabController {
     return existingState
       ? {
           targetUrl: existingState.targetUrl,
-          blockId: existingState.blockId,
           tabId: existingState.tabId,
-          hasSessionState: true,
         }
       : undefined;
   }
 
-  private async ensureFreshBlockedState(
-    tabId: number,
-    targetUrl: string,
-    currentRules?: CurrentRules
-  ): Promise<BlockedStateResult | undefined> {
-    const rules = currentRules ?? (await this.getRules());
-    const decision = rules.engine.evaluate(targetUrl);
-    if (decision.action !== 'block' || (await this.isBypassed(tabId, targetUrl, decision))) {
-      await clearBlockedTabState(tabId);
-      return undefined;
-    }
-
-    return this.ensureBlockedState(tabId, targetUrl, decision, rules.data);
-  }
-
+  /**
+   * Reuse the existing block for repeat navigations to the same target (e.g. the browser back
+   * button re-committing the blocked URL) so the tab returns to the same blocked page and keeps
+   * the snapshot from the original block instead of filtering again.
+   */
   private async ensureBlockedState(
     tabId: number,
     targetUrl: string,
@@ -418,10 +357,7 @@ class TabController {
     data: StorageData
   ): Promise<BlockedStateResult> {
     const existingState = await getBlockedTabState(tabId);
-    if (
-      existingState &&
-      isSameBlockedState(existingState, targetUrl, decision, data.rulesVersion)
-    ) {
+    if (existingState?.targetUrl === targetUrl) {
       const pageState = await getBlockedPageState(existingState.blockId);
       if (pageState) {
         return { tabState: existingState, pageState };
@@ -483,20 +419,6 @@ function getBlockedPageUrl(blockId: string): string {
 function createBlockId(): string {
   return (
     globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  );
-}
-
-function isSameBlockedState(
-  state: BlockedTabState,
-  targetUrl: string,
-  decision: Extract<FilterDecision, { action: 'block' }>,
-  rulesVersion: number
-): boolean {
-  return (
-    state.targetUrl === targetUrl &&
-    state.rulesVersion === rulesVersion &&
-    state.blockedBy.filterId === decision.filterId &&
-    state.blockedBy.groupId === decision.groupId
   );
 }
 

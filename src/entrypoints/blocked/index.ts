@@ -20,9 +20,6 @@ interface BlockedPageViewModel {
   readonly state?: BlockedPageState;
 }
 
-/** Once the user clicks "Learn more", keep the extras open across re-renders. */
-let learnMoreClicked = false;
-
 /**
  * Initialize blocked page
  */
@@ -43,7 +40,6 @@ async function init(): Promise<void> {
 
   const learnMoreButton = getElementByIdOrNull('learn-more');
   learnMoreButton?.addEventListener('click', () => {
-    learnMoreClicked = true;
     setExtrasExpanded(true);
   });
 
@@ -55,17 +51,13 @@ async function init(): Promise<void> {
     });
   });
 
-  chrome.storage.onChanged.addListener((_changes, areaName) => {
-    if (areaName !== 'sync' && areaName !== 'session') {
-      return;
-    }
-
-    void renderPage();
-  });
-
   await renderPage();
 }
 
+/**
+ * The page renders once from the snapshot captured at the time of the block and never reacts to
+ * later settings changes; if the block ends, the background redirects this tab to the target.
+ */
 async function renderPage(): Promise<void> {
   const state = await getBlockedPageState();
   renderBlockedUrl(state);
@@ -75,15 +67,10 @@ async function renderPage(): Promise<void> {
 }
 
 /**
- * Details and action buttons stay collapsed behind the "Learn more" link unless the user has
- * expanded them or the global "expand details by default" setting is enabled.
+ * Details and action buttons stay collapsed behind the "Learn more" link unless the global
+ * "expand details by default" setting is enabled.
  */
 async function renderExtrasExpansion(): Promise<void> {
-  if (learnMoreClicked) {
-    setExtrasExpanded(true);
-    return;
-  }
-
   let expandByDefault = false;
   try {
     const data = await loadData();
@@ -131,10 +118,6 @@ async function getBlockedPageState(): Promise<BlockedPageViewModel> {
         state: response.state,
       };
     }
-
-    if (response.status === 'allowed') {
-      return { targetUrl: response.targetUrl };
-    }
   } catch (error: unknown) {
     console.warn('[Teichos] Failed to load blocked tab state:', error);
   }
@@ -181,7 +164,6 @@ function getSampleBlockedPageState(): BlockedPageViewModel {
       targetUrl,
       blockedBy: { filterId: 'preview-filter', groupId: 'preview-group' },
       blockedAt: 0,
-      rulesVersion: 0,
       filter: {
         id: 'preview-filter',
         pattern: 'example.com',
@@ -211,10 +193,6 @@ function isBlockedPageStateResponse(response: unknown): response is GetBlockedPa
 
   if (response.status === 'unavailable') {
     return true;
-  }
-
-  if (response.status === 'allowed') {
-    return 'targetUrl' in response && typeof response.targetUrl === 'string';
   }
 
   return (

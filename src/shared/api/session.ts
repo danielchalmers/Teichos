@@ -64,7 +64,6 @@ function normalizeBlockedTabState(value: unknown): BlockedTabState | undefined {
     typeof candidate.tabId !== 'number' ||
     typeof candidate.targetUrl !== 'string' ||
     typeof candidate.blockedAt !== 'number' ||
-    typeof candidate.rulesVersion !== 'number' ||
     !candidate.blockedBy ||
     typeof candidate.blockedBy.filterId !== 'string' ||
     typeof candidate.blockedBy.groupId !== 'string'
@@ -77,7 +76,6 @@ function normalizeBlockedTabState(value: unknown): BlockedTabState | undefined {
     tabId: candidate.tabId,
     targetUrl: candidate.targetUrl,
     blockedAt: candidate.blockedAt,
-    rulesVersion: candidate.rulesVersion,
     blockedBy: {
       filterId: candidate.blockedBy.filterId,
       groupId: candidate.blockedBy.groupId,

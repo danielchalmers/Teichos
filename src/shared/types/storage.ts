@@ -67,7 +67,6 @@ export interface BlockedTabState {
   readonly targetUrl: string;
   readonly blockedBy: BlockedBy;
   readonly blockedAt: number;
-  readonly rulesVersion: number;
 }
 
 export interface BlockedFilterSnapshot {

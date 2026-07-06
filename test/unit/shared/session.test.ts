@@ -34,7 +34,6 @@ describe('shared/api/session', () => {
       tabId: 7,
       targetUrl: 'https://blocked.com/focus',
       blockedAt: 1234,
-      rulesVersion: 5,
       blockedBy: {
         filterId: 'filter-1',
         groupId: 'group-1',
@@ -46,7 +45,6 @@ describe('shared/api/session', () => {
       tabId: 7,
       targetUrl: 'https://blocked.com/focus',
       blockedAt: 1234,
-      rulesVersion: 5,
       blockedBy: {
         filterId: 'filter-1',
         groupId: 'group-1',
@@ -63,7 +61,6 @@ describe('shared/api/session', () => {
       tabId: 3,
       targetUrl: 'https://blocked.com/focus',
       blockedAt: 1234,
-      rulesVersion: 6,
       blockedBy: {
         filterId: 'filter-1',
         groupId: 'group-1',
@@ -93,7 +90,6 @@ describe('shared/api/session', () => {
       tabId: 3,
       targetUrl: 'https://blocked.com/focus',
       blockedAt: 1234,
-      rulesVersion: 6,
       blockedBy: {
         filterId: 'filter-1',
         groupId: 'group-1',
