@@ -72,6 +72,10 @@
   --snooze-bg: rgba(172, 210, 246, 0.4);
   --snooze-border: rgba(196, 243, 255, 0.9);
   --snooze-text: #24306f;
+  --status-active: #34c76f;
+  --status-active-glow: rgba(52, 199, 111, 0.22);
+  --status-snoozed: #f0a72c;
+  --status-snoozed-glow: rgba(240, 167, 44, 0.24);
 
   --info-badge-bg: #303a8f;
   --info-badge-text: #f7f8ff;
@@ -147,6 +151,10 @@
     --snooze-bg: rgba(172, 210, 246, 0.3);
     --snooze-border: rgba(196, 243, 255, 0.5);
     --snooze-text: #e7f3ff;
+    --status-active: #4ade80;
+    --status-active-glow: rgba(74, 222, 128, 0.25);
+    --status-snoozed: #fbbf24;
+    --status-snoozed-glow: rgba(251, 191, 36, 0.26);
 
     --info-badge-bg: #323a8f;
     --info-badge-text: #f0f2ff;

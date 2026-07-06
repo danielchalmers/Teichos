@@ -44,52 +44,20 @@
         aria-controls="snooze-dialog"
         title="Snooze filtering"
       >
-        <svg
-          class="snooze-icon snooze-icon-off"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path
-            d="M9.25 12.2l2.1 2.15 3.4-4.4"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="2" />
-        </svg>
-        <svg
-          class="snooze-icon snooze-icon-on"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path
-            d="M12 7.25v4.8l3.4 2.15"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-          <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="2" />
-        </svg>
-        <span class="snooze-status">
-          <span class="snooze-status-heading">Filtering</span>
-          <span class="snooze-trigger-text" id="snooze-label">Active</span>
-        </span>
-        <span class="snooze-chevron" aria-hidden="true">
-          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="snooze-trigger-text" id="snooze-label">Active</span>
+        <span class="snooze-hint" aria-hidden="true">
+          <svg class="snooze-hint-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path
-              d="M5.5 3.5L10 8l-4.5 4.5"
+              d="M12 7.25v4.8l3.4 2.15"
               fill="none"
               stroke="currentColor"
-              stroke-width="1.8"
+              stroke-width="2"
               stroke-linecap="round"
-              stroke-linejoin="round"
             />
+            <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="2" />
           </svg>
+          Snooze
         </span>
       </button>
       <div class="snooze-dialog" id="snooze-dialog" aria-hidden="true" inert>
