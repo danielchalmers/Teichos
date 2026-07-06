@@ -1,21 +1,20 @@
 import {
   clearBlockedTabState,
-  clearWarningBypassState,
+  clearBypassState,
   getBlockedPageState,
   getBlockedTabState,
+  getBypassState,
   getLastAllowedUrl,
-  getWarningBypassState,
   setBlockedPageState,
   setBlockedTabState,
+  setBypassState,
   setLastAllowedUrl,
-  setWarningBypassState,
 } from '../shared/api/session';
 import { getActiveTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
 import { getExtensionUrl } from '../shared/api/runtime';
 import { PAGES } from '../shared/constants';
 import type { FilterDecision } from '../shared/filtering/engine';
 import {
-  type BlockType,
   type BlockedPageState,
   STORAGE_KEY,
   type BlockedTabState,
@@ -77,11 +76,8 @@ class TabController {
     const decision = rules.engine.evaluate(url);
 
     if (decision.action === 'block') {
-      if (
-        decision.blockType === 'warning' &&
-        (await this.isWarningBypassed(tabId, url, decision))
-      ) {
-        await this.allowTab(tabId, url, { preserveWarningBypass: true });
+      if (await this.isBypassed(tabId, url, decision)) {
+        await this.allowTab(tabId, url, { preserveBypass: true });
         return;
       }
 
@@ -107,15 +103,14 @@ class TabController {
     const decision = rules.engine.evaluate(resolvedTarget.targetUrl);
     const bypassed =
       decision.action === 'block' &&
-      decision.blockType === 'warning' &&
-      (await this.isWarningBypassed(tabId, resolvedTarget.targetUrl, decision));
+      (await this.isBypassed(tabId, resolvedTarget.targetUrl, decision));
     if (decision.action === 'block' && !bypassed) {
       await this.ensureBlockedState(tabId, resolvedTarget.targetUrl, decision, rules.data);
       return false;
     }
 
     await updateTabUrl(tabId, resolvedTarget.targetUrl);
-    await this.allowTab(tabId, resolvedTarget.targetUrl, { preserveWarningBypass: bypassed });
+    await this.allowTab(tabId, resolvedTarget.targetUrl, { preserveBypass: bypassed });
     return true;
   }
 
@@ -248,14 +243,14 @@ class TabController {
     const targetTabId = resolvedTarget.tabId ?? tabId;
     const rules = await this.getRules();
     const decision = rules.engine.evaluate(resolvedTarget.targetUrl);
-    if (decision.action !== 'block' || decision.blockType !== 'warning') {
+    if (decision.action !== 'block') {
       return false;
     }
 
     await Promise.all([
-      setWarningBypassState(targetTabId, {
+      setBypassState(targetTabId, {
         filterId: decision.filterId,
-        urlKey: getWarningBypassUrlKey(resolvedTarget.targetUrl),
+        urlKey: getBypassUrlKey(resolvedTarget.targetUrl),
       }),
       clearBlockedTabState(targetTabId),
       setLastAllowedUrl(targetTabId, resolvedTarget.targetUrl),
@@ -288,12 +283,11 @@ class TabController {
     const decision = rules.engine.evaluate(resolvedTarget.targetUrl);
     const bypassed =
       decision.action === 'block' &&
-      decision.blockType === 'warning' &&
-      (await this.isWarningBypassed(tabId, resolvedTarget.targetUrl, decision));
+      (await this.isBypassed(tabId, resolvedTarget.targetUrl, decision));
     if (decision.action !== 'block' || bypassed) {
       if (resolvedTarget.hasSessionState) {
         await updateTabUrl(tabId, resolvedTarget.targetUrl);
-        await this.allowTab(tabId, resolvedTarget.targetUrl, { preserveWarningBypass: bypassed });
+        await this.allowTab(tabId, resolvedTarget.targetUrl, { preserveBypass: bypassed });
       }
       return;
     }
@@ -322,17 +316,17 @@ class TabController {
   private async allowTab(
     tabId: number,
     url: string,
-    options?: { readonly preserveWarningBypass?: boolean }
+    options?: { readonly preserveBypass?: boolean }
   ): Promise<void> {
     const operations: Promise<void>[] = [
       clearBlockedTabState(tabId),
       setLastAllowedUrl(tabId, url),
     ];
 
-    if (!options?.preserveWarningBypass) {
-      const warningBypass = await getWarningBypassState(tabId);
-      if (warningBypass && warningBypass.urlKey !== getWarningBypassUrlKey(url)) {
-        operations.push(clearWarningBypassState(tabId));
+    if (!options?.preserveBypass) {
+      const bypass = await getBypassState(tabId);
+      if (bypass && bypass.urlKey !== getBypassUrlKey(url)) {
+        operations.push(clearBypassState(tabId));
       }
     }
 
@@ -345,13 +339,11 @@ class TabController {
     decision: Extract<FilterDecision, { action: 'block' }>,
     data: StorageData
   ): Promise<BlockedStateResult> {
-    const blockType = getDecisionBlockType(decision);
     const blockId = createBlockId();
     const tabState: BlockedTabState = {
       blockId,
       tabId,
       targetUrl,
-      blockType,
       blockedAt: Date.now(),
       rulesVersion: data.rulesVersion,
       blockedBy: {
@@ -411,11 +403,7 @@ class TabController {
   ): Promise<BlockedStateResult | undefined> {
     const rules = currentRules ?? (await this.getRules());
     const decision = rules.engine.evaluate(targetUrl);
-    if (
-      decision.action !== 'block' ||
-      (decision.blockType === 'warning' &&
-        (await this.isWarningBypassed(tabId, targetUrl, decision)))
-    ) {
+    if (decision.action !== 'block' || (await this.isBypassed(tabId, targetUrl, decision))) {
       await clearBlockedTabState(tabId);
       return undefined;
     }
@@ -458,20 +446,13 @@ class TabController {
     return this.rulesProvider.loadCurrentRules();
   }
 
-  private async isWarningBypassed(
+  private async isBypassed(
     tabId: number,
     targetUrl: string,
     decision: Extract<FilterDecision, { action: 'block' }>
   ): Promise<boolean> {
-    if (decision.blockType !== 'warning') {
-      return false;
-    }
-
-    const warningBypass = await getWarningBypassState(tabId);
-    return (
-      warningBypass?.filterId === decision.filterId &&
-      warningBypass.urlKey === getWarningBypassUrlKey(targetUrl)
-    );
+    const bypass = await getBypassState(tabId);
+    return bypass?.filterId === decision.filterId && bypass.urlKey === getBypassUrlKey(targetUrl);
   }
 }
 
@@ -505,15 +486,6 @@ function createBlockId(): string {
   );
 }
 
-function getDecisionBlockType(decision: Extract<FilterDecision, { action: 'block' }>): BlockType {
-  const candidate = (decision as { readonly blockType?: unknown }).blockType;
-  return isBlockType(candidate) ? candidate : 'block';
-}
-
-function isBlockType(value: unknown): value is BlockType {
-  return value === 'block' || value === 'warning';
-}
-
 function isSameBlockedState(
   state: BlockedTabState,
   targetUrl: string,
@@ -524,12 +496,11 @@ function isSameBlockedState(
     state.targetUrl === targetUrl &&
     state.rulesVersion === rulesVersion &&
     state.blockedBy.filterId === decision.filterId &&
-    state.blockedBy.groupId === decision.groupId &&
-    state.blockType === getDecisionBlockType(decision)
+    state.blockedBy.groupId === decision.groupId
   );
 }
 
-function getWarningBypassUrlKey(targetUrl: string): string {
+function getBypassUrlKey(targetUrl: string): string {
   try {
     const parsed = new URL(targetUrl);
     return parsed.origin !== 'null' ? parsed.origin : targetUrl;

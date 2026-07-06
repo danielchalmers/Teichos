@@ -103,23 +103,22 @@ test('renders the blocked url and responsible filter from block id state', async
   await expect(page.getByLabel('Responsible filter')).toContainText('blocked-state.example.test');
 });
 
-test('warning blocks show Continue and allow same-tab bypass', async ({ extensionPage, page }) => {
-  const targetUrl = 'https://warning-bypass.example.test/warning-focus';
-  await mockAllowedPage(page, targetUrl, 'Warning bypass allowed');
+test('blocked pages show Continue and allow same-tab bypass', async ({ extensionPage, page }) => {
+  const targetUrl = 'https://bypass.example.test/bypass-focus';
+  await mockAllowedPage(page, targetUrl, 'Bypass allowed');
 
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(
     page,
     createStorageData({
-      blockType: 'warning',
       filters: [
         {
-          id: 'warning-filter',
-          pattern: 'warning-bypass.example.test/warning',
+          id: 'bypass-filter',
+          pattern: 'bypass.example.test/bypass',
           groupId: defaultGroup.id,
           enabled: true,
           matchMode: 'contains',
-          description: 'Warning Filter',
+          description: 'Bypass Filter',
         },
       ],
     })
@@ -134,19 +133,14 @@ test('warning blocks show Continue and allow same-tab bypass', async ({ extensio
   await expectAllowed(page, targetUrl);
 });
 
-test('renders a sample block for each preview block type', async ({ extensionPage, page }) => {
-  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=block`);
+test('renders a sample block in preview mode', async ({ extensionPage, page }) => {
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=1`);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText('https://www.example.com/');
   await showBlockPageDetails(page);
   await expect(page.getByLabel('Responsible filter')).toContainText('Example filter');
   await expect(page.getByLabel('Responsible filter')).toContainText('example.com');
   await expect(page.getByLabel('Responsible filter')).toContainText('Example group');
-  await expect(page.locator('#continue')).toBeHidden();
-
-  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=warning`);
-  await expect(page.getByLabel('Blocked URL')).toHaveText('https://www.example.com/');
-  await showBlockPageDetails(page);
   await expect(page.locator('#continue')).toBeVisible();
 });
 
@@ -154,7 +148,7 @@ test('hides details and actions behind the Learn more link by default', async ({
   extensionPage,
   page,
 }) => {
-  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=block`);
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=1`);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
 
   const learnMore = page.getByRole('button', { name: 'Learn more' });
@@ -181,7 +175,7 @@ test('expands details by default when the global setting is enabled', async ({
   await page.locator('#global-expand-details').check();
   await expect.poll(async () => (await readStorage(page))?.expandBlockPageDetails).toBe(true);
 
-  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=block`);
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=1`);
   await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toBeVisible();
   await expect(page.getByLabel('Responsible filter')).toBeVisible();
@@ -196,7 +190,6 @@ test('previews the block page from the options global settings', async ({
 }) => {
   await page.goto(extensionPage(PAGES.OPTIONS));
   await waitForOptionsReady(page);
-  await page.locator('#global-block-type').selectOption('warning');
 
   const previewPagePromise = context.waitForEvent('page');
   await page.getByRole('button', { name: 'Preview Block Page' }).click();

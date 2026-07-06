@@ -3,23 +3,22 @@
  */
 
 import type {
-  BlockType,
   BlockedEffectiveState,
   BlockedFilterSnapshot,
   BlockedGroupSnapshot,
   BlockedPageState,
   BlockedTabState,
+  BypassState,
   FilterMatchMode,
   SnoozeState,
   TimeSchedule,
-  WarningBypassState,
 } from '../types';
 
 const LAST_ALLOWED_URL_KEY_PREFIX = 'last_allowed_url_' as const;
 const SNOOZE_OVERRIDE_KEY = 'snooze_override' as const;
 const BLOCKED_TAB_STATE_KEY_PREFIX = 'blocked_tab_state_' as const;
 const BLOCKED_PAGE_STATE_KEY_PREFIX = 'blocked_page_state_' as const;
-const WARNING_BYPASS_KEY_PREFIX = 'warning_bypass_' as const;
+const BYPASS_KEY_PREFIX = 'bypass_' as const;
 
 function lastAllowedUrlKey(tabId: number): string {
   return `${LAST_ALLOWED_URL_KEY_PREFIX}${tabId}`;
@@ -33,8 +32,8 @@ function blockedPageStateKey(blockId: string): string {
   return `${BLOCKED_PAGE_STATE_KEY_PREFIX}${blockId}`;
 }
 
-function warningBypassKey(tabId: number): string {
-  return `${WARNING_BYPASS_KEY_PREFIX}${tabId}`;
+function bypassKey(tabId: number): string {
+  return `${BYPASS_KEY_PREFIX}${tabId}`;
 }
 
 /**
@@ -64,7 +63,6 @@ function normalizeBlockedTabState(value: unknown): BlockedTabState | undefined {
     typeof candidate.blockId !== 'string' ||
     typeof candidate.tabId !== 'number' ||
     typeof candidate.targetUrl !== 'string' ||
-    !isBlockType(candidate.blockType) ||
     typeof candidate.blockedAt !== 'number' ||
     typeof candidate.rulesVersion !== 'number' ||
     !candidate.blockedBy ||
@@ -78,7 +76,6 @@ function normalizeBlockedTabState(value: unknown): BlockedTabState | undefined {
     blockId: candidate.blockId,
     tabId: candidate.tabId,
     targetUrl: candidate.targetUrl,
-    blockType: candidate.blockType,
     blockedAt: candidate.blockedAt,
     rulesVersion: candidate.rulesVersion,
     blockedBy: {
@@ -102,12 +99,12 @@ export async function clearBlockedTabState(tabId: number): Promise<void> {
   await chrome.storage.session.remove(blockedTabStateKey(tabId));
 }
 
-function normalizeWarningBypassState(value: unknown): WarningBypassState | undefined {
+function normalizeBypassState(value: unknown): BypassState | undefined {
   if (!value || typeof value !== 'object') {
     return undefined;
   }
 
-  const candidate = value as Partial<WarningBypassState>;
+  const candidate = value as Partial<BypassState>;
   if (typeof candidate.filterId !== 'string' || typeof candidate.urlKey !== 'string') {
     return undefined;
   }
@@ -118,27 +115,18 @@ function normalizeWarningBypassState(value: unknown): WarningBypassState | undef
   };
 }
 
-export async function setWarningBypassState(
-  tabId: number,
-  state: WarningBypassState
-): Promise<void> {
-  await chrome.storage.session.set({ [warningBypassKey(tabId)]: state });
+export async function setBypassState(tabId: number, state: BypassState): Promise<void> {
+  await chrome.storage.session.set({ [bypassKey(tabId)]: state });
 }
 
-export async function getWarningBypassState(
-  tabId: number
-): Promise<WarningBypassState | undefined> {
-  const key = warningBypassKey(tabId);
+export async function getBypassState(tabId: number): Promise<BypassState | undefined> {
+  const key = bypassKey(tabId);
   const result = await chrome.storage.session.get(key);
-  return normalizeWarningBypassState(result[key]);
+  return normalizeBypassState(result[key]);
 }
 
-export async function clearWarningBypassState(tabId: number): Promise<void> {
-  await chrome.storage.session.remove(warningBypassKey(tabId));
-}
-
-function isBlockType(value: unknown): value is BlockType {
-  return value === 'block' || value === 'warning';
+export async function clearBypassState(tabId: number): Promise<void> {
+  await chrome.storage.session.remove(bypassKey(tabId));
 }
 
 function isFilterMatchMode(value: unknown): value is FilterMatchMode {

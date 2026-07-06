@@ -3,7 +3,6 @@ import { DEFAULT_GROUP_ID } from '../types';
 import { getRegexValidationError } from '../filtering/patterns';
 import {
   isObject,
-  isValidBlockType,
   isValidFilterLike,
   isValidGroup,
   isValidSnooze,
@@ -117,10 +116,6 @@ function validateImportedStorageShape(raw: JsonObject): void {
 
   if (!isOptionalFiniteNumber(raw['rulesVersion'])) {
     throw new Error('Settings file contains an invalid rules version.');
-  }
-
-  if (raw['blockType'] !== undefined && !isValidBlockType(raw['blockType'])) {
-    throw new Error('Settings file contains an invalid block type.');
   }
 
   if (

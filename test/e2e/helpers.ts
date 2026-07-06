@@ -26,7 +26,6 @@ export function createStorageData(overrides: Partial<StorageData> = {}): Storage
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
-    blockType: overrides.blockType ?? 'block',
     expandBlockPageDetails: overrides.expandBlockPageDetails ?? false,
     rulesVersion: overrides.rulesVersion ?? 0,
   };
@@ -129,7 +128,6 @@ export async function createFilterViaOptions(
     name?: string;
     pattern: string;
     matchMode?: 'contains' | 'exact' | 'regex';
-    blockType?: 'default' | 'block' | 'warning';
     enabled?: boolean;
   }
 ): Promise<void> {
@@ -145,7 +143,6 @@ export async function createFilterViaOptions(
   await modal.locator('#filter-description').fill(filter.name ?? '');
   await modal.locator('#filter-pattern').fill(filter.pattern);
   await modal.locator('#filter-match-mode').selectOption(filter.matchMode ?? 'contains');
-  await modal.locator('#filter-block-type').selectOption(filter.blockType ?? 'default');
 
   const enabled = filter.enabled ?? true;
   const enabledInput = modal.getByLabel('Enabled');

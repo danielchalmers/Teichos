@@ -12,7 +12,6 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     filters: overrides.filters ?? [],
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
-    blockType: overrides.blockType ?? 'block',
     rulesVersion: overrides.rulesVersion ?? 0,
   };
 }
@@ -52,7 +51,6 @@ describe('RulesProvider', () => {
       action: 'block',
       filterId: 'filter-1',
       groupId: DEFAULT_GROUP_ID,
-      blockType: 'block',
       reason: 'matched-filter',
     });
   });
@@ -156,21 +154,18 @@ describe('RulesProvider', () => {
       action: 'block',
       filterId: 'stale-filter',
       groupId: DEFAULT_GROUP_ID,
-      blockType: 'block',
       reason: 'matched-filter',
     });
     expect(refreshedRules.engine.evaluate('https://fresh.example')).toEqual({
       action: 'block',
       filterId: 'fresh-filter',
       groupId: DEFAULT_GROUP_ID,
-      blockType: 'block',
       reason: 'matched-filter',
     });
     expect(cachedRules.engine.evaluate('https://fresh.example')).toEqual({
       action: 'block',
       filterId: 'fresh-filter',
       groupId: DEFAULT_GROUP_ID,
-      blockType: 'block',
       reason: 'matched-filter',
     });
     expect(cachedRules.engine.evaluate('https://stale.example')).toEqual({
@@ -210,7 +205,6 @@ describe('RulesProvider', () => {
       action: 'block',
       filterId: 'filter-2',
       groupId: DEFAULT_GROUP_ID,
-      blockType: 'block',
       reason: 'matched-filter',
     });
   });
@@ -228,7 +222,6 @@ describe('RulesProvider', () => {
       filters: [],
       whitelist: [],
       snooze: { active: false },
-      blockType: 'block',
       expandBlockPageDetails: false,
       rulesVersion: 0,
     });

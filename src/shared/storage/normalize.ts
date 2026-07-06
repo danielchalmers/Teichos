@@ -1,7 +1,5 @@
 import type {
-  BlockType,
   Filter,
-  FilterBlockType,
   FilterGroup,
   FilterMatchMode,
   SnoozeState,
@@ -10,11 +8,10 @@ import type {
 } from '../types';
 import { DEFAULT_GROUP_ID } from '../types';
 import { createDefaultData, createDefaultGroup } from './defaults';
-import { isValidBlockType, isValidFilterBlockType } from './guards';
 
 export type LegacyFilter = Omit<Filter, 'matchMode'> & {
   readonly matchMode?: FilterMatchMode;
-  readonly blockType?: FilterBlockType;
+  readonly blockType?: string;
   readonly isRegex?: boolean;
 };
 
@@ -29,7 +26,7 @@ export interface LegacyStorageData {
   readonly filters?: readonly LegacyFilter[];
   readonly whitelist?: readonly LegacyWhitelist[];
   readonly rulesVersion?: number;
-  readonly blockType?: BlockType;
+  readonly blockType?: string;
   readonly expandBlockPageDetails?: boolean;
   readonly snooze?: {
     readonly active?: boolean;
@@ -48,10 +45,10 @@ function resolveMatchMode(
 }
 
 function normalizeFilters(filters: readonly LegacyFilter[] | undefined): Filter[] {
-  return (filters ?? []).map(({ isRegex, matchMode, blockType, ...filter }) => ({
+  // blockType is a retired per-filter setting; strip it from legacy data.
+  return (filters ?? []).map(({ isRegex, matchMode, blockType: _blockType, ...filter }) => ({
     ...filter,
     matchMode: resolveMatchMode(matchMode, isRegex),
-    blockType: isValidFilterBlockType(blockType) ? blockType : 'default',
   }));
 }
 
@@ -99,7 +96,6 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
     typeof raw.rulesVersion === 'number' && Number.isFinite(raw.rulesVersion)
       ? raw.rulesVersion
       : 0;
-  const blockType = isValidBlockType(raw.blockType) ? raw.blockType : 'block';
   const expandBlockPageDetails = raw.expandBlockPageDetails === true;
 
   return {
@@ -107,7 +103,6 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
     filters,
     whitelist,
     snooze,
-    blockType,
     expandBlockPageDetails,
     rulesVersion,
   };
