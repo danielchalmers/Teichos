@@ -101,7 +101,7 @@ async function handleGetBlockedPageState(
 ): Promise<void> {
   const senderTabId = sender.tab?.id;
   if (typeof senderTabId === 'number') {
-    sendResponse(await getTabController().getFreshBlockedPageState(senderTabId, sender.tab?.url));
+    sendResponse(await getTabController().getBlockedPageStateForTab(senderTabId, sender.tab?.url));
     return;
   }
 

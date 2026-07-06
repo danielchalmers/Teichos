@@ -62,10 +62,6 @@ export type GetBlockedPageStateResponse =
       readonly state: BlockedPageState;
     }
   | {
-      readonly status: 'allowed';
-      readonly targetUrl: string;
-    }
-  | {
       readonly status: 'unavailable';
     };
 
