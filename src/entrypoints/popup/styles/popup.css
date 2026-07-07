@@ -48,6 +48,7 @@ body {
 
 .header .app-title {
   font-size: 1.2rem;
+  flex-shrink: 0;
 }
 
 .header .app-icon {
@@ -59,6 +60,11 @@ body {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  min-width: 0;
+}
+
+.header-actions .header-icon-button {
+  flex-shrink: 0;
 }
 
 .header-icon-button {
@@ -97,50 +103,54 @@ body {
   outline-offset: 2px;
 }
 
-/* Status bar: filtering state / snooze entry point */
-.status-bar {
+/* Snooze chip in the header */
+.snooze-popover {
   position: relative;
-  padding: 0.5rem 0.5rem 0;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .snooze-button {
-  width: 100%;
-  min-height: 40px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text-primary);
-  display: flex;
+  border: 1px solid var(--header-control-border);
+  border-radius: 999px;
+  background: var(--header-control-bg);
+  color: var(--header-text);
+  display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  padding: 0 0.8rem;
+  gap: 0.4rem;
+  height: 30px;
+  max-width: 100%;
+  padding: 0 0.7rem;
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   font-weight: 600;
   cursor: pointer;
   transition:
     background 0.2s,
-    border-color 0.2s;
+    border-color 0.2s,
+    transform 0.2s;
 }
 
 .snooze-button:hover {
-  background: var(--panel-soft-hover);
-  border-color: var(--panel-soft-border);
+  background: var(--header-control-bg-hover);
+  border-color: var(--header-control-border-hover);
+}
+
+.snooze-button:active {
+  transform: scale(0.96);
 }
 
 .snooze-button:focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--header-focus-ring);
   outline-offset: 2px;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex: 0 0 auto;
   background: var(--status-active);
-  box-shadow: 0 0 0 3px var(--status-active-glow);
+  box-shadow: 0 0 0 2.5px var(--status-active-glow);
 }
 
 .snooze-trigger-text {
@@ -151,27 +161,6 @@ body {
   line-height: 1;
 }
 
-.snooze-hint {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 500;
-  line-height: 1;
-}
-
-.snooze-hint-icon {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-}
-
-.snooze-button:hover .snooze-hint {
-  color: var(--text-secondary);
-}
-
 .snooze-trigger.is-snoozed {
   background: var(--snooze-bg);
   border-color: var(--snooze-border);
@@ -180,12 +169,7 @@ body {
 
 .snooze-trigger.is-snoozed .status-dot {
   background: var(--status-snoozed);
-  box-shadow: 0 0 0 3px var(--status-snoozed-glow);
-}
-
-.snooze-trigger.is-snoozed .snooze-hint {
-  color: inherit;
-  opacity: 0.75;
+  box-shadow: 0 0 0 2.5px var(--status-snoozed-glow);
 }
 
 /* Dialog overlays (snooze + quick add share the pattern) */
