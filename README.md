@@ -7,6 +7,8 @@
 
 Block distracting websites with smart scheduling and filters.
 
+<img width="400" height="600" alt="Main popup view" src="https://github.com/user-attachments/assets/341bfd96-aec8-4d04-9369-bbbfb4b57f31" />
+
 ## 📖 Usage
 
 ### Adding Filters
