@@ -11,6 +11,7 @@ import {
   exportData,
   importData,
   updateData,
+  SettingsSaveError,
   addGroup,
   updateGroup,
   deleteGroup,
@@ -341,7 +342,10 @@ async function handleGlobalExpandDetailsChange(): Promise<void> {
     setGlobalSettingsStatus('Block page details preference updated.');
   } catch (error) {
     console.error('Failed to update block page details preference:', error);
-    setGlobalSettingsStatus('Failed to update block page details preference.', true);
+    setGlobalSettingsStatus(
+      describeSaveError(error, 'Failed to update block page details preference.'),
+      true
+    );
     renderGlobalSettings(await loadData());
   }
 }
@@ -652,6 +656,14 @@ function createEmptyState(message: string): HTMLParagraphElement {
   return element;
 }
 
+/**
+ * Prefer the storage layer's user-actionable save message (sync quota, concurrent edit) over a
+ * generic fallback so users are not told to retry an operation that can never succeed.
+ */
+function describeSaveError(error: unknown, fallback: string): string {
+  return error instanceof SettingsSaveError ? error.message : fallback;
+}
+
 function getMatchModeSelectValue(selectId: string): FilterMatchMode {
   const value = getElementByIdOrNull<HTMLSelectElement>(selectId)?.value;
   if (value === 'contains' || value === 'exact' || value === 'regex') {
@@ -879,7 +891,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     await renderGroups();
   } catch (error) {
     console.error('Failed to save filter:', error);
-    alert('Failed to save filter. Please try again.');
+    alert(describeSaveError(error, 'Failed to save filter. Please try again.'));
   }
 }
 
@@ -992,7 +1004,7 @@ async function handleGroupSubmit(e: Event): Promise<void> {
     await renderGroups();
   } catch (error) {
     console.error('Failed to save group:', error);
-    alert('Failed to save group. Please try again.');
+    alert(describeSaveError(error, 'Failed to save group. Please try again.'));
   }
 }
 
@@ -1098,7 +1110,7 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
     await renderGroups();
   } catch (error) {
     console.error('Failed to save exception:', error);
-    alert('Failed to save exception. Please try again.');
+    alert(describeSaveError(error, 'Failed to save exception. Please try again.'));
   }
 }
 

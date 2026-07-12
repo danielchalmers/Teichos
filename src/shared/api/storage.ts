@@ -15,6 +15,29 @@ export { normalizeStoredData };
 export { serializeDataForExport, parseImportedData };
 
 /**
+ * A settings write failed for a reason the user can act on; the message is safe to display.
+ */
+export class SettingsSaveError extends Error {}
+
+const SYNC_QUOTA_MESSAGE =
+  'Browser sync storage is full, so the change could not be saved. Remove some filters or exceptions, or shorten long patterns, and try again.';
+
+function isSyncQuotaError(error: unknown): boolean {
+  return error instanceof Error && /quota.?bytes|quota exceeded/i.test(error.message);
+}
+
+async function writeStorageData(payload: StorageData): Promise<void> {
+  try {
+    await chrome.storage.sync.set({ [STORAGE_KEY]: payload });
+  } catch (error) {
+    if (isSyncQuotaError(error)) {
+      throw new SettingsSaveError(SYNC_QUOTA_MESSAGE);
+    }
+    throw error;
+  }
+}
+
+/**
  * Load storage data from chrome.storage.sync
  */
 export async function loadData(): Promise<StorageData> {
@@ -38,11 +61,9 @@ export async function saveData(data: StorageData): Promise<void> {
       ? data.rulesVersion
       : 0);
 
-  await chrome.storage.sync.set({
-    [STORAGE_KEY]: {
-      ...data,
-      rulesVersion: previousRulesVersion + 1,
-    },
+  await writeStorageData({
+    ...data,
+    rulesVersion: previousRulesVersion + 1,
   });
 }
 
@@ -67,11 +88,9 @@ async function saveDataIfUnchanged(
     return false;
   }
 
-  await chrome.storage.sync.set({
-    [STORAGE_KEY]: {
-      ...data,
-      rulesVersion: (storedRulesVersion ?? expectedRulesVersion) + 1,
-    },
+  await writeStorageData({
+    ...data,
+    rulesVersion: (storedRulesVersion ?? expectedRulesVersion) + 1,
   });
   return true;
 }
@@ -99,7 +118,7 @@ export async function updateData(
     }
   }
 
-  throw new Error('Settings changed in another window while saving. Please try again.');
+  throw new SettingsSaveError('Settings changed in another window while saving. Please try again.');
 }
 
 export async function importData(serialized: string): Promise<StorageData> {

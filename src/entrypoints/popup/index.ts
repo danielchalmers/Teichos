@@ -10,6 +10,7 @@ import {
   setSnooze,
   updateData,
   updateFilter,
+  SettingsSaveError,
 } from '../../shared/api/storage';
 import { sendExtensionMessage } from '../../shared/api/messaging';
 import { openOptionsPage, openOptionsPageWithParams } from '../../shared/api/runtime';
@@ -580,7 +581,9 @@ async function handleQuickAddSubmit(
     onClose();
   } catch (error) {
     console.error('Failed to add temporary filter:', error);
-    announceStatus('Failed to add temporary filter.');
+    announceStatus(
+      error instanceof SettingsSaveError ? error.message : 'Failed to add temporary filter.'
+    );
   }
 }
 

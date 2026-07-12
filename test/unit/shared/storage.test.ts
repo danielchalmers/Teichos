@@ -7,6 +7,7 @@ import {
   loadData,
   saveData,
   updateData,
+  SettingsSaveError,
   addGroup,
   updateGroup,
   deleteGroup,
@@ -314,6 +315,24 @@ describe('storage', () => {
         ...testData,
         rulesVersion: 1,
       });
+    });
+
+    it('maps sync quota rejections to an actionable SettingsSaveError', async () => {
+      const chromeMock = getChromeMock();
+      chromeMock.storage.sync.set.mockRejectedValueOnce(
+        new Error('Resource::kQuotaBytesPerItem quota exceeded')
+      );
+
+      const testData = {
+        groups: [createDefaultGroup()],
+        filters: [],
+        whitelist: [],
+        snooze: { active: false },
+        rulesVersion: 0,
+      };
+
+      await expect(saveData(testData)).rejects.toThrow(SettingsSaveError);
+      await expect(saveData({ ...testData })).resolves.toBeUndefined();
     });
   });
 
