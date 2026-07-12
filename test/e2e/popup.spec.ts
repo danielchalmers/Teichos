@@ -178,6 +178,9 @@ test('supports quick-add suggestions, validation, duration units, and the full e
   page,
 }) => {
   const currentTabUrl = 'https://suggested-current-tab.example.test/focus';
+  // The suggestion is the hostname only; a full URL as a "contains" pattern
+  // would match just that exact page instead of the site.
+  const suggestedPattern = 'suggested-current-tab.example.test';
   await page.addInitScript((suggestedUrl) => {
     const originalQuery = chrome.tabs.query.bind(chrome.tabs);
     chrome.tabs.query = ((queryInfo, callback) => {
@@ -199,7 +202,7 @@ test('supports quick-add suggestions, validation, duration units, and the full e
 
   await gotoPopup(extensionPage, page);
   const quickAdd = await openQuickAdd(page);
-  await expect(page.getByLabel('Site or pattern')).toHaveValue(currentTabUrl);
+  await expect(page.getByLabel('Site or pattern')).toHaveValue(suggestedPattern);
 
   await quickAdd.locator('button[data-duration="2"][data-unit="hours"]').click();
   await expect(page.getByLabel('Block for')).toHaveValue('2');
@@ -218,9 +221,9 @@ test('supports quick-add suggestions, validation, duration units, and the full e
   await page.getByRole('combobox').selectOption('hours');
   await page.getByRole('button', { name: 'Start block' }).click();
 
-  const hoursFilter = page.locator('.filter-item').filter({ hasText: currentTabUrl });
+  const hoursFilter = page.locator('.filter-item').filter({ hasText: suggestedPattern });
   await expect(hoursFilter).toContainText('Temporary - 2h left');
-  await expectTemporaryFilterExpiration(page, currentTabUrl, 119 * 60_000, 121 * 60_000);
+  await expectTemporaryFilterExpiration(page, suggestedPattern, 119 * 60_000, 121 * 60_000);
 
   await hoursFilter.getByRole('button', { name: 'Delete Filter' }).click();
 

@@ -594,7 +594,14 @@ async function getSuggestedPattern(): Promise<string | null> {
     return null;
   }
 
-  return url;
+  // Suggest just the hostname: the full URL as a "contains" pattern would only
+  // match this exact page (path and query included), not the site the user
+  // means to block.
+  try {
+    return new URL(url).hostname || null;
+  } catch {
+    return null;
+  }
 }
 
 async function handleCopyPattern(pattern: string, button: HTMLButtonElement): Promise<void> {
