@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   loadData,
   saveData,
+  updateData,
   addGroup,
   updateGroup,
   deleteGroup,
@@ -313,6 +314,64 @@ describe('storage', () => {
         ...testData,
         rulesVersion: 1,
       });
+    });
+  });
+
+  describe('updateData', () => {
+    const baseData = () => ({
+      groups: [createDefaultGroup()],
+      filters: [],
+      whitelist: [],
+      snooze: { active: false },
+      expandBlockPageDetails: false,
+      rulesVersion: 1,
+    });
+
+    const makeFilter = (id: string) => ({
+      id,
+      pattern: `${id}.example.com`,
+      groupId: DEFAULT_GROUP_ID,
+      enabled: true,
+      matchMode: 'contains' as const,
+    });
+
+    it('retries against a fresh snapshot when another writer saved in between', async () => {
+      const chromeMock = getChromeMock();
+      chromeMock.storage.sync._data.set(STORAGE_KEY, baseData());
+
+      const filterA = makeFilter('filter-a');
+      const filterB = makeFilter('filter-b');
+      let updaterCalls = 0;
+
+      const result = await updateData((data) => {
+        updaterCalls += 1;
+        if (updaterCalls === 1) {
+          // A concurrent writer lands between this load and the save.
+          chromeMock.storage.sync._data.set(STORAGE_KEY, {
+            ...baseData(),
+            filters: [filterB],
+            rulesVersion: 2,
+          });
+        }
+        return { ...data, filters: [...data.filters, filterA] };
+      });
+
+      expect(updaterCalls).toBe(2);
+      // Both writers' changes survive; nothing is clobbered.
+      expect(result.filters).toEqual([filterB, filterA]);
+      expect(
+        (chromeMock.storage.sync._data.get(STORAGE_KEY) as { filters: unknown }).filters
+      ).toEqual([filterB, filterA]);
+    });
+
+    it('does not write when the updater returns the data unchanged', async () => {
+      const chromeMock = getChromeMock();
+      chromeMock.storage.sync._data.set(STORAGE_KEY, baseData());
+      chromeMock.storage.sync.set.mockClear();
+
+      await updateData((data) => data);
+
+      expect(chromeMock.storage.sync.set).not.toHaveBeenCalled();
     });
   });
 

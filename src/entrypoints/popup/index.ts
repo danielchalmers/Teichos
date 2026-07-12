@@ -7,8 +7,8 @@ import {
   clearSnooze,
   deleteFilter,
   loadData,
-  saveData,
   setSnooze,
+  updateData,
   updateFilter,
 } from '../../shared/api/storage';
 import { sendExtensionMessage } from '../../shared/api/messaging';
@@ -73,22 +73,22 @@ function ensureSnoozeCountdownTicker(): void {
 
 async function disableExpiredTemporaryFilters(data: StorageData): Promise<StorageData> {
   const now = Date.now();
-  let didUpdate = false;
-  const filters = data.filters.map((filter) => {
-    if (isTemporaryFilterExpired(filter, now) && filter.enabled) {
-      didUpdate = true;
-      return { ...filter, enabled: false };
-    }
-    return filter;
-  });
+  const hasExpiredEnabled = data.filters.some(
+    (filter) => isTemporaryFilterExpired(filter, now) && filter.enabled
+  );
 
-  if (!didUpdate) {
+  if (!hasExpiredEnabled) {
     return data;
   }
 
-  const updated = { ...data, filters };
-  await saveData(updated);
-  return updated;
+  return updateData((current) => ({
+    ...current,
+    filters: current.filters.map((filter) =>
+      isTemporaryFilterExpired(filter, now) && filter.enabled
+        ? { ...filter, enabled: false }
+        : filter
+    ),
+  }));
 }
 
 /**

@@ -10,7 +10,7 @@ import {
   deleteFilter,
   exportData,
   importData,
-  saveData,
+  updateData,
   addGroup,
   updateGroup,
   deleteGroup,
@@ -337,8 +337,7 @@ async function handleGlobalExpandDetailsChange(): Promise<void> {
     getElementByIdOrNull<HTMLInputElement>('global-expand-details')?.checked === true;
 
   try {
-    const data = await loadData();
-    await saveData({ ...data, expandBlockPageDetails });
+    await updateData((data) => ({ ...data, expandBlockPageDetails }));
     setGlobalSettingsStatus('Block page details preference updated.');
   } catch (error) {
     console.error('Failed to update block page details preference:', error);
@@ -464,15 +463,20 @@ function deactivateModal(modal: HTMLElement): void {
 
 async function purgeExpiredTemporaryFilters(data: StorageData): Promise<StorageData> {
   const now = Date.now();
-  const remainingFilters = data.filters.filter((filter) => !isTemporaryFilterExpired(filter, now));
+  const hasExpired = data.filters.some((filter) => isTemporaryFilterExpired(filter, now));
 
-  if (remainingFilters.length === data.filters.length) {
+  if (!hasExpired) {
     return data;
   }
 
-  const updated = { ...data, filters: remainingFilters };
-  await saveData(updated);
-  return updated;
+  return updateData((current) => {
+    const remainingFilters = current.filters.filter(
+      (filter) => !isTemporaryFilterExpired(filter, now)
+    );
+    return remainingFilters.length === current.filters.length
+      ? current
+      : { ...current, filters: remainingFilters };
+  });
 }
 
 async function renderGroups(): Promise<void> {

@@ -3,7 +3,7 @@
  */
 
 import { setSessionSnooze } from '../shared/api/session';
-import { loadData, saveData } from '../shared/api/storage';
+import { updateData } from '../shared/api/storage';
 import { ALARMS } from '../shared/constants';
 import { isSnoozeExpired } from '../shared/filtering/schedules';
 import type { SnoozeState } from '../shared/types';
@@ -35,33 +35,13 @@ function syncAlarmFromSnooze(snooze: SnoozeState): void {
 }
 
 async function syncSnoozeFromStorage(): Promise<void> {
-  const data = await loadData();
-  if (!isSnoozeExpired(data.snooze)) {
-    syncAlarmFromSnooze(data.snooze);
-    await setSessionSnooze(data.snooze);
-    return;
-  }
-
-  await saveData({
-    ...data,
-    snooze: INACTIVE_SNOOZE,
-  });
-  await setSessionSnooze(INACTIVE_SNOOZE);
-  syncAlarmFromSnooze(INACTIVE_SNOOZE);
-}
-
-async function handleSnoozeAlarm(): Promise<void> {
-  const data = await loadData();
-  if (!isSnoozeExpired(data.snooze)) {
-    syncAlarmFromSnooze(data.snooze);
-    return;
-  }
-
-  await saveData({
-    ...data,
-    snooze: INACTIVE_SNOOZE,
-  });
-  await setSessionSnooze(INACTIVE_SNOOZE);
+  // updateData retries on concurrent writes, so clearing an expired snooze cannot
+  // clobber filters or groups another surface saved in the meantime.
+  const data = await updateData((current) =>
+    isSnoozeExpired(current.snooze) ? { ...current, snooze: INACTIVE_SNOOZE } : current
+  );
+  syncAlarmFromSnooze(data.snooze);
+  await setSessionSnooze(data.snooze);
 }
 
 function queueSnoozeSync(): void {
@@ -89,9 +69,7 @@ export function registerSnoozeHandlers(): void {
     if (alarm.name !== ALARMS.SNOOZE_EXPIRATION) {
       return;
     }
-    void handleSnoozeAlarm().catch((error: unknown) => {
-      console.error('[Teichos] Failed to process snooze alarm:', error);
-    });
+    queueSnoozeSync();
   });
 
   queueSnoozeSync();

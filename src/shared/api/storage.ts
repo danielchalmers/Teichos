@@ -27,17 +27,16 @@ export async function exportData(): Promise<string> {
 }
 
 /**
- * Save storage data to chrome.storage.sync
+ * Save storage data to chrome.storage.sync, replacing whatever is stored.
+ * Prefer updateData for read-modify-write edits so concurrent writers cannot clobber each other.
  */
 export async function saveData(data: StorageData): Promise<void> {
-  const result = await chrome.storage.sync.get(STORAGE_KEY);
-  const storedData = result[STORAGE_KEY] as { rulesVersion?: unknown } | undefined;
+  const storedRulesVersion = await readStoredRulesVersion();
   const previousRulesVersion =
-    typeof storedData?.rulesVersion === 'number' && Number.isFinite(storedData.rulesVersion)
-      ? storedData.rulesVersion
-      : typeof data.rulesVersion === 'number' && Number.isFinite(data.rulesVersion)
-        ? data.rulesVersion
-        : 0;
+    storedRulesVersion ??
+    (typeof data.rulesVersion === 'number' && Number.isFinite(data.rulesVersion)
+      ? data.rulesVersion
+      : 0);
 
   await chrome.storage.sync.set({
     [STORAGE_KEY]: {
@@ -47,15 +46,60 @@ export async function saveData(data: StorageData): Promise<void> {
   });
 }
 
-async function updateData(updater: (data: StorageData) => StorageData): Promise<StorageData> {
-  const data = await loadData();
-  const updatedData = updater(data);
+async function readStoredRulesVersion(): Promise<number | undefined> {
+  const result = await chrome.storage.sync.get(STORAGE_KEY);
+  const storedData = result[STORAGE_KEY] as { rulesVersion?: unknown } | undefined;
+  return typeof storedData?.rulesVersion === 'number' && Number.isFinite(storedData.rulesVersion)
+    ? storedData.rulesVersion
+    : undefined;
+}
 
-  if (updatedData !== data) {
-    await saveData(updatedData);
+/**
+ * Save only when the stored rulesVersion still matches the snapshot the caller loaded.
+ * Returns false without writing when another context saved in between.
+ */
+async function saveDataIfUnchanged(
+  data: StorageData,
+  expectedRulesVersion: number
+): Promise<boolean> {
+  const storedRulesVersion = await readStoredRulesVersion();
+  if (storedRulesVersion !== undefined && storedRulesVersion !== expectedRulesVersion) {
+    return false;
   }
 
-  return updatedData;
+  await chrome.storage.sync.set({
+    [STORAGE_KEY]: {
+      ...data,
+      rulesVersion: (storedRulesVersion ?? expectedRulesVersion) + 1,
+    },
+  });
+  return true;
+}
+
+const MAX_UPDATE_ATTEMPTS = 4;
+
+/**
+ * Apply a read-modify-write edit to the stored data. Every writer (popup, options, background)
+ * shares one sync item, so a plain load-then-save can silently drop a concurrent writer's
+ * changes; retry against a fresh snapshot when the stored rulesVersion moved underneath us.
+ */
+export async function updateData(
+  updater: (data: StorageData) => StorageData
+): Promise<StorageData> {
+  for (let attempt = 0; attempt < MAX_UPDATE_ATTEMPTS; attempt++) {
+    const data = await loadData();
+    const updatedData = updater(data);
+
+    if (updatedData === data) {
+      return updatedData;
+    }
+
+    if (await saveDataIfUnchanged(updatedData, data.rulesVersion)) {
+      return updatedData;
+    }
+  }
+
+  throw new Error('Settings changed in another window while saving. Please try again.');
 }
 
 export async function importData(serialized: string): Promise<StorageData> {
