@@ -228,7 +228,7 @@ describe('storage', () => {
           {
             id: 'legacy-filter',
             pattern: 'example.com',
-            groupId: 'missing-group',
+            groupId: DEFAULT_GROUP_ID,
             enabled: true,
             matchMode: 'regex',
           },
@@ -246,6 +246,27 @@ describe('storage', () => {
         expandBlockPageDetails: false,
         rulesVersion: 0,
       });
+    });
+
+    it('reassigns filters whose group no longer exists to the default group', async () => {
+      getChromeMock().storage.sync._data.set(STORAGE_KEY, {
+        groups: [{ id: 'custom-group', name: 'Custom', schedules: [], is24x7: true }],
+        filters: [
+          {
+            id: 'orphaned-filter',
+            pattern: 'example.com',
+            groupId: 'deleted-group',
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+        whitelist: [],
+      });
+
+      const data = await loadData();
+      expect(data.filters[0]?.groupId).toBe(DEFAULT_GROUP_ID);
+      // The default group is added so the reassigned filter stays active.
+      expect(data.groups.some((group) => group.id === DEFAULT_GROUP_ID)).toBe(true);
     });
 
     it('strips retired block type values from storage and filters', async () => {

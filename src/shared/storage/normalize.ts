@@ -44,10 +44,16 @@ function resolveMatchMode(
   return isRegex ? 'regex' : 'contains';
 }
 
-function normalizeFilters(filters: readonly LegacyFilter[] | undefined): Filter[] {
+function normalizeFilters(
+  filters: readonly LegacyFilter[] | undefined,
+  groupIds: ReadonlySet<string>
+): Filter[] {
   // blockType is a retired per-filter setting; strip it from legacy data.
+  // A groupId whose group no longer exists would make the filter silently
+  // inactive, so reassign it to the default group like whitelist entries.
   return (filters ?? []).map(({ isRegex, matchMode, blockType: _blockType, ...filter }) => ({
     ...filter,
+    groupId: groupIds.has(filter.groupId) ? filter.groupId : DEFAULT_GROUP_ID,
     matchMode: resolveMatchMode(matchMode, isRegex),
   }));
 }
@@ -87,10 +93,16 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
     return createDefaultData();
   }
 
-  const groups = normalizeGroups(raw.groups);
-  const groupIds = new Set(groups.map((group) => group.id));
-  const filters = normalizeFilters(raw.filters);
+  const normalizedGroups = normalizeGroups(raw.groups);
+  const groupIds = new Set(normalizedGroups.map((group) => group.id));
+  const filters = normalizeFilters(raw.filters, groupIds);
   const whitelist = normalizeWhitelist(raw.whitelist, groupIds);
+  // Reassignment targets the default group, so make sure it exists when needed.
+  const needsDefaultGroup =
+    !groupIds.has(DEFAULT_GROUP_ID) &&
+    (filters.some((filter) => filter.groupId === DEFAULT_GROUP_ID) ||
+      whitelist.some((entry) => entry.groupId === DEFAULT_GROUP_ID));
+  const groups = needsDefaultGroup ? [createDefaultGroup(), ...normalizedGroups] : normalizedGroups;
   const snooze = normalizeSnooze(raw.snooze);
   const rulesVersion =
     typeof raw.rulesVersion === 'number' && Number.isFinite(raw.rulesVersion)

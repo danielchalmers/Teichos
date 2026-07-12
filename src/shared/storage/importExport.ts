@@ -7,6 +7,7 @@ import {
   isValidGroup,
   isValidSnooze,
   isValidWhitelistLike,
+  type FilterLike,
   type JsonObject,
 } from './guards';
 import { createDefaultGroup } from './defaults';
@@ -126,6 +127,25 @@ function validateImportedStorageShape(raw: JsonObject): void {
   }
 }
 
+/**
+ * Reject imported filters that reference groups the file does not define. Load-time
+ * normalization silently repairs dangling references, so this must check the raw
+ * file to keep malformed imports loud instead of silently rewritten.
+ */
+function assertKnownRawFilterGroupReferences(raw: JsonObject): void {
+  const rawGroups = Array.isArray(raw['groups']) ? (raw['groups'] as readonly FilterGroup[]) : [];
+  const groupIds = new Set(rawGroups.map((group) => group.id));
+  // ensureDefaultGroup guarantees the default group exists after import.
+  groupIds.add(DEFAULT_GROUP_ID);
+
+  const rawFilters = Array.isArray(raw['filters']) ? (raw['filters'] as readonly FilterLike[]) : [];
+  for (const filter of rawFilters) {
+    if (!groupIds.has(filter.groupId)) {
+      throw new Error(`Imported filter "${filter.id}" references an unknown group.`);
+    }
+  }
+}
+
 export function serializeDataForExport(data: StorageData): string {
   return `${JSON.stringify(data, null, 2)}\n`;
 }
@@ -144,6 +164,7 @@ export function parseImportedData(serialized: string): StorageData {
   }
 
   validateImportedStorageShape(parsed);
+  assertKnownRawFilterGroupReferences(parsed);
 
   const normalized = normalizeStoredData(parsed as LegacyStorageData);
   const groups = ensureDefaultGroup(normalized.groups);
