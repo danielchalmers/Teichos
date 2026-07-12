@@ -987,6 +987,12 @@ async function handleGroupSubmit(e: Event): Promise<void> {
   const name = getElementByIdOrNull<HTMLInputElement>('group-name')?.value ?? '';
   const is24x7 = getElementByIdOrNull<HTMLInputElement>('group-24x7')?.checked ?? false;
 
+  // A schedule with no days can never activate, so the group would silently block nothing.
+  if (!is24x7 && temporarySchedules.some((schedule) => schedule.daysOfWeek.length === 0)) {
+    alert('Each schedule needs at least one day selected.');
+    return;
+  }
+
   const group: FilterGroup = {
     id: currentEditingGroupId ?? generateId(),
     name,

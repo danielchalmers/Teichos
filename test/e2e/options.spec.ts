@@ -446,10 +446,20 @@ test('edits and deletes individual filters and exceptions from options', async (
     });
 });
 
-test('updates selected days and supports empty schedules in the group editor', async ({
+test('updates selected days and rejects schedules with no days in the group editor', async ({
   extensionPage,
   page,
 }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, '__lastAlertMessage', {
+      value: '',
+      writable: true,
+      configurable: true,
+    });
+    window.alert = (message?: string): void => {
+      (globalThis as AlertCaptureGlobal).__lastAlertMessage = message ?? '';
+    };
+  });
   await gotoOptions(extensionPage, page);
 
   await page.getByRole('button', { name: 'New Group' }).click();
@@ -490,7 +500,14 @@ test('updates selected days and supports empty schedules in the group editor', a
   }
   await emptyDaysModal.getByRole('button', { name: 'Save' }).click();
 
-  await expect(flexibleHoursGroup).toContainText('No days 09:00-17:00 • 0 filters • 0 exceptions');
+  // A schedule with no selected days can never activate, so the save is rejected.
+  await expect(emptyDaysModal).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => (globalThis as AlertCaptureGlobal).__lastAlertMessage))
+    .toContain('at least one day');
+
+  await emptyDaysModal.getByRole('button', { name: 'Cancel' }).click();
+  await expect(flexibleHoursGroup).toContainText('0 schedules • 0 filters • 0 exceptions');
 });
 
 test('disabled groups start collapsed and stay readonly until re-enabled', async ({
