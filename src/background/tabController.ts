@@ -422,10 +422,16 @@ function createBlockId(): string {
   );
 }
 
+/**
+ * Key the bypass to the exact page (without the fragment) so Continue only unlocks the page the
+ * user saw blocked, not every other page on the same origin. Fragment navigations re-fire
+ * evaluation but stay on the same page, so the hash is stripped.
+ */
 function getBypassUrlKey(targetUrl: string): string {
   try {
     const parsed = new URL(targetUrl);
-    return parsed.origin !== 'null' ? parsed.origin : targetUrl;
+    parsed.hash = '';
+    return parsed.toString();
   } catch {
     return targetUrl;
   }

@@ -400,7 +400,7 @@ describe('TabController', () => {
     expect(chromeMock.tabs.update).not.toHaveBeenCalled();
   });
 
-  it('continues past blocks for the same tab and origin only', async () => {
+  it('continues past blocks for the same tab and page only', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(
       STORAGE_KEY,
@@ -474,12 +474,14 @@ describe('TabController', () => {
       expect.any(Function)
     );
 
+    // Re-committing the continued page, with or without a fragment, stays allowed.
     chromeMock.tabs.update.mockClear();
-    await getTabController().evaluateNavigation(12, 'https://bypass.com/next');
+    await getTabController().evaluateNavigation(12, 'https://bypass.com/focus');
+    await getTabController().evaluateNavigation(12, 'https://bypass.com/focus#section');
     expect(chromeMock.tabs.update).not.toHaveBeenCalled();
 
-    await getTabController().evaluateNavigation(12, 'https://elsewhere.com');
-    await getTabController().evaluateNavigation(12, 'https://bypass.com/blocked-again');
+    // Any other page, even on the same origin, is a fresh block.
+    await getTabController().evaluateNavigation(12, 'https://bypass.com/next');
     expect(chromeMock.tabs.update).toHaveBeenLastCalledWith(
       12,
       { url: expect.stringContaining(`/${PAGES.BLOCKED}?blockId=`) },
