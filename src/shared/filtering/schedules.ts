@@ -1,4 +1,4 @@
-import type { Filter, FilterGroup, SnoozeState, Whitelist } from '../types';
+import type { Filter, FilterGroup, SnoozeState, TimeSchedule, Whitelist } from '../types';
 import { getCurrentDayOfWeek, getCurrentTimeString } from '../utils/helpers';
 
 export type WhitelistByGroup<T extends Whitelist = Whitelist> = ReadonlyMap<string, readonly T[]>;
@@ -180,10 +180,27 @@ function isGroupScheduleActive(group: FilterGroup, context: ScheduleContext): bo
     return true;
   }
 
-  return group.schedules.some((schedule) => {
-    if (!schedule.daysOfWeek.includes(context.dayOfWeek)) {
-      return false;
-    }
-    return context.time >= schedule.startTime && context.time <= schedule.endTime;
-  });
+  return group.schedules.some((schedule) => isScheduleActive(schedule, context));
+}
+
+/**
+ * Whether a schedule covers the given moment. A schedule whose start time is later than its end
+ * time crosses midnight: it runs from startTime on each scheduled day until endTime the following
+ * morning, so the post-midnight portion belongs to the previous day's schedule entry.
+ */
+function isScheduleActive(schedule: TimeSchedule, context: ScheduleContext): boolean {
+  if (schedule.startTime <= schedule.endTime) {
+    return (
+      schedule.daysOfWeek.includes(context.dayOfWeek) &&
+      context.time >= schedule.startTime &&
+      context.time <= schedule.endTime
+    );
+  }
+
+  if (schedule.daysOfWeek.includes(context.dayOfWeek) && context.time >= schedule.startTime) {
+    return true;
+  }
+
+  const previousDay = (context.dayOfWeek + 6) % 7;
+  return schedule.daysOfWeek.includes(previousDay) && context.time <= schedule.endTime;
 }

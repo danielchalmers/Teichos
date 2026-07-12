@@ -249,6 +249,55 @@ describe('isFilterActive', () => {
     expect(isFilterActive(filter, groups)).toBe(false);
   });
 
+  describe('overnight schedules crossing midnight', () => {
+    const filter: Filter = {
+      id: 'filter-1',
+      pattern: 'example',
+      groupId: 'group-1',
+      enabled: true,
+      matchMode: 'contains',
+    };
+    // Wednesday-only bedtime window: 22:00 until 06:00 the next (Thursday) morning.
+    const groups: FilterGroup[] = [
+      {
+        id: 'group-1',
+        name: 'Bedtime',
+        is24x7: false,
+        schedules: [{ daysOfWeek: [3], startTime: '22:00', endTime: '06:00' }],
+      },
+    ];
+
+    it('is active after the start time on the scheduled day', () => {
+      vi.setSystemTime(new Date(2025, 0, 15, 23, 30, 0)); // Wednesday 23:30
+      expect(isFilterActive(filter, groups)).toBe(true);
+    });
+
+    it('stays active past midnight into the following morning', () => {
+      vi.setSystemTime(new Date(2025, 0, 16, 2, 0, 0)); // Thursday 02:00
+      expect(isFilterActive(filter, groups)).toBe(true);
+    });
+
+    it('includes the overnight end boundary', () => {
+      vi.setSystemTime(new Date(2025, 0, 16, 6, 0, 0)); // Thursday 06:00
+      expect(isFilterActive(filter, groups)).toBe(true);
+    });
+
+    it('is inactive between the morning end and the evening start', () => {
+      vi.setSystemTime(new Date(2025, 0, 15, 10, 30, 0)); // Wednesday 10:30
+      expect(isFilterActive(filter, groups)).toBe(false);
+    });
+
+    it('is inactive after the morning end when the new day is not scheduled', () => {
+      vi.setSystemTime(new Date(2025, 0, 16, 7, 0, 0)); // Thursday 07:00
+      expect(isFilterActive(filter, groups)).toBe(false);
+    });
+
+    it('does not start on an unscheduled evening', () => {
+      vi.setSystemTime(new Date(2025, 0, 16, 23, 30, 0)); // Thursday 23:30
+      expect(isFilterActive(filter, groups)).toBe(false);
+    });
+  });
+
   it('should return false when a temporary filter is expired', () => {
     const filter: Filter = {
       id: 'filter-1',
