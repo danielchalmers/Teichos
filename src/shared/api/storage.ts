@@ -5,6 +5,7 @@
 
 import type { StorageData, FilterGroup, Filter, Whitelist, SnoozeState } from '../types';
 import { STORAGE_KEY, DEFAULT_GROUP_ID } from '../types';
+import { isTemporaryFilterExpired } from '../filtering/schedules';
 import { parseImportedData, serializeDataForExport } from '../storage/importExport';
 import { normalizeStoredData, type LegacyStorageData } from '../storage/normalize';
 import { createDefaultGroup } from '../storage/defaults';
@@ -119,6 +120,27 @@ export async function updateData(
   }
 
   throw new SettingsSaveError('Settings changed in another window while saving. Please try again.');
+}
+
+/**
+ * Delete expired temporary filters. Both the popup and the options page call this on render so
+ * an expired temporary block has the same lifecycle everywhere: it disappears from storage
+ * instead of lingering as an inactive entry one surface can no longer remove.
+ */
+export async function purgeExpiredTemporaryFilters(data: StorageData): Promise<StorageData> {
+  const now = Date.now();
+  if (!data.filters.some((filter) => isTemporaryFilterExpired(filter, now))) {
+    return data;
+  }
+
+  return updateData((current) => {
+    const remainingFilters = current.filters.filter(
+      (filter) => !isTemporaryFilterExpired(filter, now)
+    );
+    return remainingFilters.length === current.filters.length
+      ? current
+      : { ...current, filters: remainingFilters };
+  });
 }
 
 export async function importData(serialized: string): Promise<StorageData> {

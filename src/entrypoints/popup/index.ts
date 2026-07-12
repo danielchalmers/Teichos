@@ -7,8 +7,8 @@ import {
   clearSnooze,
   deleteFilter,
   loadData,
+  purgeExpiredTemporaryFilters,
   setSnooze,
-  updateData,
   updateFilter,
   SettingsSaveError,
 } from '../../shared/api/storage';
@@ -24,7 +24,6 @@ import {
   getTemporaryFilterRemainingMs,
   isSnoozeActive,
   isTemporaryFilter,
-  isTemporaryFilterExpired,
   sortFiltersTemporaryFirst,
 } from '../../shared/filtering/schedules';
 import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../../shared/types';
@@ -70,26 +69,6 @@ function ensureSnoozeCountdownTicker(): void {
     window.clearInterval(snoozeTickerId);
     snoozeTickerId = null;
   });
-}
-
-async function disableExpiredTemporaryFilters(data: StorageData): Promise<StorageData> {
-  const now = Date.now();
-  const hasExpiredEnabled = data.filters.some(
-    (filter) => isTemporaryFilterExpired(filter, now) && filter.enabled
-  );
-
-  if (!hasExpiredEnabled) {
-    return data;
-  }
-
-  return updateData((current) => ({
-    ...current,
-    filters: current.filters.map((filter) =>
-      isTemporaryFilterExpired(filter, now) && filter.enabled
-        ? { ...filter, enabled: false }
-        : filter
-    ),
-  }));
 }
 
 /**
@@ -666,7 +645,7 @@ function createInactiveSummary(inactiveCount: number): HTMLElement | null {
  */
 async function renderFilters(): Promise<void> {
   let data = await loadData();
-  data = await disableExpiredTemporaryFilters(data);
+  data = await purgeExpiredTemporaryFilters(data);
   cachedData = data;
   lastSnoozeActive = isSnoozeActive(data.snooze);
   applySnoozeVisualState(data.snooze);

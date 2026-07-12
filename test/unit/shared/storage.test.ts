@@ -7,6 +7,7 @@ import {
   loadData,
   saveData,
   updateData,
+  purgeExpiredTemporaryFilters,
   SettingsSaveError,
   addGroup,
   updateGroup,
@@ -21,6 +22,7 @@ import {
   normalizeStoredData,
 } from '../../../src/shared/api/storage';
 import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
+import type { Filter, StorageData } from '../../../src/shared/types';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
 
 describe('storage', () => {
@@ -358,7 +360,7 @@ describe('storage', () => {
   });
 
   describe('updateData', () => {
-    const baseData = () => ({
+    const baseData = (): StorageData => ({
       groups: [createDefaultGroup()],
       filters: [],
       whitelist: [],
@@ -367,7 +369,7 @@ describe('storage', () => {
       rulesVersion: 1,
     });
 
-    const makeFilter = (id: string) => ({
+    const makeFilter = (id: string): Filter => ({
       id,
       pattern: `${id}.example.com`,
       groupId: DEFAULT_GROUP_ID,
@@ -410,6 +412,58 @@ describe('storage', () => {
       chromeMock.storage.sync.set.mockClear();
 
       await updateData((data) => data);
+
+      expect(chromeMock.storage.sync.set).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('purgeExpiredTemporaryFilters', () => {
+    it('deletes expired temporary filters and keeps everything else', async () => {
+      const chromeMock = getChromeMock();
+      const expired: Filter = {
+        id: 'expired-temp',
+        pattern: 'expired.example.com',
+        groupId: DEFAULT_GROUP_ID,
+        enabled: true,
+        matchMode: 'contains',
+        expiresAt: Date.now() - 1_000,
+      };
+      const active: Filter = {
+        id: 'active-temp',
+        pattern: 'active.example.com',
+        groupId: DEFAULT_GROUP_ID,
+        enabled: true,
+        matchMode: 'contains',
+        expiresAt: Date.now() + 60_000,
+      };
+      chromeMock.storage.sync._data.set(STORAGE_KEY, {
+        groups: [createDefaultGroup()],
+        filters: [expired, active],
+        whitelist: [],
+        snooze: { active: false },
+        rulesVersion: 1,
+      });
+
+      const data = await purgeExpiredTemporaryFilters(await loadData());
+
+      expect(data.filters).toEqual([active]);
+      expect(
+        (chromeMock.storage.sync._data.get(STORAGE_KEY) as { filters: unknown }).filters
+      ).toEqual([active]);
+    });
+
+    it('does not write when nothing is expired', async () => {
+      const chromeMock = getChromeMock();
+      chromeMock.storage.sync._data.set(STORAGE_KEY, {
+        groups: [createDefaultGroup()],
+        filters: [],
+        whitelist: [],
+        snooze: { active: false },
+        rulesVersion: 1,
+      });
+      chromeMock.storage.sync.set.mockClear();
+
+      await purgeExpiredTemporaryFilters(await loadData());
 
       expect(chromeMock.storage.sync.set).not.toHaveBeenCalled();
     });

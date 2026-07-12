@@ -11,6 +11,7 @@ import {
   exportData,
   importData,
   updateData,
+  purgeExpiredTemporaryFilters,
   SettingsSaveError,
   addGroup,
   updateGroup,
@@ -31,7 +32,6 @@ import { getRegexValidationError } from '../../shared/filtering/patterns';
 import {
   isGroupEnabled,
   isSnoozeActive,
-  isTemporaryFilterExpired,
   sortFiltersTemporaryFirst,
 } from '../../shared/filtering/schedules';
 import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../../shared/types';
@@ -464,24 +464,6 @@ function deactivateModal(modal: HTMLElement): void {
 // ============================================================================
 // Rendering Functions
 // ============================================================================
-
-async function purgeExpiredTemporaryFilters(data: StorageData): Promise<StorageData> {
-  const now = Date.now();
-  const hasExpired = data.filters.some((filter) => isTemporaryFilterExpired(filter, now));
-
-  if (!hasExpired) {
-    return data;
-  }
-
-  return updateData((current) => {
-    const remainingFilters = current.filters.filter(
-      (filter) => !isTemporaryFilterExpired(filter, now)
-    );
-    return remainingFilters.length === current.filters.length
-      ? current
-      : { ...current, filters: remainingFilters };
-  });
-}
 
 async function renderGroups(): Promise<void> {
   let data = await loadData();
