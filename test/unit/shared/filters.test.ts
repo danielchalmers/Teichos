@@ -478,6 +478,27 @@ describe('regex validation', () => {
     expect(getRegexValidationError('^https://example\\.com')).toBeNull();
     expect(getRegexValidationError('[')).toBeTruthy();
   });
+
+  it('rejects patterns longer than the length cap', () => {
+    expect(getRegexValidationError(`example${'a'.repeat(600)}`)).toContain('longer than');
+  });
+
+  it('rejects nested unbounded repetition that can backtrack catastrophically', () => {
+    expect(getRegexValidationError('(a+)+$')).toContain('unbounded repetition');
+    expect(getRegexValidationError('(a*)*')).toContain('unbounded repetition');
+    expect(getRegexValidationError('(\\w+)+')).toContain('unbounded repetition');
+    expect(getRegexValidationError('(a+){2,}')).toContain('unbounded repetition');
+    expect(getRegexValidationError('((b)+)*')).toContain('unbounded repetition');
+  });
+
+  it('accepts common safe quantified patterns', () => {
+    expect(getRegexValidationError('^https?://(www\\.)?example\\.com/.*')).toBeNull();
+    expect(getRegexValidationError('(foo|bar)+')).toBeNull();
+    expect(getRegexValidationError('(a+){2,5}')).toBeNull();
+    expect(getRegexValidationError('[a+]+')).toBeNull();
+    expect(getRegexValidationError('\\(a\\)+')).toBeNull();
+    expect(getRegexValidationError('example\\.com/(watch|video)\\?v=.+')).toBeNull();
+  });
 });
 
 describe('shouldBlockUrl', () => {
