@@ -625,7 +625,9 @@ function setGroupReadonlyState(groupElement: HTMLElement, readonly: boolean): vo
   groupElement
     .querySelectorAll<
       HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >('[data-role="group-actions"] button, .group-content button, .group-content input, .group-content select, .group-content textarea')
+    >(
+      '[data-role="group-actions"] button, .group-content button, .group-content input, .group-content select, .group-content textarea'
+    )
     .forEach((element) => {
       element.disabled = readonly;
     });
