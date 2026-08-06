@@ -80,6 +80,7 @@ export function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.
     id: 1,
     incognito: false,
     index: 0,
+    lastAccessed: Date.now(),
     mutedInfo: { muted: false },
     pinned: false,
     selected: false,
