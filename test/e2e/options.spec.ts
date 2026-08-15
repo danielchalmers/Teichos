@@ -184,6 +184,10 @@ test('exports current settings from global settings', async ({ extensionPage, pa
   });
   await seedStorage(page, expectedData);
   const currentData = await readStorage(page);
+  // The seed is a fixed point of normalization, so nothing may have rewritten
+  // it between the seed and the snapshot; a mismatch here means the fixture
+  // regressed into something the background reconciles.
+  expect(currentData).toEqual(expectedData);
 
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export Settings' }).click();
