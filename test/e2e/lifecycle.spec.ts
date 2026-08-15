@@ -446,6 +446,47 @@ test('expired temporary filters disappear from popup and options ui', async ({
     .toBe(false);
 });
 
+test('an expired snooze is cleared and the normalized data persisted once the background notices', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  const staleFilter = {
+    id: 'stale-snooze-filter',
+    pattern: 'stale-snooze.example.test',
+    groupId: defaultGroup.id,
+    enabled: true,
+    matchMode: 'contains',
+    description: 'Stale Snooze Filter',
+  } as const;
+  await seedStorage(
+    page,
+    createStorageData({
+      // The group deliberately omits `enabled`, so the write-back below has
+      // normalization work to do beyond clearing the snooze.
+      groups: [{ id: defaultGroup.id, name: defaultGroup.name, schedules: [], is24x7: true }],
+      filters: [staleFilter],
+      // Long expired, so the background's snooze sync must clear it instead of
+      // scheduling an expiration alarm.
+      snooze: { active: true, until: 1_234_567_890 },
+      rulesVersion: 7,
+    })
+  );
+
+  // The clear is a full read-modify-write, so what lands in storage is the
+  // normalized snapshot with the rules version bumped.
+  await expect
+    .poll(() => readStorage(page))
+    .toEqual(
+      createStorageData({
+        groups: [defaultGroup],
+        filters: [staleFilter],
+        snooze: { active: false },
+        rulesVersion: 8,
+      })
+    );
+});
+
 test('editing a schedule through options changes navigation from off-schedule allow to on-schedule block', async ({
   context,
   extensionPage,
