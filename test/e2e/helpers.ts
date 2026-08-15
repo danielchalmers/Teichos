@@ -13,11 +13,16 @@ export type AlertCaptureGlobal = typeof globalThis & {
   __lastAlertMessage?: string;
 };
 
+// Mirrors createDefaultGroup() in src/shared/storage/defaults.ts, `enabled` included:
+// seeded data should be a fixed point of normalizeStoredData, or a background
+// write-back (e.g. clearing an expired snooze) persists the normalized form
+// mid-test and races any raw readStorage snapshot taken from the seed.
 export const defaultGroup = {
   id: 'default-24x7',
   name: '24/7 (Always Active)',
   schedules: [],
   is24x7: true,
+  enabled: true,
 } as const satisfies StorageData['groups'][number];
 
 export function createStorageData(overrides: Partial<StorageData> = {}): StorageData {

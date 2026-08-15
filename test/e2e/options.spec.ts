@@ -153,6 +153,7 @@ test('exports current settings from global settings', async ({ extensionPage, pa
         name: 'Work Hours',
         is24x7: false,
         schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
+        enabled: true,
       },
     ],
     filters: [
@@ -175,7 +176,10 @@ test('exports current settings from global settings', async ({ extensionPage, pa
         description: 'Allow Docs',
       },
     ],
-    snooze: { active: true, until: 1_234_567_890 },
+    // Far in the future on purpose: an expired snooze would trip the
+    // background's clear-expired-snooze pass, whose normalized write-back races
+    // both the raw snapshot below and the export itself.
+    snooze: { active: true, until: 9_999_999_999_999 },
     rulesVersion: 7,
   });
   await seedStorage(page, expectedData);
