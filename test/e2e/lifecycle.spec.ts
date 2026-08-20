@@ -711,6 +711,9 @@ test('a server redirect to a blocked target is blocked at the destination', asyn
       .toBe(true);
     await expect(redirectedPage.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
   } finally {
+    // The browser holds the connection open with keep-alive, and server.close() waits for every
+    // open connection before it calls back, so drop them first or teardown never finishes.
+    server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });
