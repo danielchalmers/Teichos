@@ -44,6 +44,23 @@ function resolveMatchMode(
   return isRegex ? 'regex' : 'contains';
 }
 
+/**
+ * Trim surrounding whitespace so a pasted pattern still matches. Regex patterns are left exactly
+ * as written, since whitespace there can be a deliberate part of the expression.
+ */
+function normalizePattern(pattern: string, matchMode: FilterMatchMode): string {
+  return matchMode === 'regex' ? pattern : pattern.trim();
+}
+
+/**
+ * A blank pattern matches every URL, so a blank filter blocks the whole web and a blank exception
+ * disables every filter in its group. Neither is recoverable into something the user meant, so
+ * drop the entry rather than let it silently take over.
+ */
+function hasUsablePattern(entry: { readonly pattern: string }): boolean {
+  return typeof entry.pattern === 'string' && entry.pattern.trim() !== '';
+}
+
 function normalizeFilters(
   filters: readonly LegacyFilter[] | undefined,
   groupIds: ReadonlySet<string>
@@ -51,22 +68,34 @@ function normalizeFilters(
   // blockType is a retired per-filter setting; strip it from legacy data.
   // A groupId whose group no longer exists would make the filter silently
   // inactive, so reassign it to the default group like whitelist entries.
-  return (filters ?? []).map(({ isRegex, matchMode, blockType: _blockType, ...filter }) => ({
-    ...filter,
-    groupId: groupIds.has(filter.groupId) ? filter.groupId : DEFAULT_GROUP_ID,
-    matchMode: resolveMatchMode(matchMode, isRegex),
-  }));
+  return (filters ?? [])
+    .filter(hasUsablePattern)
+    .map(({ isRegex, matchMode, blockType: _blockType, ...filter }) => {
+      const resolvedMatchMode = resolveMatchMode(matchMode, isRegex);
+      return {
+        ...filter,
+        pattern: normalizePattern(filter.pattern, resolvedMatchMode),
+        groupId: groupIds.has(filter.groupId) ? filter.groupId : DEFAULT_GROUP_ID,
+        matchMode: resolvedMatchMode,
+      };
+    });
 }
 
 function normalizeWhitelist(
   whitelist: readonly LegacyWhitelist[] | undefined,
   groupIds: ReadonlySet<string>
 ): Whitelist[] {
-  return (whitelist ?? []).map(({ isRegex, matchMode, groupId, ...entry }) => ({
-    ...entry,
-    groupId: groupId && groupIds.has(groupId) ? groupId : DEFAULT_GROUP_ID,
-    matchMode: resolveMatchMode(matchMode, isRegex),
-  }));
+  return (whitelist ?? [])
+    .filter(hasUsablePattern)
+    .map(({ isRegex, matchMode, groupId, ...entry }) => {
+      const resolvedMatchMode = resolveMatchMode(matchMode, isRegex);
+      return {
+        ...entry,
+        pattern: normalizePattern(entry.pattern, resolvedMatchMode),
+        groupId: groupId && groupIds.has(groupId) ? groupId : DEFAULT_GROUP_ID,
+        matchMode: resolvedMatchMode,
+      };
+    });
 }
 
 function normalizeSnooze(snooze: LegacyStorageData['snooze']): SnoozeState {

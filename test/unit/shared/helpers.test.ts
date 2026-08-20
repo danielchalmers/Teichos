@@ -11,6 +11,7 @@ import {
   getCurrentDayOfWeek,
   getCurrentTimeString,
   isInternalUrl,
+  isValidTimeString,
 } from '../../../src/shared/utils/helpers';
 
 describe('generateId', () => {
@@ -44,6 +45,27 @@ describe('escapeHtml', () => {
 describe('formatTime', () => {
   it('should pad single-digit hours and minutes', () => {
     expect(formatTime(9, 5)).toBe('09:05');
+  });
+});
+
+describe('isValidTimeString', () => {
+  it.each(['09:00', '00:00', '23:59', '12:30'])('accepts %s', (input) => {
+    expect(isValidTimeString(input)).toBe(true);
+  });
+
+  it.each([
+    { input: '', label: 'a cleared time input' },
+    // Times are compared as strings, and '9:00' sorts after '23:59'.
+    { input: '9:00', label: 'an unpadded hour' },
+    { input: '24:00', label: 'an out-of-range hour' },
+    { input: '12:60', label: 'an out-of-range minute' },
+    { input: '09:0', label: 'a half-typed minute' },
+    { input: '09:00:30', label: 'seconds' },
+    { input: 'noon', label: 'free text' },
+    { input: undefined, label: 'a missing value' },
+    { input: 900, label: 'a number' },
+  ])('rejects $label', ({ input }) => {
+    expect(isValidTimeString(input)).toBe(false);
   });
 });
 
