@@ -8,7 +8,12 @@
  * - Use chrome.storage instead of localStorage
  */
 
-import { handleMessage, handleNavigationChange, type NavigationChangeDetails } from './handlers';
+import {
+  handleMessage,
+  handleNavigationChange,
+  handleNavigationCommitted,
+  type NavigationChangeDetails,
+} from './handlers';
 import { registerSnoozeHandlers } from './snooze';
 import { getTabController } from './tabController';
 
@@ -24,6 +29,12 @@ export function registerBackground(): void {
   chrome.webNavigation.onBeforeNavigate.addListener(handleNavigationEvent);
   chrome.webNavigation.onHistoryStateUpdated.addListener(handleNavigationEvent);
   chrome.webNavigation.onReferenceFragmentUpdated.addListener(handleNavigationEvent);
+
+  chrome.webNavigation.onCommitted.addListener((details) => {
+    handleNavigationCommitted(details).catch((error: unknown) => {
+      console.error('[Teichos] Error handling committed navigation:', error);
+    });
+  });
 
   chrome.runtime.onMessage.addListener(handleMessage);
   getTabController().register();

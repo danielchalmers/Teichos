@@ -4,6 +4,7 @@ import { getChromeMock } from '../../fixtures/chrome-mocks';
 
 const mocks = vi.hoisted(() => ({
   handleNavigationChange: vi.fn(),
+  handleNavigationCommitted: vi.fn(),
   handleMessage: vi.fn(),
   registerTabController: vi.fn(),
   registerSnoozeHandlers: vi.fn(),
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../../src/background/handlers', () => ({
   handleNavigationChange: mocks.handleNavigationChange,
+  handleNavigationCommitted: mocks.handleNavigationCommitted,
   handleMessage: mocks.handleMessage,
 }));
 
@@ -30,6 +32,7 @@ describe('background entrypoint', () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.handleNavigationChange.mockReset().mockResolvedValue(undefined);
+    mocks.handleNavigationCommitted.mockReset().mockResolvedValue(undefined);
     mocks.handleMessage.mockReset();
     mocks.registerTabController.mockReset();
     mocks.registerSnoozeHandlers.mockReset();
@@ -46,6 +49,7 @@ describe('background entrypoint', () => {
     expect(chromeMock.webNavigation.onReferenceFragmentUpdated.addListener).toHaveBeenCalledTimes(
       1
     );
+    expect(chromeMock.webNavigation.onCommitted.addListener).toHaveBeenCalledTimes(1);
     expect(chromeMock.runtime.onMessage.addListener).toHaveBeenCalledWith(mocks.handleMessage);
     expect(mocks.registerTabController).toHaveBeenCalledTimes(1);
     expect(mocks.registerSnoozeHandlers).toHaveBeenCalledTimes(1);
@@ -66,6 +70,11 @@ describe('background entrypoint', () => {
     await beforeNavigateListener?.(details);
     await historyStateListener?.(details);
     await referenceFragmentListener?.(details);
+
+    const committedListener = chromeMock.webNavigation.onCommitted.addListener.mock.calls[0]?.[0];
+    const committedDetails = { ...details, transitionQualifiers: ['server_redirect'] };
+    await committedListener?.(committedDetails);
+    expect(mocks.handleNavigationCommitted).toHaveBeenCalledWith(committedDetails);
 
     expect(mocks.handleNavigationChange).toHaveBeenNthCalledWith(1, details);
     expect(mocks.handleNavigationChange).toHaveBeenNthCalledWith(2, details);

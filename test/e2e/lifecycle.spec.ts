@@ -1,3 +1,5 @@
+import { createServer, type Server } from 'http';
+import type { AddressInfo } from 'net';
 import { PAGES } from '../../src/shared/constants';
 import { test, expect } from './fixtures';
 import {
@@ -652,4 +654,63 @@ test('disabling the default group hides popup filters and restores blocking when
 
   await expectPopupShowsFilter(popupPage, 'Default Group Filter');
   await expectBlocked(browsingPage, targetUrl);
+});
+
+test('a server redirect to a blocked target is blocked at the destination', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  // A real redirect is required here: Playwright's request interception turns a fulfilled 302 into
+  // a fresh navigation, which onBeforeNavigate already sees, so it cannot reproduce the gap.
+  const server: Server = createServer((req, res) => {
+    if (req.url === '/go') {
+      res.writeHead(302, { location: `${origin}/final` });
+      res.end();
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'text/html' });
+    res.end('<!doctype html><title>final</title><main>Redirect target</main>');
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+  try {
+    // Let these requests reach the local server rather than the deterministic stub.
+    await context.route(`${origin}/**`, async (route) => {
+      await route.continue();
+    });
+
+    await page.goto(extensionPage(PAGES.OPTIONS));
+    await seedStorage(
+      page,
+      createStorageData({
+        filters: [
+          {
+            id: 'redirect-target-filter',
+            pattern: `${origin}/final`,
+            groupId: defaultGroup.id,
+            enabled: true,
+            matchMode: 'contains',
+            description: 'Redirect Target',
+          },
+        ],
+      })
+    );
+
+    // Control: the destination blocks when navigated to directly.
+    const directPage = await context.newPage();
+    await expectBlocked(directPage, `${origin}/final`);
+
+    // The redirect lands on the same destination, so it has to block too. onBeforeNavigate only
+    // reports the entry url, so this is only caught when the navigation commits.
+    const redirectedPage = await context.newPage();
+    await redirectedPage.goto(`${origin}/go`, { waitUntil: 'commit' }).catch(() => undefined);
+    await expect
+      .poll(() => new URL(redirectedPage.url()).pathname === `/${PAGES.BLOCKED}`)
+      .toBe(true);
+    await expect(redirectedPage.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });

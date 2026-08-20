@@ -15,6 +15,7 @@ vi.mock('../../../src/background/tabController', () => ({
 import {
   handleBeforeNavigate,
   handleNavigationChange,
+  handleNavigationCommitted,
 } from '../../../src/background/handlers/navigation';
 
 function createNavigationDetails(
@@ -75,6 +76,76 @@ describe('handleNavigationChange', () => {
     );
     await handleNavigationChange(
       createNavigationDetails({ frameId: 3, tabId: 8, url: 'https://example.com/page#blocked' })
+    );
+
+    expect(mocks.evaluateNavigation).not.toHaveBeenCalled();
+  });
+});
+
+function createCommittedDetails(
+  overrides: Partial<chrome.webNavigation.WebNavigationTransitionCallbackDetails>
+): chrome.webNavigation.WebNavigationTransitionCallbackDetails {
+  return {
+    ...createNavigationDetails({}),
+    documentId: 'doc-1',
+    transitionType: 'link',
+    transitionQualifiers: [],
+    ...overrides,
+  };
+}
+
+describe('handleNavigationCommitted', () => {
+  beforeEach(() => {
+    mocks.evaluateNavigation.mockReset();
+    mocks.evaluateNavigation.mockResolvedValue(undefined);
+  });
+
+  it.each(['server_redirect', 'client_redirect'] as const)(
+    'evaluates the committed url after a %s',
+    async (qualifier) => {
+      // onBeforeNavigate only saw the url the browser first requested, never this one.
+      await handleNavigationCommitted(
+        createCommittedDetails({
+          tabId: 7,
+          url: 'https://redirect-target.example/final',
+          transitionQualifiers: [qualifier],
+        })
+      );
+
+      expect(mocks.evaluateNavigation).toHaveBeenCalledWith(
+        7,
+        'https://redirect-target.example/final'
+      );
+    }
+  );
+
+  it('evaluates the final url of a chain that also carries other qualifiers', async () => {
+    await handleNavigationCommitted(
+      createCommittedDetails({
+        tabId: 2,
+        url: 'https://final.example/page',
+        transitionQualifiers: ['from_address_bar', 'server_redirect'],
+      })
+    );
+
+    expect(mocks.evaluateNavigation).toHaveBeenCalledWith(2, 'https://final.example/page');
+  });
+
+  it('ignores a commit that was not redirected, since onBeforeNavigate saw the same url', async () => {
+    await handleNavigationCommitted(
+      createCommittedDetails({ url: 'https://example.com/plain', transitionQualifiers: [] })
+    );
+
+    expect(mocks.evaluateNavigation).not.toHaveBeenCalled();
+  });
+
+  it('ignores sub-frame commits', async () => {
+    await handleNavigationCommitted(
+      createCommittedDetails({
+        frameId: 3,
+        url: 'https://framed.example/final',
+        transitionQualifiers: ['server_redirect'],
+      })
     );
 
     expect(mocks.evaluateNavigation).not.toHaveBeenCalled();
