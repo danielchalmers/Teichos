@@ -656,6 +656,28 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
   return 'contains';
 }
 
+/**
+ * Resolve a pattern input into what should be stored, or null when it can't be used.
+ *
+ * Whitespace around a pasted pattern would stop it matching anything, and a blank pattern matches
+ * every URL, so neither is accepted silently. Regex patterns keep their exact text.
+ */
+function readPatternInput(elementId: string, matchMode: FilterMatchMode): string | null {
+  const raw = getElementByIdOrNull<HTMLInputElement>(elementId)?.value ?? '';
+  const pattern = matchMode === 'regex' ? raw : raw.trim();
+
+  if (pattern.trim() === '') {
+    alert('Enter a pattern to match.');
+    return null;
+  }
+
+  if (!ensureValidRegex(pattern, matchMode)) {
+    return null;
+  }
+
+  return pattern;
+}
+
 function ensureValidRegex(pattern: string, matchMode: FilterMatchMode): boolean {
   if (matchMode !== 'regex') {
     return true;
@@ -839,13 +861,13 @@ function closeFilterModal(): void {
 async function handleFilterSubmit(e: Event): Promise<void> {
   e.preventDefault();
 
-  const pattern = getElementByIdOrNull<HTMLInputElement>('filter-pattern')?.value ?? '';
   const description = getElementByIdOrNull<HTMLInputElement>('filter-description')?.value ?? '';
   const groupId = currentFilterGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('filter-enabled')?.checked ?? true;
   const matchMode = getMatchModeSelectValue('filter-match-mode');
 
-  if (!ensureValidRegex(pattern, matchMode)) {
+  const pattern = readPatternInput('filter-pattern', matchMode);
+  if (pattern === null) {
     return;
   }
 
@@ -1071,13 +1093,13 @@ function closeWhitelistModal(): void {
 async function handleWhitelistSubmit(e: Event): Promise<void> {
   e.preventDefault();
 
-  const pattern = getElementByIdOrNull<HTMLInputElement>('whitelist-pattern')?.value ?? '';
   const description = getElementByIdOrNull<HTMLInputElement>('whitelist-description')?.value ?? '';
   const groupId = currentWhitelistGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled')?.checked ?? true;
   const matchMode = getMatchModeSelectValue('whitelist-match-mode');
 
-  if (!ensureValidRegex(pattern, matchMode)) {
+  const pattern = readPatternInput('whitelist-pattern', matchMode);
+  if (pattern === null) {
     return;
   }
 

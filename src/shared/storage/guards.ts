@@ -6,6 +6,7 @@ import type {
   TimeSchedule,
   Whitelist,
 } from '../types';
+import { isValidTimeString } from '../utils/helpers';
 
 export type JsonObject = Record<string, unknown>;
 
@@ -28,6 +29,15 @@ export interface SnoozeLike {
 
 export function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * A blank pattern is a wildcard: matching is substring-based, and every URL contains the empty
+ * string. As a filter it blocks the entire web; as an exception it disables every filter in its
+ * group. Neither can be what the user meant, so blank patterns are never valid.
+ */
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '';
 }
 
 export function isValidMatchMode(value: unknown): value is FilterMatchMode {
@@ -58,8 +68,8 @@ export function isValidSchedule(value: unknown): value is TimeSchedule {
   return (
     Array.isArray(value['daysOfWeek']) &&
     value['daysOfWeek'].every(isValidDayOfWeek) &&
-    typeof value['startTime'] === 'string' &&
-    typeof value['endTime'] === 'string'
+    isValidTimeString(value['startTime']) &&
+    isValidTimeString(value['endTime'])
   );
 }
 
@@ -85,7 +95,7 @@ export function isValidFilterLike(value: unknown): value is FilterLike {
 
   return (
     typeof value['id'] === 'string' &&
-    typeof value['pattern'] === 'string' &&
+    isNonBlankString(value['pattern']) &&
     typeof value['groupId'] === 'string' &&
     typeof value['enabled'] === 'boolean' &&
     (value['matchMode'] === undefined || isValidMatchMode(value['matchMode'])) &&
@@ -103,7 +113,7 @@ export function isValidWhitelistLike(value: unknown): value is WhitelistLike {
 
   return (
     typeof value['id'] === 'string' &&
-    typeof value['pattern'] === 'string' &&
+    isNonBlankString(value['pattern']) &&
     typeof value['enabled'] === 'boolean' &&
     isOptionalString(value['groupId']) &&
     (value['matchMode'] === undefined || isValidMatchMode(value['matchMode'])) &&

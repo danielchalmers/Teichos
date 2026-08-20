@@ -606,3 +606,45 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
     .poll(() => reloadedGroup.evaluate((element) => (element as HTMLDetailsElement).open))
     .toBe(true);
 });
+
+test('trims pattern whitespace and rejects a whitespace-only pattern', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, '__lastAlertMessage', {
+      value: '',
+      writable: true,
+      configurable: true,
+    });
+    window.alert = (message?: string): void => {
+      (globalThis as AlertCaptureGlobal).__lastAlertMessage = message ?? '';
+    };
+  });
+  await gotoOptions(extensionPage, page);
+
+  // The `required` attribute only rejects an empty value, so a whitespace-only pattern reaches
+  // the handler and would be stored as a filter that can never match.
+  await page.locator('button[data-action="add-filter"]').first().click();
+  const blankModal = page.locator('#filter-modal.active');
+  await blankModal.locator('#filter-pattern').fill('   ');
+  await blankModal.getByRole('button', { name: 'Save' }).click();
+
+  await expect(blankModal).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => (globalThis as AlertCaptureGlobal).__lastAlertMessage))
+    .toContain('Enter a pattern');
+  await blankModal.getByRole('button', { name: 'Cancel' }).click();
+
+  // Surrounding whitespace on a pasted pattern would otherwise be stored verbatim, leaving a
+  // filter that looks active but matches nothing.
+  await page.locator('button[data-action="add-filter"]').first().click();
+  const pastedModal = page.locator('#filter-modal.active');
+  await pastedModal.locator('#filter-pattern').fill('  reddit.com  ');
+  await pastedModal.getByRole('button', { name: 'Save' }).click();
+  await expect(pastedModal).toBeHidden();
+
+  await expect.poll(async () => (await readStorage(page))?.filters?.length ?? 0).toBe(1);
+  const stored = await readStorage(page);
+  expect(stored?.filters?.[0]?.pattern).toBe('reddit.com');
+});

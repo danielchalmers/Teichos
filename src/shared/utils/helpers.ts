@@ -54,6 +54,17 @@ export function formatTime(hours: number, minutes: number): string {
 }
 
 /**
+ * Whether a schedule time is a real HH:MM value.
+ *
+ * Schedule times are compared as strings, so anything else compares wrong: '' makes a group match
+ * nothing, and a half-filled range silently turns into a crossing-midnight one. The time inputs
+ * can only produce this form, so it is also what an imported file has to carry.
+ */
+export function isValidTimeString(value: unknown): boolean {
+  return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+/**
  * Get current time as HH:MM string
  */
 export function getCurrentTimeString(): string {

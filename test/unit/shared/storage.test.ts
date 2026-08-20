@@ -302,6 +302,53 @@ describe('storage', () => {
       expect(data.expandBlockPageDetails).toBe(false);
     });
 
+    it.each([
+      { pattern: '', label: 'an empty' },
+      { pattern: '   ', label: 'a whitespace-only' },
+    ])('drops $label filter and exception pattern', ({ pattern }) => {
+      const data = normalizeStoredData({
+        groups: [createDefaultGroup()],
+        filters: [{ id: 'blank', pattern, groupId: DEFAULT_GROUP_ID, enabled: true }],
+        whitelist: [{ id: 'blank-exception', pattern, enabled: true }],
+      });
+
+      // Matching is substring-based, so a blank filter blocks the whole web and a blank
+      // exception disables every filter in its group.
+      expect(data.filters).toEqual([]);
+      expect(data.whitelist).toEqual([]);
+    });
+
+    it('trims surrounding whitespace from non-regex patterns', () => {
+      const data = normalizeStoredData({
+        groups: [createDefaultGroup()],
+        filters: [
+          { id: 'pasted', pattern: '  reddit.com  ', groupId: DEFAULT_GROUP_ID, enabled: true },
+        ],
+        whitelist: [{ id: 'pasted-exception', pattern: ' docs.google.com ', enabled: true }],
+      });
+
+      expect(data.filters[0]?.pattern).toBe('reddit.com');
+      expect(data.whitelist[0]?.pattern).toBe('docs.google.com');
+    });
+
+    it('leaves regex patterns byte-exact, since whitespace can be meaningful', () => {
+      const data = normalizeStoredData({
+        groups: [createDefaultGroup()],
+        filters: [
+          {
+            id: 'regex',
+            pattern: 'reddit[.]com/r/ ',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'regex',
+          },
+        ],
+        whitelist: [],
+      });
+
+      expect(data.filters[0]?.pattern).toBe('reddit[.]com/r/ ');
+    });
+
     it('coerces invalid expand block page details values to false', () => {
       const data = normalizeStoredData({
         groups: [createDefaultGroup()],
