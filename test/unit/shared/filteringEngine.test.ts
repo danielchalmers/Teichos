@@ -197,6 +197,94 @@ describe('filteringEngine', () => {
     vi.useRealTimers();
   });
 
+  it('compiles regex patterns once per engine instead of once per evaluation', () => {
+    const regexSpy = vi.spyOn(globalThis, 'RegExp');
+    try {
+      const engine = createFilteringEngine(
+        createStorageData({
+          filters: [
+            {
+              id: 'regex-filter',
+              pattern: '^https://blocked[.]com/',
+              groupId: DEFAULT_GROUP_ID,
+              enabled: true,
+              matchMode: 'regex',
+            },
+            {
+              id: 'contains-filter',
+              pattern: 'Other.com',
+              groupId: DEFAULT_GROUP_ID,
+              enabled: true,
+              matchMode: 'contains',
+            },
+          ],
+          whitelist: [
+            {
+              id: 'regex-whitelist',
+              pattern: '^https://blocked[.]com/allowed',
+              groupId: DEFAULT_GROUP_ID,
+              enabled: true,
+              matchMode: 'regex',
+            },
+          ],
+        })
+      );
+      const compilationsAfterBuild = regexSpy.mock.calls.length;
+      expect(compilationsAfterBuild).toBe(2);
+
+      expect(engine.evaluate('https://blocked.com/page', activeContext)).toEqual({
+        action: 'block',
+        filterId: 'regex-filter',
+        groupId: DEFAULT_GROUP_ID,
+        reason: 'matched-filter',
+      });
+      expect(engine.evaluate('https://blocked.com/allowed/page', activeContext)).toEqual({
+        action: 'allow',
+        reason: 'whitelisted',
+      });
+      expect(engine.evaluate('https://other.com/', activeContext)).toEqual({
+        action: 'block',
+        filterId: 'contains-filter',
+        groupId: DEFAULT_GROUP_ID,
+        reason: 'matched-filter',
+      });
+      expect(engine.evaluate('https://unrelated.example/', activeContext)).toEqual({
+        action: 'allow',
+        reason: 'no-match',
+      });
+
+      expect(regexSpy).toHaveBeenCalledTimes(compilationsAfterBuild);
+    } finally {
+      regexSpy.mockRestore();
+    }
+  });
+
+  it('treats an invalid regex filter as non-matching without recompiling it', () => {
+    const engine = createFilteringEngine(
+      createStorageData({
+        filters: [
+          {
+            id: 'broken-regex',
+            pattern: '[',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'regex',
+          },
+        ],
+      })
+    );
+    const regexSpy = vi.spyOn(globalThis, 'RegExp');
+    try {
+      expect(engine.evaluate('https://blocked.com/[', activeContext)).toEqual({
+        action: 'allow',
+        reason: 'no-match',
+      });
+      expect(regexSpy).not.toHaveBeenCalled();
+    } finally {
+      regexSpy.mockRestore();
+    }
+  });
+
   it('prefers a blocking match over earlier allowed fallbacks', () => {
     const decision = evaluateFilterDecision(
       'https://blocked.com',
