@@ -555,30 +555,31 @@ describe('TabController', () => {
     });
 
     const { getTabController } = await import('../../../src/background/tabController');
+    getTabController().register();
     await expect(getTabController().continueFromActiveTab()).resolves.toBe(true);
 
-    chromeMock.storage.sync._data.set(
-      STORAGE_KEY,
-      createStorageData({
-        filters: [
-          {
-            id: 'original-filter',
-            pattern: 'override.com',
-            groupId: DEFAULT_GROUP_ID,
-            enabled: false,
-            matchMode: 'contains',
-          },
-          {
-            id: 'replacement-filter',
-            pattern: 'override.com',
-            groupId: DEFAULT_GROUP_ID,
-            enabled: true,
-            matchMode: 'contains',
-          },
-        ],
-        rulesVersion: 14,
-      })
-    );
+    const onChanged = chromeMock.storage.onChanged.addListener.mock.calls[0]?.[0];
+    const replacedData = createStorageData({
+      filters: [
+        {
+          id: 'original-filter',
+          pattern: 'override.com',
+          groupId: DEFAULT_GROUP_ID,
+          enabled: false,
+          matchMode: 'contains',
+        },
+        {
+          id: 'replacement-filter',
+          pattern: 'override.com',
+          groupId: DEFAULT_GROUP_ID,
+          enabled: true,
+          matchMode: 'contains',
+        },
+      ],
+      rulesVersion: 14,
+    });
+    chromeMock.storage.sync._data.set(STORAGE_KEY, replacedData);
+    onChanged?.({ [STORAGE_KEY]: { newValue: replacedData } }, 'sync');
 
     chromeMock.tabs.update.mockClear();
     await getTabController().evaluateNavigation(14, 'https://override.com/still-blocked');
@@ -671,15 +672,8 @@ describe('TabController', () => {
     );
   });
 
-  it('reloads current rules for navigation decisions even if a storage event is missed', async () => {
+  it('serves cached rules for navigation decisions without re-reading storage', async () => {
     const chromeMock = getChromeMock();
-    const { getTabController } = await import('../../../src/background/tabController');
-
-    await expect(getTabController().getUrlDecision('https://blocked.com')).resolves.toEqual({
-      action: 'allow',
-      reason: 'no-match',
-    });
-
     chromeMock.storage.sync._data.set(
       STORAGE_KEY,
       createStorageData({
@@ -695,17 +689,22 @@ describe('TabController', () => {
         rulesVersion: 3,
       })
     );
-    // Intentionally update the backing mock storage without invoking the
-    // storage listener to simulate a missed chrome.storage.onChanged event.
+    const { getTabController } = await import('../../../src/background/tabController');
+    getTabController().register();
 
     await getTabController().evaluateNavigation(13, 'https://blocked.com');
+    const storageReadsAfterFirstNavigation = chromeMock.storage.sync.get.mock.calls.length;
+    expect(storageReadsAfterFirstNavigation).toBeGreaterThan(0);
 
-    const state = await getBlockedTabState(13);
-    expect(state?.blockId).toEqual(expect.any(String));
-    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
-      13,
-      { url: blockedPageUrl(state!.blockId) },
-      expect.any(Function)
-    );
+    await getTabController().evaluateNavigation(13, 'https://allowed.com/page');
+    await getTabController().evaluateNavigation(13, 'https://allowed.com/page#section');
+
+    expect(chromeMock.storage.sync.get).toHaveBeenCalledTimes(storageReadsAfterFirstNavigation);
+    await expect(getTabController().getUrlDecision('https://blocked.com')).resolves.toEqual({
+      action: 'block',
+      filterId: 'filter-3',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
   });
 });

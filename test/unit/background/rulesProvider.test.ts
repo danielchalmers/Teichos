@@ -55,7 +55,7 @@ describe('RulesProvider', () => {
     });
   });
 
-  it('reuses cached rules when normalized storage is unchanged', async () => {
+  it('serves cached rules without re-reading storage until invalidated', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(
       STORAGE_KEY,
@@ -69,7 +69,7 @@ describe('RulesProvider', () => {
     const first = await provider.loadCurrentRules();
     const second = await provider.loadCurrentRules();
 
-    expect(chromeMock.storage.sync.get).toHaveBeenCalledTimes(2);
+    expect(chromeMock.storage.sync.get).toHaveBeenCalledTimes(1);
     expect(createEngine).toHaveBeenCalledTimes(1);
     expect(second).toBe(first);
   });
@@ -174,7 +174,7 @@ describe('RulesProvider', () => {
     });
   });
 
-  it('reloads rules when storage changes', async () => {
+  it('reloads rules from storage after invalidate', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ rulesVersion: 1 }));
     const createEngine = vi.fn((data: StorageData) => createFilteringEngine(data));
@@ -196,9 +196,11 @@ describe('RulesProvider', () => {
         rulesVersion: 2,
       })
     );
+    provider.invalidate();
 
     const second = await provider.loadCurrentRules();
 
+    expect(chromeMock.storage.sync.get).toHaveBeenCalledTimes(2);
     expect(createEngine).toHaveBeenCalledTimes(2);
     expect(second).not.toBe(first);
     expect(second.engine.evaluate('https://blocked.com')).toEqual({
