@@ -12,11 +12,16 @@ interface RulesProviderOptions {
   readonly createEngine?: (data: StorageData) => FilteringEngine;
 }
 
+/**
+ * Caches the current rules for the service worker. The cache is authoritative until
+ * `invalidate()` is called, which the tab controller does from `chrome.storage.onChanged`, so the
+ * per-navigation path never touches storage while the cache is warm. A load that overlaps an
+ * invalidation is served to its caller but never cached, because it may have read stale data.
+ */
 export class RulesProvider {
   private readonly loadStorageData: () => Promise<StorageData>;
   private readonly createEngine: (data: StorageData) => FilteringEngine;
   private cachedRules: CurrentRules | null = null;
-  private cachedSignature: string | null = null;
   private loadingRules: Promise<CurrentRules> | null = null;
   private invalidationVersion = 0;
 
@@ -28,11 +33,14 @@ export class RulesProvider {
   invalidate(): void {
     this.invalidationVersion += 1;
     this.cachedRules = null;
-    this.cachedSignature = null;
     this.loadingRules = null;
   }
 
   async loadCurrentRules(): Promise<CurrentRules> {
+    if (this.cachedRules) {
+      return this.cachedRules;
+    }
+
     if (this.loadingRules) {
       return this.loadingRules;
     }
@@ -40,21 +48,13 @@ export class RulesProvider {
     const loadVersion = this.invalidationVersion;
     const loadPromise = this.loadStorageData()
       .then((data) => {
-        const signature = serializeRulesData(data);
-        const cacheCanBeUpdated = this.invalidationVersion === loadVersion;
-
-        if (this.cachedRules && this.cachedSignature === signature) {
-          return this.cachedRules;
-        }
-
-        const currentRules = {
+        const currentRules: CurrentRules = {
           data,
           engine: this.createEngine(data),
         };
 
-        if (cacheCanBeUpdated) {
+        if (this.invalidationVersion === loadVersion) {
           this.cachedRules = currentRules;
-          this.cachedSignature = signature;
         }
 
         return currentRules;
@@ -68,10 +68,6 @@ export class RulesProvider {
     this.loadingRules = loadPromise;
     return loadPromise;
   }
-}
-
-function serializeRulesData(data: StorageData): string {
-  return JSON.stringify(data);
 }
 
 const rulesProvider = new RulesProvider();
