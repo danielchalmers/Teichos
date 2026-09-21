@@ -1,5 +1,5 @@
 import type { Filter, FilterGroup, StorageData, Whitelist } from '../types';
-import { matchesPattern } from './patterns';
+import { matchesPattern, preparePattern, type PreparedPattern } from './patterns';
 import {
   buildGroupById,
   buildWhitelistByGroup,
@@ -45,10 +45,14 @@ const FILTER_DECISION_REASON_PRIORITY: Record<FilterDecisionAllowReason, number>
   snoozed: 5,
 };
 
+/**
+ * Build the lookups and prepared patterns once per rules change. The engine evaluates on every
+ * navigation, so regex compilation and pattern lowercasing must not happen per evaluation.
+ */
 export function createFilteringEngine(data: StorageData): FilteringEngine {
   const groupsById = buildGroupById(data.groups);
-  const whitelistByGroup = buildWhitelistByGroup(data.whitelist);
-  const orderedFilters = sortFiltersTemporaryFirst(data.filters);
+  const whitelistByGroup = buildWhitelistByGroup(data.whitelist.map(withPreparedPattern));
+  const orderedFilters = sortFiltersTemporaryFirst(data.filters).map(withPreparedPattern);
 
   return {
     data,
@@ -126,6 +130,10 @@ export function evaluateFilterDecision(
   }
 
   return { action: 'allow', reason: fallbackReason };
+}
+
+function withPreparedPattern<T extends Filter | Whitelist>(entry: T): T & PreparedPattern {
+  return { ...entry, ...preparePattern(entry.pattern, entry.matchMode) };
 }
 
 function selectHigherPriorityReason(
