@@ -708,6 +708,33 @@ describe('TabController', () => {
     });
   });
 
+  it('does not redirect to the blocked page after the tab has already navigated elsewhere', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'filter-1',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    const superseded = getTabController().evaluateNavigation(21, 'https://blocked.com/page');
+    const latest = getTabController().evaluateNavigation(21, 'https://allowed.com/');
+    await Promise.all([superseded, latest]);
+
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+    await expect(getBlockedTabState(21)).resolves.toBeUndefined();
+    await expect(getLastAllowedUrl(21)).resolves.toBe('https://allowed.com/');
+  });
+
   it('skips session writes when an allowed navigation changes nothing', async () => {
     const chromeMock = getChromeMock();
     const { getTabController } = await import('../../../src/background/tabController');

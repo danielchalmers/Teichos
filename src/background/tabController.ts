@@ -39,6 +39,12 @@ interface BlockedStateResult {
 class TabController {
   private didRegister = false;
   private reconcileQueue: Promise<void> = Promise.resolve();
+  /**
+   * Bumped for every navigation event so an evaluation that is still awaiting storage when the
+   * tab navigates again does not redirect or record state for a page the tab has already left.
+   * Losing this on worker restart is harmless: it only orders events within one worker lifetime.
+   */
+  private readonly navigationSeq = new Map<number, number>();
 
   constructor(private readonly rulesProvider: RulesProvider) {}
 
@@ -60,10 +66,18 @@ class TabController {
     this.queueReconcile();
   }
 
+  /**
+   * Evaluate a main-frame navigation event. It supersedes any evaluation still in flight for the
+   * tab.
+   */
   async evaluateNavigation(tabId: number, url: string): Promise<void> {
+    await this.evaluateTab(tabId, url, this.bumpNavigationSeq(tabId));
+  }
+
+  private async evaluateTab(tabId: number, url: string, seq: number): Promise<void> {
     const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
     if (url.startsWith(blockedPageUrl)) {
-      await this.reconcileBlockedTab(tabId, url);
+      await this.reconcileBlockedTab(tabId, seq, url);
       return;
     }
 
@@ -76,15 +90,25 @@ class TabController {
 
     if (decision.action === 'block') {
       if (await this.isBypassed(tabId, url, decision)) {
-        await this.allowTab(tabId, url, { preserveBypass: true });
+        await this.allowTab(tabId, url, seq, { preserveBypass: true });
         return;
       }
 
-      await this.blockTab(tabId, url, decision, rules.data);
+      await this.blockTab(tabId, url, seq, decision, rules.data);
       return;
     }
 
-    await this.allowTab(tabId, url);
+    await this.allowTab(tabId, url, seq);
+  }
+
+  private bumpNavigationSeq(tabId: number): number {
+    const seq = this.getNavigationSeq(tabId) + 1;
+    this.navigationSeq.set(tabId, seq);
+    return seq;
+  }
+
+  private getNavigationSeq(tabId: number): number {
+    return this.navigationSeq.get(tabId) ?? 0;
   }
 
   async getUrlDecision(url: string): Promise<FilterDecision> {
@@ -131,6 +155,9 @@ class TabController {
   }
 
   async reconcileAllOpenTabs(): Promise<void> {
+    // Snapshot before querying: a tab that navigates while the query is in flight reports a URL
+    // it is already leaving, and its own navigation event will evaluate the new one.
+    const seqBeforeQuery = new Map(this.navigationSeq);
     const tabs = await queryTabs({});
     const results = await Promise.allSettled(
       tabs.map(async (tab) => {
@@ -138,7 +165,7 @@ class TabController {
           return;
         }
 
-        await this.reconcileTab(tab.id, tab.url);
+        await this.evaluateTab(tab.id, tab.url, seqBeforeQuery.get(tab.id) ?? 0);
       })
     );
 
@@ -170,7 +197,7 @@ class TabController {
     }
 
     await updateTabUrl(tabId, lastAllowedUrl);
-    await this.allowTab(tabId, lastAllowedUrl);
+    await this.allowTab(tabId, lastAllowedUrl, this.getNavigationSeq(tabId));
     return true;
   }
 
@@ -221,25 +248,15 @@ class TabController {
     return true;
   }
 
-  private async reconcileTab(tabId: number, url: string): Promise<void> {
-    const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
-    if (url.startsWith(blockedPageUrl)) {
-      await this.reconcileBlockedTab(tabId, url);
-      return;
-    }
-
-    if (isInternalUrl(url)) {
-      return;
-    }
-
-    await this.evaluateNavigation(tabId, url);
-  }
-
   /**
    * An open blocked tab keeps showing the snapshot captured when the block happened; the only
    * settings-driven change is redirecting back to the target once the block ends.
    */
-  private async reconcileBlockedTab(tabId: number, blockedPageUrl?: string): Promise<void> {
+  private async reconcileBlockedTab(
+    tabId: number,
+    seq: number,
+    blockedPageUrl?: string
+  ): Promise<void> {
     const resolvedTarget = await this.resolveBlockedTarget(tabId, blockedPageUrl);
     if (!resolvedTarget) {
       return;
@@ -250,21 +267,32 @@ class TabController {
     const bypassed =
       decision.action === 'block' &&
       (await this.isBypassed(tabId, resolvedTarget.targetUrl, decision));
-    if (decision.action === 'block' && !bypassed) {
+    if ((decision.action === 'block' && !bypassed) || !this.isCurrentNavigation(tabId, seq)) {
       return;
     }
 
     await updateTabUrl(tabId, resolvedTarget.targetUrl);
-    await this.allowTab(tabId, resolvedTarget.targetUrl, { preserveBypass: bypassed });
+    await this.allowTab(tabId, resolvedTarget.targetUrl, this.getNavigationSeq(tabId), {
+      preserveBypass: bypassed,
+    });
   }
 
   private async blockTab(
     tabId: number,
     url: string,
+    seq: number,
     decision: Extract<FilterDecision, { action: 'block' }>,
     data: StorageData
   ): Promise<void> {
+    if (!this.isCurrentNavigation(tabId, seq)) {
+      return;
+    }
+
     const state = await this.ensureBlockedState(tabId, url, decision, data);
+    if (!this.isCurrentNavigation(tabId, seq)) {
+      return;
+    }
+
     await updateTabUrl(tabId, getBlockedPageUrl(state.tabState.blockId));
   }
 
@@ -275,9 +303,14 @@ class TabController {
   private async allowTab(
     tabId: number,
     url: string,
+    seq: number,
     options?: { readonly preserveBypass?: boolean }
   ): Promise<void> {
     const session = await getTabSessionState(tabId);
+    if (!this.isCurrentNavigation(tabId, seq)) {
+      return;
+    }
+
     const operations: Promise<void>[] = [];
     if (session.blockedTabState) {
       operations.push(clearBlockedTabState(tabId));
@@ -294,6 +327,10 @@ class TabController {
     }
 
     await Promise.all(operations);
+  }
+
+  private isCurrentNavigation(tabId: number, seq: number): boolean {
+    return this.getNavigationSeq(tabId) === seq;
   }
 
   private async setBlockedState(
