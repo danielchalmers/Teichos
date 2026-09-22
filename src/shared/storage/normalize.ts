@@ -8,6 +8,7 @@ import type {
 } from '../types';
 import { DEFAULT_GROUP_ID } from '../types';
 import { createDefaultData, createDefaultGroup } from './defaults';
+import { isObject, isValidSchedule } from './guards';
 
 export type LegacyFilter = Omit<Filter, 'matchMode'> & {
   readonly matchMode?: FilterMatchMode;
@@ -57,8 +58,16 @@ function normalizePattern(pattern: string, matchMode: FilterMatchMode): string {
  * disables every filter in its group. Neither is recoverable into something the user meant, so
  * drop the entry rather than let it silently take over.
  */
-function hasUsablePattern(entry: { readonly pattern: string }): boolean {
-  return typeof entry.pattern === 'string' && entry.pattern.trim() !== '';
+function hasUsablePattern(entry: unknown): entry is { readonly pattern: string } {
+  return isObject(entry) && typeof entry['pattern'] === 'string' && entry['pattern'].trim() !== '';
+}
+
+/**
+ * Synced data is not validated like an import: it can come from another device, an older build,
+ * or a manual edit. Treat a non-array list as empty rather than throwing on every load.
+ */
+function asArray<T>(value: readonly T[] | undefined): readonly T[] {
+  return Array.isArray(value) ? value : [];
 }
 
 function normalizeFilters(
@@ -68,7 +77,7 @@ function normalizeFilters(
   // blockType is a retired per-filter setting; strip it from legacy data.
   // A groupId whose group no longer exists would make the filter silently
   // inactive, so reassign it to the default group like whitelist entries.
-  return (filters ?? [])
+  return asArray(filters)
     .filter(hasUsablePattern)
     .map(({ isRegex, matchMode, blockType: _blockType, ...filter }) => {
       const resolvedMatchMode = resolveMatchMode(matchMode, isRegex);
@@ -85,7 +94,7 @@ function normalizeWhitelist(
   whitelist: readonly LegacyWhitelist[] | undefined,
   groupIds: ReadonlySet<string>
 ): Whitelist[] {
-  return (whitelist ?? [])
+  return asArray(whitelist)
     .filter(hasUsablePattern)
     .map(({ isRegex, matchMode, groupId, ...entry }) => {
       const resolvedMatchMode = resolveMatchMode(matchMode, isRegex);
@@ -110,10 +119,22 @@ function normalizeSnooze(snooze: LegacyStorageData['snooze']): SnoozeState {
   return { active: true };
 }
 
+/**
+ * Repair the group fields that schedule evaluation and the options page index into. A single
+ * malformed group (e.g. `schedules: null`) otherwise throws on every navigation, so filtering
+ * fails open, and keeps the options page from loading at all. Invalid schedule entries are
+ * dropped, which leaves a scheduled group inactive rather than guessing at its hours.
+ */
 function normalizeGroups(groups: readonly FilterGroup[] | undefined): FilterGroup[] {
-  return (groups && groups.length > 0 ? groups : [createDefaultGroup()]).map((group) => ({
+  const usableGroups = asArray(groups).filter(
+    (group) => isObject(group) && typeof group.id === 'string'
+  );
+  return (usableGroups.length > 0 ? usableGroups : [createDefaultGroup()]).map((group) => ({
     ...group,
-    enabled: group.enabled ?? true,
+    name: typeof group.name === 'string' ? group.name : '',
+    is24x7: group.is24x7 === true,
+    schedules: asArray(group.schedules).filter(isValidSchedule),
+    enabled: typeof group.enabled === 'boolean' ? group.enabled : true,
   }));
 }
 

@@ -23,6 +23,7 @@ import {
 } from '../../../src/shared/api/storage';
 import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
 import type { Filter, StorageData } from '../../../src/shared/types';
+import type { LegacyStorageData } from '../../../src/shared/storage/normalize';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
 
 describe('storage', () => {
@@ -315,6 +316,35 @@ describe('storage', () => {
       // Matching is substring-based, so a blank filter blocks the whole web and a blank
       // exception disables every filter in its group.
       expect(data.filters).toEqual([]);
+      expect(data.whitelist).toEqual([]);
+    });
+
+    it('repairs malformed synced groups instead of throwing on evaluation', () => {
+      const data = normalizeStoredData({
+        groups: [
+          createDefaultGroup(),
+          { id: 'broken', name: 'Broken', is24x7: false, schedules: null },
+          {
+            id: 'mixed',
+            name: 'Mixed',
+            is24x7: false,
+            schedules: [
+              { daysOfWeek: [1], startTime: '09:00', endTime: '17:00' },
+              { daysOfWeek: 'weekdays', startTime: '9am', endTime: '' },
+            ],
+          },
+          null,
+        ],
+        filters: [null, { id: 'kept', pattern: 'reddit.com', groupId: 'broken', enabled: true }],
+        whitelist: 'not-a-list',
+      } as unknown as LegacyStorageData);
+
+      expect(data.groups.map((group) => group.id)).toEqual([DEFAULT_GROUP_ID, 'broken', 'mixed']);
+      expect(data.groups[1]?.schedules).toEqual([]);
+      expect(data.groups[2]?.schedules).toEqual([
+        { daysOfWeek: [1], startTime: '09:00', endTime: '17:00' },
+      ]);
+      expect(data.filters.map((filter) => filter.id)).toEqual(['kept']);
       expect(data.whitelist).toEqual([]);
     });
 
