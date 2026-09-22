@@ -127,6 +127,48 @@ export async function clearBypassState(tabId: number): Promise<void> {
   await chrome.storage.session.remove(bypassKey(tabId));
 }
 
+export interface TabSessionState {
+  readonly lastAllowedUrl: string | undefined;
+  readonly blockedTabState: BlockedTabState | undefined;
+  readonly bypass: BypassState | undefined;
+}
+
+/**
+ * Read every per-tab record in one storage call. Navigation handling needs all of them, and this
+ * runs for every main-frame navigation and for every open tab when the service worker wakes.
+ */
+export async function getTabSessionState(tabId: number): Promise<TabSessionState> {
+  const lastAllowedKey = lastAllowedUrlKey(tabId);
+  const blockedKey = blockedTabStateKey(tabId);
+  const bypassStateKey = bypassKey(tabId);
+  const result = await chrome.storage.session.get([lastAllowedKey, blockedKey, bypassStateKey]);
+  const lastAllowedUrl = result[lastAllowedKey];
+  return {
+    lastAllowedUrl: typeof lastAllowedUrl === 'string' ? lastAllowedUrl : undefined,
+    blockedTabState: normalizeBlockedTabState(result[blockedKey]),
+    bypass: normalizeBypassState(result[bypassStateKey]),
+  };
+}
+
+/**
+ * Remove everything stored for a tab that no longer exists, including the snapshot of every block
+ * it showed. Nothing else deletes these, so without this session storage grows with every block
+ * until it hits its quota, after which new blocks can no longer be recorded.
+ */
+export async function clearTabSessionState(tabId: number): Promise<void> {
+  const all = await chrome.storage.session.get(null);
+  const keys = [lastAllowedUrlKey(tabId), blockedTabStateKey(tabId), bypassKey(tabId)];
+  for (const [key, value] of Object.entries(all)) {
+    if (
+      key.startsWith(BLOCKED_PAGE_STATE_KEY_PREFIX) &&
+      (value as { tabId?: unknown } | null)?.tabId === tabId
+    ) {
+      keys.push(key);
+    }
+  }
+  await chrome.storage.session.remove(keys);
+}
+
 function isFilterMatchMode(value: unknown): value is FilterMatchMode {
   return value === 'contains' || value === 'exact' || value === 'regex';
 }

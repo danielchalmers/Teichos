@@ -20,4 +20,5 @@ export const PAGES = {
 
 export const ALARMS = {
   SNOOZE_EXPIRATION: 'snooze-expiration',
+  RULES_CHANGE: 'rules-change',
 } as const;

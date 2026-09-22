@@ -7,13 +7,14 @@ import { getRegexValidationError, matchesPattern } from '../../../src/shared/fil
 import {
   getSnoozeRemainingMs,
   isSnoozeActive,
+  getNextRulesChangeAt,
   isSnoozeExpired,
   isFilterActive,
   isFilterScheduledActive,
   sortFiltersTemporaryFirst,
 } from '../../../src/shared/filtering/schedules';
 import { evaluateFilterDecision } from '../../../src/shared/filtering/engine';
-import type { Filter, FilterGroup, Whitelist } from '../../../src/shared/types';
+import type { Filter, FilterGroup, StorageData, Whitelist } from '../../../src/shared/types';
 
 function findBlockingFilter(
   url: string,
@@ -757,5 +758,63 @@ describe('shouldBlockUrl', () => {
     ];
 
     expect(findBlockingFilter('https://blocked.com', filters, disabledGroups, [])).toBeUndefined();
+  });
+});
+
+describe('getNextRulesChangeAt', () => {
+  const at = (hours: number, minutes: number, dayOffset = 0): number =>
+    new Date(2026, 8, 21 + dayOffset, hours, minutes, 0, 0).getTime();
+  const scheduledGroup = (overrides: Partial<FilterGroup> = {}): FilterGroup => ({
+    id: 'work',
+    name: 'Work',
+    is24x7: false,
+    enabled: true,
+    schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
+    ...overrides,
+  });
+  const data = (groups: FilterGroup[], filters: Filter[] = []): StorageData => ({
+    groups,
+    filters,
+    whitelist: [],
+    snooze: { active: false },
+    rulesVersion: 1,
+  });
+
+  it('returns the next window start before the window opens', () => {
+    expect(getNextRulesChangeAt(data([scheduledGroup()]), at(8, 30))).toBe(at(9, 0));
+  });
+
+  it('returns the minute after the end time while the window is open', () => {
+    // The window includes its end minute, so it closes when 17:01 starts.
+    expect(getNextRulesChangeAt(data([scheduledGroup()]), at(12, 0))).toBe(at(17, 1));
+  });
+
+  it('rolls over to the next day after the last boundary', () => {
+    expect(getNextRulesChangeAt(data([scheduledGroup()]), at(18, 0))).toBe(at(9, 0, 1));
+  });
+
+  it('includes the earliest future temporary filter expiry', () => {
+    const temporary: Filter = {
+      id: 'temp',
+      pattern: 'news.com',
+      groupId: 'work',
+      enabled: true,
+      matchMode: 'contains',
+      expiresAt: at(8, 45),
+    };
+    const expired: Filter = { ...temporary, id: 'expired', expiresAt: at(8, 0) };
+
+    expect(getNextRulesChangeAt(data([scheduledGroup()], [expired, temporary]), at(8, 30))).toBe(
+      at(8, 45)
+    );
+  });
+
+  it('ignores always-on and disabled groups', () => {
+    const groups = [
+      scheduledGroup({ id: 'always', is24x7: true }),
+      scheduledGroup({ id: 'off', enabled: false }),
+    ];
+
+    expect(getNextRulesChangeAt(data(groups), at(8, 30))).toBeNull();
   });
 });

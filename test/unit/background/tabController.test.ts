@@ -707,4 +707,124 @@ describe('TabController', () => {
       reason: 'matched-filter',
     });
   });
+
+  it('does not redirect to the blocked page after the tab has already navigated elsewhere', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'filter-1',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    const superseded = getTabController().evaluateNavigation(21, 'https://blocked.com/page');
+    const latest = getTabController().evaluateNavigation(21, 'https://allowed.com/');
+    await Promise.all([superseded, latest]);
+
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+    await expect(getBlockedTabState(21)).resolves.toBeUndefined();
+    await expect(getLastAllowedUrl(21)).resolves.toBe('https://allowed.com/');
+  });
+
+  it('skips session writes when an allowed navigation changes nothing', async () => {
+    const chromeMock = getChromeMock();
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(22, 'https://allowed.com/');
+    chromeMock.storage.session.set.mockClear();
+    chromeMock.storage.session.remove.mockClear();
+
+    await getTabController().evaluateNavigation(22, 'https://allowed.com/');
+
+    expect(chromeMock.storage.session.set).not.toHaveBeenCalled();
+    expect(chromeMock.storage.session.remove).not.toHaveBeenCalled();
+  });
+
+  it('clears session state when a tab is closed or replaced', async () => {
+    const chromeMock = getChromeMock();
+    const { getTabController } = await import('../../../src/background/tabController');
+    getTabController().register();
+    await getTabController().evaluateNavigation(23, 'https://allowed.com/');
+    await getTabController().evaluateNavigation(24, 'https://other.com/');
+
+    const onRemoved = chromeMock.tabs.onRemoved.addListener.mock.calls[0]?.[0];
+    const onReplaced = chromeMock.tabs.onReplaced.addListener.mock.calls[0]?.[0];
+    onRemoved?.(23, { windowId: 1, isWindowClosing: false });
+    onReplaced?.(99, 24);
+
+    await vi.waitFor(async () => {
+      await expect(getLastAllowedUrl(23)).resolves.toBeUndefined();
+      await expect(getLastAllowedUrl(24)).resolves.toBeUndefined();
+    });
+  });
+
+  it('schedules a rules check at the next schedule boundary and reconciles when it fires', async () => {
+    const chromeMock = getChromeMock();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 21, 8, 30));
+    try {
+      chromeMock.storage.sync._data.set(
+        STORAGE_KEY,
+        createStorageData({
+          groups: [
+            { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true },
+            {
+              id: 'work',
+              name: 'Work',
+              is24x7: false,
+              schedules: [{ daysOfWeek: [1], startTime: '09:00', endTime: '17:00' }],
+            },
+          ],
+          filters: [
+            {
+              id: 'filter-work',
+              pattern: 'news.com',
+              groupId: 'work',
+              enabled: true,
+              matchMode: 'contains',
+            },
+          ],
+        })
+      );
+      chromeMock.tabs.query.mockImplementation(
+        (_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+          callback?.([{ id: 25, url: 'https://news.com/' } as chrome.tabs.Tab]);
+        }
+      );
+
+      const { getTabController } = await import('../../../src/background/tabController');
+      getTabController().register();
+
+      await vi.waitFor(() => {
+        expect(chromeMock.alarms.create).toHaveBeenCalledWith('rules-change', {
+          when: new Date(2026, 8, 21, 9, 0).getTime() + 1000,
+        });
+      });
+      expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+
+      vi.setSystemTime(new Date(2026, 8, 21, 9, 0, 1));
+      const onAlarm = chromeMock.alarms.onAlarm.addListener.mock.calls[0]?.[0];
+      onAlarm?.({ name: 'rules-change', scheduledTime: Date.now() });
+
+      await vi.waitFor(async () => {
+        const state = await getBlockedTabState(25);
+        expect(state?.targetUrl).toBe('https://news.com/');
+        expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+          25,
+          { url: blockedPageUrl(state!.blockId) },
+          expect.any(Function)
+        );
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

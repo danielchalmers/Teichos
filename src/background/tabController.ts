@@ -1,10 +1,12 @@
 import {
   clearBlockedTabState,
   clearBypassState,
+  clearTabSessionState,
   getBlockedPageState,
   getBlockedTabState,
   getBypassState,
   getLastAllowedUrl,
+  getTabSessionState,
   setBlockedPageState,
   setBlockedTabState,
   setBypassState,
@@ -12,8 +14,9 @@ import {
 } from '../shared/api/session';
 import { getActiveTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
 import { getExtensionUrl } from '../shared/api/runtime';
-import { PAGES } from '../shared/constants';
+import { ALARMS, PAGES } from '../shared/constants';
 import type { FilterDecision } from '../shared/filtering/engine';
+import { getNextRulesChangeAt } from '../shared/filtering/schedules';
 import {
   type BlockedPageState,
   STORAGE_KEY,
@@ -35,9 +38,20 @@ interface BlockedStateResult {
   readonly pageState: BlockedPageState;
 }
 
+// Land just inside the minute a schedule window opens or closes, since windows are compared by
+// wall-clock minute and an alarm can fire at the exact boundary.
+const RULES_CHANGE_SLACK_MS = 1000;
+
 class TabController {
   private didRegister = false;
   private reconcileQueue: Promise<void> = Promise.resolve();
+  /**
+   * Bumped for every navigation event (and tab removal) so an evaluation that is still awaiting
+   * storage when the tab navigates again does not redirect or record state for a page the tab has
+   * already left. Losing this on worker restart is harmless: it only orders events within one
+   * worker lifetime.
+   */
+  private readonly navigationSeq = new Map<number, number>();
 
   constructor(private readonly rulesProvider: RulesProvider) {}
 
@@ -56,13 +70,36 @@ class TabController {
       this.queueReconcile();
     });
 
+    // Schedule windows and temporary filters change decisions without any settings write, so an
+    // alarm at the next boundary re-checks open tabs the same way a settings change does.
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name === ALARMS.RULES_CHANGE) {
+        this.queueReconcile();
+      }
+    });
+
+    chrome.tabs.onRemoved.addListener((tabId) => {
+      this.forgetTab(tabId);
+    });
+    chrome.tabs.onReplaced.addListener((_addedTabId, removedTabId) => {
+      this.forgetTab(removedTabId);
+    });
+
     this.queueReconcile();
   }
 
+  /**
+   * Evaluate a main-frame navigation event. It supersedes any evaluation still in flight for the
+   * tab.
+   */
   async evaluateNavigation(tabId: number, url: string): Promise<void> {
+    await this.evaluateTab(tabId, url, this.bumpNavigationSeq(tabId));
+  }
+
+  private async evaluateTab(tabId: number, url: string, seq: number): Promise<void> {
     const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
     if (url.startsWith(blockedPageUrl)) {
-      await this.reconcileBlockedTab(tabId, url);
+      await this.reconcileBlockedTab(tabId, seq, url);
       return;
     }
 
@@ -75,15 +112,32 @@ class TabController {
 
     if (decision.action === 'block') {
       if (await this.isBypassed(tabId, url, decision)) {
-        await this.allowTab(tabId, url, { preserveBypass: true });
+        await this.allowTab(tabId, url, seq, { preserveBypass: true });
         return;
       }
 
-      await this.blockTab(tabId, url, decision, rules.data);
+      await this.blockTab(tabId, url, seq, decision, rules.data);
       return;
     }
 
-    await this.allowTab(tabId, url);
+    await this.allowTab(tabId, url, seq);
+  }
+
+  private bumpNavigationSeq(tabId: number): number {
+    const seq = this.getNavigationSeq(tabId) + 1;
+    this.navigationSeq.set(tabId, seq);
+    return seq;
+  }
+
+  private getNavigationSeq(tabId: number): number {
+    return this.navigationSeq.get(tabId) ?? 0;
+  }
+
+  private forgetTab(tabId: number): void {
+    this.bumpNavigationSeq(tabId);
+    clearTabSessionState(tabId).catch((error: unknown) => {
+      console.error('[Teichos] Failed to clear state for closed tab:', error);
+    });
   }
 
   async getUrlDecision(url: string): Promise<FilterDecision> {
@@ -130,6 +184,9 @@ class TabController {
   }
 
   async reconcileAllOpenTabs(): Promise<void> {
+    // Snapshot before querying: a tab that navigates while the query is in flight reports a URL
+    // it is already leaving, and its own navigation event will evaluate the new one.
+    const seqBeforeQuery = new Map(this.navigationSeq);
     const tabs = await queryTabs({});
     const results = await Promise.allSettled(
       tabs.map(async (tab) => {
@@ -137,7 +194,7 @@ class TabController {
           return;
         }
 
-        await this.reconcileTab(tab.id, tab.url);
+        await this.evaluateTab(tab.id, tab.url, seqBeforeQuery.get(tab.id) ?? 0);
       })
     );
 
@@ -169,7 +226,7 @@ class TabController {
     }
 
     await updateTabUrl(tabId, lastAllowedUrl);
-    await this.allowTab(tabId, lastAllowedUrl);
+    await this.allowTab(tabId, lastAllowedUrl, this.getNavigationSeq(tabId));
     return true;
   }
 
@@ -220,25 +277,15 @@ class TabController {
     return true;
   }
 
-  private async reconcileTab(tabId: number, url: string): Promise<void> {
-    const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
-    if (url.startsWith(blockedPageUrl)) {
-      await this.reconcileBlockedTab(tabId, url);
-      return;
-    }
-
-    if (isInternalUrl(url)) {
-      return;
-    }
-
-    await this.evaluateNavigation(tabId, url);
-  }
-
   /**
    * An open blocked tab keeps showing the snapshot captured when the block happened; the only
    * settings-driven change is redirecting back to the target once the block ends.
    */
-  private async reconcileBlockedTab(tabId: number, blockedPageUrl?: string): Promise<void> {
+  private async reconcileBlockedTab(
+    tabId: number,
+    seq: number,
+    blockedPageUrl?: string
+  ): Promise<void> {
     const resolvedTarget = await this.resolveBlockedTarget(tabId, blockedPageUrl);
     if (!resolvedTarget) {
       return;
@@ -249,42 +296,70 @@ class TabController {
     const bypassed =
       decision.action === 'block' &&
       (await this.isBypassed(tabId, resolvedTarget.targetUrl, decision));
-    if (decision.action === 'block' && !bypassed) {
+    if ((decision.action === 'block' && !bypassed) || !this.isCurrentNavigation(tabId, seq)) {
       return;
     }
 
     await updateTabUrl(tabId, resolvedTarget.targetUrl);
-    await this.allowTab(tabId, resolvedTarget.targetUrl, { preserveBypass: bypassed });
+    await this.allowTab(tabId, resolvedTarget.targetUrl, this.getNavigationSeq(tabId), {
+      preserveBypass: bypassed,
+    });
   }
 
   private async blockTab(
     tabId: number,
     url: string,
+    seq: number,
     decision: Extract<FilterDecision, { action: 'block' }>,
     data: StorageData
   ): Promise<void> {
+    if (!this.isCurrentNavigation(tabId, seq)) {
+      return;
+    }
+
     const state = await this.ensureBlockedState(tabId, url, decision, data);
+    if (!this.isCurrentNavigation(tabId, seq)) {
+      return;
+    }
+
     await updateTabUrl(tabId, getBlockedPageUrl(state.tabState.blockId));
   }
 
+  /**
+   * Record that the tab is on an allowed page, writing only what changed: this runs for every
+   * navigation and for every open tab whenever the worker wakes.
+   */
   private async allowTab(
     tabId: number,
     url: string,
+    seq: number,
     options?: { readonly preserveBypass?: boolean }
   ): Promise<void> {
-    const operations: Promise<void>[] = [
-      clearBlockedTabState(tabId),
-      setLastAllowedUrl(tabId, url),
-    ];
+    const session = await getTabSessionState(tabId);
+    if (!this.isCurrentNavigation(tabId, seq)) {
+      return;
+    }
 
-    if (!options?.preserveBypass) {
-      const bypass = await getBypassState(tabId);
-      if (bypass && bypass.urlKey !== getBypassUrlKey(url)) {
-        operations.push(clearBypassState(tabId));
-      }
+    const operations: Promise<void>[] = [];
+    if (session.blockedTabState) {
+      operations.push(clearBlockedTabState(tabId));
+    }
+    if (session.lastAllowedUrl !== url) {
+      operations.push(setLastAllowedUrl(tabId, url));
+    }
+    if (
+      !options?.preserveBypass &&
+      session.bypass &&
+      session.bypass.urlKey !== getBypassUrlKey(url)
+    ) {
+      operations.push(clearBypassState(tabId));
     }
 
     await Promise.all(operations);
+  }
+
+  private isCurrentNavigation(tabId: number, seq: number): boolean {
+    return this.getNavigationSeq(tabId) === seq;
   }
 
   private async setBlockedState(
@@ -370,8 +445,9 @@ class TabController {
   private queueReconcile(): void {
     this.reconcileQueue = this.reconcileQueue
       .then(async () => {
-        await this.getRules();
+        const rules = await this.getRules();
         await this.reconcileAllOpenTabs();
+        scheduleNextRulesChange(rules.data);
       })
       .catch((error: unknown) => {
         console.error('[Teichos] Failed to reconcile tabs after rules change:', error);
@@ -390,6 +466,17 @@ class TabController {
     const bypass = await getBypassState(tabId);
     return bypass?.filterId === decision.filterId && bypass.urlKey === getBypassUrlKey(targetUrl);
   }
+}
+
+function scheduleNextRulesChange(data: StorageData): void {
+  const nextChangeAt = getNextRulesChangeAt(data);
+  const update =
+    nextChangeAt === null
+      ? chrome.alarms.clear(ALARMS.RULES_CHANGE)
+      : chrome.alarms.create(ALARMS.RULES_CHANGE, { when: nextChangeAt + RULES_CHANGE_SLACK_MS });
+  Promise.resolve(update).catch((error: unknown) => {
+    console.error('[Teichos] Failed to schedule the next rules check:', error);
+  });
 }
 
 function parseBlockedPageBlockId(tabUrl: string | undefined): string | null {

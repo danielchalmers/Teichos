@@ -350,4 +350,50 @@ describe('handleMessage', () => {
     );
     expect(sendResponse).not.toHaveBeenCalled();
   });
+
+  it.each([
+    {
+      label: 'GET_DATA',
+      message: { type: MessageType.GET_DATA },
+      fail: (): unknown => mocks.loadData.mockRejectedValue(new Error('storage unavailable')),
+      fallback: { success: false },
+    },
+    {
+      label: 'CHECK_URL',
+      message: { type: MessageType.CHECK_URL, url: 'https://example.com' },
+      fail: (): unknown => mocks.getUrlDecision.mockRejectedValue(new Error('storage unavailable')),
+      fallback: { blocked: false },
+    },
+    {
+      label: 'GO_BACK_ACTIVE_TAB',
+      message: { type: MessageType.GO_BACK_ACTIVE_TAB },
+      fail: (): unknown => mocks.goBackFromActiveTab.mockRejectedValue(new Error('No tab with id')),
+      fallback: { restored: false },
+    },
+    {
+      label: 'CONTINUE_ACTIVE_TAB',
+      message: { type: MessageType.CONTINUE_ACTIVE_TAB },
+      fail: (): unknown =>
+        mocks.continueFromActiveTab.mockRejectedValue(new Error('No tab with id')),
+      fallback: { continued: false },
+    },
+    {
+      label: 'GET_BLOCKED_PAGE_STATE',
+      message: { type: MessageType.GET_BLOCKED_PAGE_STATE, blockId: 'block-1' },
+      fail: (): unknown =>
+        mocks.getBlockedPageStateByBlockId.mockRejectedValue(new Error('storage unavailable')),
+      fallback: { status: 'unavailable' },
+    },
+  ])('still responds to $label when the handler fails', async ({ message, fail, fallback }) => {
+    fail();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const sendResponse = vi.fn();
+
+    expect(handleMessage(message, { id: 'test-extension-id' }, sendResponse)).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith(fallback);
+    });
+    consoleError.mockRestore();
+  });
 });

@@ -40,6 +40,14 @@ interface ChromeMock {
       addListener: ReturnType<typeof vi.fn>;
       removeListener: ReturnType<typeof vi.fn>;
     };
+    onRemoved: {
+      addListener: ReturnType<typeof vi.fn>;
+      removeListener: ReturnType<typeof vi.fn>;
+    };
+    onReplaced: {
+      addListener: ReturnType<typeof vi.fn>;
+      removeListener: ReturnType<typeof vi.fn>;
+    };
   };
   webNavigation: {
     onBeforeNavigate: {
@@ -98,9 +106,9 @@ function createMockStorage(): MockStorage {
   return {
     _data: data,
     _reset: () => data.clear(),
-    get: vi.fn((keys: string | string[]) => {
+    get: vi.fn((keys: string | string[] | null) => {
       const result: Record<string, unknown> = {};
-      const keyArray = Array.isArray(keys) ? keys : [keys];
+      const keyArray = keys === null ? [...data.keys()] : Array.isArray(keys) ? keys : [keys];
       keyArray.forEach((key) => {
         if (data.has(key)) {
           result[key] = data.get(key);
@@ -168,6 +176,14 @@ export function createChromeMock(): ChromeMock {
         callback?.();
       }),
       onUpdated: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+      onRemoved: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+      onReplaced: {
         addListener: vi.fn(),
         removeListener: vi.fn(),
       },

@@ -398,6 +398,41 @@ test('expired temporary filters do not prevent real navigation from being blocke
   await expectBlocked(browsingPage, targetUrl);
 });
 
+test('an open blocked tab returns to its page when its temporary filter expires', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://temporary-expiring.example.test/focus';
+  await mockAllowedPage(page, targetUrl, 'Temporary block over');
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'expiring-temporary-filter',
+          pattern: 'temporary-expiring.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Expiring Temporary',
+          expiresAt: Date.now() + 5_000,
+        },
+      ],
+    })
+  );
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, targetUrl);
+
+  // Nothing is written to storage when the filter expires, so only the background's rules-change
+  // alarm can bring the tab back.
+  await expect.poll(() => browsingPage.url(), { timeout: 20_000 }).toBe(targetUrl);
+  await expect(browsingPage.getByText('Temporary block over')).toBeVisible();
+});
+
 test('expired temporary filters disappear from popup and options ui', async ({
   extensionPage,
   page,
