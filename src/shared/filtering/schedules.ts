@@ -1,4 +1,11 @@
-import type { Filter, FilterGroup, SnoozeState, TimeSchedule, Whitelist } from '../types';
+import type {
+  Filter,
+  FilterGroup,
+  SnoozeState,
+  StorageData,
+  TimeSchedule,
+  Whitelist,
+} from '../types';
 import { getCurrentDayOfWeek, getCurrentTimeString } from '../utils/helpers';
 
 export type WhitelistByGroup<T extends Whitelist = Whitelist> = ReadonlyMap<string, readonly T[]>;
@@ -203,4 +210,52 @@ function isScheduleActive(schedule: TimeSchedule, context: ScheduleContext): boo
 
   const previousDay = (context.dayOfWeek + 6) % 7;
   return schedule.daysOfWeek.includes(previousDay) && context.time <= schedule.endTime;
+}
+
+/**
+ * The earliest moment after `now` at which a decision can change without a settings write: a
+ * schedule window opening or closing, or a temporary filter expiring. Windows have minute
+ * resolution and include their end minute, so a window closes when the minute after endTime
+ * starts. Days of the week are ignored; at worst that re-checks tabs on a day a window does not
+ * apply. Snooze expiry is not included because the snooze alarm already rewrites settings.
+ */
+export function getNextRulesChangeAt(data: StorageData, now = Date.now()): number | null {
+  let next: number | null = null;
+  const consider = (candidate: number | null): void => {
+    if (candidate !== null && candidate > now && (next === null || candidate < next)) {
+      next = candidate;
+    }
+  };
+
+  for (const filter of data.filters) {
+    if (isTemporaryFilter(filter)) {
+      consider(filter.expiresAt);
+    }
+  }
+
+  for (const group of data.groups) {
+    if (!isGroupEnabled(group) || group.is24x7) {
+      continue;
+    }
+    for (const schedule of group.schedules) {
+      consider(getNextTimeOfDay(schedule.startTime, 0, now));
+      consider(getNextTimeOfDay(schedule.endTime, 1, now));
+    }
+  }
+
+  return next;
+}
+
+function getNextTimeOfDay(time: string, offsetMinutes: number, now: number): number | null {
+  const [hours, minutes] = time.split(':').map(Number);
+  if (hours === undefined || minutes === undefined || Number.isNaN(hours + minutes)) {
+    return null;
+  }
+
+  const candidate = new Date(now);
+  candidate.setHours(hours, minutes + offsetMinutes, 0, 0);
+  if (candidate.getTime() <= now) {
+    candidate.setDate(candidate.getDate() + 1);
+  }
+  return candidate.getTime();
 }

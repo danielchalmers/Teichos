@@ -14,8 +14,9 @@ import {
 } from '../shared/api/session';
 import { getActiveTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
 import { getExtensionUrl } from '../shared/api/runtime';
-import { PAGES } from '../shared/constants';
+import { ALARMS, PAGES } from '../shared/constants';
 import type { FilterDecision } from '../shared/filtering/engine';
+import { getNextRulesChangeAt } from '../shared/filtering/schedules';
 import {
   type BlockedPageState,
   STORAGE_KEY,
@@ -36,6 +37,10 @@ interface BlockedStateResult {
   readonly tabState: BlockedTabState;
   readonly pageState: BlockedPageState;
 }
+
+// Land just inside the minute a schedule window opens or closes, since windows are compared by
+// wall-clock minute and an alarm can fire at the exact boundary.
+const RULES_CHANGE_SLACK_MS = 1000;
 
 class TabController {
   private didRegister = false;
@@ -63,6 +68,14 @@ class TabController {
 
       this.rulesProvider.invalidate();
       this.queueReconcile();
+    });
+
+    // Schedule windows and temporary filters change decisions without any settings write, so an
+    // alarm at the next boundary re-checks open tabs the same way a settings change does.
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name === ALARMS.RULES_CHANGE) {
+        this.queueReconcile();
+      }
     });
 
     chrome.tabs.onRemoved.addListener((tabId) => {
@@ -432,8 +445,9 @@ class TabController {
   private queueReconcile(): void {
     this.reconcileQueue = this.reconcileQueue
       .then(async () => {
-        await this.getRules();
+        const rules = await this.getRules();
         await this.reconcileAllOpenTabs();
+        scheduleNextRulesChange(rules.data);
       })
       .catch((error: unknown) => {
         console.error('[Teichos] Failed to reconcile tabs after rules change:', error);
@@ -452,6 +466,17 @@ class TabController {
     const bypass = await getBypassState(tabId);
     return bypass?.filterId === decision.filterId && bypass.urlKey === getBypassUrlKey(targetUrl);
   }
+}
+
+function scheduleNextRulesChange(data: StorageData): void {
+  const nextChangeAt = getNextRulesChangeAt(data);
+  const update =
+    nextChangeAt === null
+      ? chrome.alarms.clear(ALARMS.RULES_CHANGE)
+      : chrome.alarms.create(ALARMS.RULES_CHANGE, { when: nextChangeAt + RULES_CHANGE_SLACK_MS });
+  Promise.resolve(update).catch((error: unknown) => {
+    console.error('[Teichos] Failed to schedule the next rules check:', error);
+  });
 }
 
 function parseBlockedPageBlockId(tabUrl: string | undefined): string | null {

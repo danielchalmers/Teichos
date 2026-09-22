@@ -765,4 +765,66 @@ describe('TabController', () => {
       await expect(getLastAllowedUrl(24)).resolves.toBeUndefined();
     });
   });
+
+  it('schedules a rules check at the next schedule boundary and reconciles when it fires', async () => {
+    const chromeMock = getChromeMock();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 21, 8, 30));
+    try {
+      chromeMock.storage.sync._data.set(
+        STORAGE_KEY,
+        createStorageData({
+          groups: [
+            { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true },
+            {
+              id: 'work',
+              name: 'Work',
+              is24x7: false,
+              schedules: [{ daysOfWeek: [1], startTime: '09:00', endTime: '17:00' }],
+            },
+          ],
+          filters: [
+            {
+              id: 'filter-work',
+              pattern: 'news.com',
+              groupId: 'work',
+              enabled: true,
+              matchMode: 'contains',
+            },
+          ],
+        })
+      );
+      chromeMock.tabs.query.mockImplementation(
+        (_: chrome.tabs.QueryInfo, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+          callback?.([{ id: 25, url: 'https://news.com/' } as chrome.tabs.Tab]);
+        }
+      );
+
+      const { getTabController } = await import('../../../src/background/tabController');
+      getTabController().register();
+
+      await vi.waitFor(() => {
+        expect(chromeMock.alarms.create).toHaveBeenCalledWith('rules-change', {
+          when: new Date(2026, 8, 21, 9, 0).getTime() + 1000,
+        });
+      });
+      expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+
+      vi.setSystemTime(new Date(2026, 8, 21, 9, 0, 1));
+      const onAlarm = chromeMock.alarms.onAlarm.addListener.mock.calls[0]?.[0];
+      onAlarm?.({ name: 'rules-change', scheduledTime: Date.now() });
+
+      await vi.waitFor(async () => {
+        const state = await getBlockedTabState(25);
+        expect(state?.targetUrl).toBe('https://news.com/');
+        expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+          25,
+          { url: blockedPageUrl(state!.blockId) },
+          expect.any(Function)
+        );
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
