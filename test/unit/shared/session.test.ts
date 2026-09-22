@@ -7,6 +7,7 @@ import {
   getBlockedTabState,
   getBypassState,
   getLastAllowedUrl,
+  getTabSessionState,
   setBlockedPageState,
   getSessionSnooze,
   setBlockedTabState,
@@ -146,5 +147,20 @@ describe('shared/api/session', () => {
     getChromeMock().storage.session._data.set('snooze_override', { active: 'yes' });
 
     await expect(getSessionSnooze()).resolves.toBeUndefined();
+  });
+
+  it('reads all per-tab state in one storage call', async () => {
+    await Promise.all([
+      setLastAllowedUrl(3, 'https://allowed.com/'),
+      setBypassState(3, { filterId: 'filter-1', urlKey: 'https://blocked.com/' }),
+    ]);
+    getChromeMock().storage.session.get.mockClear();
+
+    await expect(getTabSessionState(3)).resolves.toEqual({
+      lastAllowedUrl: 'https://allowed.com/',
+      blockedTabState: undefined,
+      bypass: { filterId: 'filter-1', urlKey: 'https://blocked.com/' },
+    });
+    expect(getChromeMock().storage.session.get).toHaveBeenCalledTimes(1);
   });
 });

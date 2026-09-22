@@ -127,6 +127,29 @@ export async function clearBypassState(tabId: number): Promise<void> {
   await chrome.storage.session.remove(bypassKey(tabId));
 }
 
+export interface TabSessionState {
+  readonly lastAllowedUrl: string | undefined;
+  readonly blockedTabState: BlockedTabState | undefined;
+  readonly bypass: BypassState | undefined;
+}
+
+/**
+ * Read every per-tab record in one storage call. Navigation handling needs all of them, and this
+ * runs for every main-frame navigation and for every open tab when the service worker wakes.
+ */
+export async function getTabSessionState(tabId: number): Promise<TabSessionState> {
+  const lastAllowedKey = lastAllowedUrlKey(tabId);
+  const blockedKey = blockedTabStateKey(tabId);
+  const bypassStateKey = bypassKey(tabId);
+  const result = await chrome.storage.session.get([lastAllowedKey, blockedKey, bypassStateKey]);
+  const lastAllowedUrl = result[lastAllowedKey];
+  return {
+    lastAllowedUrl: typeof lastAllowedUrl === 'string' ? lastAllowedUrl : undefined,
+    blockedTabState: normalizeBlockedTabState(result[blockedKey]),
+    bypass: normalizeBypassState(result[bypassStateKey]),
+  };
+}
+
 function isFilterMatchMode(value: unknown): value is FilterMatchMode {
   return value === 'contains' || value === 'exact' || value === 'regex';
 }

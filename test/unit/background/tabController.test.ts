@@ -707,4 +707,17 @@ describe('TabController', () => {
       reason: 'matched-filter',
     });
   });
+
+  it('skips session writes when an allowed navigation changes nothing', async () => {
+    const chromeMock = getChromeMock();
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(22, 'https://allowed.com/');
+    chromeMock.storage.session.set.mockClear();
+    chromeMock.storage.session.remove.mockClear();
+
+    await getTabController().evaluateNavigation(22, 'https://allowed.com/');
+
+    expect(chromeMock.storage.session.set).not.toHaveBeenCalled();
+    expect(chromeMock.storage.session.remove).not.toHaveBeenCalled();
+  });
 });

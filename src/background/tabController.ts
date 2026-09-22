@@ -5,6 +5,7 @@ import {
   getBlockedTabState,
   getBypassState,
   getLastAllowedUrl,
+  getTabSessionState,
   setBlockedPageState,
   setBlockedTabState,
   setBypassState,
@@ -267,21 +268,29 @@ class TabController {
     await updateTabUrl(tabId, getBlockedPageUrl(state.tabState.blockId));
   }
 
+  /**
+   * Record that the tab is on an allowed page, writing only what changed: this runs for every
+   * navigation and for every open tab whenever the worker wakes.
+   */
   private async allowTab(
     tabId: number,
     url: string,
     options?: { readonly preserveBypass?: boolean }
   ): Promise<void> {
-    const operations: Promise<void>[] = [
-      clearBlockedTabState(tabId),
-      setLastAllowedUrl(tabId, url),
-    ];
-
-    if (!options?.preserveBypass) {
-      const bypass = await getBypassState(tabId);
-      if (bypass && bypass.urlKey !== getBypassUrlKey(url)) {
-        operations.push(clearBypassState(tabId));
-      }
+    const session = await getTabSessionState(tabId);
+    const operations: Promise<void>[] = [];
+    if (session.blockedTabState) {
+      operations.push(clearBlockedTabState(tabId));
+    }
+    if (session.lastAllowedUrl !== url) {
+      operations.push(setLastAllowedUrl(tabId, url));
+    }
+    if (
+      !options?.preserveBypass &&
+      session.bypass &&
+      session.bypass.urlKey !== getBypassUrlKey(url)
+    ) {
+      operations.push(clearBypassState(tabId));
     }
 
     await Promise.all(operations);
