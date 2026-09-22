@@ -5,6 +5,11 @@
 
 import { loadData } from '../../shared/api/storage';
 import {
+  type CheckUrlResponse,
+  type ContinueActiveTabResponse,
+  type GetBlockedPageStateResponse,
+  type GetDataResponse,
+  type GoBackActiveTabResponse,
   isCheckUrlMessage,
   isContinueActiveTabMessage,
   isGetBlockedPageStateMessage,
@@ -27,63 +32,77 @@ export function handleMessage(
   }
 
   if (isGetDataMessage(message)) {
-    void handleGetData(sendResponse);
+    respond(sendResponse, handleGetData, { success: false });
     return true; // Will respond asynchronously
   }
 
   if (isCheckUrlMessage(message)) {
-    void handleCheckUrl(message.url, sendResponse);
+    respond(sendResponse, () => handleCheckUrl(message.url), { blocked: false });
     return true; // Will respond asynchronously
   }
 
   if (isGoBackActiveTabMessage(message)) {
-    void handleGoBackActiveTab(sender, sendResponse);
+    respond(sendResponse, () => handleGoBackActiveTab(sender), { restored: false });
     return true;
   }
 
   if (isContinueActiveTabMessage(message)) {
-    void handleContinueActiveTab(message.blockId, sender, sendResponse);
+    respond(sendResponse, () => handleContinueActiveTab(message.blockId, sender), {
+      continued: false,
+    });
     return true;
   }
 
   if (isGetBlockedPageStateMessage(message)) {
-    void handleGetBlockedPageState(message.blockId, sender, sendResponse);
+    respond(sendResponse, () => handleGetBlockedPageState(message.blockId, sender), {
+      status: 'unavailable',
+    });
     return true;
   }
 
   return false;
 }
 
-async function handleGetData(sendResponse: (response: unknown) => void): Promise<void> {
-  const data = await loadData();
-  sendResponse({ success: true, data });
+/**
+ * Always answer an async message. A handler that throws would otherwise leave the sender waiting
+ * on an open channel, so a storage or tab failure shows up as a stuck popup or blocked page
+ * instead of a normal "not available" result.
+ */
+function respond<T>(
+  sendResponse: (response: unknown) => void,
+  handler: () => Promise<T>,
+  fallback: T
+): void {
+  handler().then(sendResponse, (error: unknown) => {
+    console.error('[Teichos] Failed to handle message:', error);
+    sendResponse(fallback);
+  });
 }
 
-async function handleCheckUrl(
-  url: string,
-  sendResponse: (response: unknown) => void
-): Promise<void> {
+async function handleGetData(): Promise<GetDataResponse> {
+  return { success: true, data: await loadData() };
+}
+
+async function handleCheckUrl(url: string): Promise<CheckUrlResponse> {
   const decision = await getTabController().getUrlDecision(url);
-  sendResponse({ blocked: decision.action === 'block' });
+  return { blocked: decision.action === 'block' };
 }
 
 async function handleGoBackActiveTab(
-  sender: chrome.runtime.MessageSender,
-  sendResponse: (response: unknown) => void
-): Promise<void> {
+  sender: chrome.runtime.MessageSender
+): Promise<GoBackActiveTabResponse> {
   const senderTabId = sender.tab?.id;
   const restored =
     typeof senderTabId === 'number'
       ? await getTabController().goBackFromTab(senderTabId)
       : await getTabController().goBackFromActiveTab();
-  sendResponse({ restored });
+  return { restored };
 }
 
 async function handleContinueActiveTab(
   blockId: string | undefined,
-  sender: chrome.runtime.MessageSender,
-  sendResponse: (response: unknown) => void
-): Promise<void> {
+  sender: chrome.runtime.MessageSender
+): Promise<ContinueActiveTabResponse> {
   const senderTabId = sender.tab?.id;
   const continued =
     typeof senderTabId === 'number'
@@ -91,26 +110,23 @@ async function handleContinueActiveTab(
       : blockId
         ? await getTabController().continueFromBlockedPage(blockId)
         : await getTabController().continueFromActiveTab();
-  sendResponse({ continued });
+  return { continued };
 }
 
 async function handleGetBlockedPageState(
   blockId: string | undefined,
-  sender: chrome.runtime.MessageSender,
-  sendResponse: (response: unknown) => void
-): Promise<void> {
+  sender: chrome.runtime.MessageSender
+): Promise<GetBlockedPageStateResponse> {
   const senderTabId = sender.tab?.id;
   if (typeof senderTabId === 'number') {
-    sendResponse(await getTabController().getBlockedPageStateForTab(senderTabId, sender.tab?.url));
-    return;
+    return getTabController().getBlockedPageStateForTab(senderTabId, sender.tab?.url);
   }
 
   if (blockId) {
-    sendResponse(await getTabController().getBlockedPageStateByBlockId(blockId));
-    return;
+    return getTabController().getBlockedPageStateByBlockId(blockId);
   }
 
-  sendResponse({ status: 'unavailable' });
+  return { status: 'unavailable' };
 }
 
 function isInternalSender(sender: chrome.runtime.MessageSender): boolean {

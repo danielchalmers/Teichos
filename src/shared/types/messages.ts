@@ -39,10 +39,12 @@ export interface GetBlockedPageStateMessage {
   readonly blockId?: string;
 }
 
-export interface GetDataResponse {
-  readonly success: true;
-  readonly data: StorageData;
-}
+export type GetDataResponse =
+  | {
+      readonly success: true;
+      readonly data: StorageData;
+    }
+  | { readonly success: false };
 
 export interface CheckUrlResponse {
   readonly blocked: boolean;
