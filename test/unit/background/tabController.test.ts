@@ -747,4 +747,22 @@ describe('TabController', () => {
     expect(chromeMock.storage.session.set).not.toHaveBeenCalled();
     expect(chromeMock.storage.session.remove).not.toHaveBeenCalled();
   });
+
+  it('clears session state when a tab is closed or replaced', async () => {
+    const chromeMock = getChromeMock();
+    const { getTabController } = await import('../../../src/background/tabController');
+    getTabController().register();
+    await getTabController().evaluateNavigation(23, 'https://allowed.com/');
+    await getTabController().evaluateNavigation(24, 'https://other.com/');
+
+    const onRemoved = chromeMock.tabs.onRemoved.addListener.mock.calls[0]?.[0];
+    const onReplaced = chromeMock.tabs.onReplaced.addListener.mock.calls[0]?.[0];
+    onRemoved?.(23, { windowId: 1, isWindowClosing: false });
+    onReplaced?.(99, 24);
+
+    await vi.waitFor(async () => {
+      await expect(getLastAllowedUrl(23)).resolves.toBeUndefined();
+      await expect(getLastAllowedUrl(24)).resolves.toBeUndefined();
+    });
+  });
 });

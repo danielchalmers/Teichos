@@ -1,6 +1,7 @@
 import {
   clearBlockedTabState,
   clearBypassState,
+  clearTabSessionState,
   getBlockedPageState,
   getBlockedTabState,
   getBypassState,
@@ -40,9 +41,10 @@ class TabController {
   private didRegister = false;
   private reconcileQueue: Promise<void> = Promise.resolve();
   /**
-   * Bumped for every navigation event so an evaluation that is still awaiting storage when the
-   * tab navigates again does not redirect or record state for a page the tab has already left.
-   * Losing this on worker restart is harmless: it only orders events within one worker lifetime.
+   * Bumped for every navigation event (and tab removal) so an evaluation that is still awaiting
+   * storage when the tab navigates again does not redirect or record state for a page the tab has
+   * already left. Losing this on worker restart is harmless: it only orders events within one
+   * worker lifetime.
    */
   private readonly navigationSeq = new Map<number, number>();
 
@@ -61,6 +63,13 @@ class TabController {
 
       this.rulesProvider.invalidate();
       this.queueReconcile();
+    });
+
+    chrome.tabs.onRemoved.addListener((tabId) => {
+      this.forgetTab(tabId);
+    });
+    chrome.tabs.onReplaced.addListener((_addedTabId, removedTabId) => {
+      this.forgetTab(removedTabId);
     });
 
     this.queueReconcile();
@@ -109,6 +118,13 @@ class TabController {
 
   private getNavigationSeq(tabId: number): number {
     return this.navigationSeq.get(tabId) ?? 0;
+  }
+
+  private forgetTab(tabId: number): void {
+    this.bumpNavigationSeq(tabId);
+    clearTabSessionState(tabId).catch((error: unknown) => {
+      console.error('[Teichos] Failed to clear state for closed tab:', error);
+    });
   }
 
   async getUrlDecision(url: string): Promise<FilterDecision> {

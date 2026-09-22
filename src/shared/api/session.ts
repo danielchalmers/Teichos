@@ -150,6 +150,25 @@ export async function getTabSessionState(tabId: number): Promise<TabSessionState
   };
 }
 
+/**
+ * Remove everything stored for a tab that no longer exists, including the snapshot of every block
+ * it showed. Nothing else deletes these, so without this session storage grows with every block
+ * until it hits its quota, after which new blocks can no longer be recorded.
+ */
+export async function clearTabSessionState(tabId: number): Promise<void> {
+  const all = await chrome.storage.session.get(null);
+  const keys = [lastAllowedUrlKey(tabId), blockedTabStateKey(tabId), bypassKey(tabId)];
+  for (const [key, value] of Object.entries(all)) {
+    if (
+      key.startsWith(BLOCKED_PAGE_STATE_KEY_PREFIX) &&
+      (value as { tabId?: unknown } | null)?.tabId === tabId
+    ) {
+      keys.push(key);
+    }
+  }
+  await chrome.storage.session.remove(keys);
+}
+
 function isFilterMatchMode(value: unknown): value is FilterMatchMode {
   return value === 'contains' || value === 'exact' || value === 'regex';
 }

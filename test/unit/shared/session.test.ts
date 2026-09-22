@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   clearBlockedTabState,
   clearBypassState,
+  clearTabSessionState,
   getBlockedPageState,
   getBlockedTabState,
   getBypassState,
@@ -15,6 +16,7 @@ import {
   setSessionSnooze,
   setBypassState,
 } from '../../../src/shared/api/session';
+import type { BlockedPageState, BlockedTabState } from '../../../src/shared/types';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
 
 describe('shared/api/session', () => {
@@ -162,5 +164,39 @@ describe('shared/api/session', () => {
       bypass: { filterId: 'filter-1', urlKey: 'https://blocked.com/' },
     });
     expect(getChromeMock().storage.session.get).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears every record for a closed tab, including its block snapshots', async () => {
+    const blockedState = (tabId: number, blockId: string): BlockedTabState => ({
+      blockId,
+      tabId,
+      targetUrl: 'https://blocked.com/',
+      blockedAt: 1,
+      blockedBy: { filterId: 'filter-1', groupId: 'group-1' },
+    });
+    const pageState = (tabId: number, blockId: string): BlockedPageState => ({
+      ...blockedState(tabId, blockId),
+      filter: { id: 'filter-1', pattern: 'blocked.com', matchMode: 'contains' },
+      group: undefined,
+      effectiveState: { filterEnabled: true, groupActive: true, snoozeActive: false },
+    });
+    await Promise.all([
+      setLastAllowedUrl(5, 'https://allowed.com/'),
+      setBypassState(5, { filterId: 'filter-1', urlKey: 'https://blocked.com/' }),
+      setBlockedTabState(blockedState(5, 'block-a')),
+      setBlockedPageState(pageState(5, 'block-a')),
+      setBlockedPageState(pageState(5, 'block-b')),
+      setBlockedPageState(pageState(6, 'block-other-tab')),
+      setLastAllowedUrl(6, 'https://other.com/'),
+      setSessionSnooze({ active: false }),
+    ]);
+
+    await clearTabSessionState(5);
+
+    expect([...getChromeMock().storage.session._data.keys()].sort()).toEqual([
+      'blocked_page_state_block-other-tab',
+      'last_allowed_url_6',
+      'snooze_override',
+    ]);
   });
 });
