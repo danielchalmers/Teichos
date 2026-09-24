@@ -20,6 +20,8 @@ import {
   deleteWhitelist,
   createDefaultGroup,
   normalizeStoredData,
+  setSnooze,
+  clearSnooze,
 } from '../../../src/shared/api/storage';
 import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
 import type { Filter, StorageData } from '../../../src/shared/types';
@@ -427,8 +429,24 @@ describe('storage', () => {
         rulesVersion: 0,
       };
 
-      await expect(saveData(testData)).rejects.toThrow(SettingsSaveError);
-      await expect(saveData({ ...testData })).resolves.toBeUndefined();
+      const error = await saveData(testData).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(SettingsSaveError);
+      expect((error as Error).message).toContain('Browser sync storage is full');
+    });
+
+    it('rethrows other write failures unchanged', async () => {
+      const writeError = new Error('Storage backend unavailable');
+      getChromeMock().storage.sync.set.mockRejectedValueOnce(writeError);
+
+      await expect(
+        saveData({
+          groups: [createDefaultGroup()],
+          filters: [],
+          whitelist: [],
+          snooze: { active: false },
+          rulesVersion: 0,
+        })
+      ).rejects.toBe(writeError);
     });
   });
 
@@ -477,6 +495,29 @@ describe('storage', () => {
       expect(
         (chromeMock.storage.sync._data.get(STORAGE_KEY) as { filters: unknown }).filters
       ).toEqual([filterB, filterA]);
+    });
+
+    it('gives up without clobbering when another writer keeps saving in between', async () => {
+      const chromeMock = getChromeMock();
+      chromeMock.storage.sync._data.set(STORAGE_KEY, baseData());
+      let concurrentVersion = 1;
+
+      await expect(
+        updateData((data) => {
+          concurrentVersion += 1;
+          chromeMock.storage.sync._data.set(STORAGE_KEY, {
+            ...baseData(),
+            filters: [makeFilter('concurrent')],
+            rulesVersion: concurrentVersion,
+          });
+          return { ...data, filters: [makeFilter('mine')] };
+        })
+      ).rejects.toThrow(SettingsSaveError);
+
+      expect(chromeMock.storage.sync.set).not.toHaveBeenCalled();
+      expect(
+        (chromeMock.storage.sync._data.get(STORAGE_KEY) as { filters: unknown }).filters
+      ).toEqual([makeFilter('concurrent')]);
     });
 
     it('does not write when the updater returns the data unchanged', async () => {
@@ -539,6 +580,25 @@ describe('storage', () => {
       await purgeExpiredTemporaryFilters(await loadData());
 
       expect(chromeMock.storage.sync.set).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('snooze', () => {
+    it('stores snooze in sync and session storage and clears both', async () => {
+      const chromeMock = getChromeMock();
+      const snooze = { active: true, until: 1_234_567_890 };
+
+      await setSnooze(snooze);
+      expect((chromeMock.storage.sync._data.get(STORAGE_KEY) as StorageData).snooze).toEqual(
+        snooze
+      );
+      expect(chromeMock.storage.session._data.get('snooze_override')).toEqual(snooze);
+
+      await clearSnooze();
+      expect((chromeMock.storage.sync._data.get(STORAGE_KEY) as StorageData).snooze).toEqual({
+        active: false,
+      });
+      expect(chromeMock.storage.session._data.get('snooze_override')).toEqual({ active: false });
     });
   });
 
