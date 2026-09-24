@@ -18,19 +18,23 @@ describe('generateId', () => {
   const originalCrypto = globalThis.crypto;
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.stubGlobal('crypto', originalCrypto);
+  });
+
+  it('uses crypto.randomUUID when available', () => {
+    vi.spyOn(originalCrypto, 'randomUUID').mockReturnValue('0-0-0-0-0');
+
+    expect(generateId()).toBe('0-0-0-0-0');
   });
 
   it('falls back when crypto.randomUUID is unavailable', () => {
     vi.stubGlobal('crypto', undefined);
-    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(1234);
-    const mathRandom = vi.spyOn(Math, 'random').mockReturnValue(0.123456789);
+    vi.spyOn(Date, 'now').mockReturnValue(1234);
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
-    expect(generateId()).toMatch(/^1234-/);
-
-    dateNow.mockRestore();
-    mathRandom.mockRestore();
-    vi.stubGlobal('crypto', originalCrypto);
+    // 0.5 is 0.i in base 36.
+    expect(generateId()).toBe('1234-i');
   });
 });
 
@@ -112,16 +116,26 @@ describe('getCurrentDayOfWeek', () => {
 });
 
 describe('isInternalUrl', () => {
-  it('should detect browser internal URLs', () => {
-    expect(isInternalUrl('chrome://extensions')).toBe(true);
-    expect(isInternalUrl('chrome-extension://abc123/popup.html')).toBe(true);
-    expect(isInternalUrl('edge://settings')).toBe(true);
-    expect(isInternalUrl('about:blank')).toBe(true);
-    expect(isInternalUrl('moz-extension://abc123/index.html')).toBe(true);
-    expect(isInternalUrl('extension://example')).toBe(true);
+  it.each([
+    'chrome://extensions',
+    'chrome-extension://abc123/popup.html',
+    'edge://settings',
+    'about:blank',
+    'moz-extension://abc123/index.html',
+    'extension://example',
+    'view-source:https://example.com',
+    'CHROME://settings',
+  ])('treats %s as internal', (url) => {
+    expect(isInternalUrl(url)).toBe(true);
   });
 
-  it('should return false for normal web URLs', () => {
-    expect(isInternalUrl('https://example.com')).toBe(false);
+  it.each([
+    'https://example.com',
+    // Only the scheme counts; a web page that mentions one is still filtered.
+    'https://example.com/?next=chrome://settings',
+    'https://chrome.google.com/webstore',
+    '',
+  ])('does not treat %j as internal', (url) => {
+    expect(isInternalUrl(url)).toBe(false);
   });
 });
