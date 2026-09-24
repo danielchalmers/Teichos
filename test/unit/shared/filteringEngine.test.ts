@@ -194,7 +194,82 @@ describe('filteringEngine', () => {
     );
 
     expect(decision).toEqual({ action: 'allow', reason: 'temporary-expired' });
-    vi.useRealTimers();
+  });
+
+  it('blocks again once a timed snooze has run out', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-01-15T10:00:00Z'));
+    const data = createStorageData({
+      filters: [
+        {
+          id: 'filter-1',
+          pattern: 'blocked.com',
+          groupId: DEFAULT_GROUP_ID,
+          enabled: true,
+          matchMode: 'contains',
+        },
+      ],
+      snooze: { active: true, until: Date.now() + 60_000 },
+    });
+    const engine = createFilteringEngine(data);
+
+    expect(engine.evaluate('https://blocked.com', activeContext)).toEqual({
+      action: 'allow',
+      reason: 'snoozed',
+    });
+
+    vi.setSystemTime(Date.now() + 60_000);
+    expect(engine.evaluate('https://blocked.com', activeContext)).toEqual({
+      action: 'block',
+      filterId: 'filter-1',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
+  });
+
+  it('still blocks with a temporary filter when an exception allows the regular one', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-01-15T10:00:00Z'));
+
+    const decision = evaluateFilterDecision(
+      'https://blocked.com/allowed',
+      createStorageData({
+        filters: [
+          {
+            id: 'regular-filter',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+          {
+            id: 'temporary-filter',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            expiresAt: Date.now() + 60_000,
+          },
+        ],
+        whitelist: [
+          {
+            id: 'whitelist-1',
+            pattern: 'blocked.com/allowed',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+      }),
+      { context: activeContext }
+    );
+
+    expect(decision).toEqual({
+      action: 'block',
+      filterId: 'temporary-filter',
+      groupId: DEFAULT_GROUP_ID,
+      reason: 'matched-filter',
+    });
   });
 
   it('compiles regex patterns once per engine instead of once per evaluation', () => {

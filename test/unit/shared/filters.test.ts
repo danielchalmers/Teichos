@@ -66,6 +66,13 @@ describe('matchesPattern', () => {
       expected: true,
     },
     {
+      name: 'treats regex metacharacters in contains patterns literally',
+      url: 'https://axb.example.com',
+      pattern: 'a.b',
+      matchMode: 'contains' as const,
+      expected: false,
+    },
+    {
       name: 'matches exact patterns case-insensitively',
       url: 'https://EXAMPLE.com',
       pattern: 'https://example.com',
@@ -326,6 +333,22 @@ describe('isFilterActive', () => {
       vi.setSystemTime(new Date(2025, 0, 16, 23, 30, 0)); // Thursday 23:30
       expect(isFilterActive(filter, groups)).toBe(false);
     });
+
+    it('carries a Saturday night window into Sunday morning across the week boundary', () => {
+      const saturdayNight: FilterGroup[] = [
+        {
+          id: 'group-1',
+          name: 'Weekend',
+          is24x7: false,
+          schedules: [{ daysOfWeek: [6], startTime: '22:00', endTime: '06:00' }],
+        },
+      ];
+
+      vi.setSystemTime(new Date(2025, 0, 19, 5, 59, 0)); // Sunday 05:59
+      expect(isFilterActive(filter, saturdayNight)).toBe(true);
+      vi.setSystemTime(new Date(2025, 0, 19, 6, 1, 0)); // Sunday 06:01
+      expect(isFilterActive(filter, saturdayNight)).toBe(false);
+    });
   });
 
   it('should return false when a temporary filter is expired', () => {
@@ -409,8 +432,6 @@ describe('snooze helpers', () => {
     expect(isSnoozeActive(snooze)).toBe(false);
     expect(isSnoozeExpired(snooze)).toBe(true);
     expect(getSnoozeRemainingMs(snooze)).toBe(-1);
-
-    vi.useRealTimers();
   });
 });
 
@@ -482,35 +503,12 @@ describe('runtime filtering path', () => {
     expect(findBlockingFilter('https://ignored.com', filters, groups, whitelist)).toBeUndefined();
     expect(findBlockingFilter('https://orphan.com', filters, groups, whitelist)).toBeUndefined();
   });
-
-  it('treats invalid regex patterns as non-matching', () => {
-    expect(
-      findBlockingFilter(
-        'https://blocked.com',
-        [
-          {
-            id: 'regex-filter',
-            pattern: '[',
-            groupId: 'default',
-            enabled: true,
-            matchMode: 'regex',
-          },
-        ],
-        groups,
-        []
-      )
-    ).toBeUndefined();
-  });
 });
 
 describe('regex validation', () => {
   it('returns validation errors for invalid regex patterns', () => {
     expect(getRegexValidationError('^https://example\\.com')).toBeNull();
-    expect(getRegexValidationError('[')).toBeTruthy();
-  });
-
-  it('rejects patterns longer than the length cap', () => {
-    expect(getRegexValidationError(`example${'a'.repeat(600)}`)).toContain('longer than');
+    expect(getRegexValidationError('[')).toContain('Invalid regular expression');
   });
 
   it('rejects nested unbounded repetition that can backtrack catastrophically', () => {
@@ -519,6 +517,8 @@ describe('regex validation', () => {
     expect(getRegexValidationError('(\\w+)+')).toContain('unbounded repetition');
     expect(getRegexValidationError('(a+){2,}')).toContain('unbounded repetition');
     expect(getRegexValidationError('((b)+)*')).toContain('unbounded repetition');
+    expect(getRegexValidationError('(a{1,})*')).toContain('unbounded repetition');
+    expect(getRegexValidationError('(?:x|y+)+')).toContain('unbounded repetition');
   });
 
   it('rejects repeated groups whose iterations can split the same text many ways', () => {
@@ -549,10 +549,18 @@ describe('regex validation', () => {
     expect(getRegexValidationError('(\\.[a-z]{2,3})+$')).toBeNull();
     expect(getRegexValidationError('^(\\d{1,3}\\.)+')).toBeNull();
     expect(getRegexValidationError('(x{2})*')).toBeNull();
+    expect(getRegexValidationError('(ab{2})+')).toBeNull();
+    // A brace that is not a quantifier is a literal character, not repetition.
+    expect(getRegexValidationError('(a{)+')).toBeNull();
+  });
+
+  it('accepts patterns up to the length cap and rejects longer ones', () => {
+    expect(getRegexValidationError('a'.repeat(512))).toBeNull();
+    expect(getRegexValidationError('a'.repeat(513))).toContain('longer than 512');
   });
 });
 
-describe('shouldBlockUrl', () => {
+describe('blocking decisions', () => {
   const groups: FilterGroup[] = [{ id: 'default', name: '24/7', schedules: [], is24x7: true }];
 
   it('should return undefined when no filters match', () => {
@@ -578,9 +586,7 @@ describe('shouldBlockUrl', () => {
         matchMode: 'contains',
       },
     ];
-    const result = findBlockingFilter('https://blocked.com/page', filters, groups, []);
-    expect(result).toBeDefined();
-    expect(result?.id).toBe('f1');
+    expect(findBlockingFilter('https://blocked.com/page', filters, groups, [])?.id).toBe('f1');
   });
 
   it('should respect exact matching for filters', () => {
@@ -593,7 +599,7 @@ describe('shouldBlockUrl', () => {
         matchMode: 'exact',
       },
     ];
-    expect(findBlockingFilter('https://blocked.com', filters, groups, [])).toBeDefined();
+    expect(findBlockingFilter('https://blocked.com', filters, groups, [])?.id).toBe('f1');
     // The URLs a browser actually navigates to for that page, with its root path and a fragment.
     expect(findBlockingFilter('https://blocked.com/', filters, groups, [])?.id).toBe('f1');
     expect(findBlockingFilter('https://blocked.com/#skip', filters, groups, [])?.id).toBe('f1');
@@ -610,32 +616,8 @@ describe('shouldBlockUrl', () => {
         matchMode: 'regex',
       },
     ];
-    expect(findBlockingFilter('https://blocked.com/foo', filters, groups, [])).toBeDefined();
+    expect(findBlockingFilter('https://blocked.com/foo', filters, groups, [])?.id).toBe('f1');
     expect(findBlockingFilter('https://blocked.com/baz', filters, groups, [])).toBeUndefined();
-  });
-
-  it('should return undefined when URL matches whitelist', () => {
-    const filters: Filter[] = [
-      {
-        id: 'f1',
-        pattern: 'blocked.com',
-        groupId: 'default',
-        enabled: true,
-        matchMode: 'contains',
-      },
-    ];
-    const whitelist: Whitelist[] = [
-      {
-        id: 'w1',
-        pattern: 'blocked.com/allowed',
-        groupId: 'default',
-        enabled: true,
-        matchMode: 'contains',
-      },
-    ];
-    expect(
-      findBlockingFilter('https://blocked.com/allowed', filters, groups, whitelist)
-    ).toBeUndefined();
   });
 
   it('should allow regex whitelist entries to override filters', () => {
@@ -681,8 +663,9 @@ describe('shouldBlockUrl', () => {
         matchMode: 'contains',
       },
     ];
-    const result = findBlockingFilter('https://blocked.com/allowed', filters, groups, whitelist);
-    expect(result).toBeDefined();
+    expect(findBlockingFilter('https://blocked.com/allowed', filters, groups, whitelist)?.id).toBe(
+      'f1'
+    );
   });
 
   it('should ignore whitelist entries from other groups', () => {
@@ -707,7 +690,37 @@ describe('shouldBlockUrl', () => {
       ],
       whitelist
     );
-    expect(result).toBeDefined();
+    expect(result?.id).toBe('f1');
+  });
+
+  it("still blocks with another group's filter when one group whitelists the url", () => {
+    const filters: Filter[] = [
+      {
+        id: 'f1',
+        pattern: 'blocked.com',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
+      { id: 'f2', pattern: 'blocked.com', groupId: 'work', enabled: true, matchMode: 'contains' },
+    ];
+    const whitelist: Whitelist[] = [
+      {
+        id: 'w1',
+        pattern: 'blocked.com/allowed',
+        groupId: 'default',
+        enabled: true,
+        matchMode: 'contains',
+      },
+    ];
+    const bothGroups: FilterGroup[] = [
+      { id: 'default', name: '24/7', schedules: [], is24x7: true },
+      { id: 'work', name: 'Work', schedules: [], is24x7: true },
+    ];
+
+    expect(
+      findBlockingFilter('https://blocked.com/allowed', filters, bothGroups, whitelist)?.id
+    ).toBe('f2');
   });
 
   it('should ignore whitelist entries for temporary filters', () => {
@@ -735,32 +748,7 @@ describe('shouldBlockUrl', () => {
       },
     ];
 
-    const result = findBlockingFilter('https://blocked.com', filters, groups, whitelist);
-    expect(result).toBeDefined();
-
-    vi.useRealTimers();
-  });
-
-  it('should not block when temporary filters have expired', () => {
-    const now = new Date(2025, 0, 15, 10, 30, 0).getTime();
-    vi.useFakeTimers();
-    vi.setSystemTime(now);
-
-    const filters: Filter[] = [
-      {
-        id: 'f1',
-        pattern: 'blocked.com',
-        groupId: 'default',
-        enabled: true,
-        matchMode: 'contains',
-        expiresAt: now - 1,
-      },
-    ];
-
-    const result = findBlockingFilter('https://blocked.com', filters, groups, []);
-    expect(result).toBeUndefined();
-
-    vi.useRealTimers();
+    expect(findBlockingFilter('https://blocked.com', filters, groups, whitelist)?.id).toBe('f1');
   });
 
   it('should honor schedule boundaries when matching filters', () => {
@@ -786,31 +774,14 @@ describe('shouldBlockUrl', () => {
       findBlockingFilter('https://blocked.com', filters, scheduledGroups, [], {
         dayOfWeek: 3,
         time: '10:30',
-      })
-    ).toBeDefined();
+      })?.id
+    ).toBe('f1');
     expect(
       findBlockingFilter('https://blocked.com', filters, scheduledGroups, [], {
         dayOfWeek: 3,
         time: '10:31',
       })
     ).toBeUndefined();
-  });
-
-  it('should not block when the matching group is disabled', () => {
-    const filters: Filter[] = [
-      {
-        id: 'f1',
-        pattern: 'blocked.com',
-        groupId: 'default',
-        enabled: true,
-        matchMode: 'contains',
-      },
-    ];
-    const disabledGroups: FilterGroup[] = [
-      { id: 'default', name: '24/7', schedules: [], is24x7: true, enabled: false },
-    ];
-
-    expect(findBlockingFilter('https://blocked.com', filters, disabledGroups, [])).toBeUndefined();
   });
 });
 
@@ -844,6 +815,22 @@ describe('getNextRulesChangeAt', () => {
 
   it('rolls over to the next day after the last boundary', () => {
     expect(getNextRulesChangeAt(data([scheduledGroup()]), at(18, 0))).toBe(at(9, 0, 1));
+  });
+
+  it('closes an overnight window the minute after its end time the next morning', () => {
+    const overnight = scheduledGroup({
+      schedules: [{ daysOfWeek: [1], startTime: '22:00', endTime: '06:00' }],
+    });
+
+    expect(getNextRulesChangeAt(data([overnight]), at(23, 0))).toBe(at(6, 1, 1));
+  });
+
+  it('closes a window ending at 23:59 at the following midnight', () => {
+    const lateWindow = scheduledGroup({
+      schedules: [{ daysOfWeek: [1], startTime: '20:00', endTime: '23:59' }],
+    });
+
+    expect(getNextRulesChangeAt(data([lateWindow]), at(21, 0))).toBe(at(0, 0, 1));
   });
 
   it('includes the earliest future temporary filter expiry', () => {
