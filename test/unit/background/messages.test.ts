@@ -52,7 +52,6 @@ const defaultData = {
 
 describe('handleMessage', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     mocks.loadData.mockResolvedValue(defaultData);
     mocks.continueFromActiveTab.mockResolvedValue(false);
     mocks.continueFromBlockedPage.mockResolvedValue(false);

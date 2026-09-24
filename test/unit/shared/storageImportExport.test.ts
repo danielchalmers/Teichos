@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   createDefaultGroup,
   exportData,
@@ -56,11 +56,6 @@ function createSampleData(): StorageData {
 }
 
 describe('storage import/export', () => {
-  beforeEach(() => {
-    getChromeMock().storage.sync._reset();
-    getChromeMock().storage.session._reset();
-  });
-
   it('serializes exported data as formatted json', () => {
     const serialized = serializeDataForExport(createSampleData());
 

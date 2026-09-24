@@ -2,7 +2,7 @@
  * Tests for shared/api/storage.ts
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   loadData,
   saveData,
@@ -27,10 +27,6 @@ import type { LegacyStorageData } from '../../../src/shared/storage/normalize';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
 
 describe('storage', () => {
-  beforeEach(() => {
-    getChromeMock().storage.sync._reset();
-  });
-
   describe('loadData', () => {
     it('returns default data when storage is empty', async () => {
       const data = await loadData();
@@ -548,8 +544,6 @@ describe('storage', () => {
 
   describe('group and filter CRUD', () => {
     it('adds, updates, and removes groups and filters', async () => {
-      await loadData();
-
       const group = {
         id: 'test-group',
         name: 'Test Group',
@@ -585,16 +579,12 @@ describe('storage', () => {
 
   describe('deleteGroup', () => {
     it('should throw error when trying to delete default group', async () => {
-      await loadData();
-
       await expect(deleteGroup(DEFAULT_GROUP_ID)).rejects.toThrow(
         'Cannot delete the default 24/7 group'
       );
     });
 
     it('should delete a group and reassign filters to default group', async () => {
-      await loadData();
-
       const newGroup = {
         id: 'test-group',
         name: 'Test Group',
@@ -632,8 +622,6 @@ describe('storage', () => {
 
   describe('whitelist operations', () => {
     it('should add, update, and delete whitelist entries', async () => {
-      await loadData();
-
       const entry = {
         id: 'test-whitelist',
         pattern: 'allowed.com',

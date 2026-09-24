@@ -11,8 +11,6 @@ function createActiveTimedSnooze(): { active: true; until: number } {
 describe('registerSnoozeHandlers', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.useRealTimers();
-    getChromeMock().runtime.lastError = undefined;
   });
 
   it('registers listeners once and creates an expiration alarm for active timed snooze', async () => {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { RulesProvider } from '../../../src/background/rulesProvider';
 import { createDefaultGroup } from '../../../src/shared/api/storage';
@@ -17,12 +17,6 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
 }
 
 describe('RulesProvider', () => {
-  beforeEach(() => {
-    const chromeMock = getChromeMock();
-    chromeMock.storage.sync._reset();
-    vi.clearAllMocks();
-  });
-
   it('reads storage and builds an engine on first load', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(
