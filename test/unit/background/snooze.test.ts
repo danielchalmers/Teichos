@@ -4,6 +4,10 @@ import { getChromeMock } from '../../fixtures/chrome-mocks';
 import { ALARMS } from '../../../src/shared/constants';
 import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
 
+function flushPromises(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function createActiveTimedSnooze(): { active: true; until: number } {
   return { active: true, until: Date.now() + 60_000 };
 }
@@ -11,8 +15,6 @@ function createActiveTimedSnooze(): { active: true; until: number } {
 describe('registerSnoozeHandlers', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.useRealTimers();
-    getChromeMock().runtime.lastError = undefined;
   });
 
   it('registers listeners once and creates an expiration alarm for active timed snooze', async () => {
@@ -98,38 +100,29 @@ describe('registerSnoozeHandlers', () => {
   });
 
   it('handles snooze expiration alarms and ignores unrelated alarms', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2025-01-15T10:30:00Z'));
     const chromeMock = getChromeMock();
-    chromeMock.storage.sync._data.set(STORAGE_KEY, {
-      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
-      filters: [],
-      whitelist: [],
-      snooze: { active: true, until: Date.now() - 1 },
-      rulesVersion: 1,
-    });
-
     const { registerSnoozeHandlers } = await import('../../../src/background/snooze');
     registerSnoozeHandlers();
+    // Let the initial sync settle so only the alarms below can touch storage.
+    await vi.waitFor(() => {
+      expect(chromeMock.storage.session._data.get('snooze_override')).toEqual({ active: false });
+    });
     const onAlarm = chromeMock.alarms.onAlarm.addListener.mock.calls[0]?.[0];
     expect(onAlarm).toBeTypeOf('function');
 
+    // The snooze runs out without any settings write, as when its expiration alarm fires.
+    const expiredSnooze = { active: true, until: Date.now() - 1 };
     chromeMock.storage.sync._data.set(STORAGE_KEY, {
       groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
       filters: [],
       whitelist: [],
-      snooze: { active: true, until: Date.now() - 1 },
-      rulesVersion: 1,
+      snooze: expiredSnooze,
+      rulesVersion: 5,
     });
 
     onAlarm?.({ name: 'other-alarm' });
-    expect(chromeMock.storage.sync._data.get(STORAGE_KEY)).toEqual({
-      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
-      filters: [],
-      whitelist: [],
-      snooze: { active: true, until: Date.now() - 1 },
-      rulesVersion: 1,
-    });
+    await flushPromises();
+    expect(chromeMock.storage.sync.set).not.toHaveBeenCalled();
 
     onAlarm?.({ name: ALARMS.SNOOZE_EXPIRATION });
 
@@ -142,9 +135,36 @@ describe('registerSnoozeHandlers', () => {
         whitelist: [],
         snooze: { active: false },
         expandBlockPageDetails: false,
-        rulesVersion: 2,
+        rulesVersion: 6,
       });
     });
+    expect(chromeMock.storage.sync.set).toHaveBeenCalledTimes(1);
     expect(chromeMock.storage.session._data.get('snooze_override')).toEqual({ active: false });
+  });
+
+  it('clears the expiration alarm when a timed snooze becomes an "Always" snooze', async () => {
+    const chromeMock = getChromeMock();
+    const { registerSnoozeHandlers } = await import('../../../src/background/snooze');
+    registerSnoozeHandlers();
+    await vi.waitFor(() => {
+      expect(chromeMock.storage.session._data.get('snooze_override')).toEqual({ active: false });
+    });
+    const onChanged = chromeMock.storage.onChanged.addListener.mock.calls[0]?.[0];
+    chromeMock.alarms.clear.mockClear();
+
+    chromeMock.storage.sync._data.set(STORAGE_KEY, {
+      groups: [{ id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true }],
+      filters: [],
+      whitelist: [],
+      snooze: { active: true },
+      rulesVersion: 2,
+    });
+    onChanged?.({ [STORAGE_KEY]: { newValue: true } }, 'sync');
+
+    await vi.waitFor(() => {
+      expect(chromeMock.storage.session._data.get('snooze_override')).toEqual({ active: true });
+    });
+    expect(chromeMock.alarms.clear).toHaveBeenCalledWith(ALARMS.SNOOZE_EXPIRATION);
+    expect(chromeMock.alarms.create).not.toHaveBeenCalled();
   });
 });

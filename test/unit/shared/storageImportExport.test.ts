@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   createDefaultGroup,
   exportData,
@@ -56,11 +56,6 @@ function createSampleData(): StorageData {
 }
 
 describe('storage import/export', () => {
-  beforeEach(() => {
-    getChromeMock().storage.sync._reset();
-    getChromeMock().storage.session._reset();
-  });
-
   it('serializes exported data as formatted json', () => {
     const serialized = serializeDataForExport(createSampleData());
 
@@ -121,6 +116,121 @@ describe('storage import/export', () => {
 
   it('rejects invalid json imports', () => {
     expect(() => parseImportedData('{')).toThrow('Settings file is not valid JSON.');
+  });
+
+  const validFilter = {
+    id: 'filter-1',
+    pattern: 'news.example.test',
+    groupId: DEFAULT_GROUP_ID,
+    enabled: true,
+    matchMode: 'contains',
+  };
+  const validException = {
+    id: 'exception-1',
+    pattern: 'news.example.test/docs',
+    groupId: DEFAULT_GROUP_ID,
+    enabled: true,
+    matchMode: 'contains',
+  };
+  const scheduledGroup = (schedule: Record<string, unknown>): Record<string, unknown> => ({
+    id: 'work-hours',
+    name: 'Work Hours',
+    is24x7: false,
+    schedules: [{ daysOfWeek: [1], startTime: '09:00', endTime: '17:00', ...schedule }],
+  });
+
+  it.each([
+    { label: 'a json array', file: [], error: 'Settings file must contain a JSON object.' },
+    { label: 'json null', file: null, error: 'Settings file must contain a JSON object.' },
+    {
+      label: 'an object without Teichos collections',
+      file: { version: 1 },
+      error: 'Settings file does not contain Teichos data.',
+    },
+    {
+      label: 'filters that are not a list',
+      file: { filters: { 'filter-1': validFilter } },
+      error: 'Settings file contains invalid filters.',
+    },
+    {
+      label: 'a null filter entry',
+      file: { filters: [validFilter, null] },
+      error: 'Settings file contains invalid filters.',
+    },
+    {
+      // A blank pattern matches every URL, so it would block the whole web.
+      label: 'a whitespace-only filter pattern',
+      file: { filters: [{ ...validFilter, pattern: '   ' }] },
+      error: 'Settings file contains invalid filters.',
+    },
+    {
+      label: 'an unknown match mode',
+      file: { filters: [{ ...validFilter, matchMode: 'glob' }] },
+      error: 'Settings file contains invalid filters.',
+    },
+    {
+      label: 'a non-numeric temporary filter expiry',
+      file: { filters: [{ ...validFilter, expiresAt: 'tomorrow' }] },
+      error: 'Settings file contains invalid filters.',
+    },
+    {
+      // A blank exception would disable every filter in its group.
+      label: 'a blank exception pattern',
+      file: { whitelist: [{ ...validException, pattern: '' }] },
+      error: 'Settings file contains invalid exceptions.',
+    },
+    {
+      label: 'an unpadded schedule time',
+      file: { groups: [scheduledGroup({ startTime: '9:00' })] },
+      error: 'Settings file contains invalid groups.',
+    },
+    {
+      label: 'an out-of-range schedule day',
+      file: { groups: [scheduledGroup({ daysOfWeek: [7] })] },
+      error: 'Settings file contains invalid groups.',
+    },
+    {
+      label: 'a snooze that is not an object',
+      file: { filters: [], snooze: 'on' },
+      error: 'Settings file contains an invalid snooze state.',
+    },
+    {
+      label: 'a malformed snooze',
+      file: { filters: [], snooze: { active: 'yes' } },
+      error: 'Settings file contains an invalid snooze state.',
+    },
+    {
+      label: 'a non-numeric rules version',
+      file: { filters: [], rulesVersion: '3' },
+      error: 'Settings file contains an invalid rules version.',
+    },
+    {
+      label: 'duplicate filter ids',
+      file: { filters: [validFilter, { ...validFilter, pattern: 'other.example.test' }] },
+      error: 'Imported settings contain duplicate filter ids.',
+    },
+    {
+      label: 'duplicate exception ids',
+      file: { whitelist: [validException, { ...validException, pattern: 'other.example.test' }] },
+      error: 'Imported settings contain duplicate exception ids.',
+    },
+    {
+      label: 'an invalid regex exception',
+      file: { whitelist: [{ ...validException, pattern: '(', matchMode: 'regex' }] },
+      error: 'Imported exception "exception-1" has an invalid regex pattern.',
+    },
+    {
+      label: 'a regex filter prone to catastrophic backtracking',
+      file: { filters: [{ ...validFilter, pattern: '(a+)+$', matchMode: 'regex' }] },
+      error: 'Imported filter "filter-1" has an invalid regex pattern.',
+    },
+    {
+      label: 'an invalid legacy isRegex filter',
+      file: { filters: [{ ...validFilter, pattern: '(', matchMode: undefined, isRegex: true }] },
+      error: 'Imported filter "filter-1" has an invalid regex pattern.',
+    },
+  ])('rejects $label', ({ file, error }) => {
+    expect(() => parseImportedData(JSON.stringify(file))).toThrow(error);
   });
 
   it('rejects imports with an invalid expand block page details preference', () => {
@@ -261,6 +371,19 @@ describe('storage import/export', () => {
     expect(imported).toEqual(createSampleData());
     expect(stored.rulesVersion).toBe(10);
     expect(await getSessionSnooze()).toEqual(createSampleData().snooze);
+  });
+
+  it('leaves stored settings and session snooze untouched when an import is rejected', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createSampleData());
+
+    await expect(
+      importData(JSON.stringify({ ...createSampleData(), filters: [{ id: 'broken' }] }))
+    ).rejects.toThrow('Settings file contains invalid filters.');
+
+    expect(chromeMock.storage.sync.set).not.toHaveBeenCalled();
+    expect(chromeMock.storage.session.set).not.toHaveBeenCalled();
+    expect(chromeMock.storage.sync._data.get(STORAGE_KEY)).toEqual(createSampleData());
   });
 
   it('exports the currently stored settings', async () => {

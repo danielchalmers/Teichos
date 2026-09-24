@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   clearBlockedTabState,
@@ -20,10 +20,6 @@ import type { BlockedPageState, BlockedTabState } from '../../../src/shared/type
 import { getChromeMock } from '../../fixtures/chrome-mocks';
 
 describe('shared/api/session', () => {
-  beforeEach(() => {
-    getChromeMock().storage.session._reset();
-  });
-
   it('stores and retrieves last allowed URLs by tab id', async () => {
     await setLastAllowedUrl(4, 'https://example.com/allowed');
 
