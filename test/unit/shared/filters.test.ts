@@ -492,6 +492,19 @@ describe('regex validation', () => {
     expect(getRegexValidationError('((b)+)*')).toContain('unbounded repetition');
   });
 
+  it('rejects repeated groups whose iterations can split the same text many ways', () => {
+    // Both backtrack exponentially in V8: ^(a|aa)+$ takes seconds to fail on 37 a's.
+    expect(getRegexValidationError('^(a|aa)+$')).toContain('can match the same text');
+    expect(getRegexValidationError('(a{2,4})*b')).toContain('can match the same text');
+    // Alternatives overlap through character classes and escapes, not just shared literals.
+    expect(getRegexValidationError('(\\w|\\d)+')).toContain('can match the same text');
+    expect(getRegexValidationError('(.|a)*')).toContain('can match the same text');
+    expect(getRegexValidationError('([ab]|b)+')).toContain('can match the same text');
+    expect(getRegexValidationError('(?:a|b|ab)*')).toContain('can match the same text');
+    expect(getRegexValidationError('(?<part>a?)+')).toContain('can match the same text');
+    expect(getRegexValidationError('((a{2,3}))*')).toContain('can match the same text');
+  });
+
   it('accepts common safe quantified patterns', () => {
     expect(getRegexValidationError('^https?://(www\\.)?example\\.com/.*')).toBeNull();
     expect(getRegexValidationError('(foo|bar)+')).toBeNull();
@@ -499,6 +512,14 @@ describe('regex validation', () => {
     expect(getRegexValidationError('[a+]+')).toBeNull();
     expect(getRegexValidationError('\\(a\\)+')).toBeNull();
     expect(getRegexValidationError('example\\.com/(watch|video)\\?v=.+')).toBeNull();
+    // Repeated groups whose alternatives start differently, or whose atoms are delimited, are
+    // split only one way.
+    expect(getRegexValidationError('(www\\.|m\\.)*example\\.com')).toBeNull();
+    expect(getRegexValidationError('(\\w|-)+')).toBeNull();
+    expect(getRegexValidationError('([ab]|c)+')).toBeNull();
+    expect(getRegexValidationError('(\\.[a-z]{2,3})+$')).toBeNull();
+    expect(getRegexValidationError('^(\\d{1,3}\\.)+')).toBeNull();
+    expect(getRegexValidationError('(x{2})*')).toBeNull();
   });
 });
 
