@@ -73,6 +73,35 @@ describe('matchesPattern', () => {
       expected: true,
     },
     {
+      // Browsers report an origin with a trailing slash, so a bare origin must still match it.
+      name: 'matches an exact origin against the URL the browser reports for it',
+      url: 'https://example.com/',
+      pattern: 'https://example.com',
+      matchMode: 'exact' as const,
+      expected: true,
+    },
+    {
+      name: 'ignores the fragment on both sides of an exact match',
+      url: 'https://example.com/page?id=1#comments',
+      pattern: 'https://example.com/page?id=1#top',
+      matchMode: 'exact' as const,
+      expected: true,
+    },
+    {
+      name: 'still tells apart exact URLs that differ before the fragment',
+      url: 'https://example.com/page?id=2#comments',
+      pattern: 'https://example.com/page?id=1',
+      matchMode: 'exact' as const,
+      expected: false,
+    },
+    {
+      name: 'compares an exact pattern that is not a URL as typed',
+      url: 'https://example.com/',
+      pattern: 'example.com',
+      matchMode: 'exact' as const,
+      expected: false,
+    },
+    {
       name: 'does not match non-identical exact patterns',
       url: 'https://example.com/path',
       pattern: 'https://example.com',
@@ -492,6 +521,19 @@ describe('regex validation', () => {
     expect(getRegexValidationError('((b)+)*')).toContain('unbounded repetition');
   });
 
+  it('rejects repeated groups whose iterations can split the same text many ways', () => {
+    // Both backtrack exponentially in V8: ^(a|aa)+$ takes seconds to fail on 37 a's.
+    expect(getRegexValidationError('^(a|aa)+$')).toContain('can match the same text');
+    expect(getRegexValidationError('(a{2,4})*b')).toContain('can match the same text');
+    // Alternatives overlap through character classes and escapes, not just shared literals.
+    expect(getRegexValidationError('(\\w|\\d)+')).toContain('can match the same text');
+    expect(getRegexValidationError('(.|a)*')).toContain('can match the same text');
+    expect(getRegexValidationError('([ab]|b)+')).toContain('can match the same text');
+    expect(getRegexValidationError('(?:a|b|ab)*')).toContain('can match the same text');
+    expect(getRegexValidationError('(?<part>a?)+')).toContain('can match the same text');
+    expect(getRegexValidationError('((a{2,3}))*')).toContain('can match the same text');
+  });
+
   it('accepts common safe quantified patterns', () => {
     expect(getRegexValidationError('^https?://(www\\.)?example\\.com/.*')).toBeNull();
     expect(getRegexValidationError('(foo|bar)+')).toBeNull();
@@ -499,6 +541,14 @@ describe('regex validation', () => {
     expect(getRegexValidationError('[a+]+')).toBeNull();
     expect(getRegexValidationError('\\(a\\)+')).toBeNull();
     expect(getRegexValidationError('example\\.com/(watch|video)\\?v=.+')).toBeNull();
+    // Repeated groups whose alternatives start differently, or whose atoms are delimited, are
+    // split only one way.
+    expect(getRegexValidationError('(www\\.|m\\.)*example\\.com')).toBeNull();
+    expect(getRegexValidationError('(\\w|-)+')).toBeNull();
+    expect(getRegexValidationError('([ab]|c)+')).toBeNull();
+    expect(getRegexValidationError('(\\.[a-z]{2,3})+$')).toBeNull();
+    expect(getRegexValidationError('^(\\d{1,3}\\.)+')).toBeNull();
+    expect(getRegexValidationError('(x{2})*')).toBeNull();
   });
 });
 
@@ -544,6 +594,9 @@ describe('shouldBlockUrl', () => {
       },
     ];
     expect(findBlockingFilter('https://blocked.com', filters, groups, [])).toBeDefined();
+    // The URLs a browser actually navigates to for that page, with its root path and a fragment.
+    expect(findBlockingFilter('https://blocked.com/', filters, groups, [])?.id).toBe('f1');
+    expect(findBlockingFilter('https://blocked.com/#skip', filters, groups, [])?.id).toBe('f1');
     expect(findBlockingFilter('https://blocked.com/page', filters, groups, [])).toBeUndefined();
   });
 

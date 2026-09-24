@@ -3,6 +3,7 @@ import type { FilterMatchMode } from '../types';
 export interface PreparedPattern {
   readonly pattern: string;
   readonly matchMode: FilterMatchMode;
+  /** The pattern as matching compares it: lowercased, and for exact mode also URL-normalized. */
   readonly patternLower?: string;
   readonly regex?: RegExp | null;
 }
@@ -20,103 +21,249 @@ export function getRegexValidationError(pattern: string): string | null {
     return error instanceof Error ? error.message : String(error);
   }
 
-  if (hasNestedUnboundedQuantifier(pattern)) {
+  const hazard = findBacktrackingHazard(parseAlternatives(pattern, { index: 0 }));
+  if (hazard === 'nested') {
     return 'Nested unbounded repetition like (a+)+ can hang the browser while matching. Simplify the pattern.';
+  }
+  if (hazard === 'ambiguous') {
+    return 'Repeating a group whose parts can match the same text, like (a|aa)+, can hang the browser while matching. Simplify the pattern.';
   }
 
   return null;
 }
 
-/**
- * Detect a repeated group that itself contains an unbounded repeat, e.g. (a+)+ or (a*){2,}.
- * These patterns can backtrack exponentially, and filters run on every navigation inside the
- * service worker, so a catastrophic pattern freezes all block/allow decisions. The pattern is
- * known to compile before this runs, so parentheses outside character classes are balanced.
+/*
+ * Filters run on every navigation inside the service worker, so a pattern that backtracks
+ * exponentially freezes all block/allow decisions. Full ReDoS analysis is out of reach here;
+ * instead the pattern is parsed into groups and alternatives, and a group repeated without an
+ * upper bound is rejected when one text can be split across its iterations in many ways:
+ *
+ * - it contains another unbounded repeat, e.g. (a+)+ or (a*){2,};
+ * - two of its alternatives can start with the same character, e.g. (a|aa)+ or (\w|\d)*;
+ * - one of its alternatives is a single atom of variable width, e.g. (a{2,4})* or (a?)+.
+ *
+ * Patterns that pass can still be slow, but these are the shapes that hang on short inputs.
  */
-function hasNestedUnboundedQuantifier(pattern: string): boolean {
-  const containsUnbounded: boolean[] = [false];
-  let inCharacterClass = false;
 
-  for (let i = 0; i < pattern.length; i++) {
-    const char = pattern[i];
+interface Quantifier {
+  readonly min: number;
+  readonly max: number;
+}
 
-    if (char === '\\') {
-      i += 1;
+interface Atom {
+  /** The atom's own text, without its quantifier. */
+  readonly source: string;
+  /** Anchors, word boundaries, and lookarounds match a position rather than characters. */
+  readonly zeroWidth: boolean;
+  readonly body?: Alternative[];
+  readonly quantifier: Quantifier;
+}
+
+type Alternative = Atom[];
+
+interface ParseState {
+  index: number;
+}
+
+const ONCE: Quantifier = { min: 1, max: 1 };
+
+/** The pattern is known to compile, so groups and character classes are balanced. */
+function parseAlternatives(pattern: string, state: ParseState): Alternative[] {
+  const alternatives: Alternative[] = [[]];
+
+  while (state.index < pattern.length && pattern[state.index] !== ')') {
+    if (pattern[state.index] === '|') {
+      alternatives.push([]);
+      state.index += 1;
       continue;
     }
+    alternatives[alternatives.length - 1]?.push(parseAtom(pattern, state));
+  }
 
-    if (inCharacterClass) {
-      if (char === ']') {
-        inCharacterClass = false;
-      }
+  return alternatives;
+}
+
+function parseAtom(pattern: string, state: ParseState): Atom {
+  const start = state.index;
+  const char = pattern[start];
+  let zeroWidth = false;
+  let body: Alternative[] | undefined;
+
+  if (char === '(') {
+    state.index += 1;
+    const prefix = /^\?(?::|<?[=!]|<[^>]*>)/.exec(pattern.slice(state.index))?.[0] ?? '';
+    zeroWidth = /[=!]$/.test(prefix);
+    state.index += prefix.length;
+    body = parseAlternatives(pattern, state);
+    state.index += 1;
+  } else if (char === '[') {
+    state.index = endOfCharacterClass(pattern, start);
+  } else if (char === '\\') {
+    state.index = endOfEscape(pattern, start);
+    zeroWidth = /^\\[bB]$/.test(pattern.slice(start, state.index));
+  } else {
+    state.index += 1;
+    zeroWidth = char === '^' || char === '$';
+  }
+
+  const source = pattern.slice(start, state.index);
+  const quantifier = readQuantifier(pattern, state);
+  return body ? { source, zeroWidth, body, quantifier } : { source, zeroWidth, quantifier };
+}
+
+function endOfCharacterClass(pattern: string, start: number): number {
+  let i = start + 1;
+  while (i < pattern.length && pattern[i] !== ']') {
+    i += pattern[i] === '\\' ? 2 : 1;
+  }
+  return i + 1;
+}
+
+function endOfEscape(pattern: string, start: number): number {
+  const rest = pattern.slice(start + 1);
+  const escape =
+    /^(?:x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|c[a-zA-Z]|[0-9]+|k<[^>]*>)/.exec(rest)?.[0] ??
+    rest.slice(0, 1);
+  return start + 1 + escape.length;
+}
+
+function readQuantifier(pattern: string, state: ParseState): Quantifier {
+  const char = pattern[state.index];
+  let quantifier: Quantifier | null = null;
+  let length = 1;
+
+  if (char === '*') {
+    quantifier = { min: 0, max: Infinity };
+  } else if (char === '+') {
+    quantifier = { min: 1, max: Infinity };
+  } else if (char === '?') {
+    quantifier = { min: 0, max: 1 };
+  } else if (char === '{') {
+    // A brace that isn't a well-formed quantifier is a literal in patterns without the u flag.
+    const match = /^\{(\d+)(?:(,)(\d*))?\}/.exec(pattern.slice(state.index));
+    if (match) {
+      const min = Number(match[1]);
+      // {n} is exact, {n,} has no upper bound, and {n,m} is bounded.
+      const max = match[2] === undefined ? min : match[3] === '' ? Infinity : Number(match[3]);
+      quantifier = { min, max };
+      length = match[0].length;
+    }
+  }
+
+  if (!quantifier) {
+    return ONCE;
+  }
+
+  state.index += length;
+  // A trailing ? makes the quantifier lazy, which changes the order of attempts, not how many.
+  if (pattern[state.index] === '?') {
+    state.index += 1;
+  }
+  return quantifier;
+}
+
+function findBacktrackingHazard(
+  alternatives: readonly Alternative[]
+): 'nested' | 'ambiguous' | null {
+  for (const atom of alternatives.flat()) {
+    if (!atom.body) {
       continue;
     }
+    if (atom.quantifier.max === Infinity) {
+      if (containsUnboundedRepeat(atom.body)) {
+        return 'nested';
+      }
+      if (hasAmbiguousIterations(atom.body)) {
+        return 'ambiguous';
+      }
+    }
+    const inner = findBacktrackingHazard(atom.body);
+    if (inner) {
+      return inner;
+    }
+  }
+  return null;
+}
 
-    switch (char) {
-      case '[':
-        inCharacterClass = true;
-        break;
-      case '(':
-        containsUnbounded.push(false);
-        break;
-      case ')': {
-        const groupHadUnbounded = containsUnbounded.pop() ?? false;
-        const quantifier = readQuantifier(pattern, i + 1);
-        if (groupHadUnbounded && quantifier.unbounded) {
-          return true;
-        }
-        if (groupHadUnbounded || quantifier.unbounded) {
-          containsUnbounded[containsUnbounded.length - 1] = true;
-        }
-        i += quantifier.length;
-        break;
-      }
-      case '+':
-      case '*':
-        containsUnbounded[containsUnbounded.length - 1] = true;
-        break;
-      case '{': {
-        const quantifier = readBraceQuantifier(pattern, i);
-        if (quantifier) {
-          if (quantifier.unbounded) {
-            containsUnbounded[containsUnbounded.length - 1] = true;
-          }
-          i += quantifier.length - 1;
-        }
-        break;
-      }
+function containsUnboundedRepeat(alternatives: readonly Alternative[]): boolean {
+  return alternatives
+    .flat()
+    .some(
+      (atom) =>
+        atom.quantifier.max === Infinity || (atom.body ? containsUnboundedRepeat(atom.body) : false)
+    );
+}
+
+function hasAmbiguousIterations(alternatives: readonly Alternative[]): boolean {
+  if (alternatives.some(isSingleVariableWidthAtom)) {
+    return true;
+  }
+
+  const firstSets = alternatives.map(firstCharacters);
+  return firstSets.some((set, i) => firstSets.slice(i + 1).some((other) => overlaps(set, other)));
+}
+
+function isSingleVariableWidthAtom(alternative: Alternative): boolean {
+  const consuming = alternative.filter((atom) => !atom.zeroWidth);
+  const atom = consuming[0];
+  if (consuming.length !== 1 || !atom) {
+    return false;
+  }
+  if (atom.quantifier.min !== atom.quantifier.max) {
+    return true;
+  }
+  // A plain group around the atom, as in ((a{2,4}))*, hides nothing.
+  return atom.body !== undefined && atom.quantifier.max === 1 && hasAmbiguousIterations(atom.body);
+}
+
+/**
+ * The characters an atom can start with are probed over ASCII plus a few non-ASCII samples,
+ * which is exact for the literals, escapes, and classes URL patterns use.
+ */
+const PROBE_CHARACTERS = [
+  ...Array.from({ length: 128 }, (_, code) => String.fromCharCode(code)),
+  '\u00e9',
+  '\u2028',
+];
+
+type CharacterSet = readonly boolean[];
+
+const ANY_CHARACTER: CharacterSet = PROBE_CHARACTERS.map(() => true);
+
+function firstCharacters(alternative: Alternative): CharacterSet {
+  let result: CharacterSet = PROBE_CHARACTERS.map(() => false);
+
+  for (const atom of alternative) {
+    if (atom.zeroWidth) {
+      continue;
+    }
+    result = union(result, atomFirstCharacters(atom));
+    if (atom.quantifier.min > 0) {
+      break;
     }
   }
 
-  return false;
+  return result;
 }
 
-interface QuantifierScan {
-  readonly unbounded: boolean;
-  readonly length: number;
+function atomFirstCharacters(atom: Atom): CharacterSet {
+  if (atom.body) {
+    return atom.body.map(firstCharacters).reduce(union);
+  }
+  // A backreference can start with whatever its group captured.
+  if (/^\\(?:[1-9]|k<)/.test(atom.source)) {
+    return ANY_CHARACTER;
+  }
+  const regex = new RegExp(`^(?:${atom.source})$`);
+  return PROBE_CHARACTERS.map((char) => regex.test(char));
 }
 
-function readQuantifier(pattern: string, index: number): QuantifierScan {
-  const char = pattern[index];
-  if (char === '+' || char === '*') {
-    return { unbounded: true, length: 1 };
-  }
-  if (char === '{') {
-    const brace = readBraceQuantifier(pattern, index);
-    if (brace) {
-      return brace;
-    }
-  }
-  return { unbounded: false, length: 0 };
+function union(a: CharacterSet, b: CharacterSet): CharacterSet {
+  return a.map((value, i) => value || (b[i] ?? false));
 }
 
-function readBraceQuantifier(pattern: string, index: number): QuantifierScan | null {
-  const match = /^\{(\d+)(?:,(\d*))?\}/.exec(pattern.slice(index));
-  if (!match) {
-    return null;
-  }
-  // {n,} has no upper bound; {n} and {n,m} are bounded.
-  return { unbounded: match[2] === '', length: match[0].length };
+function overlaps(a: CharacterSet, b: CharacterSet): boolean {
+  return a.some((value, i) => value && (b[i] ?? false));
 }
 
 export function compileRegex(pattern: string): RegExp | null {
@@ -134,7 +281,27 @@ export function preparePattern(
   if (matchMode === 'regex') {
     return { regex: compileRegex(pattern) };
   }
+  if (matchMode === 'exact') {
+    return { patternLower: normalizeExactUrl(pattern) };
+  }
   return { patternLower: pattern.toLowerCase() };
+}
+
+/**
+ * Compare exact patterns the way the browser reports URLs, not character for character. The
+ * browser always gives an origin a path, so https://example.com arrives as https://example.com/,
+ * and a fragment only scrolls within the page, so #anything must not get around an exact filter.
+ * Continue keys its bypass on the page without the fragment for the same reason. A pattern that
+ * isn't a URL is compared as typed.
+ */
+function normalizeExactUrl(value: string): string {
+  try {
+    const parsed = new URL(value);
+    parsed.hash = '';
+    return parsed.href.toLowerCase();
+  } catch {
+    return value.toLowerCase();
+  }
 }
 
 export function matchesPattern(
@@ -169,12 +336,12 @@ export function matchesPattern(
     return resolvedRegex.test(url);
   }
 
+  if (resolvedMode === 'exact') {
+    return normalizeExactUrl(url) === (patternLower ?? normalizeExactUrl(resolvedPattern));
+  }
+
   const normalizedUrl = urlLower ?? url.toLowerCase();
   const normalizedPattern = patternLower ?? resolvedPattern.toLowerCase();
-
-  if (resolvedMode === 'exact') {
-    return normalizedUrl === normalizedPattern;
-  }
 
   return normalizedUrl.includes(normalizedPattern);
 }
