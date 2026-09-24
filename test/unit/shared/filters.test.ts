@@ -73,6 +73,35 @@ describe('matchesPattern', () => {
       expected: true,
     },
     {
+      // Browsers report an origin with a trailing slash, so a bare origin must still match it.
+      name: 'matches an exact origin against the URL the browser reports for it',
+      url: 'https://example.com/',
+      pattern: 'https://example.com',
+      matchMode: 'exact' as const,
+      expected: true,
+    },
+    {
+      name: 'ignores the fragment on both sides of an exact match',
+      url: 'https://example.com/page?id=1#comments',
+      pattern: 'https://example.com/page?id=1#top',
+      matchMode: 'exact' as const,
+      expected: true,
+    },
+    {
+      name: 'still tells apart exact URLs that differ before the fragment',
+      url: 'https://example.com/page?id=2#comments',
+      pattern: 'https://example.com/page?id=1',
+      matchMode: 'exact' as const,
+      expected: false,
+    },
+    {
+      name: 'compares an exact pattern that is not a URL as typed',
+      url: 'https://example.com/',
+      pattern: 'example.com',
+      matchMode: 'exact' as const,
+      expected: false,
+    },
+    {
       name: 'does not match non-identical exact patterns',
       url: 'https://example.com/path',
       pattern: 'https://example.com',
@@ -565,6 +594,9 @@ describe('shouldBlockUrl', () => {
       },
     ];
     expect(findBlockingFilter('https://blocked.com', filters, groups, [])).toBeDefined();
+    // The URLs a browser actually navigates to for that page, with its root path and a fragment.
+    expect(findBlockingFilter('https://blocked.com/', filters, groups, [])?.id).toBe('f1');
+    expect(findBlockingFilter('https://blocked.com/#skip', filters, groups, [])?.id).toBe('f1');
     expect(findBlockingFilter('https://blocked.com/page', filters, groups, [])).toBeUndefined();
   });
 

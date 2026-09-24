@@ -3,6 +3,7 @@ import type { FilterMatchMode } from '../types';
 export interface PreparedPattern {
   readonly pattern: string;
   readonly matchMode: FilterMatchMode;
+  /** The pattern as matching compares it: lowercased, and for exact mode also URL-normalized. */
   readonly patternLower?: string;
   readonly regex?: RegExp | null;
 }
@@ -280,7 +281,27 @@ export function preparePattern(
   if (matchMode === 'regex') {
     return { regex: compileRegex(pattern) };
   }
+  if (matchMode === 'exact') {
+    return { patternLower: normalizeExactUrl(pattern) };
+  }
   return { patternLower: pattern.toLowerCase() };
+}
+
+/**
+ * Compare exact patterns the way the browser reports URLs, not character for character. The
+ * browser always gives an origin a path, so https://example.com arrives as https://example.com/,
+ * and a fragment only scrolls within the page, so #anything must not get around an exact filter.
+ * Continue keys its bypass on the page without the fragment for the same reason. A pattern that
+ * isn't a URL is compared as typed.
+ */
+function normalizeExactUrl(value: string): string {
+  try {
+    const parsed = new URL(value);
+    parsed.hash = '';
+    return parsed.href.toLowerCase();
+  } catch {
+    return value.toLowerCase();
+  }
 }
 
 export function matchesPattern(
@@ -315,12 +336,12 @@ export function matchesPattern(
     return resolvedRegex.test(url);
   }
 
+  if (resolvedMode === 'exact') {
+    return normalizeExactUrl(url) === (patternLower ?? normalizeExactUrl(resolvedPattern));
+  }
+
   const normalizedUrl = urlLower ?? url.toLowerCase();
   const normalizedPattern = patternLower ?? resolvedPattern.toLowerCase();
-
-  if (resolvedMode === 'exact') {
-    return normalizedUrl === normalizedPattern;
-  }
 
   return normalizedUrl.includes(normalizedPattern);
 }
