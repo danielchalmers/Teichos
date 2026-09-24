@@ -270,11 +270,12 @@ describe('handleMessage', () => {
     ).toBe(true);
 
     await vi.waitFor(() => {
-      expect(mocks.getBlockedPageStateForTab).toHaveBeenCalledWith(
-        8,
-        'chrome-extension://test-extension-id/blocked.html?blockId=block-8'
-      );
+      expect(sendResponse).toHaveBeenCalledWith({ status: 'unavailable' });
     });
+    expect(mocks.getBlockedPageStateForTab).toHaveBeenCalledWith(
+      8,
+      'chrome-extension://test-extension-id/blocked.html?blockId=block-8'
+    );
     expect(mocks.getBlockedPageStateByBlockId).not.toHaveBeenCalled();
   });
 

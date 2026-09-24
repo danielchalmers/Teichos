@@ -39,40 +39,26 @@ describe('handleNavigationChange', () => {
     mocks.evaluateNavigation.mockResolvedValue(undefined);
   });
 
-  it('ignores non-main-frame navigations', async () => {
-    await handleNavigationChange(createNavigationDetails({ frameId: 2, tabId: 4 }));
-
-    expect(mocks.evaluateNavigation).not.toHaveBeenCalled();
-  });
-
-  it('delegates main-frame before-navigate events to the tab controller', async () => {
+  // Before-navigate, history-state and fragment events all arrive here with the same details
+  // shape; registerBackground wires each of them to this handler.
+  it('delegates main-frame navigations to the tab controller', async () => {
     await handleBeforeNavigate(
       createNavigationDetails({ tabId: 9, url: 'https://blocked.com/page' })
     );
-
-    expect(mocks.evaluateNavigation).toHaveBeenCalledWith(9, 'https://blocked.com/page');
-  });
-
-  it('delegates main-frame history-state updates to the tab controller', async () => {
-    await handleNavigationChange(
-      createNavigationDetails({ tabId: 5, url: 'https://example.com/blocked-route' })
-    );
-
-    expect(mocks.evaluateNavigation).toHaveBeenCalledWith(5, 'https://example.com/blocked-route');
-  });
-
-  it('delegates main-frame fragment updates to the tab controller', async () => {
     await handleNavigationChange(
       createNavigationDetails({ tabId: 6, url: 'https://example.com/page#blocked' })
     );
 
-    expect(mocks.evaluateNavigation).toHaveBeenCalledWith(6, 'https://example.com/page#blocked');
+    expect(mocks.evaluateNavigation).toHaveBeenNthCalledWith(1, 9, 'https://blocked.com/page');
+    expect(mocks.evaluateNavigation).toHaveBeenNthCalledWith(
+      2,
+      6,
+      'https://example.com/page#blocked'
+    );
   });
 
-  it('ignores sub-frame history-state and fragment updates', async () => {
-    await handleNavigationChange(
-      createNavigationDetails({ frameId: 2, tabId: 7, url: 'https://example.com/blocked-route' })
-    );
+  it('ignores sub-frame navigations', async () => {
+    await handleBeforeNavigate(createNavigationDetails({ frameId: 1, tabId: 4 }));
     await handleNavigationChange(
       createNavigationDetails({ frameId: 3, tabId: 8, url: 'https://example.com/page#blocked' })
     );
