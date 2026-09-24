@@ -179,6 +179,56 @@ describe('storage import/export', () => {
     ).toThrow('Imported filter "orphaned-filter" references an unknown group.');
   });
 
+  it('rejects an exception that references an unknown group instead of moving it to 24/7', () => {
+    // Repairing this reference would put the exception in the 24/7 group, where it switches off
+    // the matching always-on filter the file never asked to loosen.
+    expect(() =>
+      parseImportedData(
+        JSON.stringify({
+          groups: [createDefaultGroup()],
+          filters: [
+            {
+              id: 'always-youtube',
+              pattern: 'youtube.com',
+              groupId: DEFAULT_GROUP_ID,
+              enabled: true,
+              matchMode: 'contains',
+            },
+          ],
+          whitelist: [
+            {
+              id: 'orphaned-exception',
+              pattern: 'youtube.com',
+              groupId: 'deleted-work-group',
+              enabled: true,
+              matchMode: 'contains',
+            },
+          ],
+        })
+      )
+    ).toThrow('Imported exception "orphaned-exception" references an unknown group.');
+  });
+
+  it('keeps a legacy exception with no group in the 24/7 group', () => {
+    const imported = parseImportedData(
+      JSON.stringify({
+        groups: [createDefaultGroup()],
+        filters: [],
+        whitelist: [
+          {
+            id: 'legacy-exception',
+            pattern: 'docs.example.test',
+            enabled: true,
+          },
+        ],
+      })
+    );
+
+    expect(imported.whitelist).toEqual([
+      expect.objectContaining({ id: 'legacy-exception', groupId: DEFAULT_GROUP_ID }),
+    ]);
+  });
+
   it('rejects imports with invalid regex patterns', () => {
     expect(() =>
       parseImportedData(
