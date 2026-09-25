@@ -41,6 +41,8 @@ async function init(): Promise<void> {
   const learnMoreButton = getElementByIdOrNull('learn-more');
   learnMoreButton?.addEventListener('click', () => {
     setExtrasExpanded(true);
+    // The link hides itself once expanded, so hand focus to the safest action instead of <body>.
+    focusElement('go-back');
   });
 
   // Set up options button
@@ -79,7 +81,33 @@ async function renderExtrasExpansion(): Promise<void> {
     console.warn('[Teichos] Failed to load block page display settings:', error);
   }
 
-  setExtrasExpanded(expandByDefault);
+  // Don't collapse details the user already opened while settings were loading.
+  const expanded = expandByDefault || isExtrasExpanded();
+  setExtrasExpanded(expanded);
+  focusInitialControl(expanded);
+}
+
+/**
+ * Give keyboard users a starting point without letting Enter skip the speed bump: initial focus
+ * lands on "Learn more" or "Go Back", never "Continue". Leaves focus alone if the user already
+ * moved it while the page was loading.
+ */
+function focusInitialControl(expanded: boolean): void {
+  const active = document.activeElement;
+  if (active && active !== document.body) {
+    return;
+  }
+
+  focusElement(expanded ? 'go-back' : 'learn-more');
+}
+
+function focusElement(elementId: string): void {
+  getElementByIdOrNull<HTMLElement>(elementId)?.focus();
+}
+
+function isExtrasExpanded(): boolean {
+  const extras = getElementByIdOrNull<HTMLElement>('block-extras');
+  return extras !== null && !extras.hidden;
 }
 
 function setExtrasExpanded(expanded: boolean): void {

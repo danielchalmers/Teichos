@@ -205,6 +205,26 @@ test('expands details by default when the global setting is enabled', async ({
   await expect(page.getByLabel('Responsible filter')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Go Back' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Learn more' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Go Back' })).toBeFocused();
+});
+
+test('keyboard focus starts on Learn more and moves to Go Back, never Continue', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=1`);
+  const learnMore = page.getByRole('button', { name: 'Learn more' });
+  await expect(learnMore).toBeFocused();
+
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Blocked URL')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Go Back' })).toBeFocused();
+
+  // Continue stays one deliberate Tab away rather than the default action.
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Manage Filters' })).toBeFocused();
 });
 
 test('previews the block page from the options global settings', async ({
