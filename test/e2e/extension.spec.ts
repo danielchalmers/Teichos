@@ -4,6 +4,8 @@ import {
   captureScreenshot,
   createStorageData,
   defaultGroup,
+  expectBlocked,
+  expectOnBlockedPage,
   readStorage,
   seedStorage,
   showBlockPageDetails,
@@ -49,21 +51,6 @@ async function mockSpaPage(page: Page, pattern: string): Promise<void> {
   });
 }
 
-async function expectBlockedSameTabNavigation(page: Page, targetUrl: string): Promise<void> {
-  await expect
-    .poll(() => {
-      const currentUrl = new URL(page.url());
-      return (
-        currentUrl.pathname === `/${PAGES.BLOCKED}` &&
-        currentUrl.searchParams.has('blockId') &&
-        !currentUrl.searchParams.has('url')
-      );
-    })
-    .toBe(true);
-  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
-  await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
-}
-
 test('loads the extension service worker and extension pages', async ({
   extensionId,
   extensionPage,
@@ -78,7 +65,7 @@ test('loads the extension service worker and extension pages', async ({
   await page.goto(extensionPage(PAGES.POPUP));
   await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
   await expect(page.getByText('No filters configured.')).toBeVisible();
-  await expect.poll(() => readStorage(page)).toBeUndefined();
+  expect(await readStorage(page)).toBeUndefined();
 });
 
 test('redirects matching top-level navigations to the blocked page', async ({
@@ -103,20 +90,7 @@ test('redirects matching top-level navigations to the blocked page', async ({
   );
 
   const targetUrl = 'https://blocked.example.invalid/focus';
-  await page.goto(targetUrl).catch(() => undefined);
-
-  await expect
-    .poll(() => {
-      const currentUrl = new URL(page.url());
-      return (
-        currentUrl.pathname === `/${PAGES.BLOCKED}` &&
-        currentUrl.searchParams.has('blockId') &&
-        !currentUrl.searchParams.has('url')
-      );
-    })
-    .toBe(true);
-  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
-  await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
+  await expectBlocked(page, targetUrl);
   await showBlockPageDetails(page);
   await expect(page.getByLabel('Responsible filter')).toContainText('E2E Block');
 });
@@ -153,7 +127,7 @@ for (const navigationMethod of ['push-state', 'replace-state'] as const) {
 
     await page.locator(`#${navigationMethod}`).click();
 
-    await expectBlockedSameTabNavigation(page, targetUrl);
+    await expectOnBlockedPage(page, targetUrl);
     await captureScreenshot(page, testInfo, `${navigationMethod}-blocked-page.png`);
 
     await showBlockPageDetails(page);
@@ -195,7 +169,7 @@ test('blocks matching same-tab hash navigations and preserves go back', async ({
 
   await page.locator('#set-hash').click();
 
-  await expectBlockedSameTabNavigation(page, targetUrl);
+  await expectOnBlockedPage(page, targetUrl);
   await captureScreenshot(page, testInfo, 'hash-blocked-page.png');
 
   await showBlockPageDetails(page);

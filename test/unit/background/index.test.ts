@@ -71,4 +71,23 @@ describe('background entrypoint', () => {
     expect(mocks.handleNavigationChange).toHaveBeenNthCalledWith(2, details);
     expect(mocks.handleNavigationChange).toHaveBeenNthCalledWith(3, details);
   });
+
+  it('logs a failed navigation evaluation instead of leaving the rejection unhandled', async () => {
+    const chromeMock = getChromeMock();
+    const failure = new Error('storage unavailable');
+    mocks.handleNavigationChange.mockRejectedValue(failure);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const { registerBackground } = await import('../../../src/background/index');
+    registerBackground();
+    chromeMock.webNavigation.onBeforeNavigate.addListener.mock.calls[0]?.[0]({
+      frameId: 0,
+      tabId: 3,
+      url: 'https://example.com/',
+    });
+
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith('[Teichos] Error handling navigation:', failure);
+    });
+  });
 });

@@ -52,7 +52,6 @@ const defaultData = {
 
 describe('handleMessage', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     mocks.loadData.mockResolvedValue(defaultData);
     mocks.continueFromActiveTab.mockResolvedValue(false);
     mocks.continueFromBlockedPage.mockResolvedValue(false);
@@ -271,11 +270,12 @@ describe('handleMessage', () => {
     ).toBe(true);
 
     await vi.waitFor(() => {
-      expect(mocks.getBlockedPageStateForTab).toHaveBeenCalledWith(
-        8,
-        'chrome-extension://test-extension-id/blocked.html?blockId=block-8'
-      );
+      expect(sendResponse).toHaveBeenCalledWith({ status: 'unavailable' });
     });
+    expect(mocks.getBlockedPageStateForTab).toHaveBeenCalledWith(
+      8,
+      'chrome-extension://test-extension-id/blocked.html?blockId=block-8'
+    );
     expect(mocks.getBlockedPageStateByBlockId).not.toHaveBeenCalled();
   });
 

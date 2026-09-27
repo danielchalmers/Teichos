@@ -145,7 +145,7 @@ export function createChromeMock(): ChromeMock {
     },
     alarms: {
       create: vi.fn(),
-      clear: vi.fn().mockResolvedValue(true),
+      clear: vi.fn(() => Promise.resolve(true)),
       onAlarm: {
         addListener: vi.fn(),
         removeListener: vi.fn(),
@@ -209,7 +209,7 @@ export function createChromeMock(): ChromeMock {
       openOptionsPage: vi.fn((callback?: () => void) => {
         callback?.();
       }),
-      sendMessage: vi.fn().mockResolvedValue(undefined),
+      sendMessage: vi.fn(() => Promise.resolve(undefined)),
       onMessage: {
         addListener: vi.fn(),
         removeListener: vi.fn(),

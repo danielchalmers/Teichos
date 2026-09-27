@@ -140,7 +140,7 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
   await expect
     .poll(() => page.evaluate(() => (globalThis as AlertCaptureGlobal).__lastAlertMessage))
     .toContain('Invalid regex pattern');
-  await expect.poll(() => readStorage(page)).toBeUndefined();
+  expect(await readStorage(page)).toBeUndefined();
 });
 
 test('exports current settings from global settings', async ({ extensionPage, page }) => {
@@ -306,7 +306,7 @@ test('keeps existing settings when global settings import fails', async ({
   await expect(page.locator('#global-settings-status')).toHaveText(
     'Settings file is not valid JSON.'
   );
-  await expect.poll(() => readStorage(page)).toEqual(originalData);
+  expect(await readStorage(page)).toEqual(originalData);
 });
 
 test('opens filter, group, and exception modals from query params', async ({

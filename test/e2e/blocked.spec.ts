@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 import {
   captureScreenshot,
@@ -12,6 +13,18 @@ import {
   waitForOptionsReady,
 } from './helpers';
 import { PAGES } from '../../src/shared/constants';
+
+/**
+ * Click Go Back and wait until the background has answered that there is nothing to restore, so a
+ * following URL check cannot pass just because a navigation had not started yet.
+ */
+async function clickGoBackWithNothingToRestore(page: Page): Promise<void> {
+  const noTargetWarning = page.waitForEvent('console', (message) =>
+    message.text().includes('No restorable tab target is available')
+  );
+  await page.getByRole('button', { name: 'Go Back' }).click();
+  await noTargetWarning;
+}
 
 test('go back restores the last allowed url', async ({
   context,
@@ -103,7 +116,11 @@ test('renders the blocked url and responsible filter from block id state', async
   await expect(page.getByLabel('Responsible filter')).toContainText('blocked-state.example.test');
 });
 
-test('blocked pages show Continue and allow same-tab bypass', async ({ extensionPage, page }) => {
+test('Continue bypasses the block for that page in that tab only', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
   const targetUrl = 'https://bypass.example.test/bypass-focus';
   await mockAllowedPage(page, targetUrl, 'Bypass allowed');
 
@@ -129,8 +146,15 @@ test('blocked pages show Continue and allow same-tab bypass', async ({ extension
   await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Continue' }).click();
-  await expect.poll(() => page.url()).not.toContain(`/${PAGES.BLOCKED}`);
+  await expect(page).toHaveURL(targetUrl);
+  await expect(page.getByText('Bypass allowed')).toBeVisible();
   await expectAllowed(page, targetUrl);
+
+  // The bypass is keyed to the exact page and tab the user chose to continue from.
+  await expectBlocked(page, 'https://bypass.example.test/bypass-other');
+  const otherTab = await context.newPage();
+  await otherTab.goto('https://bypass.example.test/');
+  await expectBlocked(otherTab, targetUrl);
 });
 
 test('renders a sample block in preview mode', async ({ extensionPage, page }) => {
@@ -212,8 +236,8 @@ test('handles missing or stale block ids and no-op go back safely', async ({
 
   const missingBlockPage = page.url();
   await showBlockPageDetails(page);
-  await page.getByRole('button', { name: 'Go Back' }).click();
-  await expect.poll(() => page.url()).toBe(missingBlockPage);
+  await clickGoBackWithNothingToRestore(page);
+  expect(page.url()).toBe(missingBlockPage);
 
   await page.goto(
     `${extensionPage(PAGES.BLOCKED)}?url=${encodeURIComponent('https://blocked.example.invalid')}`
@@ -226,6 +250,6 @@ test('handles missing or stale block ids and no-op go back safely', async ({
 
   const staleBlockPage = page.url();
   await showBlockPageDetails(page);
-  await page.getByRole('button', { name: 'Go Back' }).click();
-  await expect.poll(() => page.url()).toBe(staleBlockPage);
+  await clickGoBackWithNothingToRestore(page);
+  expect(page.url()).toBe(staleBlockPage);
 });

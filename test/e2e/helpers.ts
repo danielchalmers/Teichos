@@ -56,6 +56,14 @@ export async function expectBlocked(page: Page, targetUrl: string): Promise<void
   await page
     .goto(targetUrl, { waitUntil: 'commit', timeout: EXTENSION_NAVIGATION_TIMEOUT_MS })
     .catch(() => undefined);
+  await expectOnBlockedPage(page, targetUrl);
+}
+
+/**
+ * Wait for the tab to land on the blocked page for `targetUrl`, however it got there: a direct
+ * navigation, a same-tab history or hash change, or the background re-checking an open tab.
+ */
+export async function expectOnBlockedPage(page: Page, targetUrl: string): Promise<void> {
   await expect
     .poll(() => {
       const currentUrl = new URL(page.url());
@@ -79,11 +87,14 @@ export async function showBlockPageDetails(page: Page): Promise<void> {
   await expect(page.locator('#block-extras')).toBeVisible();
 }
 
+/**
+ * Navigate and require the page to load. A block redirects the tab while the navigation is still in
+ * flight, which aborts `goto`; checking the URL right after commit instead would pass before the
+ * background had decided anything.
+ */
 export async function expectAllowed(page: Page, targetUrl: string): Promise<void> {
-  await page
-    .goto(targetUrl, { waitUntil: 'commit', timeout: EXTENSION_NAVIGATION_TIMEOUT_MS })
-    .catch(() => undefined);
-  await expect.poll(() => page.url()).not.toContain(`/${PAGES.BLOCKED}`);
+  await page.goto(targetUrl, { waitUntil: 'load', timeout: EXTENSION_NAVIGATION_TIMEOUT_MS });
+  await expect(page).toHaveURL(targetUrl);
 }
 
 export async function openOptions(

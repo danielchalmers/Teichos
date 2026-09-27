@@ -11,6 +11,7 @@ import {
   expectAllowed,
   expectBlocked,
   expectBlockedTabStateCleared,
+  expectOnBlockedPage,
   expectPopupHidesFilter,
   expectPopupShowsInactiveFilter,
   expectPopupShowsFilter,
@@ -172,6 +173,9 @@ test('popup toggle changes navigation behavior and direct storage updates refres
     .locator('label.toggle')
     .click();
   await expectPopupShowsInactiveFilter(popupPage, 'Popup Toggle');
+  // Wait for the background to bring the blocked tab back before navigating it again.
+  await expect.poll(() => browsingPage.url()).toBe(targetUrl);
+  await expect(browsingPage.getByText('Popup toggle allowed')).toBeVisible();
   await expectAllowed(browsingPage, targetUrl);
 
   const data = await readStorage(page);
@@ -563,18 +567,7 @@ test('editing a schedule through options changes navigation from off-schedule al
   await groupModal.getByLabel('End time for schedule 1').fill(activeEnd);
   await groupModal.getByRole('button', { name: 'Save' }).click();
 
-  await expect
-    .poll(() => {
-      const currentUrl = new URL(browsingPage.url());
-      return (
-        currentUrl.pathname === `/${PAGES.BLOCKED}` &&
-        currentUrl.searchParams.has('blockId') &&
-        !currentUrl.searchParams.has('url')
-      );
-    })
-    .toBe(true);
-  await expect(browsingPage.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
-  await expect(browsingPage.getByLabel('Blocked URL')).toHaveText(targetUrl);
+  await expectOnBlockedPage(browsingPage, targetUrl);
   await showBlockPageDetails(browsingPage);
   await expect(browsingPage.getByLabel('Responsible filter')).toContainText(
     'Schedule Lifecycle Filter'
@@ -618,6 +611,9 @@ test('popup snooze allows navigation until filtering is resumed', async ({
   await expect(popupPage.locator('#snooze-label')).toContainText('Snoozed:');
   await captureScreenshot(popupPage, testInfo, 'popup-snoozed.png');
 
+  // Snoozing also brings the blocked tab back; let that finish before navigating it again.
+  await expect.poll(() => browsingPage.url()).toBe(targetUrl);
+  await expect(browsingPage.getByText('Popup snooze allowed')).toBeVisible();
   await expectAllowed(browsingPage, targetUrl);
 
   await popupPage.locator('#open-snooze').click();

@@ -9,6 +9,7 @@ import {
   isValidWhitelistLike,
   type FilterLike,
   type JsonObject,
+  type WhitelistLike,
 } from './guards';
 import { createDefaultGroup } from './defaults';
 import { normalizeStoredData, type LegacyStorageData } from './normalize';
@@ -128,9 +129,12 @@ function validateImportedStorageShape(raw: JsonObject): void {
 }
 
 /**
- * Reject imported filters that reference groups the file does not define. Load-time
- * normalization silently repairs dangling references, so this must check the raw
- * file to keep malformed imports loud instead of silently rewritten.
+ * Reject imported filters and exceptions that reference groups the file does not define.
+ * Load-time normalization silently repairs dangling references by moving them to the default
+ * group, so this must check the raw file to keep malformed imports loud instead of silently
+ * rewritten. For an exception that repair is not harmless: an exception moved into the
+ * default group switches off matching 24/7 filters it was never meant to touch. Exceptions
+ * with no groupId predate groups and still belong to the default group.
  */
 function assertKnownRawFilterGroupReferences(raw: JsonObject): void {
   const rawGroups = Array.isArray(raw['groups']) ? (raw['groups'] as readonly FilterGroup[]) : [];
@@ -142,6 +146,15 @@ function assertKnownRawFilterGroupReferences(raw: JsonObject): void {
   for (const filter of rawFilters) {
     if (!groupIds.has(filter.groupId)) {
       throw new Error(`Imported filter "${filter.id}" references an unknown group.`);
+    }
+  }
+
+  const rawWhitelist = Array.isArray(raw['whitelist'])
+    ? (raw['whitelist'] as readonly WhitelistLike[])
+    : [];
+  for (const entry of rawWhitelist) {
+    if (entry.groupId !== undefined && !groupIds.has(entry.groupId)) {
+      throw new Error(`Imported exception "${entry.id}" references an unknown group.`);
     }
   }
 }
