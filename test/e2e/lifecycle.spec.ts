@@ -253,7 +253,7 @@ test('whitelisting keeps navigation allowed and hides the matching popup filter 
   });
 
   const defaultGroupCard = optionsPage
-    .locator('details.group-item')
+    .locator('.group-item')
     .filter({ hasText: '24/7 (Always Active)' });
   await defaultGroupCard.getByRole('button', { name: 'New Exception' }).click();
 
@@ -557,7 +557,7 @@ test('editing a schedule through options changes navigation from off-schedule al
   await expect(browsingPage.getByText('Schedule lifecycle allowed')).toBeVisible();
 
   const scheduleGroup = optionsPage
-    .locator('details.group-item')
+    .locator('.group-item')
     .filter({ hasText: 'Schedule Lifecycle' });
   await scheduleGroup.locator('button[data-action="edit-group"]').click();
 
@@ -656,7 +656,7 @@ test('disabling the default group hides popup filters and restores blocking when
   await expectBlocked(browsingPage, targetUrl);
 
   const defaultGroupCard = optionsPage
-    .locator('details.group-item')
+    .locator('.group-item')
     .filter({ hasText: '24/7 (Always Active)' });
   await expect(defaultGroupCard).toHaveCount(1);
   await expect(defaultGroupCard.locator('input[data-action="toggle-group"]')).toBeChecked();

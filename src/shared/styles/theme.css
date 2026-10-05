@@ -194,7 +194,7 @@
     box-shadow 0.2s;
 }
 
-.button:hover {
+.button:not(:disabled):hover {
   background-color: var(--button-primary-hover-bg);
 }
 
@@ -211,7 +211,7 @@
   box-shadow: none;
 }
 
-.button.secondary:hover {
+.button.secondary:not(:disabled):hover {
   background: var(--surface-hover);
   border-color: var(--border-hover);
   color: var(--text-primary);
@@ -224,7 +224,7 @@
   box-shadow: none;
 }
 
-.button.ghost:hover {
+.button.ghost:not(:disabled):hover {
   background: var(--surface-hover);
   border-color: var(--border-hover);
   color: var(--text-primary);
@@ -236,7 +236,7 @@
   box-shadow: none;
 }
 
-.button.danger:hover {
+.button.danger:not(:disabled):hover {
   background: var(--danger-hover);
 }
 
@@ -297,7 +297,7 @@
   height: 14px;
 }
 
-.icon-button:hover {
+.icon-button:not(:disabled):hover {
   background: var(--surface-hover);
   border-color: var(--border-hover);
   color: var(--text-primary);
@@ -307,8 +307,10 @@
   transform: scale(0.96);
 }
 
+/* Disabled controls are exempt from contrast minimums; they fade and stop reacting to hover. */
+.button:disabled,
 .icon-button:disabled {
-  cursor: default;
+  cursor: not-allowed;
   opacity: 0.5;
 }
 
@@ -367,4 +369,56 @@ input:checked + .slider {
 input:checked + .slider:before {
   background-color: var(--toggle-thumb-on);
   transform: translateX(22px);
+}
+
+/* Form fields share one focus ring and mark invalid input with the danger color. */
+.input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: var(--focus-ring);
+}
+
+.input[aria-invalid='true'],
+input[aria-invalid='true'],
+select[aria-invalid='true'] {
+  border-color: var(--danger-text);
+}
+
+/* In forced-colors mode (e.g. Windows High Contrast) backgrounds and shadows are replaced, which
+   would erase the toggle track and thumb; redraw them with system colors. */
+@media (forced-colors: active) {
+  .slider,
+  .slider::before {
+    forced-color-adjust: none;
+  }
+
+  .slider {
+    box-shadow: inset 0 0 0 1.5px CanvasText;
+  }
+
+  .slider::before {
+    background-color: CanvasText;
+  }
+
+  input:checked + .slider {
+    background-color: Highlight;
+    box-shadow: inset 0 0 0 1.5px Highlight;
+  }
+
+  input:checked + .slider::before {
+    background-color: HighlightText;
+  }
+}
+
+/* Honor the system reduced-motion setting: state changes still apply, just without animating. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }

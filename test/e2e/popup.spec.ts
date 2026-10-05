@@ -69,6 +69,8 @@ test('adds and deletes a temporary filter from the popup', async ({ extensionPag
 
   await temporaryItem.getByRole('button', { name: 'Delete Filter' }).click();
   await expect(page.getByText('No filters configured.')).toBeVisible();
+  // The deleted row's button is gone, so focus moves to what replaced it instead of the body.
+  await expect(page.getByRole('button', { name: '+ New Filter' })).toBeFocused();
 });
 
 test('opens the full filter editor from the popup empty state', async ({
@@ -203,8 +205,29 @@ test('supports quick-add suggestions, validation, duration units, and the full e
   await gotoPopup(extensionPage, page);
   const quickAdd = await openQuickAdd(page);
   await expect(page.getByLabel('Site or pattern')).toHaveValue(suggestedPattern);
+  // The dialog is modal: the popup behind it is inert, so focus cannot land under the backdrop.
+  await expect(page.locator('main.content')).toHaveAttribute('inert', '');
+
+  // The form validates inline, so input errors show in the dialog instead of a native bubble.
+  const patternInput = page.getByLabel('Site or pattern');
+  await patternInput.fill('');
+  await page.getByRole('button', { name: 'Start block' }).click();
+  await expect(quickAdd.locator('#quick-add-error')).toHaveText(
+    'Enter a site or pattern to block.'
+  );
+  await expect(patternInput).toHaveAttribute('aria-invalid', 'true');
+  await expect(patternInput).toBeFocused();
+  await patternInput.fill(suggestedPattern);
+  await expect(quickAdd.locator('#quick-add-error')).toBeHidden();
+  await expect(patternInput).not.toHaveAttribute('aria-invalid');
+
+  await page.getByLabel('Block for').fill('0');
+  await page.getByRole('button', { name: 'Start block' }).click();
+  await expect(quickAdd.locator('#quick-add-error')).toHaveText('Enter a valid duration.');
+  await expect(page.getByLabel('Block for')).toHaveAttribute('aria-invalid', 'true');
 
   await quickAdd.locator('button[data-duration="2"][data-unit="hours"]').click();
+  await expect(quickAdd.locator('#quick-add-error')).toBeHidden();
   await expect(page.getByLabel('Block for')).toHaveValue('2');
   await expect(page.getByRole('combobox')).toHaveValue('hours');
 
@@ -217,8 +240,11 @@ test('supports quick-add suggestions, validation, duration units, and the full e
   });
   await page.getByRole('button', { name: 'Start block' }).click();
   await expect(page.locator('#status-message')).toHaveText('Enter a valid duration.');
+  await expect(quickAdd.locator('#quick-add-error')).toHaveText('Enter a valid duration.');
+  await expect(page.getByLabel('Block for')).toHaveAttribute('aria-invalid', 'true');
 
   await page.getByRole('combobox').selectOption('hours');
+  await expect(quickAdd.locator('#quick-add-error')).toBeHidden();
   await page.getByRole('button', { name: 'Start block' }).click();
 
   const hoursFilter = page.locator('.filter-item').filter({ hasText: suggestedPattern });
@@ -272,13 +298,28 @@ test('snoozes and resumes filtering from the popup', async ({ extensionPage, pag
 
   await gotoPopup(extensionPage, page);
 
+  const filterToggle = page.getByRole('checkbox', { name: 'Toggle filter Snooze Test' });
+
+  await page.locator('#open-snooze').click();
+  // Opening the dialog moves focus into it.
+  await expect(page.getByRole('button', { name: '15m' })).toBeFocused();
+  // Escape returns focus to the trigger even after a click on the dialog's text dropped focus to
+  // the body, since everything behind the modal dialog is inert.
+  await page.locator('#snooze-dialog-title').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#snooze-dialog')).not.toHaveClass(/is-open/);
+  await expect(page.locator('#open-snooze')).toBeFocused();
+
   await page.locator('#open-snooze').click();
   await page.getByRole('button', { name: '15m' }).click();
   await expect(page.locator('#snooze-label')).toContainText('Snoozed:');
   await expect(page.locator('#open-quick-add')).toBeDisabled();
+  // The snoozed list is read-only for keyboard users too, not only behind the pointer overlay.
+  await expect(filterToggle).toBeDisabled();
 
   await page.locator('#open-snooze').click();
   await page.getByRole('button', { name: 'Resume filtering' }).click();
   await expect(page.locator('#snooze-label')).toHaveText('Active');
   await expect(page.locator('#open-quick-add')).toBeEnabled();
+  await expect(filterToggle).toBeEnabled();
 });

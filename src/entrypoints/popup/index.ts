@@ -34,6 +34,16 @@ import type { SnoozeState, StorageData } from '../../shared/types';
 let cachedData: StorageData | null = null;
 let snoozeTickerId: number | null = null;
 let lastSnoozeActive = false;
+let closeQuickAddDialog: (() => void) | null = null;
+
+/** Controls in the filter list that can take focus, skipping the per-row buttons that are hidden. */
+const FILTER_LIST_FOCUSABLE = 'button:not([hidden]):not(:disabled), input:not(:disabled)';
+
+interface FilterListFocus {
+  readonly filterId: string | undefined;
+  readonly controlSelector: string | null;
+  readonly rowIndex: number;
+}
 
 function updateSnoozeCountdownTick(): void {
   const snooze = cachedData?.snooze;
@@ -121,6 +131,51 @@ function announceStatus(message: string): void {
   }, 0);
 }
 
+/**
+ * Show an input or save error inside the open dialog, not only in the visually hidden status
+ * region, and tie it to the field it is about.
+ */
+function showDialogError(errorId: string, message: string, field?: HTMLElement | null): void {
+  clearDialogError(errorId);
+  const error = getElementByIdOrNull(errorId);
+  if (error) {
+    error.textContent = message;
+    error.hidden = false;
+    // At high zoom the dialog panel scrolls, so bring the message into view.
+    error.scrollIntoView({ block: 'nearest' });
+  }
+  if (field) {
+    field.setAttribute('aria-invalid', 'true');
+    field.setAttribute('aria-describedby', errorId);
+  }
+  announceStatus(message);
+}
+
+function clearDialogError(errorId: string): void {
+  const error = getElementByIdOrNull(errorId);
+  if (error) {
+    error.textContent = '';
+    error.hidden = true;
+  }
+  document.querySelectorAll(`[aria-describedby="${errorId}"]`).forEach((field) => {
+    field.removeAttribute('aria-invalid');
+    field.removeAttribute('aria-describedby');
+  });
+}
+
+/**
+ * The dialogs cover the whole popup, so make everything behind an open dialog inert: keyboard
+ * focus cannot reach controls hidden under the backdrop. The dialogs and the status region are
+ * siblings of these, so they stay available.
+ */
+function setBackgroundInert(isInert: boolean): void {
+  document
+    .querySelectorAll<HTMLElement>('body > header, body > main, body > footer')
+    .forEach((element) => {
+      element.inert = isInert;
+    });
+}
+
 async function copyText(value: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(value);
@@ -193,34 +248,32 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
     'button[data-action="resume-snooze"]'
   );
 
+  const buttonLabel = describeSnoozeButtonLabel(snooze);
+
   if (snoozeTrigger) {
-    const statusLabel = describeSnoozeStatus(snooze);
     snoozeTrigger.classList.toggle('is-snoozed', isActive);
-    snoozeTrigger.setAttribute('aria-label', statusLabel);
-    snoozeTrigger.title = statusLabel;
+    // The name starts with the visible text so voice control can target what is on screen; the
+    // longer status becomes the description through the title.
+    snoozeTrigger.setAttribute('aria-label', `${buttonLabel}, snooze filtering`);
+    snoozeTrigger.title = describeSnoozeStatus(snooze);
   }
 
   if (snoozeLabel) {
-    snoozeLabel.textContent = describeSnoozeButtonLabel(snooze);
+    snoozeLabel.textContent = buttonLabel;
   }
 
   if (quickAddButton) {
     quickAddButton.disabled = isActive;
-    quickAddButton.setAttribute(
-      'aria-label',
-      isActive ? 'Temporary blocks are unavailable while snoozed' : 'New temporary block'
-    );
     quickAddButton.title = isActive
       ? 'Temporary blocks are unavailable while snoozed'
       : 'New temporary block';
   }
 
-  if (isActive && quickAddPopover) {
-    quickAddPopover.classList.remove('is-open');
-    quickAddPopover.setAttribute('aria-hidden', 'true');
-    quickAddPopover.setAttribute('inert', '');
-    if (quickAddButton) {
-      quickAddButton.setAttribute('aria-expanded', 'false');
+  if (isActive && quickAddPopover?.classList.contains('is-open')) {
+    const hadFocus = quickAddPopover.contains(document.activeElement);
+    closeQuickAddDialog?.();
+    if (hadFocus) {
+      snoozeTrigger?.focus();
     }
   }
 
@@ -243,18 +296,33 @@ function setupSnoozePopover(): void {
   }
 
   const setOpen = (isOpen: boolean, returnFocus = false): void => {
+    const wasOpen = dialog.classList.contains('is-open');
     dialog.classList.toggle('is-open', isOpen);
     trigger.setAttribute('aria-expanded', String(isOpen));
     dialog.setAttribute('aria-hidden', String(!isOpen));
     if (isOpen) {
       dialog.removeAttribute('inert');
+      setBackgroundInert(true);
+      if (!wasOpen) {
+        dialog.querySelector<HTMLElement>('.snooze-option')?.focus();
+      }
     } else {
       dialog.setAttribute('inert', '');
+      clearDialogError('snooze-error');
+      if (wasOpen) {
+        setBackgroundInert(false);
+      }
       if (returnFocus) {
         trigger.focus();
       }
     }
   };
+
+  const clearCustomError = (): void => {
+    clearDialogError('snooze-error');
+  };
+  customDurationInput?.addEventListener('input', clearCustomError);
+  customUnitSelect?.addEventListener('input', clearCustomError);
 
   const resolveCustomMinutes = (): number | null => {
     const durationValue = customDurationInput ? Number(customDurationInput.value) : Number.NaN;
@@ -304,7 +372,7 @@ function setupSnoozePopover(): void {
     if (actionButton.dataset['action'] === 'apply-custom-snooze') {
       const minutes = resolveCustomMinutes();
       if (!minutes) {
-        announceStatus('Enter a valid snooze duration.');
+        showDialogError('snooze-error', 'Enter a valid snooze duration.', customDurationInput);
         customDurationInput?.focus();
         return;
       }
@@ -321,11 +389,9 @@ function setupSnoozePopover(): void {
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || !dialog.classList.contains('is-open')) {
-      return;
+    if (event.key === 'Escape' && dialog.classList.contains('is-open')) {
+      setOpen(false, true);
     }
-    const returnFocus = dialog.contains(document.activeElement);
-    setOpen(false, returnFocus);
   });
 }
 
@@ -349,7 +415,7 @@ async function applySnoozeSelection(value: number | 'off', onComplete: () => voi
     onComplete();
   } catch (error) {
     console.error('Failed to update snooze state:', error);
-    announceStatus('Failed to update snooze setting.');
+    showDialogError('snooze-error', 'Failed to update snooze setting.');
   }
 }
 
@@ -418,17 +484,26 @@ function setupQuickAdd(): void {
   }
 
   const setOpen = (isOpen: boolean, returnFocus = false): void => {
+    const wasOpen = popover.classList.contains('is-open');
     popover.classList.toggle('is-open', isOpen);
     popover.setAttribute('aria-hidden', String(!isOpen));
     openButton.setAttribute('aria-expanded', String(isOpen));
     if (isOpen) {
       popover.removeAttribute('inert');
+      setBackgroundInert(true);
     } else {
       popover.setAttribute('inert', '');
+      clearDialogError('quick-add-error');
+      if (wasOpen) {
+        setBackgroundInert(false);
+      }
       if (returnFocus) {
         openButton.focus();
       }
     }
+  };
+  closeQuickAddDialog = (): void => {
+    setOpen(false);
   };
 
   const ensureDefaults = (): void => {
@@ -481,8 +556,15 @@ function setupQuickAdd(): void {
     if (presetButton) {
       durationInput.value = presetButton.dataset['duration'] ?? durationInput.value;
       unitSelect.value = presetButton.dataset['unit'] ?? unitSelect.value;
+      clearDialogError('quick-add-error');
+      // Setting the fields from script is silent, so confirm the change for screen readers.
+      announceStatus(`Duration set to ${presetButton.textContent.trim()}.`);
       return;
     }
+  });
+
+  form.addEventListener('input', () => {
+    clearDialogError('quick-add-error');
   });
 
   document.addEventListener('keydown', (event) => {
@@ -518,14 +600,14 @@ async function handleQuickAddSubmit(
 ): Promise<void> {
   const pattern = patternInput.value.trim();
   if (!pattern) {
-    announceStatus('Enter a site or pattern to block.');
+    showDialogError('quick-add-error', 'Enter a site or pattern to block.', patternInput);
     patternInput.focus();
     return;
   }
 
   const durationValue = Number(durationInput.value);
   if (!Number.isFinite(durationValue) || durationValue <= 0) {
-    announceStatus('Enter a valid duration.');
+    showDialogError('quick-add-error', 'Enter a valid duration.', durationInput);
     durationInput.focus();
     return;
   }
@@ -538,7 +620,7 @@ async function handleQuickAddSubmit(
   };
   const durationMs = Math.round(durationValue * (unitToMs[unit] ?? 0));
   if (!Number.isFinite(durationMs) || durationMs <= 0) {
-    announceStatus('Enter a valid duration.');
+    showDialogError('quick-add-error', 'Enter a valid duration.', durationInput);
     durationInput.focus();
     return;
   }
@@ -560,7 +642,8 @@ async function handleQuickAddSubmit(
     onClose();
   } catch (error) {
     console.error('Failed to add temporary filter:', error);
-    announceStatus(
+    showDialogError(
+      'quick-add-error',
       error instanceof SettingsSaveError ? error.message : 'Failed to add temporary filter.'
     );
   }
@@ -607,7 +690,7 @@ async function handleToggleFilter(checkbox: HTMLInputElement): Promise<void> {
     cachedData = latestData;
     await renderFilters();
     const refreshedToggle = document.querySelector<HTMLInputElement>(
-      `input[type="checkbox"][data-filter-id="${filterId}"]`
+      `input[type="checkbox"][data-filter-id="${CSS.escape(filterId)}"]`
     );
     refreshedToggle?.focus();
   } catch (error) {
@@ -656,9 +739,11 @@ async function renderFilters(): Promise<void> {
     return;
   }
 
+  const snoozeActive = isSnoozeActive(data.snooze);
+
   if (data.filters.length === 0) {
     const emptyState = cloneTemplate<HTMLDivElement>('popup-empty-state-template');
-    filterList.replaceChildren(emptyState);
+    replaceFilterList(filterList, emptyState, snoozeActive);
     return;
   }
 
@@ -750,9 +835,13 @@ async function renderFilters(): Promise<void> {
       }
     }
 
+    item.dataset['filterId'] = filter.id;
     copyButton.dataset['pattern'] = filter.pattern;
+    copyButton.setAttribute('aria-label', `Copy URL for ${displayName}`);
     editButton.dataset['filterId'] = filter.id;
+    editButton.setAttribute('aria-label', `Edit filter ${displayName}`);
     deleteButton.dataset['filterId'] = filter.id;
+    deleteButton.setAttribute('aria-label', `Delete filter ${displayName}`);
 
     fragment.appendChild(item);
   }
@@ -762,7 +851,71 @@ async function renderFilters(): Promise<void> {
     fragment.appendChild(inactiveSummary);
   }
 
-  filterList.replaceChildren(fragment);
+  replaceFilterList(filterList, fragment, snoozeActive);
+}
+
+/**
+ * Swap in freshly rendered rows. While snoozed the list is dimmed and blocked for the pointer, so
+ * its controls are disabled too, giving keyboard and screen reader users the same read-only state.
+ */
+function replaceFilterList(filterList: HTMLElement, content: Node, snoozeActive: boolean): void {
+  const focus = captureFilterListFocus(filterList);
+  filterList.replaceChildren(content);
+  filterList
+    .querySelectorAll<HTMLButtonElement | HTMLInputElement>('button, input')
+    .forEach((control) => {
+      control.disabled = snoozeActive;
+    });
+  restoreFilterListFocus(filterList, focus);
+}
+
+function captureFilterListFocus(filterList: HTMLElement): FilterListFocus | null {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || !filterList.contains(active)) {
+    return null;
+  }
+
+  const row = active.closest<HTMLElement>('.filter-item');
+  const action = active.dataset['action'];
+  let controlSelector: string | null = null;
+  if (action) {
+    controlSelector = `[data-action="${action}"]`;
+  } else if (active instanceof HTMLInputElement) {
+    controlSelector = 'input';
+  }
+
+  return {
+    filterId: row?.dataset['filterId'],
+    controlSelector,
+    rowIndex: row ? Array.from(filterList.querySelectorAll('.filter-item')).indexOf(row) : 0,
+  };
+}
+
+/**
+ * Re-rendering replaces every row, so return focus to the same control, or to the row that took
+ * a deleted row's place, instead of letting it fall back to the document body.
+ */
+function restoreFilterListFocus(filterList: HTMLElement, focus: FilterListFocus | null): void {
+  if (!focus) {
+    return;
+  }
+
+  const rows = Array.from(filterList.querySelectorAll<HTMLElement>('.filter-item'));
+  const sameRow =
+    focus.filterId === undefined
+      ? undefined
+      : rows.find((row) => row.dataset['filterId'] === focus.filterId);
+  const sameControl =
+    sameRow && focus.controlSelector
+      ? sameRow.querySelector<HTMLElement>(`${focus.controlSelector}:not([hidden]):not(:disabled)`)
+      : null;
+  const nearbyRow = sameRow ?? rows[Math.min(focus.rowIndex, rows.length - 1)];
+  const target =
+    sameControl ??
+    nearbyRow?.querySelector<HTMLElement>(FILTER_LIST_FOCUSABLE) ??
+    filterList.querySelector<HTMLElement>(FILTER_LIST_FOCUSABLE) ??
+    getElementByIdOrNull('open-quick-add');
+  target?.focus();
 }
 
 /**

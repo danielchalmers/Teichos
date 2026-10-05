@@ -41,6 +41,8 @@ async function init(): Promise<void> {
   const learnMoreButton = getElementByIdOrNull('learn-more');
   learnMoreButton?.addEventListener('click', () => {
     setExtrasExpanded(true);
+    // The button hides itself, so move focus to what it revealed rather than losing it.
+    getElementByIdOrNull('block-extras')?.focus();
   });
 
   // Set up options button

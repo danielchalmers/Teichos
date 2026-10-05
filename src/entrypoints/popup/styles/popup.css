@@ -3,7 +3,8 @@
 html {
   height: 100%;
   background-color: var(--bg);
-  overflow: hidden;
+  /* Chrome caps popups at 800x600 device px, so at high zoom the layout must be able to scroll. */
+  overflow: auto;
 }
 
 body {
@@ -326,6 +327,14 @@ body {
   gap: 0.72rem;
 }
 
+/* Visible input and save errors; the same text is also announced through the status region. */
+.dialog-error {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--danger-text);
+}
+
 /* Snooze dialog specifics */
 .snooze-options {
   display: grid;
@@ -365,6 +374,18 @@ body {
   transition:
     background-color 0.2s,
     border-color 0.2s;
+}
+
+.snooze-custom-input:focus-visible,
+.snooze-custom-unit:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: var(--focus-ring);
+}
+
+.snooze-custom-apply:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .snooze-custom-apply:hover {
@@ -412,12 +433,6 @@ body {
   background: var(--surface-muted);
   color: var(--text-primary);
   font-size: 0.85rem;
-}
-
-.input:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
-  border-color: var(--focus-ring);
 }
 
 .select {
@@ -471,11 +486,6 @@ body {
   height: 0;
 }
 
-.content.is-snoozed .filter-list > * {
-  position: relative;
-  z-index: 1;
-}
-
 /* Snoozed text drops to the muted color, which still meets 4.5:1; only the disabled controls fade. */
 .content.is-snoozed :is(.filter-name, .filter-meta, .empty-state) {
   color: var(--text-muted);
@@ -483,15 +493,6 @@ body {
 
 .content.is-snoozed :is(.button, .icon-button, .toggle) {
   opacity: 0.5;
-}
-
-.content.is-snoozed::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: auto;
-  cursor: not-allowed;
-  z-index: 4;
 }
 
 .inactive-summary {
@@ -569,7 +570,7 @@ body {
   position: relative;
 }
 
-.filter-item .icon-button:hover {
+.filter-item .icon-button:not(:disabled):hover {
   color: var(--text-primary);
   border-color: var(--border-hover);
   background: var(--surface-hover);

@@ -130,11 +130,13 @@ export async function waitForPopupReady(page: Page): Promise<void> {
 }
 
 async function openGroupIfNeeded(optionsPage: Page, groupName: string): Promise<void> {
-  const group = optionsPage.locator('details.group-item').filter({ hasText: groupName });
+  const group = optionsPage.locator('.group-item').filter({ hasText: groupName });
   await expect(group).toHaveCount(1);
-  if (!(await group.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await group.locator('summary').click();
+  const disclosure = group.locator('.group-disclosure');
+  if ((await disclosure.getAttribute('aria-expanded')) !== 'true') {
+    await disclosure.click();
   }
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
 }
 
 export async function createFilterViaOptions(
@@ -150,7 +152,7 @@ export async function createFilterViaOptions(
   const groupName = filter.groupName ?? defaultGroup.name;
   await openGroupIfNeeded(optionsPage, groupName);
 
-  const group = optionsPage.locator('details.group-item').filter({ hasText: groupName });
+  const group = optionsPage.locator('.group-item').filter({ hasText: groupName });
   await group.getByRole('button', { name: 'New Filter' }).click();
 
   const modal = optionsPage.locator('#filter-modal.active');
@@ -230,9 +232,7 @@ export async function createGroupViaOptions(
   }
 
   await modal.getByRole('button', { name: 'Save' }).click();
-  await expect(
-    optionsPage.locator('details.group-item').filter({ hasText: group.name })
-  ).toHaveCount(1);
+  await expect(optionsPage.locator('.group-item').filter({ hasText: group.name })).toHaveCount(1);
 }
 
 export async function createWhitelistViaOptions(
@@ -248,7 +248,7 @@ export async function createWhitelistViaOptions(
   const groupName = whitelist.groupName ?? defaultGroup.name;
   await openGroupIfNeeded(optionsPage, groupName);
 
-  const group = optionsPage.locator('details.group-item').filter({ hasText: groupName });
+  const group = optionsPage.locator('.group-item').filter({ hasText: groupName });
   await group.getByRole('button', { name: 'New Exception' }).click();
 
   const modal = optionsPage.locator('#whitelist-modal.active');

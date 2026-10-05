@@ -89,6 +89,11 @@ p {
   display: none;
 }
 
+/* Receives focus from "Learn more" so the reveal is announced; it is not a tab stop. */
+#block-extras:focus {
+  outline: none;
+}
+
 .details {
   margin: 0 0 2rem;
   padding: 1rem;

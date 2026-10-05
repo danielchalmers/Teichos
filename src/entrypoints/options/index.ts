@@ -40,7 +40,7 @@ import { generateId } from '../../shared/utils/helpers';
 import { formatGroupScheduleSummary } from '../../shared/utils/schedules';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { createTab } from '../../shared/api/tabs';
-import { DAY_NAMES, DEFAULT_SCHEDULE, PAGES } from '../../shared/constants';
+import { DAY_FULL_NAMES, DAY_NAMES, DEFAULT_SCHEDULE, PAGES } from '../../shared/constants';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -54,7 +54,9 @@ let currentWhitelistGroupId: string | null = null;
 let temporarySchedules: MutableTimeSchedule[] = [];
 let activeModal: HTMLElement | null = null;
 let lastFocusedElement: HTMLElement | null = null;
+let lastFocusedGroupId: string | null = null;
 let setInfoPopoverOpen: ((isOpen: boolean) => void) | null = null;
+let globalSettingsStatusTimer: number | null = null;
 
 /**
  * Initialize options page
@@ -197,6 +199,15 @@ function setupInfoPopover(): ((isOpen: boolean) => void) | null {
     }
   });
 
+  // The panel overlaps the controls below it, so close it once keyboard focus moves past it.
+  // A null relatedTarget (window blur, click on blank space) is left to the click handler.
+  popover.addEventListener('focusout', (event) => {
+    const nextFocus = event.relatedTarget;
+    if (nextFocus instanceof Node && !popover.contains(nextFocus)) {
+      setOpen(false);
+    }
+  });
+
   return setOpen;
 }
 
@@ -207,16 +218,16 @@ function openFilterFromQuery(): void {
   let handled = false;
 
   if (filterId) {
-    openFilterModal(filterId);
+    openFilterModal(filterId, undefined, getDeepLinkTrigger(filterId, DEFAULT_GROUP_ID));
     handled = true;
   } else if (modal === 'filter') {
-    openFilterModal();
+    openFilterModal(undefined, undefined, getDeepLinkTrigger(null, DEFAULT_GROUP_ID));
     handled = true;
   } else if (modal === 'whitelist') {
-    openWhitelistModal();
+    openWhitelistModal(undefined, undefined, getDeepLinkTrigger(null, DEFAULT_GROUP_ID));
     handled = true;
   } else if (modal === 'group') {
-    openGroupModal();
+    openGroupModal(undefined, getDeepLinkTrigger(null, null));
     handled = true;
   }
 
@@ -253,12 +264,23 @@ function populateInfoPanel(): void {
   }
 }
 
+/**
+ * Clear the live region and write the message on the next tick, so screen readers announce it
+ * even when it repeats the previous message.
+ */
 function setGlobalSettingsStatus(message: string, isError = false): void {
   const status = getElementByIdOrNull('global-settings-status');
   if (!status) return;
 
-  status.textContent = message;
+  if (globalSettingsStatusTimer !== null) {
+    window.clearTimeout(globalSettingsStatusTimer);
+  }
+  status.textContent = '';
   status.classList.toggle('is-error', isError);
+  globalSettingsStatusTimer = window.setTimeout(() => {
+    globalSettingsStatusTimer = null;
+    status.textContent = message;
+  }, 0);
 }
 
 function createExportFileName(now = new Date()): string {
@@ -390,26 +412,77 @@ function focusModal(modal: HTMLElement, preferredSelector?: string): void {
   fallback?.focus();
 }
 
+/**
+ * Ids come from storage or an imported file and can be any string, so every value is escaped
+ * before it goes into the selector.
+ */
 function getFocusRestoreSelector(element: HTMLElement): string | null {
   const action = element.getAttribute('data-action');
   if (!action) return null;
+  const actionSelector = `[data-action="${CSS.escape(action)}"]`;
 
   const filterId = element.getAttribute('data-filter-id');
   if (filterId) {
-    return `[data-action="${action}"][data-filter-id="${filterId}"]`;
+    return `${actionSelector}[data-filter-id="${CSS.escape(filterId)}"]`;
   }
 
   const whitelistId = element.getAttribute('data-whitelist-id');
   if (whitelistId) {
-    return `[data-action="${action}"][data-whitelist-id="${whitelistId}"]`;
+    return `${actionSelector}[data-whitelist-id="${CSS.escape(whitelistId)}"]`;
   }
 
   const groupId = element.getAttribute('data-group-id');
   if (groupId) {
-    return `[data-action="${action}"][data-group-id="${groupId}"]`;
+    return `${actionSelector}[data-group-id="${CSS.escape(groupId)}"]`;
   }
 
-  return `[data-action="${action}"]`;
+  return actionSelector;
+}
+
+function getGroupIdFor(element: HTMLElement | null): string | null {
+  return element?.closest<HTMLElement>('.group-item')?.dataset['groupId'] ?? null;
+}
+
+/**
+ * Resolve where focus belongs once a re-render may have removed `element`: its re-rendered
+ * counterpart, else its group's disclosure (the item was deleted), else the New Group button
+ * (the group was deleted), so focus never falls back to the document body. A disabled control
+ * (its group became read-only) cannot take focus either, so it falls through the same way.
+ */
+function resolveFocusTarget(element: HTMLElement, groupId: string | null): HTMLElement | null {
+  if (element.isConnected && !element.matches(':disabled')) return element;
+
+  const groupsList = getElementByIdOrNull('groups-list');
+  const selector = getFocusRestoreSelector(element);
+  const replacement = selector ? groupsList?.querySelector<HTMLElement>(selector) : null;
+  if (replacement && !replacement.matches(':disabled')) return replacement;
+
+  return getGroupFocusFallback(groupId);
+}
+
+/** The group's disclosure, else the New Group button; neither is ever disabled. */
+function getGroupFocusFallback(groupId: string | null): HTMLElement | null {
+  if (groupId) {
+    const disclosure = getElementByIdOrNull('groups-list')?.querySelector<HTMLElement>(
+      `.group-disclosure[data-group-id="${CSS.escape(groupId)}"]`
+    );
+    if (disclosure) return disclosure;
+  }
+
+  return getElementByIdOrNull('add-group-btn');
+}
+
+/**
+ * A modal opened from a deep link has no control that opened it, so stand in the one a user would
+ * have used: the filter's Edit button, else the target group's disclosure, else New Group.
+ */
+function getDeepLinkTrigger(filterId: string | null, groupId: string | null): HTMLElement | null {
+  const editButton = filterId
+    ? getElementByIdOrNull('groups-list')?.querySelector<HTMLElement>(
+        `[data-action="edit-filter"][data-filter-id="${CSS.escape(filterId)}"]`
+      )
+    : null;
+  return editButton ?? getGroupFocusFallback(groupId);
 }
 
 function trapFocus(event: KeyboardEvent, modal: HTMLElement): void {
@@ -439,9 +512,19 @@ function trapFocus(event: KeyboardEvent, modal: HTMLElement): void {
   }
 }
 
-function activateModal(modal: HTMLElement, preferredSelector?: string): void {
+/**
+ * Remember the control that opened the modal so focus can return to it. A modal opened from a
+ * deep link has no such control (focus is on the body), so `fallbackTrigger` stands in for it.
+ */
+function activateModal(
+  modal: HTMLElement,
+  preferredSelector?: string,
+  fallbackTrigger: HTMLElement | null = null
+): void {
+  const active = document.activeElement;
   lastFocusedElement =
-    document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    active instanceof HTMLElement && active !== document.body ? active : fallbackTrigger;
+  lastFocusedGroupId = getGroupIdFor(lastFocusedElement);
   activeModal = modal;
   modal.setAttribute('aria-hidden', 'false');
   setMainInert(true);
@@ -456,8 +539,9 @@ function deactivateModal(modal: HTMLElement): void {
   setMainInert(false);
   activeModal = null;
   if (lastFocusedElement) {
-    lastFocusedElement.focus();
+    resolveFocusTarget(lastFocusedElement, lastFocusedGroupId)?.focus();
     lastFocusedElement = null;
+    lastFocusedGroupId = null;
   }
 }
 
@@ -472,14 +556,14 @@ async function renderGroups(): Promise<void> {
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
 
-  const focusTarget = document.activeElement as HTMLElement | null;
-  const focusSelector =
-    focusTarget && groupsList.contains(focusTarget) ? getFocusRestoreSelector(focusTarget) : null;
+  const focusTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const restoreFocus = focusTarget !== null && groupsList.contains(focusTarget);
+  const focusGroupId = restoreFocus ? getGroupIdFor(focusTarget) : null;
 
   const hadGroups = groupsList.children.length > 0;
   const openGroupIds = new Set(
-    Array.from(groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item[open]'))
-      .map((details) => details.dataset['groupId'])
+    Array.from(groupsList.querySelectorAll<HTMLElement>('.group-item.is-open'))
+      .map((groupElement) => groupElement.dataset['groupId'])
       .filter((groupId): groupId is string => Boolean(groupId))
   );
 
@@ -504,55 +588,92 @@ async function renderGroups(): Promise<void> {
   }
   const fragment = document.createDocumentFragment();
   const snoozeActive = isSnoozeActive(data.snooze);
-  for (const group of data.groups) {
+  for (const [index, group] of data.groups.entries()) {
     const filters = sortFiltersTemporaryFirst(filtersByGroup.get(group.id) ?? []);
     const whitelist = whitelistByGroup.get(group.id) ?? [];
-    fragment.appendChild(renderGroup(group, filters, whitelist, snoozeActive));
+    fragment.appendChild(renderGroup(group, index, filters, whitelist, snoozeActive));
   }
 
   groupsList.replaceChildren(fragment);
 
+  const snoozeNotice = getElementByIdOrNull('snooze-notice');
+  if (snoozeNotice) {
+    snoozeNotice.hidden = !snoozeActive;
+  }
+
+  const groupElements = groupsList.querySelectorAll<HTMLElement>('.group-item');
   if (openGroupIds.size > 0) {
-    openGroupIds.forEach((groupId) => {
-      const details = groupsList.querySelector<HTMLDetailsElement>(
-        `details.group-item[data-group-id="${groupId}"]`
-      );
-      if (details) {
-        details.open = true;
+    groupElements.forEach((groupElement) => {
+      const groupId = groupElement.dataset['groupId'];
+      if (groupId && openGroupIds.has(groupId)) {
+        setGroupOpen(groupElement, true);
       }
     });
   } else if (!hadGroups) {
-    groupsList.querySelectorAll<HTMLDetailsElement>('details.group-item').forEach((details) => {
-      const group = data.groups.find((entry) => entry.id === details.dataset['groupId']);
-      details.open = isGroupEnabled(group);
+    groupElements.forEach((groupElement) => {
+      const group = data.groups.find((entry) => entry.id === groupElement.dataset['groupId']);
+      setGroupOpen(groupElement, isGroupEnabled(group));
     });
   }
 
-  if (focusSelector) {
-    const restored = groupsList.querySelector<HTMLElement>(focusSelector);
-    restored?.focus();
+  if (restoreFocus) {
+    resolveFocusTarget(focusTarget, focusGroupId)?.focus();
+  }
+}
+
+/**
+ * Expand or collapse a group card. Collapsed content uses hidden="until-found" so find-in-page
+ * can still reveal it, like the native disclosure it replaces.
+ */
+function setGroupOpen(groupElement: HTMLElement, isOpen: boolean): void {
+  const disclosure = querySelector<HTMLButtonElement>('.group-disclosure', groupElement);
+  const content = querySelector<HTMLElement>('[data-role="group-content"]', groupElement);
+
+  groupElement.classList.toggle('is-open', isOpen);
+  disclosure.setAttribute('aria-expanded', String(isOpen));
+  if (isOpen) {
+    content.removeAttribute('hidden');
+  } else {
+    content.setAttribute('hidden', 'until-found');
   }
 }
 
 function renderGroup(
   group: FilterGroup,
+  index: number,
   filters: readonly Filter[],
   whitelist: readonly Whitelist[],
   snoozeActive: boolean
-): HTMLDetailsElement {
+): HTMLElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
   const groupEnabled = isGroupEnabled(group);
   const scheduleSummary = formatGroupScheduleSummary(group);
   const filterSummary = pluralize(filters.length, 'filter');
   const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
-  const groupElement = cloneTemplate<HTMLDetailsElement>('options-group-template');
+  // Group ids come from storage or an imported file and can hold spaces or quotes, which would
+  // break the IDREFs below, so element ids use a safe token made unique by the render index.
+  const idToken = `${index}-${group.id.replace(/[^\w-]/g, '_')}`;
+
+  const groupElement = cloneTemplate<HTMLElement>('options-group-template');
   groupElement.dataset['groupId'] = group.id;
   groupElement.classList.toggle('group-disabled', !groupEnabled);
 
   querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent = group.name;
-  querySelector<HTMLElement>('[data-role="group-meta"]', groupElement).textContent =
-    `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
+  const meta = querySelector<HTMLElement>('[data-role="group-meta"]', groupElement);
+  meta.textContent = `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
+  meta.id = `group-meta-${idToken}`;
+
+  // The disclosure sits outside [data-role="group-actions"] so readonly groups can still expand.
+  const disclosure = querySelector<HTMLButtonElement>('.group-disclosure', groupElement);
+  const content = querySelector<HTMLElement>('[data-role="group-content"]', groupElement);
+  content.id = `group-content-${idToken}`;
+  disclosure.dataset['groupId'] = group.id;
+  disclosure.setAttribute('aria-controls', content.id);
+  disclosure.setAttribute('aria-describedby', meta.id);
+  content.addEventListener('beforematch', () => {
+    setGroupOpen(groupElement, true);
+  });
 
   const groupToggle = querySelector<HTMLLabelElement>('[data-role="group-toggle"]', groupElement);
   const groupToggleInput = querySelector<HTMLInputElement>(
@@ -562,14 +683,12 @@ function renderGroup(
   groupToggleInput.checked = groupEnabled;
   groupToggleInput.dataset['groupId'] = group.id;
   groupToggleInput.setAttribute('aria-label', `Toggle group ${group.name}`);
-  groupToggle.addEventListener('click', (event) => event.stopPropagation());
-  groupToggle.addEventListener('pointerdown', (event) => event.stopPropagation());
-  groupToggleInput.addEventListener('keydown', (event) => event.stopPropagation());
 
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
   if (!isDefault) {
     const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
     editButton.dataset['groupId'] = group.id;
+    editButton.setAttribute('aria-label', `Edit group ${group.name}`);
     actions.appendChild(editButton);
   }
 
@@ -697,6 +816,7 @@ function renderFilterItem(filter: Filter): HTMLElement {
   const toggleLabel = description
     ? `Toggle filter ${description}`
     : `Toggle filter for ${filter.pattern}`;
+  const editLabel = description ? `Edit filter ${description}` : `Edit filter ${filter.pattern}`;
 
   const item = cloneTemplate<HTMLDivElement>('options-filter-item-template');
   const titleElement = querySelector<HTMLElement>('[data-role="filter-title"]', item);
@@ -715,6 +835,7 @@ function renderFilterItem(filter: Filter): HTMLElement {
   toggleInput.dataset['filterId'] = filter.id;
   toggleInput.setAttribute('aria-label', toggleLabel);
   editButton.dataset['filterId'] = filter.id;
+  editButton.setAttribute('aria-label', editLabel);
 
   return item;
 }
@@ -724,6 +845,9 @@ function renderWhitelistItem(entry: Whitelist): HTMLElement {
   const toggleLabel = description
     ? `Toggle exception ${description}`
     : `Toggle exception for ${entry.pattern}`;
+  const editLabel = description
+    ? `Edit exception ${description}`
+    : `Edit exception ${entry.pattern}`;
 
   const item = cloneTemplate<HTMLDivElement>('options-whitelist-item-template');
   const titleElement = querySelector<HTMLElement>('[data-role="whitelist-title"]', item);
@@ -745,6 +869,7 @@ function renderWhitelistItem(entry: Whitelist): HTMLElement {
   toggleInput.dataset['whitelistId'] = entry.id;
   toggleInput.setAttribute('aria-label', toggleLabel);
   editButton.dataset['whitelistId'] = entry.id;
+  editButton.setAttribute('aria-label', editLabel);
 
   return item;
 }
@@ -769,6 +894,8 @@ function renderSchedules(): void {
       item
     );
 
+    dayContainer.setAttribute('role', 'group');
+    dayContainer.setAttribute('aria-label', `Days for schedule ${scheduleNumber}`);
     for (const [dayIndex, day] of DAY_NAMES.entries()) {
       const label = document.createElement('label');
       label.className = 'day-checkbox';
@@ -778,6 +905,7 @@ function renderSchedules(): void {
       input.dataset['action'] = 'update-schedule-day';
       input.dataset['scheduleIndex'] = String(index);
       input.dataset['day'] = String(dayIndex);
+      input.setAttribute('aria-label', DAY_FULL_NAMES[dayIndex] ?? day);
       label.appendChild(input);
       label.append(day);
       dayContainer.appendChild(label);
@@ -805,7 +933,11 @@ function renderSchedules(): void {
 // Filter Modal
 // ============================================================================
 
-function openFilterModal(filterId?: string, groupId?: string): void {
+function openFilterModal(
+  filterId?: string,
+  groupId?: string,
+  fallbackTrigger: HTMLElement | null = null
+): void {
   currentEditingFilterId = filterId ?? null;
   currentFilterGroupId = groupId ?? DEFAULT_GROUP_ID;
   const modal = getElementByIdOrNull('filter-modal');
@@ -845,7 +977,7 @@ function openFilterModal(filterId?: string, groupId?: string): void {
     });
 
   modal.classList.add('active');
-  activateModal(modal, '#filter-pattern');
+  activateModal(modal, '#filter-pattern', fallbackTrigger);
 }
 
 function closeFilterModal(): void {
@@ -918,7 +1050,7 @@ async function handleFilterDelete(): Promise<void> {
 // Group Modal
 // ============================================================================
 
-function openGroupModal(groupId?: string): void {
+function openGroupModal(groupId?: string, fallbackTrigger: HTMLElement | null = null): void {
   currentEditingGroupId = groupId ?? null;
   temporarySchedules = [];
 
@@ -965,7 +1097,7 @@ function openGroupModal(groupId?: string): void {
   }
 
   modal.classList.add('active');
-  activateModal(modal, '#group-name');
+  activateModal(modal, '#group-name', fallbackTrigger);
 }
 
 function closeGroupModal(): void {
@@ -1037,7 +1169,11 @@ async function handleGroupDelete(): Promise<void> {
 // Whitelist Modal
 // ============================================================================
 
-function openWhitelistModal(whitelistId?: string, groupId?: string): void {
+function openWhitelistModal(
+  whitelistId?: string,
+  groupId?: string,
+  fallbackTrigger: HTMLElement | null = null
+): void {
   currentEditingWhitelistId = whitelistId ?? null;
   currentWhitelistGroupId = groupId ?? DEFAULT_GROUP_ID;
   const modal = getElementByIdOrNull('whitelist-modal');
@@ -1077,7 +1213,7 @@ function openWhitelistModal(whitelistId?: string, groupId?: string): void {
     });
 
   modal.classList.add('active');
-  activateModal(modal, '#whitelist-pattern');
+  activateModal(modal, '#whitelist-pattern', fallbackTrigger);
 }
 
 function closeWhitelistModal(): void {
@@ -1148,16 +1284,17 @@ function handleGroupsListClick(e: Event): void {
   const button = target.closest('button[data-action]') as HTMLButtonElement | null;
   if (!button) return;
 
-  if (button.closest('summary')) {
-    e.preventDefault();
-  }
-
   const action = button.dataset['action'];
   const groupId = button.dataset['groupId'];
   const filterId = button.dataset['filterId'];
   const whitelistId = button.dataset['whitelistId'];
 
-  if (action === 'edit-group' && groupId) {
+  if (action === 'toggle-group-open') {
+    const groupElement = button.closest<HTMLElement>('.group-item');
+    if (groupElement) {
+      setGroupOpen(groupElement, !groupElement.classList.contains('is-open'));
+    }
+  } else if (action === 'edit-group' && groupId) {
     openGroupModal(groupId);
   } else if (action === 'delete-group' && groupId) {
     void deleteGroupConfirm(groupId);
