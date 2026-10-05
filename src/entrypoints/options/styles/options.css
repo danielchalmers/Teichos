@@ -11,11 +11,7 @@ body {
   margin: 0;
   padding: 28px 24px 72px;
   min-height: 100vh;
-  background:
-    radial-gradient(900px 520px at 10% -5%, var(--bg-glow-primary), transparent 65%),
-    radial-gradient(760px 420px at 92% -10%, var(--bg-glow-secondary), transparent 60%), var(--bg);
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+  background: var(--bg);
   color: var(--text-primary);
   font-size: 16px;
   line-height: 1.5;
@@ -28,12 +24,7 @@ body {
 
 /* Page header: compact brand bar */
 .page-header {
-  background: linear-gradient(
-    135deg,
-    var(--header-gradient-start) 0%,
-    var(--header-gradient-mid) 52%,
-    var(--header-gradient-end) 100%
-  );
+  background: var(--header-bg);
   color: var(--header-text);
   border-radius: var(--radius-lg);
   padding: 0.85rem 1.35rem;
@@ -119,6 +110,7 @@ body {
   max-width: 90vw;
   background: var(--surface);
   color: var(--text-primary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 1rem 1.1rem;
   box-shadow: var(--shadow-lg);
@@ -156,7 +148,7 @@ body {
   padding: 0.5rem 0.6rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: var(--panel-soft);
+  background: var(--surface-muted);
   display: grid;
   gap: 0.35rem;
 }
@@ -200,20 +192,21 @@ body {
   gap: 0.4rem;
   padding: 0.35rem 0.7rem;
   border-radius: 999px;
-  background: var(--info-badge-bg);
-  color: var(--info-badge-text);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
   font-weight: 600;
   font-size: 0.78rem;
   text-decoration: none;
-  box-shadow: var(--info-badge-shadow);
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+  transition: background-color 0.2s;
 }
 
 .info-badge:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--info-badge-shadow-hover);
+  background: var(--button-primary-hover-bg);
+}
+
+.info-badge:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .info-badge-icon {
@@ -291,7 +284,7 @@ form {
 select {
   width: 100%;
   padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   font-size: 0.92rem;
   background: var(--surface);
@@ -301,8 +294,8 @@ select {
 .input:focus,
 select:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--focus-ring-soft);
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 1px var(--focus-ring);
 }
 
 label {
@@ -341,7 +334,7 @@ label {
   padding: 1rem 1.25rem;
   cursor: pointer;
   list-style: none;
-  background: linear-gradient(180deg, var(--group-header-start) 0%, var(--group-header-end) 100%);
+  background: var(--surface-muted);
 }
 
 .group-header::-webkit-details-marker {
@@ -423,11 +416,14 @@ label {
   z-index: 1;
 }
 
-.group-content.is-readonly .filter-item,
-.group-content.is-readonly .empty-state,
-.group-content.is-readonly .list-footer,
-.group-content.is-readonly .group-section-header {
-  opacity: 0.62;
+/* Read-only text drops to the muted color, which still meets 4.5:1; only the disabled controls fade. */
+.group-content.is-readonly
+  :is(.filter-title, .filter-pattern, .empty-state, .group-section-header h3) {
+  color: var(--text-muted);
+}
+
+.group-content.is-readonly :is(.button, .icon-button, .toggle) {
+  opacity: 0.5;
 }
 
 .group-content.is-readonly::after {
@@ -435,8 +431,6 @@ label {
   position: absolute;
   inset: -0.2rem;
   border-radius: 12px;
-  background: var(--overlay-muted);
-  backdrop-filter: saturate(0.72);
   pointer-events: auto;
   cursor: not-allowed;
   z-index: 2;
@@ -529,13 +523,6 @@ label {
   margin-left: auto;
 }
 
-.group-disabled .filter-item,
-.group-disabled .empty-state,
-.group-disabled .group-section-header h3,
-.group-disabled .list-footer {
-  opacity: 0.72;
-}
-
 /* Global settings */
 .global-settings-panel {
   display: grid;
@@ -561,7 +548,7 @@ label {
 }
 
 .global-settings-status.is-error {
-  color: var(--danger-text, var(--danger-hover));
+  color: var(--danger-text);
 }
 
 /* Modal */
@@ -709,7 +696,7 @@ label {
 }
 
 .required-marker {
-  color: var(--danger-text, var(--danger));
+  color: var(--danger-text);
   font-weight: 600;
 }
 
