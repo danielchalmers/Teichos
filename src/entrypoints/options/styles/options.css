@@ -561,7 +561,7 @@ label {
 }
 
 .global-settings-status.is-error {
-  color: var(--danger-hover);
+  color: var(--danger-text, var(--danger-hover));
 }
 
 /* Modal */
@@ -709,7 +709,7 @@ label {
 }
 
 .required-marker {
-  color: var(--danger);
+  color: var(--danger-text, var(--danger));
   font-weight: 600;
 }
 

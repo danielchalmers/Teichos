@@ -5,6 +5,9 @@
   --text-2xl: 2.25rem;
   --text-lg: 1.1rem;
   --text-md: 0.98rem;
+  --page-gradient-start: var(--header-gradient-start);
+  --page-gradient-mid: var(--header-gradient-mid);
+  --page-gradient-end: var(--header-gradient-end);
   --text-on-bg: #f7f8ff;
   --url-bg: rgba(255, 255, 255, 0.2);
   --url-border: rgba(255, 255, 255, 0.28);
@@ -19,20 +22,24 @@
   --page-focus-ring: rgba(240, 248, 255, 0.9);
 }
 
+/* At night the block page should be a dim, quiet stop rather than a full screen of brand color. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --text-on-bg: #f0f2ff;
-    --url-bg: rgba(12, 22, 39, 0.44);
-    --url-border: rgba(173, 203, 244, 0.18);
-    --detail-bg: rgba(12, 22, 39, 0.34);
-    --detail-border: rgba(173, 203, 244, 0.18);
-    --page-button-bg: #ddecff;
-    --page-button-text: #3a32a9;
-    --page-button-bg-hover: #cfd8ff;
-    --page-button-alt-bg: rgba(24, 27, 72, 0.52);
-    --page-button-alt-bg-hover: rgba(24, 27, 72, 0.66);
-    --page-button-alt-text: #f0f2ff;
-    --page-focus-ring: rgba(228, 232, 255, 0.9);
+    --page-gradient-start: #0b0c16;
+    --page-gradient-mid: #10122a;
+    --page-gradient-end: #171a3a;
+    --text-on-bg: #dfe2f0;
+    --url-bg: rgba(255, 255, 255, 0.04);
+    --url-border: rgba(173, 190, 244, 0.14);
+    --detail-bg: rgba(255, 255, 255, 0.03);
+    --detail-border: rgba(173, 190, 244, 0.12);
+    --page-button-bg: #444ca6;
+    --page-button-text: #e8eaff;
+    --page-button-bg-hover: #4d56b4;
+    --page-button-alt-bg: rgba(255, 255, 255, 0.06);
+    --page-button-alt-bg-hover: rgba(255, 255, 255, 0.1);
+    --page-button-alt-text: #d4d8ee;
+    --page-focus-ring: rgba(200, 210, 255, 0.75);
   }
 }
 
@@ -48,9 +55,9 @@ body {
     radial-gradient(860px 520px at 92% -16%, var(--bg-glow-secondary), transparent 62%),
     linear-gradient(
       135deg,
-      var(--header-gradient-start) 0%,
-      var(--header-gradient-mid) 52%,
-      var(--header-gradient-end) 100%
+      var(--page-gradient-start) 0%,
+      var(--page-gradient-mid) 52%,
+      var(--page-gradient-end) 100%
     );
   color: var(--text-on-bg);
   font-size: 16px;
