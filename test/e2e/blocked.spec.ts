@@ -188,6 +188,8 @@ test('hides details and actions behind the Learn more link by default', async ({
   await expect(page.getByRole('button', { name: 'Go Back' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Manage Filters' })).toBeVisible();
   await expect(learnMore).toBeHidden();
+  // The button hides itself, so focus moves to the revealed details instead of the body.
+  await expect(page.getByRole('group', { name: 'Block details' })).toBeFocused();
 });
 
 test('expands details by default when the global setting is enabled', async ({

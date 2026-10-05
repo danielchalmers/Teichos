@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles/blocked.css" />
   </head>
   <body>
-    <div class="container" role="main">
+    <main class="container">
       <img class="icon" src="/assets/icons/icon.svg" alt="" aria-hidden="true" />
       <h1>Page Blocked</h1>
       <p>This page has been blocked by Teichos based on your filter settings.</p>
@@ -20,7 +20,7 @@
       >
         Learn more
       </button>
-      <div id="block-extras" hidden>
+      <div id="block-extras" role="group" aria-label="Block details" tabindex="-1" hidden>
         <div class="url" id="blocked-url" role="status" aria-label="Blocked URL"></div>
         <section class="details" id="responsible-filter" aria-label="Responsible filter" hidden>
           <dl>
@@ -52,7 +52,7 @@
           <button class="button secondary" id="open-options" type="button">Manage Filters</button>
         </div>
       </div>
-    </div>
+    </main>
     <script src="./index.ts" type="module"></script>
   </body>
 </html>

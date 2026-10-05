@@ -1,46 +1,10 @@
 @import '../../../shared/styles/theme.css';
 
-/* The block page lives on the brand gradient, so it keeps its own on-gradient tokens. */
+/* The block page uses the same surfaces and buttons as the rest of the app in both themes. */
 :root {
   --text-2xl: 2.25rem;
   --text-lg: 1.1rem;
   --text-md: 0.98rem;
-  --page-gradient-start: var(--header-gradient-start);
-  --page-gradient-mid: var(--header-gradient-mid);
-  --page-gradient-end: var(--header-gradient-end);
-  --text-on-bg: #f7f8ff;
-  --url-bg: rgba(255, 255, 255, 0.2);
-  --url-border: rgba(255, 255, 255, 0.28);
-  --detail-bg: rgba(255, 255, 255, 0.16);
-  --detail-border: rgba(255, 255, 255, 0.22);
-  --page-button-bg: #f8fbff;
-  --page-button-text: #4e4cd3;
-  --page-button-bg-hover: #ecefff;
-  --page-button-alt-bg: rgba(255, 255, 255, 0.2);
-  --page-button-alt-bg-hover: rgba(255, 255, 255, 0.3);
-  --page-button-alt-text: #f6fbff;
-  --page-focus-ring: rgba(240, 248, 255, 0.9);
-}
-
-/* At night the block page should be a dim, quiet stop rather than a full screen of brand color. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --page-gradient-start: #0b0c16;
-    --page-gradient-mid: #10122a;
-    --page-gradient-end: #171a3a;
-    --text-on-bg: #dfe2f0;
-    --url-bg: rgba(255, 255, 255, 0.04);
-    --url-border: rgba(173, 190, 244, 0.14);
-    --detail-bg: rgba(255, 255, 255, 0.03);
-    --detail-border: rgba(173, 190, 244, 0.12);
-    --page-button-bg: #444ca6;
-    --page-button-text: #e8eaff;
-    --page-button-bg-hover: #4d56b4;
-    --page-button-alt-bg: rgba(255, 255, 255, 0.06);
-    --page-button-alt-bg-hover: rgba(255, 255, 255, 0.1);
-    --page-button-alt-text: #d4d8ee;
-    --page-focus-ring: rgba(200, 210, 255, 0.75);
-  }
 }
 
 body {
@@ -50,16 +14,8 @@ body {
   align-items: center;
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(1100px 620px at 8% -12%, var(--bg-glow-primary), transparent 64%),
-    radial-gradient(860px 520px at 92% -16%, var(--bg-glow-secondary), transparent 62%),
-    linear-gradient(
-      135deg,
-      var(--page-gradient-start) 0%,
-      var(--page-gradient-mid) 52%,
-      var(--page-gradient-end) 100%
-    );
-  color: var(--text-on-bg);
+  background: var(--bg);
+  color: var(--text-primary);
   font-size: 16px;
   line-height: 1.5;
 }
@@ -92,12 +48,12 @@ h1 {
 p {
   font-size: var(--text-lg);
   margin: 0 0 2rem 0;
-  opacity: 0.9;
+  color: var(--text-secondary);
 }
 
 .url {
-  background: var(--url-bg);
-  border: 1px solid var(--url-border);
+  background: var(--surface);
+  border: 1px solid var(--border);
   padding: 1rem;
   border-radius: var(--radius-md);
   word-break: break-all;
@@ -111,21 +67,20 @@ p {
   border: none;
   padding: 0;
   margin: 0 0 0.5rem;
-  color: var(--text-on-bg);
+  color: var(--link);
   font: inherit;
   font-size: var(--text-md);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
-  opacity: 0.85;
 }
 
 .learn-more:hover {
-  opacity: 1;
+  color: var(--link-hover);
 }
 
 .learn-more:focus-visible {
-  outline: 2px solid var(--page-focus-ring);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
   border-radius: 4px;
 }
@@ -134,12 +89,17 @@ p {
   display: none;
 }
 
+/* Receives focus from "Learn more" so the reveal is announced; it is not a tab stop. */
+#block-extras:focus {
+  outline: none;
+}
+
 .details {
   margin: 0 0 2rem;
   padding: 1rem;
-  border: 1px solid var(--detail-border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--detail-bg);
+  background: var(--surface);
   text-align: left;
 }
 
@@ -163,7 +123,7 @@ p {
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
-  opacity: 0.75;
+  color: var(--text-muted);
 }
 
 .details dd {
@@ -185,33 +145,10 @@ p {
   flex-wrap: wrap;
 }
 
-/* On-gradient buttons override the shared surface-page styles. */
+/* Block page actions are the shared buttons at a larger size. */
 .button {
   padding: 12px 24px;
-  background: var(--page-button-bg);
-  color: var(--page-button-text);
-  border: none;
   font-size: 1rem;
-  box-shadow: none;
-}
-
-.button:hover {
-  background: var(--page-button-bg-hover);
-}
-
-.button:focus-visible {
-  outline: 2px solid var(--page-focus-ring);
-  outline-offset: 3px;
-}
-
-.button.secondary {
-  background: var(--page-button-alt-bg);
-  color: var(--page-button-alt-text);
-  border: none;
-}
-
-.button.secondary:hover {
-  background: var(--page-button-alt-bg-hover);
 }
 
 /* The `.button` display rule outranks the UA `[hidden]` style, so restore hiding explicitly. */

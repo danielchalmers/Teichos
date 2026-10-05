@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="styles/options.css" />
   </head>
   <body>
-    <div class="container" role="main">
+    <div class="container">
       <header class="page-header">
         <div class="title-block">
           <h1 class="app-title">
@@ -104,79 +104,93 @@
         </div>
       </header>
 
-      <section class="settings-section" aria-labelledby="groups-heading">
-        <div class="section-header">
-          <div class="section-heading-block">
-            <h2 id="groups-heading">Groups</h2>
-            <p class="section-hint">
-              Each group holds filters and exceptions, and decides when they apply.
-            </p>
+      <main>
+        <section class="settings-section" aria-labelledby="groups-heading">
+          <div class="section-header">
+            <div class="section-heading-block">
+              <h2 id="groups-heading">Groups</h2>
+              <p class="section-hint">
+                Each group holds filters and exceptions, and decides when they apply.
+              </p>
+              <p class="section-hint" id="snooze-notice" hidden>
+                Filtering is snoozed, so groups are read-only until the snooze ends.
+              </p>
+            </div>
+            <button class="button" id="add-group-btn">
+              <span class="button-icon" aria-hidden="true">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+                  <path
+                    d="M8 3v10M3 8h10"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  ></path>
+                </svg>
+              </span>
+              New Group
+            </button>
           </div>
-          <button class="button" id="add-group-btn">
-            <span class="button-icon" aria-hidden="true">
-              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
-                <path
-                  d="M8 3v10M3 8h10"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                ></path>
-              </svg>
-            </span>
-            New Group
-          </button>
-        </div>
-        <div id="groups-list"></div>
-      </section>
+          <div id="groups-list"></div>
+        </section>
 
-      <section class="settings-section" aria-labelledby="general-heading">
-        <div class="section-header">
-          <div class="section-heading-block">
-            <h2 id="general-heading">General</h2>
-            <p class="section-hint">Extension-wide preferences and backups.</p>
-          </div>
-        </div>
-        <div class="settings-card">
-          <div class="global-settings-panel">
-            <div class="form-row">
-              <label class="checkbox-label">
-                <input type="checkbox" id="global-expand-details" />
-                Expand block page details by default
-              </label>
+        <section class="settings-section" aria-labelledby="general-heading">
+          <div class="section-header">
+            <div class="section-heading-block">
+              <h2 id="general-heading">General</h2>
+              <p class="section-hint">Extension-wide preferences and backups.</p>
             </div>
-            <div class="global-settings-actions">
-              <button class="button secondary" id="preview-block-btn" type="button">
-                Preview Block Page
-              </button>
-              <button class="button secondary" id="export-settings-btn" type="button">
-                Export Settings
-              </button>
-              <button class="button secondary" id="import-settings-btn" type="button">
-                Import Settings
-              </button>
-              <input
-                id="import-settings-input"
-                type="file"
-                accept="application/json,.json"
-                hidden
-              />
-            </div>
-            <p
-              class="global-settings-status"
-              id="global-settings-status"
-              role="status"
-              aria-live="polite"
-            ></p>
           </div>
-        </div>
-      </section>
+          <div class="settings-card">
+            <div class="global-settings-panel">
+              <div class="form-row">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="global-expand-details" />
+                  Expand block page details by default
+                </label>
+              </div>
+              <div class="global-settings-actions">
+                <button class="button secondary" id="preview-block-btn" type="button">
+                  Preview Block Page
+                </button>
+                <button class="button secondary" id="export-settings-btn" type="button">
+                  Export Settings
+                </button>
+                <button class="button secondary" id="import-settings-btn" type="button">
+                  Import Settings
+                </button>
+                <input
+                  id="import-settings-input"
+                  type="file"
+                  accept="application/json,.json"
+                  hidden
+                />
+              </div>
+              <p
+                class="global-settings-status"
+                id="global-settings-status"
+                role="status"
+                aria-live="polite"
+              ></p>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
 
     <template id="options-group-template">
-      <details class="group-item">
-        <summary class="group-header">
+      <section class="group-item">
+        <div class="group-header">
           <div class="group-info">
-            <div class="group-title" data-role="group-title"></div>
+            <h3 class="group-title">
+              <button
+                class="group-disclosure"
+                type="button"
+                data-action="toggle-group-open"
+                aria-expanded="false"
+              >
+                <span data-role="group-title"></span>
+              </button>
+            </h3>
             <div class="filter-meta" data-role="group-meta"></div>
           </div>
           <div class="actions" data-role="group-actions">
@@ -185,11 +199,11 @@
               <span class="slider"></span>
             </label>
           </div>
-        </summary>
-        <div class="group-content">
+        </div>
+        <div class="group-content" data-role="group-content" hidden="until-found">
           <div class="group-section">
             <div class="group-section-header">
-              <h3>Filters</h3>
+              <h4>Filters</h4>
             </div>
             <div data-role="filter-list"></div>
             <div class="list-footer">
@@ -210,7 +224,7 @@
           </div>
           <div class="group-section">
             <div class="group-section-header">
-              <h3>Exceptions</h3>
+              <h4>Exceptions</h4>
             </div>
             <div data-role="whitelist-list"></div>
             <div class="list-footer">
@@ -230,7 +244,7 @@
             </div>
           </div>
         </div>
-      </details>
+      </section>
     </template>
 
     <template id="options-group-edit-button-template">
@@ -446,8 +460,8 @@
           </div>
           <div id="schedules-container" style="display: none">
             <div class="form-row">
-              <label>Schedules</label>
-              <div id="schedules-list"></div>
+              <div class="field-label" id="schedules-label">Schedules</div>
+              <div id="schedules-list" role="group" aria-labelledby="schedules-label"></div>
             </div>
             <button type="button" class="button small secondary" id="add-schedule-btn">
               <span class="button-icon" aria-hidden="true">

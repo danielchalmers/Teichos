@@ -11,11 +11,7 @@ body {
   margin: 0;
   padding: 28px 24px 72px;
   min-height: 100vh;
-  background:
-    radial-gradient(900px 520px at 10% -5%, var(--bg-glow-primary), transparent 65%),
-    radial-gradient(760px 420px at 92% -10%, var(--bg-glow-secondary), transparent 60%), var(--bg);
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+  background: var(--bg);
   color: var(--text-primary);
   font-size: 16px;
   line-height: 1.5;
@@ -28,12 +24,7 @@ body {
 
 /* Page header: compact brand bar */
 .page-header {
-  background: linear-gradient(
-    135deg,
-    var(--header-gradient-start) 0%,
-    var(--header-gradient-mid) 52%,
-    var(--header-gradient-end) 100%
-  );
+  background: var(--header-bg);
   color: var(--header-text);
   border-radius: var(--radius-lg);
   padding: 0.85rem 1.35rem;
@@ -119,6 +110,7 @@ body {
   max-width: 90vw;
   background: var(--surface);
   color: var(--text-primary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 1rem 1.1rem;
   box-shadow: var(--shadow-lg);
@@ -156,7 +148,7 @@ body {
   padding: 0.5rem 0.6rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: var(--panel-soft);
+  background: var(--surface-muted);
   display: grid;
   gap: 0.35rem;
 }
@@ -183,7 +175,7 @@ body {
 
 .info-links {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
 }
@@ -200,20 +192,21 @@ body {
   gap: 0.4rem;
   padding: 0.35rem 0.7rem;
   border-radius: 999px;
-  background: var(--info-badge-bg);
-  color: var(--info-badge-text);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
   font-weight: 600;
   font-size: 0.78rem;
   text-decoration: none;
-  box-shadow: var(--info-badge-shadow);
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+  transition: background-color 0.2s;
 }
 
 .info-badge:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--info-badge-shadow-hover);
+  background: var(--button-primary-hover-bg);
+}
+
+.info-badge:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .info-badge-icon {
@@ -262,6 +255,26 @@ body {
   font-size: 0.88rem;
 }
 
+/* Snooze status carries the same amber dot as the popup's snooze chip. */
+#snooze-notice:not([hidden]) {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+#snooze-notice::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-snoozed);
+  box-shadow: 0 0 0 2.5px var(--status-snoozed-glow);
+  transform: translateY(-1px);
+}
+
 .settings-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -291,21 +304,15 @@ form {
 select {
   width: 100%;
   padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   font-size: 0.92rem;
   background: var(--surface);
   color: var(--text-primary);
 }
 
-.input:focus,
-select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--focus-ring-soft);
-}
-
-label {
+label,
+.field-label {
   display: block;
   margin: 0;
   font-weight: 600;
@@ -334,22 +341,14 @@ label {
 }
 
 .group-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 1rem;
   padding: 1rem 1.25rem;
   cursor: pointer;
-  list-style: none;
-  background: linear-gradient(180deg, var(--group-header-start) 0%, var(--group-header-end) 100%);
-}
-
-.group-header::-webkit-details-marker {
-  display: none;
-}
-
-.group-header::marker {
-  content: '';
+  background: var(--surface-muted);
 }
 
 .group-header::after {
@@ -364,13 +363,15 @@ label {
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     center / contain no-repeat;
   transition: transform 0.2s;
+  /* Decorative: clicks fall through to the disclosure overlay in both states. */
+  pointer-events: none;
 }
 
-.group-item[open] .group-header::after {
+.group-item.is-open .group-header::after {
   transform: rotate(180deg);
 }
 
-.group-item[open] .group-header {
+.group-item.is-open .group-header {
   border-bottom: 1px solid var(--border);
 }
 
@@ -384,9 +385,38 @@ label {
   color: var(--text-muted);
 }
 
-.group-header:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+/* The group name is the disclosure button; its overlay makes the whole header row clickable. */
+.group-disclosure {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-disclosure::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--radius-lg) - 1px);
+}
+
+.group-disclosure:focus-visible {
+  outline: none;
+}
+
+/* Inset, so the card's overflow clipping cannot hide the ring. */
+.group-disclosure:focus-visible::after {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* An open group's header meets its content with a square edge. */
+.group-item.is-open .group-disclosure::after {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .group-info {
@@ -398,6 +428,7 @@ label {
 }
 
 .group-title {
+  margin: 0;
   font-weight: 700;
   font-size: 1.1rem;
   color: var(--text-primary);
@@ -408,6 +439,11 @@ label {
   padding: 1rem 1.25rem 1.25rem;
   background: var(--surface);
   position: relative;
+}
+
+/* hidden="until-found" only skips the contents and keeps the box, so drop its padding too. */
+.group-content[hidden] {
+  padding: 0;
 }
 
 .group-content.is-snoozed [data-role='filter-list'] {
@@ -423,11 +459,14 @@ label {
   z-index: 1;
 }
 
-.group-content.is-readonly .filter-item,
-.group-content.is-readonly .empty-state,
-.group-content.is-readonly .list-footer,
-.group-content.is-readonly .group-section-header {
-  opacity: 0.62;
+/* Read-only text drops to the muted color, which still meets 4.5:1; only the disabled controls fade. */
+.group-content.is-readonly
+  :is(.filter-title, .filter-pattern, .empty-state, .group-section-header h4) {
+  color: var(--text-muted);
+}
+
+.group-content.is-readonly :is(.button, .icon-button, .toggle) {
+  opacity: 0.5;
 }
 
 .group-content.is-readonly::after {
@@ -435,8 +474,6 @@ label {
   position: absolute;
   inset: -0.2rem;
   border-radius: 12px;
-  background: var(--overlay-muted);
-  backdrop-filter: saturate(0.72);
   pointer-events: auto;
   cursor: not-allowed;
   z-index: 2;
@@ -459,7 +496,7 @@ label {
   flex-wrap: wrap;
 }
 
-.group-section-header h3 {
+.group-section-header h4 {
   margin: 0;
   font-size: 0.98rem;
   color: var(--text-primary);
@@ -507,9 +544,8 @@ label {
   font-family: var(--font-mono);
   color: var(--text-secondary);
   font-size: 0.85rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Wrap long patterns so the whole pattern stays readable at any width. */
+  overflow-wrap: anywhere;
   max-width: 100%;
 }
 
@@ -525,15 +561,11 @@ label {
   flex-wrap: wrap;
 }
 
+/* Above the disclosure's row overlay, so the toggle and Edit button stay clickable. */
 .group-header .actions {
+  position: relative;
+  z-index: 1;
   margin-left: auto;
-}
-
-.group-disabled .filter-item,
-.group-disabled .empty-state,
-.group-disabled .group-section-header h3,
-.group-disabled .list-footer {
-  opacity: 0.72;
 }
 
 /* Global settings */
@@ -555,13 +587,17 @@ label {
   font-size: 0.88rem;
 }
 
-/* Collapse the placeholder row until there is a status to show. */
+/*
+ * Take the empty status out of the grid so it adds no row or gap, but keep it rendered: a live
+ * region that is display: none until its first message is often not announced.
+ */
 .global-settings-status:empty {
-  display: none;
+  position: absolute;
+  min-height: 0;
 }
 
 .global-settings-status.is-error {
-  color: var(--danger-text, var(--danger-hover));
+  color: var(--danger-text);
 }
 
 /* Modal */
@@ -680,9 +716,8 @@ label {
 }
 
 .day-checkboxes {
-  display: flex;
-  flex-wrap: nowrap;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
   width: 100%;
   gap: 0.5rem;
   align-items: center;
@@ -693,7 +728,6 @@ label {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 1 1 0;
   gap: 0.35rem;
   font-weight: 500;
   color: var(--text-secondary);
@@ -704,12 +738,19 @@ label {
   margin: 0;
 }
 
+/* Native checkboxes use the shared focus ring instead of the browser default. */
+.checkbox-label input:focus-visible,
+.day-checkbox input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 #schedules-container {
   margin-bottom: 0.5rem;
 }
 
 .required-marker {
-  color: var(--danger-text, var(--danger));
+  color: var(--danger-text);
   font-weight: 600;
 }
 
@@ -719,8 +760,19 @@ label {
   }
 
   .page-header {
-    flex-direction: column;
-    align-items: flex-start;
+    position: relative;
+  }
+
+  /* The stacked header puts the About button at the left, so span the panel across the header. */
+  .info-popover {
+    position: static;
+  }
+
+  .info-panel {
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: none;
   }
 
   .section-header {
@@ -732,9 +784,31 @@ label {
     align-items: flex-start;
   }
 
+  /* Keep the chevron beside the title and leave blank header space clickable. */
+  .group-header::after {
+    position: absolute;
+    top: 1.15rem;
+    right: 1.25rem;
+    margin: 0;
+  }
+
+  .group-info {
+    align-self: stretch;
+    padding-right: 1.75rem;
+  }
+
+  .group-header .actions {
+    width: auto;
+    margin-left: 0;
+  }
+
   .filter-item {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .filter-details {
+    align-self: stretch;
   }
 
   .actions {
@@ -744,5 +818,13 @@ label {
   .global-settings-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+/* Forced-colors mode drops background-color, which draws the chevron; use the text color. */
+@media (forced-colors: active) {
+  .group-header::after {
+    forced-color-adjust: none;
+    background-color: CanvasText;
   }
 }

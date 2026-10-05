@@ -45,7 +45,7 @@ test('shows schedule hints in the group header', async ({ extensionPage, page },
     })
   );
 
-  const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  const workHoursGroup = page.locator('.group-item').filter({ hasText: 'Work Hours' });
   await expect(workHoursGroup).toContainText(
     'Mo-Fr 09:00-17:00, Sa 10:00-12:00 • 0 filters • 0 exceptions'
   );
@@ -68,9 +68,9 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
   await expect(groupModal.getByLabel('End time for schedule 1')).toHaveValue('17:00');
   await groupModal.getByRole('button', { name: 'Save' }).click();
 
-  const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  const workHoursGroup = page.locator('.group-item').filter({ hasText: 'Work Hours' });
   await expect(workHoursGroup).toContainText('Mo-Fr 09:00-17:00 • 0 filters • 0 exceptions');
-  await workHoursGroup.locator('summary').click();
+  await workHoursGroup.getByRole('button', { name: 'Work Hours', exact: true }).click();
 
   await workHoursGroup.getByRole('button', { name: 'New Filter' }).click();
   const filterModal = page.locator('#filter-modal.active');
@@ -96,17 +96,17 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
   await groupModal.getByLabel('Always Active (24/7)').check();
   await groupModal.getByRole('button', { name: 'Save' }).click();
 
-  const deepWorkGroup = page.locator('details.group-item').filter({ hasText: 'Deep Work' });
+  const deepWorkGroup = page.locator('.group-item').filter({ hasText: 'Deep Work' });
   await expect(deepWorkGroup).toContainText('Always Active • 1 filter • 1 exception');
 
   await deepWorkGroup.locator('button[data-action="edit-group"]').click();
   await expect(groupModal).toBeVisible();
   await groupModal.getByRole('button', { name: 'Delete' }).click();
 
-  await expect(page.locator('details.group-item').filter({ hasText: 'Deep Work' })).toHaveCount(0);
-  const defaultGroupCard = page
-    .locator('details.group-item')
-    .filter({ hasText: '24/7 (Always Active)' });
+  await expect(page.locator('.group-item').filter({ hasText: 'Deep Work' })).toHaveCount(0);
+  // The deleted group's Edit button is gone, so focus falls back to New Group, not the body.
+  await expect(page.getByRole('button', { name: 'New Group' })).toBeFocused();
+  const defaultGroupCard = page.locator('.group-item').filter({ hasText: '24/7 (Always Active)' });
   await expect(defaultGroupCard).toContainText('Focus Block');
   await expect(defaultGroupCard).toContainText('focus.example.com/docs');
 });
@@ -125,7 +125,7 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
   await gotoOptions(extensionPage, page);
 
   await page
-    .locator('details.group-item')
+    .locator('.group-item')
     .filter({ hasText: '24/7 (Always Active)' })
     .getByRole('button', { name: 'New Filter' })
     .click();
@@ -260,7 +260,7 @@ test('imports settings from global settings', async ({ extensionPage, page }) =>
     buffer: Buffer.from(JSON.stringify(importedData)),
   });
 
-  const importedGroup = page.locator('details.group-item').filter({ hasText: 'Imported Group' });
+  const importedGroup = page.locator('.group-item').filter({ hasText: 'Imported Group' });
   await expect(importedGroup).toContainText('Imported Filter');
   await expect(importedGroup).toContainText('Imported Exception');
   await expect(page.locator('#global-settings-status')).toHaveText(
@@ -330,20 +330,34 @@ test('opens filter, group, and exception modals from query params', async ({
     })
   );
 
+  // A deep-linked modal has no opener, so closing it moves focus to the control that would have
+  // opened it instead of leaving it on the body.
+  const newGroupButton = page.getByRole('button', { name: 'New Group' });
+  const defaultGroupDisclosure = page
+    .locator('.group-item')
+    .filter({ hasText: defaultGroup.name })
+    .locator('.group-disclosure');
+  const seededFilterEdit = page.locator(
+    '[data-action="edit-filter"][data-filter-id="seeded-filter"]'
+  );
+
   await gotoOptions(extensionPage, page, `${PAGES.OPTIONS}?modal=group`);
   await expect(page.locator('#group-modal.active')).toBeVisible();
   await expect.poll(() => new URL(page.url()).pathname).toBe(OPTIONS_PATHNAME);
   await page.getByRole('button', { name: 'Close group dialog' }).click();
+  await expect(newGroupButton).toBeFocused();
 
   await gotoOptions(extensionPage, page, `${PAGES.OPTIONS}?modal=filter`);
   await expect(page.locator('#filter-modal.active')).toBeVisible();
   await expect.poll(() => new URL(page.url()).pathname).toBe(OPTIONS_PATHNAME);
   await page.getByRole('button', { name: 'Close filter dialog' }).click();
+  await expect(defaultGroupDisclosure).toBeFocused();
 
   await gotoOptions(extensionPage, page, `${PAGES.OPTIONS}?modal=whitelist`);
   await expect(page.locator('#whitelist-modal.active')).toBeVisible();
   await expect.poll(() => new URL(page.url()).pathname).toBe(OPTIONS_PATHNAME);
   await page.getByRole('button', { name: 'Close exception dialog' }).click();
+  await expect(defaultGroupDisclosure).toBeFocused();
 
   await gotoOptions(extensionPage, page, `${PAGES.OPTIONS}?editFilter=seeded-filter`);
   const filterModal = page.locator('#filter-modal.active');
@@ -351,6 +365,15 @@ test('opens filter, group, and exception modals from query params', async ({
   await expect.poll(() => new URL(page.url()).pathname).toBe(OPTIONS_PATHNAME);
   await expect(filterModal.getByRole('heading', { name: 'Edit Filter' })).toBeVisible();
   await expect(filterModal.getByRole('button', { name: 'Delete' })).toBeEnabled();
+  await page.keyboard.press('Escape');
+  await expect(filterModal).toHaveCount(0);
+  await expect(seededFilterEdit).toBeFocused();
+
+  // Deleting the deep-linked filter removes its Edit button, so focus falls back to its group.
+  await gotoOptions(extensionPage, page, `${PAGES.OPTIONS}?editFilter=seeded-filter`);
+  await filterModal.getByRole('button', { name: 'Delete' }).click();
+  await expect(seededFilterEdit).toHaveCount(0);
+  await expect(defaultGroupDisclosure).toBeFocused();
 });
 
 test('opens the about panel from query params and closes it when popup settings are opened', async ({
@@ -388,9 +411,7 @@ test('edits and deletes individual filters and exceptions from options', async (
     pattern: 'editable-filter.example.test/docs',
   });
 
-  const defaultGroupCard = page
-    .locator('details.group-item')
-    .filter({ hasText: '24/7 (Always Active)' });
+  const defaultGroupCard = page.locator('.group-item').filter({ hasText: '24/7 (Always Active)' });
 
   const filterItem = defaultGroupCard
     .locator('.filter-item')
@@ -433,6 +454,8 @@ test('edits and deletes individual filters and exceptions from options', async (
   await expect(
     defaultGroupCard.locator('.filter-item').filter({ hasText: 'Updated Filter' })
   ).toHaveCount(0);
+  // The deleted filter's Edit button is gone, so focus returns to its group, not the body.
+  await expect(defaultGroupCard.locator('.group-disclosure')).toBeFocused();
 
   await defaultGroupCard
     .locator('.filter-item')
@@ -485,9 +508,7 @@ test('updates selected days and rejects schedules with no days in the group edit
   await firstDayCheckboxes.nth(6).click();
   await groupModal.getByRole('button', { name: 'Save' }).click();
 
-  const flexibleHoursGroup = page
-    .locator('details.group-item')
-    .filter({ hasText: 'Flexible Hours' });
+  const flexibleHoursGroup = page.locator('.group-item').filter({ hasText: 'Flexible Hours' });
   await expect(flexibleHoursGroup).toContainText('Su, Sa 09:00-17:00 • 0 filters • 0 exceptions');
 
   await flexibleHoursGroup.locator('button[data-action="edit-group"]').click();
@@ -559,19 +580,17 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
     })
   );
 
-  const workHoursGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  const workHoursGroup = page.locator('.group-item').filter({ hasText: 'Work Hours' });
   const groupToggle = workHoursGroup.locator('input[data-action="toggle-group"]');
+  const disclosure = workHoursGroup.getByRole('button', { name: 'Work Hours', exact: true });
 
   await expect(workHoursGroup).toHaveCount(1);
   await expect(groupToggle).not.toBeChecked();
-  await expect
-    .poll(() => workHoursGroup.evaluate((element) => (element as HTMLDetailsElement).open))
-    .toBe(false);
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+  await expect(workHoursGroup.locator('button[data-action="add-filter"]')).toBeHidden();
 
-  await workHoursGroup.locator('summary').click();
-  await expect
-    .poll(() => workHoursGroup.evaluate((element) => (element as HTMLDetailsElement).open))
-    .toBe(true);
+  await disclosure.click();
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
 
   await expect(workHoursGroup.locator('button[data-action="edit-group"]')).toBeDisabled();
   await expect(workHoursGroup.getByRole('button', { name: 'New Filter' })).toBeDisabled();
@@ -587,9 +606,7 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
 
   await workHoursGroup.locator('label.group-toggle').click();
   await expect(groupToggle).toBeChecked();
-  await expect
-    .poll(() => workHoursGroup.evaluate((element) => (element as HTMLDetailsElement).open))
-    .toBe(true);
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
   await expect
     .poll(
       async () =>
@@ -599,12 +616,10 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
 
   await page.reload();
   await waitForOptionsReady(page);
-  const reloadedGroup = page.locator('details.group-item').filter({ hasText: 'Work Hours' });
+  const reloadedGroup = page.locator('.group-item').filter({ hasText: 'Work Hours' });
   await expect(reloadedGroup).toHaveCount(1);
   await expect(reloadedGroup.locator('input[data-action="toggle-group"]')).toBeChecked();
-  await expect
-    .poll(() => reloadedGroup.evaluate((element) => (element as HTMLDetailsElement).open))
-    .toBe(true);
+  await expect(reloadedGroup.locator('.group-disclosure')).toHaveAttribute('aria-expanded', 'true');
 });
 
 test('trims pattern whitespace and rejects a whitespace-only pattern', async ({
