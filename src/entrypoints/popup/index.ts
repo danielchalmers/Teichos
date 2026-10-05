@@ -27,7 +27,14 @@ import {
   sortFiltersTemporaryFirst,
 } from '../../shared/filtering/schedules';
 import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../../shared/types';
-import { cloneTemplate, getElementByIdOrNull, querySelector } from '../../shared/utils/dom';
+import {
+  announceStatus,
+  clearDialogError,
+  cloneTemplate,
+  getElementByIdOrNull,
+  querySelector,
+  showDialogError,
+} from '../../shared/utils/dom';
 import { formatDuration, generateId, isInternalUrl } from '../../shared/utils/helpers';
 import type { SnoozeState, StorageData } from '../../shared/types';
 
@@ -119,47 +126,6 @@ function setupStorageSync(): void {
     void renderFilters().catch((error: unknown) => {
       console.error('Failed to refresh filters:', error);
     });
-  });
-}
-
-function announceStatus(message: string): void {
-  const status = getElementByIdOrNull('status-message');
-  if (!status) return;
-  status.textContent = '';
-  window.setTimeout(() => {
-    status.textContent = message;
-  }, 0);
-}
-
-/**
- * Show an input or save error inside the open dialog, not only in the visually hidden status
- * region, and tie it to the field it is about.
- */
-function showDialogError(errorId: string, message: string, field?: HTMLElement | null): void {
-  clearDialogError(errorId);
-  const error = getElementByIdOrNull(errorId);
-  if (error) {
-    error.textContent = message;
-    error.hidden = false;
-    // At high zoom the dialog panel scrolls, so bring the message into view.
-    error.scrollIntoView({ block: 'nearest' });
-  }
-  if (field) {
-    field.setAttribute('aria-invalid', 'true');
-    field.setAttribute('aria-describedby', errorId);
-  }
-  announceStatus(message);
-}
-
-function clearDialogError(errorId: string): void {
-  const error = getElementByIdOrNull(errorId);
-  if (error) {
-    error.textContent = '';
-    error.hidden = true;
-  }
-  document.querySelectorAll(`[aria-describedby="${errorId}"]`).forEach((field) => {
-    field.removeAttribute('aria-invalid');
-    field.removeAttribute('aria-describedby');
   });
 }
 

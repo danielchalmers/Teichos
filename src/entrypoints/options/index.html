@@ -372,7 +372,7 @@
             &times;
           </button>
         </div>
-        <form id="filter-form">
+        <form id="filter-form" novalidate>
           <div class="form-row">
             <label for="filter-description">Name</label>
             <input
@@ -408,6 +408,7 @@
               Enabled
             </label>
           </div>
+          <p class="dialog-error" id="filter-error" hidden></p>
           <div class="modal-actions">
             <button type="button" class="button danger" id="delete-filter">Delete</button>
             <button type="button" class="button secondary" id="cancel-filter">Cancel</button>
@@ -439,7 +440,7 @@
             &times;
           </button>
         </div>
-        <form id="group-form">
+        <form id="group-form" novalidate>
           <div class="form-row">
             <label for="group-name"
               >Group Name <span class="required-marker" aria-hidden="true">*</span></label
@@ -477,6 +478,7 @@
               New Schedule
             </button>
           </div>
+          <p class="dialog-error" id="group-error" hidden></p>
           <div class="modal-actions">
             <button type="button" class="button danger" id="delete-group">Delete</button>
             <button type="button" class="button secondary" id="cancel-group">Cancel</button>
@@ -508,7 +510,7 @@
             &times;
           </button>
         </div>
-        <form id="whitelist-form">
+        <form id="whitelist-form" novalidate>
           <div class="form-row">
             <label for="whitelist-description">Name</label>
             <input
@@ -544,6 +546,7 @@
               Enabled
             </label>
           </div>
+          <p class="dialog-error" id="whitelist-error" hidden></p>
           <div class="modal-actions">
             <button type="button" class="button danger" id="delete-whitelist">Delete</button>
             <button type="button" class="button secondary" id="cancel-whitelist">Cancel</button>
@@ -553,6 +556,8 @@
       </div>
     </div>
 
+    <!-- Outside .container and the modals, so it stays announced while a modal makes the page inert. -->
+    <div id="status-message" class="sr-only" role="status"></div>
     <script src="./index.ts" type="module"></script>
   </body>
 </html>
