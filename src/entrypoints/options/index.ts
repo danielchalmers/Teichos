@@ -35,8 +35,14 @@ import {
   sortFiltersTemporaryFirst,
 } from '../../shared/filtering/schedules';
 import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../../shared/types';
-import { cloneTemplate, getElementByIdOrNull, querySelector } from '../../shared/utils/dom';
-import { generateId } from '../../shared/utils/helpers';
+import {
+  clearDialogError,
+  cloneTemplate,
+  getElementByIdOrNull,
+  querySelector,
+  showDialogError,
+} from '../../shared/utils/dom';
+import { generateId, isValidTimeString } from '../../shared/utils/helpers';
 import { formatGroupScheduleSummary } from '../../shared/utils/schedules';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { createTab } from '../../shared/api/tabs';
@@ -115,12 +121,14 @@ function setupEventListeners(): void {
   getElementByIdOrNull('close-filter-modal')?.addEventListener('click', closeFilterModal);
   getElementByIdOrNull('cancel-filter')?.addEventListener('click', closeFilterModal);
   getElementByIdOrNull('filter-form')?.addEventListener('submit', handleFilterSubmit);
+  clearDialogErrorOnEdit('filter-form', 'filter-error');
   getElementByIdOrNull('delete-filter')?.addEventListener('click', handleFilterDelete);
 
   // Group modal
   getElementByIdOrNull('close-group-modal')?.addEventListener('click', closeGroupModal);
   getElementByIdOrNull('cancel-group')?.addEventListener('click', closeGroupModal);
   getElementByIdOrNull('group-form')?.addEventListener('submit', handleGroupSubmit);
+  clearDialogErrorOnEdit('group-form', 'group-error');
   getElementByIdOrNull('delete-group')?.addEventListener('click', handleGroupDelete);
   getElementByIdOrNull('add-schedule-btn')?.addEventListener('click', addScheduleToModal);
   getElementByIdOrNull('group-24x7')?.addEventListener('change', (e: Event) => {
@@ -135,6 +143,7 @@ function setupEventListeners(): void {
   getElementByIdOrNull('close-whitelist-modal')?.addEventListener('click', closeWhitelistModal);
   getElementByIdOrNull('cancel-whitelist')?.addEventListener('click', closeWhitelistModal);
   getElementByIdOrNull('whitelist-form')?.addEventListener('submit', handleWhitelistSubmit);
+  clearDialogErrorOnEdit('whitelist-form', 'whitelist-error');
   getElementByIdOrNull('delete-whitelist')?.addEventListener('click', handleWhitelistDelete);
 
   // Event delegation for list actions
@@ -145,6 +154,14 @@ function setupEventListeners(): void {
   getElementByIdOrNull('schedules-list')?.addEventListener('change', handleSchedulesListClick);
 
   document.addEventListener('keydown', handleGlobalKeydown);
+}
+
+/** An error describes the input it was raised for, so drop it once the user changes the form. */
+function clearDialogErrorOnEdit(formId: string, errorId: string): void {
+  const form = getElementByIdOrNull(formId);
+  const clear = (): void => clearDialogError(errorId);
+  form?.addEventListener('input', clear);
+  form?.addEventListener('change', clear);
 }
 
 function setupStorageSync(): void {
@@ -781,34 +798,33 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
  * Whitespace around a pasted pattern would stop it matching anything, and a blank pattern matches
  * every URL, so neither is accepted silently. Regex patterns keep their exact text.
  */
-function readPatternInput(elementId: string, matchMode: FilterMatchMode): string | null {
-  const raw = getElementByIdOrNull<HTMLInputElement>(elementId)?.value ?? '';
+function readPatternInput(
+  elementId: string,
+  matchMode: FilterMatchMode,
+  errorId: string
+): string | null {
+  const input = getElementByIdOrNull<HTMLInputElement>(elementId);
+  const raw = input?.value ?? '';
   const pattern = matchMode === 'regex' ? raw : raw.trim();
 
-  if (pattern.trim() === '') {
-    alert('Enter a pattern to match.');
-    return null;
-  }
-
-  if (!ensureValidRegex(pattern, matchMode)) {
+  const problem =
+    pattern.trim() === '' ? 'Enter a pattern to match.' : describeInvalidRegex(pattern, matchMode);
+  if (problem) {
+    showDialogError(errorId, problem, input);
+    input?.focus();
     return null;
   }
 
   return pattern;
 }
 
-function ensureValidRegex(pattern: string, matchMode: FilterMatchMode): boolean {
+function describeInvalidRegex(pattern: string, matchMode: FilterMatchMode): string | null {
   if (matchMode !== 'regex') {
-    return true;
+    return null;
   }
 
   const error = getRegexValidationError(pattern);
-  if (!error) {
-    return true;
-  }
-
-  alert(`Invalid regex pattern: ${error}`);
-  return false;
+  return error ? `Invalid regex pattern: ${error}` : null;
 }
 
 function renderFilterItem(filter: Filter): HTMLElement {
@@ -882,6 +898,10 @@ function renderSchedules(): void {
   const schedulesList = getElementByIdOrNull('schedules-list');
   if (!schedulesList) return;
 
+  // Rebuilding the list drops the field an error was tied to, and adding or removing a schedule
+  // can resolve it, so start from a clean form.
+  clearDialogError('group-error');
+
   const fragment = document.createDocumentFragment();
   for (const [index, schedule] of temporarySchedules.entries()) {
     const scheduleNumber = index + 1;
@@ -948,6 +968,7 @@ function openFilterModal(
   if (!modal || !title || !form) return;
 
   form.reset();
+  clearDialogError('filter-error');
   title.textContent = filterId ? 'Edit Filter' : 'Add Filter';
   if (deleteButton) {
     deleteButton.style.display = filterId ? 'inline-flex' : 'none';
@@ -998,7 +1019,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
   const enabled = getElementByIdOrNull<HTMLInputElement>('filter-enabled')?.checked ?? true;
   const matchMode = getMatchModeSelectValue('filter-match-mode');
 
-  const pattern = readPatternInput('filter-pattern', matchMode);
+  const pattern = readPatternInput('filter-pattern', matchMode, 'filter-error');
   if (pattern === null) {
     return;
   }
@@ -1029,7 +1050,10 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     await renderGroups();
   } catch (error) {
     console.error('Failed to save filter:', error);
-    alert(describeSaveError(error, 'Failed to save filter. Please try again.'));
+    showDialogError(
+      'filter-error',
+      describeSaveError(error, 'Failed to save filter. Please try again.')
+    );
   }
 }
 
@@ -1042,7 +1066,7 @@ async function handleFilterDelete(): Promise<void> {
     await renderGroups();
   } catch (error) {
     console.error('Failed to delete filter:', error);
-    alert('Failed to delete filter. Please try again.');
+    showDialogError('filter-error', 'Failed to delete filter. Please try again.');
   }
 }
 
@@ -1064,6 +1088,7 @@ function openGroupModal(groupId?: string, fallbackTrigger: HTMLElement | null = 
   if (!modal || !title || !form || !schedulesContainer || !is24x7Checkbox) return;
 
   form.reset();
+  clearDialogError('group-error');
   title.textContent = groupId ? 'Edit Group' : 'Add Group';
   if (deleteButton) {
     const allowDelete = Boolean(groupId && groupId !== DEFAULT_GROUP_ID);
@@ -1122,12 +1147,38 @@ function addScheduleToModal(): void {
 async function handleGroupSubmit(e: Event): Promise<void> {
   e.preventDefault();
 
-  const name = getElementByIdOrNull<HTMLInputElement>('group-name')?.value ?? '';
+  const nameInput = getElementByIdOrNull<HTMLInputElement>('group-name');
+  const name = nameInput?.value ?? '';
   const is24x7 = getElementByIdOrNull<HTMLInputElement>('group-24x7')?.checked ?? false;
 
+  if (name.trim() === '') {
+    showDialogError('group-error', 'Enter a group name.', nameInput);
+    nameInput?.focus();
+    return;
+  }
+
   // A schedule with no days can never activate, so the group would silently block nothing.
-  if (!is24x7 && temporarySchedules.some((schedule) => schedule.daysOfWeek.length === 0)) {
-    alert('Each schedule needs at least one day selected.');
+  const emptyScheduleIndex = is24x7
+    ? -1
+    : temporarySchedules.findIndex((schedule) => schedule.daysOfWeek.length === 0);
+  if (emptyScheduleIndex !== -1) {
+    const dayGroup = document.querySelectorAll<HTMLElement>(
+      '#schedules-list [data-role="day-checkboxes"]'
+    )[emptyScheduleIndex];
+    showDialogError('group-error', 'Each schedule needs at least one day selected.', dayGroup);
+    dayGroup?.querySelector<HTMLInputElement>('input[type="checkbox"]')?.focus();
+    return;
+  }
+
+  // A partly cleared time input reads as '' and would save a schedule that can never run.
+  const incompleteTime = is24x7
+    ? undefined
+    : Array.from(
+        document.querySelectorAll<HTMLInputElement>('#schedules-list input[type="time"]')
+      ).find((input) => !isValidTimeString(input.value));
+  if (incompleteTime) {
+    showDialogError('group-error', 'Enter a start and end time for each schedule.', incompleteTime);
+    incompleteTime.focus();
     return;
   }
 
@@ -1148,7 +1199,10 @@ async function handleGroupSubmit(e: Event): Promise<void> {
     await renderGroups();
   } catch (error) {
     console.error('Failed to save group:', error);
-    alert(describeSaveError(error, 'Failed to save group. Please try again.'));
+    showDialogError(
+      'group-error',
+      describeSaveError(error, 'Failed to save group. Please try again.')
+    );
   }
 }
 
@@ -1161,7 +1215,7 @@ async function handleGroupDelete(): Promise<void> {
     await renderGroups();
   } catch (error) {
     console.error('Failed to delete group:', error);
-    alert('Failed to delete group. Please try again.');
+    showDialogError('group-error', 'Failed to delete group. Please try again.');
   }
 }
 
@@ -1184,6 +1238,7 @@ function openWhitelistModal(
   if (!modal || !title || !form) return;
 
   form.reset();
+  clearDialogError('whitelist-error');
   title.textContent = whitelistId ? 'Edit Exception' : 'Add Exception';
   if (deleteButton) {
     deleteButton.style.display = whitelistId ? 'inline-flex' : 'none';
@@ -1234,7 +1289,7 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
   const enabled = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled')?.checked ?? true;
   const matchMode = getMatchModeSelectValue('whitelist-match-mode');
 
-  const pattern = readPatternInput('whitelist-pattern', matchMode);
+  const pattern = readPatternInput('whitelist-pattern', matchMode, 'whitelist-error');
   if (pattern === null) {
     return;
   }
@@ -1258,7 +1313,10 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
     await renderGroups();
   } catch (error) {
     console.error('Failed to save exception:', error);
-    alert(describeSaveError(error, 'Failed to save exception. Please try again.'));
+    showDialogError(
+      'whitelist-error',
+      describeSaveError(error, 'Failed to save exception. Please try again.')
+    );
   }
 }
 
@@ -1271,7 +1329,7 @@ async function handleWhitelistDelete(): Promise<void> {
     await renderGroups();
   } catch (error) {
     console.error('Failed to delete exception:', error);
-    alert('Failed to delete exception. Please try again.');
+    showDialogError('whitelist-error', 'Failed to delete exception. Please try again.');
   }
 }
 

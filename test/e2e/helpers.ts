@@ -9,10 +9,6 @@ export type ClipboardCaptureGlobal = typeof globalThis & {
   __e2eClipboardText?: string;
 };
 
-export type AlertCaptureGlobal = typeof globalThis & {
-  __lastAlertMessage?: string;
-};
-
 // Mirrors createDefaultGroup() in src/shared/storage/defaults.ts, `enabled` included:
 // seeded data should be a fixed point of normalizeStoredData, or a background
 // write-back (e.g. clearing an expired snooze) persists the normalized form

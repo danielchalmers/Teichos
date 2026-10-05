@@ -371,6 +371,14 @@ input:checked + .slider:before {
   transform: translateX(22px);
 }
 
+/* Dialog input and save errors, shown inline and also announced through the status region. */
+.dialog-error {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--danger-text);
+}
+
 /* Form fields share one focus ring and mark invalid input with the danger color. */
 .input:focus-visible,
 select:focus-visible {

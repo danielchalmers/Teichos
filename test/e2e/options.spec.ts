@@ -1,6 +1,5 @@
 import { readFile } from 'fs/promises';
 import { test, expect } from './fixtures';
-import type { AlertCaptureGlobal } from './helpers';
 import { PAGES } from '../../src/shared/constants';
 import {
   captureScreenshot,
@@ -111,17 +110,7 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
   await expect(defaultGroupCard).toContainText('focus.example.com/docs');
 });
 
-test('shows an alert for invalid regex filters', async ({ extensionPage, page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(window, '__lastAlertMessage', {
-      value: '',
-      writable: true,
-      configurable: true,
-    });
-    window.alert = (message?: string): void => {
-      (globalThis as AlertCaptureGlobal).__lastAlertMessage = message ?? '';
-    };
-  });
+test('shows dialog errors inline and ties them to the field', async ({ extensionPage, page }) => {
   await gotoOptions(extensionPage, page);
 
   await page
@@ -131,16 +120,46 @@ test('shows an alert for invalid regex filters', async ({ extensionPage, page })
     .click();
 
   const filterModal = page.locator('#filter-modal.active');
-  await filterModal.locator('#filter-pattern').fill('(');
-  await filterModal.locator('#filter-match-mode').selectOption('regex');
+  const patternInput = filterModal.locator('#filter-pattern');
+  const filterError = filterModal.locator('#filter-error');
+  await expect(filterError).toBeHidden();
 
+  // Native validation is off, so an empty pattern reaches the handler and is reported inline.
+  await filterModal.getByRole('button', { name: 'Save' }).click();
+  await expect(filterError).toHaveText('Enter a pattern to match.');
+  await expect(patternInput).toHaveAttribute('aria-invalid', 'true');
+  await expect(patternInput).toHaveAttribute('aria-describedby', 'filter-error');
+  await expect(patternInput).toBeFocused();
+
+  await patternInput.fill('(');
+  await expect(filterError).toBeHidden();
+  await expect(patternInput).not.toHaveAttribute('aria-invalid');
+
+  await filterModal.locator('#filter-match-mode').selectOption('regex');
   await filterModal.getByRole('button', { name: 'Save' }).click();
 
   await expect(filterModal).toBeVisible();
-  await expect
-    .poll(() => page.evaluate(() => (globalThis as AlertCaptureGlobal).__lastAlertMessage))
-    .toContain('Invalid regex pattern');
+  await expect(filterError).toContainText('Invalid regex pattern');
+  await expect(patternInput).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#status-message')).toContainText('Invalid regex pattern');
   expect(await readStorage(page)).toBeUndefined();
+
+  // A failed write is reported in the dialog, which stays open so nothing typed is lost.
+  await page.evaluate(() => {
+    chrome.storage.sync.set = (): Promise<void> =>
+      Promise.reject(new Error('QUOTA_BYTES quota exceeded'));
+  });
+  await patternInput.fill('reddit.com');
+  await filterModal.locator('#filter-match-mode').selectOption('contains');
+  await filterModal.getByRole('button', { name: 'Save' }).click();
+  await expect(filterError).toContainText('Browser sync storage is full');
+  await expect(filterModal).toBeVisible();
+
+  // Reopening the dialog starts without the previous error.
+  await filterModal.getByRole('button', { name: 'Cancel' }).click();
+  await page.locator('button[data-action="add-filter"]').first().click();
+  await expect(page.locator('#filter-modal.active')).toBeVisible();
+  await expect(page.locator('#filter-error')).toBeHidden();
 });
 
 test('exports current settings from global settings', async ({ extensionPage, page }) => {
@@ -481,22 +500,20 @@ test('updates selected days and rejects schedules with no days in the group edit
   extensionPage,
   page,
 }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(window, '__lastAlertMessage', {
-      value: '',
-      writable: true,
-      configurable: true,
-    });
-    window.alert = (message?: string): void => {
-      (globalThis as AlertCaptureGlobal).__lastAlertMessage = message ?? '';
-    };
-  });
   await gotoOptions(extensionPage, page);
 
   await page.getByRole('button', { name: 'New Group' }).click();
   const groupModal = page.locator('#group-modal.active');
   await expect(groupModal).toBeVisible();
-  await groupModal.locator('#group-name').fill('Flexible Hours');
+
+  const groupName = groupModal.locator('#group-name');
+  await groupModal.getByRole('button', { name: 'Save' }).click();
+  await expect(groupModal.locator('#group-error')).toHaveText('Enter a group name.');
+  await expect(groupName).toHaveAttribute('aria-invalid', 'true');
+  await expect(groupName).toBeFocused();
+
+  await groupName.fill('Flexible Hours');
+  await expect(groupModal.locator('#group-error')).toBeHidden();
   await groupModal.getByRole('button', { name: 'New Schedule' }).click();
 
   const firstSchedule = groupModal.locator('#schedules-list .schedule-item').first();
@@ -531,9 +548,29 @@ test('updates selected days and rejects schedules with no days in the group edit
 
   // A schedule with no selected days can never activate, so the save is rejected.
   await expect(emptyDaysModal).toBeVisible();
-  await expect
-    .poll(() => page.evaluate(() => (globalThis as AlertCaptureGlobal).__lastAlertMessage))
-    .toContain('at least one day');
+  await expect(emptyDaysModal.locator('#group-error')).toHaveText(
+    'Each schedule needs at least one day selected.'
+  );
+  const emptyDayGroup = emptyDaysModal.getByRole('group', { name: 'Days for schedule 1' });
+  await expect(emptyDayGroup).toHaveAttribute('aria-invalid', 'true');
+  await expect(emptyDayGroup).toHaveAttribute('aria-describedby', 'group-error');
+  await expect(emptyDaysCheckboxes.first()).toBeFocused();
+
+  // Rebuilding the schedule list drops the error rather than leaving it detached from any field.
+  await emptyDaysModal.getByRole('button', { name: 'Delete schedule 1' }).click();
+  await expect(emptyDaysModal.locator('#group-error')).toBeHidden();
+
+  // With validation handled in the dialog, a partly cleared time is caught there too: it would
+  // otherwise save a schedule that can never run.
+  await emptyDaysModal.getByRole('button', { name: 'New Schedule' }).click();
+  const startTime = emptyDaysModal.getByLabel('Start time for schedule 1');
+  await startTime.fill('');
+  await emptyDaysModal.getByRole('button', { name: 'Save' }).click();
+  await expect(emptyDaysModal.locator('#group-error')).toHaveText(
+    'Enter a start and end time for each schedule.'
+  );
+  await expect(startTime).toHaveAttribute('aria-invalid', 'true');
+  await expect(startTime).toBeFocused();
 
   await emptyDaysModal.getByRole('button', { name: 'Cancel' }).click();
   await expect(flexibleHoursGroup).toContainText('0 schedules • 0 filters • 0 exceptions');
@@ -626,30 +663,28 @@ test('trims pattern whitespace and rejects a whitespace-only pattern', async ({
   extensionPage,
   page,
 }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(window, '__lastAlertMessage', {
-      value: '',
-      writable: true,
-      configurable: true,
-    });
-    window.alert = (message?: string): void => {
-      (globalThis as AlertCaptureGlobal).__lastAlertMessage = message ?? '';
-    };
-  });
   await gotoOptions(extensionPage, page);
 
-  // The `required` attribute only rejects an empty value, so a whitespace-only pattern reaches
-  // the handler and would be stored as a filter that can never match.
+  // A whitespace-only pattern would be stored as a filter that can never match.
   await page.locator('button[data-action="add-filter"]').first().click();
   const blankModal = page.locator('#filter-modal.active');
   await blankModal.locator('#filter-pattern').fill('   ');
   await blankModal.getByRole('button', { name: 'Save' }).click();
 
   await expect(blankModal).toBeVisible();
-  await expect
-    .poll(() => page.evaluate(() => (globalThis as AlertCaptureGlobal).__lastAlertMessage))
-    .toContain('Enter a pattern');
+  await expect(blankModal.locator('#filter-error')).toHaveText('Enter a pattern to match.');
   await blankModal.getByRole('button', { name: 'Cancel' }).click();
+
+  // Exceptions share the same validation and report it in their own dialog.
+  await page.locator('button[data-action="add-whitelist"]').first().click();
+  const exceptionModal = page.locator('#whitelist-modal.active');
+  await exceptionModal.getByRole('button', { name: 'Save' }).click();
+  await expect(exceptionModal.locator('#whitelist-error')).toHaveText('Enter a pattern to match.');
+  await expect(exceptionModal.locator('#whitelist-pattern')).toHaveAttribute(
+    'aria-invalid',
+    'true'
+  );
+  await exceptionModal.getByRole('button', { name: 'Cancel' }).click();
 
   // Surrounding whitespace on a pasted pattern would otherwise be stored verbatim, leaving a
   // filter that looks active but matches nothing.

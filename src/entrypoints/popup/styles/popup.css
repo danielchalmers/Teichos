@@ -327,14 +327,6 @@ body {
   gap: 0.72rem;
 }
 
-/* Visible input and save errors; the same text is also announced through the status region. */
-.dialog-error {
-  margin: 0;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--danger-text);
-}
-
 /* Snooze dialog specifics */
 .snooze-options {
   display: grid;
