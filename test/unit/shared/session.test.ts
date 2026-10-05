@@ -114,6 +114,37 @@ describe('shared/api/session', () => {
     });
   });
 
+  it('keeps a temporary filter expiry in blocked page snapshots only when it is a finite time', async () => {
+    const pageState = (blockId: string, expiresAt: unknown): unknown => ({
+      blockId,
+      tabId: 3,
+      targetUrl: 'https://blocked.com/focus',
+      blockedAt: 1234,
+      blockedBy: { filterId: 'filter-1', groupId: 'group-1' },
+      filter: { id: 'filter-1', pattern: 'blocked.com', matchMode: 'contains', expiresAt },
+      group: undefined,
+      effectiveState: { filterEnabled: true, groupActive: true, snoozeActive: false },
+    });
+    const session = getChromeMock().storage.session._data;
+    session.set('blocked_page_state_temporary', pageState('temporary', 5_000));
+    session.set('blocked_page_state_text', pageState('text', '5000'));
+    session.set('blocked_page_state_infinite', pageState('infinite', Infinity));
+    session.set('blocked_page_state_nan', pageState('nan', Number.NaN));
+
+    await expect(getBlockedPageState('temporary')).resolves.toMatchObject({
+      filter: { id: 'filter-1', pattern: 'blocked.com', matchMode: 'contains', expiresAt: 5_000 },
+    });
+    // A malformed expiry is dropped rather than failing the whole snapshot.
+    for (const blockId of ['text', 'infinite', 'nan']) {
+      const state = await getBlockedPageState(blockId);
+      expect(state?.filter).toEqual({
+        id: 'filter-1',
+        pattern: 'blocked.com',
+        matchMode: 'contains',
+      });
+    }
+  });
+
   it('normalizes active session snooze values', async () => {
     await setSessionSnooze({ active: true, until: 1234 });
 

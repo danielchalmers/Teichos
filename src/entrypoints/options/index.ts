@@ -19,6 +19,7 @@ import {
   addWhitelist,
   updateWhitelist,
   deleteWhitelist,
+  clearSnooze,
 } from '../../shared/api/storage';
 import type {
   Filter,
@@ -32,10 +33,12 @@ import { getRegexValidationError } from '../../shared/filtering/patterns';
 import {
   isGroupEnabled,
   isSnoozeActive,
+  isTemporaryFilter,
   sortFiltersTemporaryFirst,
 } from '../../shared/filtering/schedules';
 import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../../shared/types';
 import {
+  announceStatus,
   clearDialogError,
   cloneTemplate,
   getElementByIdOrNull,
@@ -43,7 +46,12 @@ import {
   showDialogError,
 } from '../../shared/utils/dom';
 import { generateId, isValidTimeString } from '../../shared/utils/helpers';
-import { formatGroupScheduleSummary } from '../../shared/utils/schedules';
+import {
+  formatGroupScheduleSummary,
+  formatScheduleSummary,
+  formatSnoozeEnd,
+  formatTemporaryFilterLabel,
+} from '../../shared/utils/schedules';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { createTab } from '../../shared/api/tabs';
 import { DAY_FULL_NAMES, DAY_NAMES, DEFAULT_SCHEDULE, PAGES } from '../../shared/constants';
@@ -63,6 +71,7 @@ let lastFocusedElement: HTMLElement | null = null;
 let lastFocusedGroupId: string | null = null;
 let setInfoPopoverOpen: ((isOpen: boolean) => void) | null = null;
 let globalSettingsStatusTimer: number | null = null;
+let timedRefreshTimer: number | null = null;
 
 /**
  * Initialize options page
@@ -116,26 +125,30 @@ function setupEventListeners(): void {
       void handleGlobalExpandDetailsChange();
     }
   );
+  getElementByIdOrNull('snooze-notice-resume')?.addEventListener('click', () => {
+    void handleResumeSnooze();
+  });
 
   // Filter modal
   getElementByIdOrNull('close-filter-modal')?.addEventListener('click', closeFilterModal);
   getElementByIdOrNull('cancel-filter')?.addEventListener('click', closeFilterModal);
   getElementByIdOrNull('filter-form')?.addEventListener('submit', handleFilterSubmit);
   clearDialogErrorOnEdit('filter-form', 'filter-error');
-  getElementByIdOrNull('delete-filter')?.addEventListener('click', handleFilterDelete);
+  setupDeleteConfirm('filter', describeFilterDelete, handleFilterDelete);
+  setupMatchModeHint('filter');
 
   // Group modal
   getElementByIdOrNull('close-group-modal')?.addEventListener('click', closeGroupModal);
   getElementByIdOrNull('cancel-group')?.addEventListener('click', closeGroupModal);
   getElementByIdOrNull('group-form')?.addEventListener('submit', handleGroupSubmit);
   clearDialogErrorOnEdit('group-form', 'group-error');
-  getElementByIdOrNull('delete-group')?.addEventListener('click', handleGroupDelete);
+  setupDeleteConfirm('group', describeGroupDelete, handleGroupDelete);
   getElementByIdOrNull('add-schedule-btn')?.addEventListener('click', addScheduleToModal);
   getElementByIdOrNull('group-24x7')?.addEventListener('change', (e: Event) => {
     const is24x7 = (e.target as HTMLInputElement).checked;
     const schedulesContainer = getElementByIdOrNull('schedules-container');
     if (schedulesContainer) {
-      schedulesContainer.style.display = is24x7 ? 'none' : 'block';
+      schedulesContainer.hidden = is24x7;
     }
   });
 
@@ -144,7 +157,8 @@ function setupEventListeners(): void {
   getElementByIdOrNull('cancel-whitelist')?.addEventListener('click', closeWhitelistModal);
   getElementByIdOrNull('whitelist-form')?.addEventListener('submit', handleWhitelistSubmit);
   clearDialogErrorOnEdit('whitelist-form', 'whitelist-error');
-  getElementByIdOrNull('delete-whitelist')?.addEventListener('click', handleWhitelistDelete);
+  setupDeleteConfirm('whitelist', describeWhitelistDelete, handleWhitelistDelete);
+  setupMatchModeHint('whitelist');
 
   // Event delegation for list actions
   const groupsList = getElementByIdOrNull('groups-list');
@@ -164,6 +178,170 @@ function clearDialogErrorOnEdit(formId: string, errorId: string): void {
   form?.addEventListener('change', clear);
 }
 
+/** The dialogs that edit one stored item; ids follow `${kind}-modal`, `delete-${kind}`, etc. */
+type ItemDialogKind = 'filter' | 'group' | 'whitelist';
+
+/**
+ * Deleting from a dialog takes two steps: the quiet Delete button swaps the dialog's actions for
+ * a confirm strip that says what will be lost, and only the strip's filled Delete button deletes.
+ */
+function setupDeleteConfirm(
+  kind: ItemDialogKind,
+  describe: () => Promise<string | null>,
+  onConfirm: () => Promise<void>
+): void {
+  const confirmStrip = getElementByIdOrNull(`${kind}-delete-confirm`);
+  getElementByIdOrNull(`delete-${kind}`)?.addEventListener('click', () => {
+    void showDeleteConfirm(kind, describe).catch((error: unknown) => {
+      console.error(`Failed to prepare ${kind} delete:`, error);
+    });
+  });
+  confirmStrip
+    ?.querySelector('[data-action="cancel-delete"]')
+    ?.addEventListener('click', () => hideDeleteConfirm(kind, true));
+  confirmStrip?.querySelector('[data-action="confirm-delete"]')?.addEventListener('click', () => {
+    void onConfirm();
+  });
+  // Editing a field means the user has moved on from deleting, so bring back Save and Cancel.
+  getElementByIdOrNull(`${kind}-form`)?.addEventListener('input', () => {
+    if (isDeleteConfirmOpen(kind)) hideDeleteConfirm(kind);
+  });
+}
+
+/**
+ * While the confirm strip asks Keep or Delete, the form's Save button is only hidden, and a hidden
+ * submit button still takes Enter in a field, so the submit handlers check this first.
+ */
+function isDeleteConfirmOpen(kind: ItemDialogKind): boolean {
+  return getElementByIdOrNull(`${kind}-delete-confirm`)?.hidden === false;
+}
+
+async function showDeleteConfirm(
+  kind: ItemDialogKind,
+  describe: () => Promise<string | null>
+): Promise<void> {
+  const prompt = await describe();
+  const modal = getElementByIdOrNull(`${kind}-modal`);
+  // The dialog may have closed, or moved on to another item, while the prompt loaded.
+  if (prompt === null || activeModal !== modal) return;
+
+  const actions = modal?.querySelector<HTMLElement>('[data-role="dialog-actions"]');
+  const confirmStrip = getElementByIdOrNull(`${kind}-delete-confirm`);
+  const promptElement = getElementByIdOrNull(`${kind}-delete-prompt`);
+  if (!actions || !confirmStrip || !promptElement) return;
+
+  promptElement.textContent = prompt;
+  actions.hidden = true;
+  confirmStrip.hidden = false;
+  confirmStrip.querySelector<HTMLElement>('[data-action="cancel-delete"]')?.focus();
+}
+
+/** Put the dialog's normal actions back; `restoreFocus` returns focus to its Delete button. */
+function hideDeleteConfirm(kind: ItemDialogKind, restoreFocus = false): void {
+  const actions = getElementByIdOrNull(`${kind}-modal`)?.querySelector<HTMLElement>(
+    '[data-role="dialog-actions"]'
+  );
+  const confirmStrip = getElementByIdOrNull(`${kind}-delete-confirm`);
+  if (actions) actions.hidden = false;
+  if (confirmStrip) confirmStrip.hidden = true;
+  if (restoreFocus) {
+    getElementByIdOrNull(`delete-${kind}`)?.focus();
+  }
+}
+
+/** Name an item the way its row does: its description, else its pattern. */
+function quoteItemName(item: { readonly description?: string; readonly pattern: string }): string {
+  const description = item.description?.trim();
+  return `“${description === undefined || description === '' ? item.pattern : description}”`;
+}
+
+async function describeFilterDelete(): Promise<string | null> {
+  const filterId = currentEditingFilterId;
+  if (!filterId) return null;
+  const filter = (await loadData()).filters.find((entry) => entry.id === filterId);
+  if (currentEditingFilterId !== filterId) return null;
+  return `Delete ${filter ? quoteItemName(filter) : 'this filter'}? This can't be undone.`;
+}
+
+async function describeWhitelistDelete(): Promise<string | null> {
+  const whitelistId = currentEditingWhitelistId;
+  if (!whitelistId) return null;
+  const entry = (await loadData()).whitelist.find((item) => item.id === whitelistId);
+  if (currentEditingWhitelistId !== whitelistId) return null;
+  return `Delete ${entry ? quoteItemName(entry) : 'this exception'}? This can't be undone.`;
+}
+
+/** A deleted group's filters and exceptions are kept, so the prompt says where they go. */
+async function describeGroupDelete(): Promise<string | null> {
+  const groupId = currentEditingGroupId;
+  if (!groupId || groupId === DEFAULT_GROUP_ID) return null;
+  const data = await loadData();
+  if (currentEditingGroupId !== groupId) return null;
+
+  const group = data.groups.find((entry) => entry.id === groupId);
+  const subject = group ? `“${group.name}”` : 'this group';
+  const contents = describeGroupContents(data, groupId);
+  if (!contents) {
+    return `Delete ${subject}? This can't be undone.`;
+  }
+
+  const verb = contents.count === 1 ? 'moves' : 'move';
+  return `Delete ${subject}? Its ${contents.text} ${verb} to ${getDefaultGroupName(data)}.`;
+}
+
+/** What a group holds, e.g. "1 filter and 2 exceptions", or null when it is empty. */
+function describeGroupContents(
+  data: StorageData,
+  groupId: string
+): { text: string; count: number } | null {
+  const filterCount = data.filters.filter((filter) => filter.groupId === groupId).length;
+  const exceptionCount = data.whitelist.filter((entry) => entry.groupId === groupId).length;
+  if (filterCount + exceptionCount === 0) return null;
+
+  const text = [
+    filterCount > 0 ? pluralize(filterCount, 'filter') : null,
+    exceptionCount > 0 ? pluralize(exceptionCount, 'exception') : null,
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' and ');
+  return { text, count: filterCount + exceptionCount };
+}
+
+/** The default group can be renamed by an import, so use its stored name. */
+function getDefaultGroupName(data: StorageData): string {
+  return data.groups.find((entry) => entry.id === DEFAULT_GROUP_ID)?.name ?? 'the default group';
+}
+
+const MATCH_MODE_HINTS: Record<FilterMatchMode, { filter: string; whitelist: string }> = {
+  contains: {
+    filter: 'Blocks any address containing this text, like reddit.com.',
+    whitelist: 'Allows any address containing this text, like reddit.com.',
+  },
+  exact: {
+    filter: 'Blocks only this exact address.',
+    whitelist: 'Allows only this exact address.',
+  },
+  regex: {
+    filter: 'Advanced: tested against the full address.',
+    whitelist: 'Advanced: tested against the full address.',
+  },
+};
+
+/** Explain the selected match mode under its select, which references the hint. */
+function setupMatchModeHint(kind: 'filter' | 'whitelist'): void {
+  getElementByIdOrNull(`${kind}-match-mode`)?.addEventListener('change', () => {
+    updateMatchModeHint(kind);
+  });
+  updateMatchModeHint(kind);
+}
+
+function updateMatchModeHint(kind: 'filter' | 'whitelist'): void {
+  const hint = getElementByIdOrNull(`${kind}-match-hint`);
+  if (hint) {
+    hint.textContent = MATCH_MODE_HINTS[getMatchModeSelectValue(`${kind}-match-mode`)][kind];
+  }
+}
+
 function setupStorageSync(): void {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'sync') return;
@@ -172,6 +350,21 @@ function setupStorageSync(): void {
       console.error('Failed to refresh groups:', error);
     });
   });
+}
+
+/**
+ * Resume filtering from the snooze notice; the re-render hides the notice. A failure is shown in
+ * the notice itself, next to the button that caused it, and announced.
+ */
+async function handleResumeSnooze(): Promise<void> {
+  try {
+    await clearSnooze();
+    await renderGroups();
+    announceStatus('Filtering resumed.');
+  } catch (error) {
+    console.error('Failed to resume filtering:', error);
+    showDialogError('snooze-notice-error', 'Failed to resume filtering. Please try again.');
+  }
 }
 
 function setupInfoPopover(): ((isOpen: boolean) => void) | null {
@@ -277,27 +470,37 @@ function populateInfoPanel(): void {
   const year = new Date().getFullYear();
   const copyrightElement = getElementByIdOrNull('info-copyright');
   if (copyrightElement) {
-    copyrightElement.textContent = `(c) ${year} Daniel Chalmers`;
+    copyrightElement.textContent = `© ${year} Daniel Chalmers`;
   }
 }
 
 /**
- * Clear the live region and write the message on the next tick, so screen readers announce it
- * even when it repeats the previous message.
+ * Show the result of the latest General action under the card. The live region is cleared and the
+ * message written on the next tick, so screen readers announce it even when it repeats.
  */
 function setGlobalSettingsStatus(message: string, isError = false): void {
-  const status = getElementByIdOrNull('global-settings-status');
+  const status = clearGlobalSettingsStatus();
   if (!status) return;
 
-  if (globalSettingsStatusTimer !== null) {
-    window.clearTimeout(globalSettingsStatusTimer);
-  }
-  status.textContent = '';
   status.classList.toggle('is-error', isError);
   globalSettingsStatusTimer = window.setTimeout(() => {
     globalSettingsStatusTimer = null;
     status.textContent = message;
   }, 0);
+}
+
+/** Drop the previous action's result, which no longer describes the latest action. */
+function clearGlobalSettingsStatus(): HTMLElement | null {
+  const status = getElementByIdOrNull('global-settings-status');
+  if (!status) return null;
+
+  if (globalSettingsStatusTimer !== null) {
+    window.clearTimeout(globalSettingsStatusTimer);
+    globalSettingsStatusTimer = null;
+  }
+  status.textContent = '';
+  status.classList.remove('is-error');
+  return status;
 }
 
 function createExportFileName(now = new Date()): string {
@@ -358,7 +561,15 @@ async function handlePreviewBlockPage(): Promise<void> {
   url.searchParams.set('preview', '1');
 
   try {
-    await createTab({ url: url.toString(), active: true });
+    // Opened next to Settings with it as the opener, so closing the preview comes back here.
+    const settingsTab = await chrome.tabs.getCurrent();
+    await createTab({
+      url: url.toString(),
+      active: true,
+      ...(typeof settingsTab?.id === 'number'
+        ? { openerTabId: settingsTab.id, index: settingsTab.index + 1 }
+        : {}),
+    });
   } catch (error) {
     console.error('Failed to open block page preview:', error);
     setGlobalSettingsStatus('Failed to open block page preview.', true);
@@ -378,7 +589,14 @@ async function handleGlobalExpandDetailsChange(): Promise<void> {
 
   try {
     await updateData((data) => ({ ...data, expandBlockPageDetails }));
-    setGlobalSettingsStatus('Block page details preference updated.');
+    // The switch shows its own state, so the change is only announced; a visible line under the
+    // card would read as part of Backup.
+    clearGlobalSettingsStatus();
+    announceStatus(
+      expandBlockPageDetails
+        ? 'Block page details will be shown.'
+        : 'Block page details will be hidden.'
+    );
   } catch (error) {
     console.error('Failed to update block page details preference:', error);
     setGlobalSettingsStatus(
@@ -406,8 +624,11 @@ function setMainInert(isInert: boolean): void {
   }
 }
 
+/** Controls that can take focus right now; a hidden one (e.g. the idle confirm strip) cannot. */
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) => element.getClientRects().length > 0
+  );
 }
 
 function focusModal(modal: HTMLElement, preferredSelector?: string): void {
@@ -612,11 +833,8 @@ async function renderGroups(): Promise<void> {
   }
 
   groupsList.replaceChildren(fragment);
-
-  const snoozeNotice = getElementByIdOrNull('snooze-notice');
-  if (snoozeNotice) {
-    snoozeNotice.hidden = !snoozeActive;
-  }
+  renderSnoozeNotice(data, snoozeActive);
+  scheduleTimedRefresh(data, snoozeActive);
 
   const groupElements = groupsList.querySelectorAll<HTMLElement>('.group-item');
   if (openGroupIds.size > 0) {
@@ -636,6 +854,99 @@ async function renderGroups(): Promise<void> {
   if (restoreFocus) {
     resolveFocusTarget(focusTarget, focusGroupId)?.focus();
   }
+}
+
+/**
+ * Show the snooze notice with its end as a clock time, which stays correct without ticking. When
+ * the snooze ends, the notice hides; if its Resume button had focus, focus moves on to the first
+ * group instead of falling back to the document body.
+ */
+function renderSnoozeNotice(data: StorageData, snoozeActive: boolean): void {
+  const notice = getElementByIdOrNull('snooze-notice');
+  const title = getElementByIdOrNull('snooze-notice-title');
+  if (!notice || !title) return;
+
+  if (snoozeActive) {
+    title.textContent = `Filtering is snoozed ${formatSnoozeEnd(data.snooze)}.`;
+  }
+
+  const resumeHadFocus = notice.contains(document.activeElement);
+  notice.hidden = !snoozeActive;
+  if (!snoozeActive) {
+    // A failed Resume no longer applies once the snooze is over, however it ended.
+    clearDialogError('snooze-notice-error');
+  }
+  if (resumeHadFocus && !snoozeActive) {
+    const firstGroupId =
+      document.querySelector<HTMLElement>('#groups-list .group-item')?.dataset['groupId'] ?? null;
+    getGroupFocusFallback(firstGroupId)?.focus();
+  }
+}
+
+/** setTimeout fires immediately for delays past 2^31 - 1 ms, so long waits are re-checked. */
+const MAX_REFRESH_DELAY_MS = 60 * 60_000;
+
+/**
+ * Keep time-based text current without a ticking re-render: re-render when the snooze or a
+ * temporary filter ends (the background also clears an ended snooze, but on its own schedule),
+ * and refresh the "45m left" labels in place each minute while any are shown.
+ */
+function scheduleTimedRefresh(data: StorageData, snoozeActive: boolean, now = Date.now()): void {
+  if (timedRefreshTimer !== null) {
+    window.clearTimeout(timedRefreshTimer);
+    timedRefreshTimer = null;
+  }
+
+  const temporaryEnds = data.filters
+    .filter(isTemporaryFilter)
+    .map((filter) => filter.expiresAt)
+    .filter((time) => time > now);
+  const snoozeEnd =
+    snoozeActive && typeof data.snooze.until === 'number' ? data.snooze.until : Infinity;
+  const nextEnd = Math.min(snoozeEnd, ...temporaryEnds);
+  if (nextEnd === Infinity) return;
+
+  // Remaining time is shown in whole minutes, rounded up, so a label changes each time its
+  // remaining time reaches a whole minute.
+  const nextLabelChange = Math.min(
+    ...temporaryEnds.map((end) => now + ((end - now) % 60_000 || 60_000))
+  );
+  const delay = Math.min(nextEnd, nextLabelChange) - now;
+
+  timedRefreshTimer = window.setTimeout(
+    () => {
+      timedRefreshTimer = null;
+      // The re-render below rebuilds the rows but not an open filter dialog's subtitle.
+      refreshTemporaryLabels();
+      if (Date.now() >= nextEnd) {
+        void renderGroups().catch((error: unknown) => {
+          console.error('Failed to refresh groups:', error);
+        });
+      } else {
+        scheduleTimedRefresh(data, snoozeActive);
+      }
+    },
+    Math.min(Math.max(delay, 0) + 50, MAX_REFRESH_DELAY_MS)
+  );
+}
+
+/** Update every "Temporary · 45m left" label: the rows, and the filter dialog's subtitle. */
+function refreshTemporaryLabels(): void {
+  document.querySelectorAll<HTMLElement>('[data-role="filter-expiry"]').forEach((label) => {
+    const expiresAt = Number(label.dataset['expiresAt']);
+    if (Number.isFinite(expiresAt)) {
+      label.textContent = formatTemporaryFilterLabel(expiresAt - Date.now());
+    }
+  });
+}
+
+/** A temporary filter's "Temporary · 45m left" label, which refreshTemporaryLabels keeps current. */
+function createTemporaryLabel(tagName: 'div' | 'span', expiresAt: number): HTMLElement {
+  const label = document.createElement(tagName);
+  label.dataset['role'] = 'filter-expiry';
+  label.dataset['expiresAt'] = String(expiresAt);
+  label.textContent = formatTemporaryFilterLabel(expiresAt - Date.now());
+  return label;
 }
 
 /**
@@ -664,7 +975,6 @@ function renderGroup(
 ): HTMLElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
   const groupEnabled = isGroupEnabled(group);
-  const scheduleSummary = formatGroupScheduleSummary(group);
   const filterSummary = pluralize(filters.length, 'filter');
   const exceptionSummary = pluralize(whitelist.length, 'exception', 'exceptions');
 
@@ -678,7 +988,7 @@ function renderGroup(
 
   querySelector<HTMLElement>('[data-role="group-title"]', groupElement).textContent = group.name;
   const meta = querySelector<HTMLElement>('[data-role="group-meta"]', groupElement);
-  meta.textContent = `${scheduleSummary} • ${filterSummary} • ${exceptionSummary}`;
+  meta.replaceChildren(...renderGroupMeta(group, filterSummary, exceptionSummary));
   meta.id = `group-meta-${idToken}`;
 
   // The disclosure sits outside [data-role="group-actions"] so readonly groups can still expand.
@@ -701,12 +1011,13 @@ function renderGroup(
   groupToggleInput.dataset['groupId'] = group.id;
   groupToggleInput.setAttribute('aria-label', `Toggle group ${group.name}`);
 
+  // The switch stays the last control, so it lines up with every other switch on the page.
   const actions = querySelector<HTMLElement>('[data-role="group-actions"]', groupElement);
   if (!isDefault) {
     const editButton = cloneTemplate<HTMLButtonElement>('options-group-edit-button-template');
     editButton.dataset['groupId'] = group.id;
-    editButton.setAttribute('aria-label', `Edit group ${group.name}`);
-    actions.appendChild(editButton);
+    setIconButtonLabel(editButton, `Edit group ${group.name}`);
+    actions.prepend(editButton);
   }
 
   const filterList = querySelector<HTMLElement>('[data-role="filter-list"]', groupElement);
@@ -734,7 +1045,9 @@ function renderGroup(
   }
 
   if (whitelist.length === 0) {
-    whitelistList.appendChild(createEmptyState('No exceptions in this group.'));
+    whitelistList.appendChild(
+      createEmptyState('No exceptions in this group. Add one to allow a page a filter would block.')
+    );
   } else {
     const whitelistFragment = document.createDocumentFragment();
     for (const entry of whitelist) {
@@ -743,9 +1056,62 @@ function renderGroup(
     whitelistList.appendChild(whitelistFragment);
   }
 
+  // A snooze is explained once by the page notice; a group that is off explains its own lock,
+  // which covers its Edit button (name, schedules, Delete) as well as its rows.
+  if (!groupEnabled && !snoozeActive) {
+    const note = document.createElement('p');
+    note.className = 'group-note';
+    note.textContent = 'This group is off. Turn it on to make changes.';
+    content.prepend(note);
+  }
+
   setGroupReadonlyState(groupElement, snoozeActive || !groupEnabled);
 
   return groupElement;
+}
+
+/** A no-break space keeps a " ·" separator on the part before it. */
+const META_SEPARATOR = '\u00a0·';
+
+/**
+ * The group's meta line, e.g. "Mon–Fri 09:00–17:00; Sat 10:00–12:00 · 2 filters · 0 exceptions".
+ * Each schedule is its own part, so a narrow line wraps between schedules rather than inside one,
+ * and every part but the last ends with its separator, so a wrapped line never starts with one.
+ */
+function renderGroupMeta(
+  group: FilterGroup,
+  filterSummary: string,
+  exceptionSummary: string
+): (Node | string)[] {
+  // The default group's name already says when it applies, so its meta line only counts.
+  let scheduleParts: string[] = [];
+  if (group.id !== DEFAULT_GROUP_ID) {
+    scheduleParts =
+      group.is24x7 || group.schedules.length === 0
+        ? [formatGroupScheduleSummary(group)]
+        : group.schedules.map(formatScheduleSummary);
+  }
+
+  const parts = [
+    ...scheduleParts.map((text, index) => ({
+      text,
+      separator: index < scheduleParts.length - 1 ? ';' : META_SEPARATOR,
+    })),
+    { text: filterSummary, separator: META_SEPARATOR },
+    { text: exceptionSummary, separator: '' },
+  ];
+  return parts.flatMap(({ text, separator }, index) => {
+    const span = document.createElement('span');
+    span.className = 'meta-part';
+    span.textContent = `${text}${separator}`;
+    return index === 0 ? [span] : [' ', span];
+  });
+}
+
+/** Icon-only buttons show their accessible name as a tooltip too. */
+function setIconButtonLabel(button: HTMLButtonElement, label: string): void {
+  button.setAttribute('aria-label', label);
+  button.title = label;
 }
 
 /**
@@ -755,7 +1121,6 @@ function renderGroup(
  */
 function setGroupReadonlyState(groupElement: HTMLElement, readonly: boolean): void {
   const groupContent = querySelector<HTMLElement>('.group-content', groupElement);
-  groupContent.classList.toggle('is-snoozed', readonly);
   groupContent.classList.toggle('is-readonly', readonly);
 
   groupElement
@@ -824,7 +1189,15 @@ function describeInvalidRegex(pattern: string, matchMode: FilterMatchMode): stri
   }
 
   const error = getRegexValidationError(pattern);
-  return error ? `Invalid regex pattern: ${error}` : null;
+  if (!error) return null;
+
+  // The engine's message repeats the pattern ("…: /(/: Unterminated group"); keep only the reason.
+  const enginePrefix = 'Invalid regular expression:';
+  if (error.startsWith(enginePrefix)) {
+    const reason = error.slice(error.lastIndexOf(': ') + 2).replace(/\.$/, '');
+    return `${enginePrefix} ${reason.charAt(0).toLowerCase()}${reason.slice(1)}.`;
+  }
+  return error;
 }
 
 function renderFilterItem(filter: Filter): HTMLElement {
@@ -851,7 +1224,14 @@ function renderFilterItem(filter: Filter): HTMLElement {
   toggleInput.dataset['filterId'] = filter.id;
   toggleInput.setAttribute('aria-label', toggleLabel);
   editButton.dataset['filterId'] = filter.id;
-  editButton.setAttribute('aria-label', editLabel);
+  setIconButtonLabel(editButton, editLabel);
+
+  // Temporary blocks from the popup say how long they have left; the label is kept current.
+  if (isTemporaryFilter(filter)) {
+    const expiry = createTemporaryLabel('div', filter.expiresAt);
+    expiry.className = 'filter-meta';
+    patternElement.after(expiry);
+  }
 
   return item;
 }
@@ -885,7 +1265,7 @@ function renderWhitelistItem(entry: Whitelist): HTMLElement {
   toggleInput.dataset['whitelistId'] = entry.id;
   toggleInput.setAttribute('aria-label', toggleLabel);
   editButton.dataset['whitelistId'] = entry.id;
-  editButton.setAttribute('aria-label', editLabel);
+  setIconButtonLabel(editButton, editLabel);
 
   return item;
 }
@@ -940,13 +1320,45 @@ function renderSchedules(): void {
     endInput.setAttribute('aria-label', `End time for schedule ${scheduleNumber}`);
 
     removeButton.dataset['scheduleIndex'] = String(index);
-    removeButton.setAttribute('aria-label', `Delete schedule ${scheduleNumber}`);
-    removeButton.title = `Delete schedule ${scheduleNumber}`;
+    setIconButtonLabel(removeButton, `Delete schedule ${scheduleNumber}`);
 
     fragment.appendChild(item);
   }
 
+  // The list is only shown for groups that are not 24/7, which do nothing until scheduled.
+  if (temporarySchedules.length === 0) {
+    const hint = document.createElement('p');
+    hint.className = 'field-hint';
+    hint.textContent = 'Add a schedule to choose when this group blocks.';
+    fragment.appendChild(hint);
+  }
+
   schedulesList.replaceChildren(fragment);
+}
+
+/**
+ * The filter and exception dialogs say which group the item is in, since the dialog covers the card
+ * it came from (and a deep link never showed one), and when a temporary filter ends, e.g.
+ * "In Work Hours · Temporary · 45m left". Called with no group it clears, so a reopened dialog never
+ * shows the previous item's subtitle while its data loads.
+ */
+function setDialogSubtitle(
+  kind: 'filter' | 'whitelist',
+  group?: FilterGroup,
+  expiresAt?: number
+): void {
+  const subtitle = getElementByIdOrNull(`${kind}-modal-subtitle`);
+  if (!subtitle) return;
+
+  const parts: (Node | string)[] = group ? [`In ${group.name}`] : [];
+  if (expiresAt !== undefined) {
+    if (parts.length > 0) parts.push(`${META_SEPARATOR} `);
+    const expiry = createTemporaryLabel('span', expiresAt);
+    expiry.className = 'subtitle-expiry';
+    parts.push(expiry);
+  }
+  subtitle.replaceChildren(...parts);
+  subtitle.hidden = parts.length === 0;
 }
 
 // ============================================================================
@@ -969,9 +1381,12 @@ function openFilterModal(
 
   form.reset();
   clearDialogError('filter-error');
-  title.textContent = filterId ? 'Edit Filter' : 'Add Filter';
+  hideDeleteConfirm('filter');
+  updateMatchModeHint('filter');
+  title.textContent = filterId ? 'Edit filter' : 'New filter';
+  setDialogSubtitle('filter');
   if (deleteButton) {
-    deleteButton.style.display = filterId ? 'inline-flex' : 'none';
+    deleteButton.hidden = !filterId;
     deleteButton.disabled = !filterId;
   }
 
@@ -980,6 +1395,11 @@ function openFilterModal(
       const filter = filterId ? data.filters.find((f) => f.id === filterId) : undefined;
       const selectedGroupId = filter?.groupId ?? groupId ?? DEFAULT_GROUP_ID;
       currentFilterGroupId = selectedGroupId;
+      setDialogSubtitle(
+        'filter',
+        data.groups.find((entry) => entry.id === selectedGroupId),
+        filter && isTemporaryFilter(filter) ? filter.expiresAt : undefined
+      );
 
       if (filter) {
         const patternInput = getElementByIdOrNull<HTMLInputElement>('filter-pattern');
@@ -991,6 +1411,7 @@ function openFilterModal(
         if (descInput) descInput.value = filter.description ?? '';
         if (enabledInput) enabledInput.checked = filter.enabled;
         if (matchModeSelect) matchModeSelect.value = filter.matchMode ?? 'contains';
+        updateMatchModeHint('filter');
       }
     })
     .catch((error: unknown) => {
@@ -1013,7 +1434,9 @@ function closeFilterModal(): void {
 
 async function handleFilterSubmit(e: Event): Promise<void> {
   e.preventDefault();
+  if (isDeleteConfirmOpen('filter')) return;
 
+  const isEdit = currentEditingFilterId !== null;
   const description = getElementByIdOrNull<HTMLInputElement>('filter-description')?.value ?? '';
   const groupId = currentFilterGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('filter-enabled')?.checked ?? true;
@@ -1041,13 +1464,15 @@ async function handleFilterSubmit(e: Event): Promise<void> {
   const filter: Filter = typeof expiresAt === 'number' ? { ...baseFilter, expiresAt } : baseFilter;
 
   try {
-    if (currentEditingFilterId) {
+    if (isEdit) {
       await updateFilter(filter);
     } else {
       await addFilter(filter);
     }
     closeFilterModal();
     await renderGroups();
+    // Focus has moved back to the page by now, so this is read after the focused control.
+    announceStatus(isEdit ? 'Filter saved.' : 'Filter added.');
   } catch (error) {
     console.error('Failed to save filter:', error);
     showDialogError(
@@ -1064,6 +1489,7 @@ async function handleFilterDelete(): Promise<void> {
     await deleteFilter(currentEditingFilterId);
     closeFilterModal();
     await renderGroups();
+    announceStatus('Filter deleted.');
   } catch (error) {
     console.error('Failed to delete filter:', error);
     showDialogError('filter-error', 'Failed to delete filter. Please try again.');
@@ -1089,10 +1515,11 @@ function openGroupModal(groupId?: string, fallbackTrigger: HTMLElement | null = 
 
   form.reset();
   clearDialogError('group-error');
-  title.textContent = groupId ? 'Edit Group' : 'Add Group';
+  hideDeleteConfirm('group');
+  title.textContent = groupId ? 'Edit group' : 'New group';
   if (deleteButton) {
     const allowDelete = Boolean(groupId && groupId !== DEFAULT_GROUP_ID);
-    deleteButton.style.display = allowDelete ? 'inline-flex' : 'none';
+    deleteButton.hidden = !allowDelete;
     deleteButton.disabled = !allowDelete;
   }
 
@@ -1109,7 +1536,7 @@ function openGroupModal(groupId?: string, fallbackTrigger: HTMLElement | null = 
             startTime: s.startTime,
             endTime: s.endTime,
           }));
-          schedulesContainer.style.display = group.is24x7 ? 'none' : 'block';
+          schedulesContainer.hidden = group.is24x7;
           renderSchedules();
         }
       })
@@ -1117,7 +1544,7 @@ function openGroupModal(groupId?: string, fallbackTrigger: HTMLElement | null = 
         console.error('Failed to load group data:', error);
       });
   } else {
-    schedulesContainer.style.display = 'block';
+    schedulesContainer.hidden = false;
     renderSchedules();
   }
 
@@ -1146,7 +1573,9 @@ function addScheduleToModal(): void {
 
 async function handleGroupSubmit(e: Event): Promise<void> {
   e.preventDefault();
+  if (isDeleteConfirmOpen('group')) return;
 
+  const isEdit = currentEditingGroupId !== null;
   const nameInput = getElementByIdOrNull<HTMLInputElement>('group-name');
   const name = nameInput?.value ?? '';
   const is24x7 = getElementByIdOrNull<HTMLInputElement>('group-24x7')?.checked ?? false;
@@ -1190,13 +1619,14 @@ async function handleGroupSubmit(e: Event): Promise<void> {
   };
 
   try {
-    if (currentEditingGroupId) {
+    if (isEdit) {
       await updateGroup(group);
     } else {
       await addGroup(group);
     }
     closeGroupModal();
     await renderGroups();
+    announceStatus(isEdit ? 'Group saved.' : 'Group added.');
   } catch (error) {
     console.error('Failed to save group:', error);
     showDialogError(
@@ -1206,13 +1636,22 @@ async function handleGroupSubmit(e: Event): Promise<void> {
   }
 }
 
+/** Focus falls back to New group, so the announcement says where the group's contents went. */
 async function handleGroupDelete(): Promise<void> {
-  if (!currentEditingGroupId || currentEditingGroupId === DEFAULT_GROUP_ID) return;
+  const groupId = currentEditingGroupId;
+  if (!groupId || groupId === DEFAULT_GROUP_ID) return;
 
   try {
-    await deleteGroup(currentEditingGroupId);
+    const data = await loadData();
+    const moved = describeGroupContents(data, groupId);
+    await deleteGroup(groupId);
     closeGroupModal();
     await renderGroups();
+    announceStatus(
+      moved
+        ? `Group deleted. Its ${moved.text} moved to ${getDefaultGroupName(data)}.`
+        : 'Group deleted.'
+    );
   } catch (error) {
     console.error('Failed to delete group:', error);
     showDialogError('group-error', 'Failed to delete group. Please try again.');
@@ -1239,9 +1678,12 @@ function openWhitelistModal(
 
   form.reset();
   clearDialogError('whitelist-error');
-  title.textContent = whitelistId ? 'Edit Exception' : 'Add Exception';
+  hideDeleteConfirm('whitelist');
+  updateMatchModeHint('whitelist');
+  title.textContent = whitelistId ? 'Edit exception' : 'New exception';
+  setDialogSubtitle('whitelist');
   if (deleteButton) {
-    deleteButton.style.display = whitelistId ? 'inline-flex' : 'none';
+    deleteButton.hidden = !whitelistId;
     deleteButton.disabled = !whitelistId;
   }
 
@@ -1250,6 +1692,10 @@ function openWhitelistModal(
       const entry = whitelistId ? data.whitelist.find((w) => w.id === whitelistId) : undefined;
       const selectedGroupId = entry?.groupId ?? groupId ?? DEFAULT_GROUP_ID;
       currentWhitelistGroupId = selectedGroupId;
+      setDialogSubtitle(
+        'whitelist',
+        data.groups.find((group) => group.id === selectedGroupId)
+      );
 
       if (entry) {
         const patternInput = getElementByIdOrNull<HTMLInputElement>('whitelist-pattern');
@@ -1261,6 +1707,7 @@ function openWhitelistModal(
         if (descInput) descInput.value = entry.description ?? '';
         if (enabledInput) enabledInput.checked = entry.enabled;
         if (matchModeSelect) matchModeSelect.value = entry.matchMode ?? 'contains';
+        updateMatchModeHint('whitelist');
       }
     })
     .catch((error: unknown) => {
@@ -1283,7 +1730,9 @@ function closeWhitelistModal(): void {
 
 async function handleWhitelistSubmit(e: Event): Promise<void> {
   e.preventDefault();
+  if (isDeleteConfirmOpen('whitelist')) return;
 
+  const isEdit = currentEditingWhitelistId !== null;
   const description = getElementByIdOrNull<HTMLInputElement>('whitelist-description')?.value ?? '';
   const groupId = currentWhitelistGroupId ?? DEFAULT_GROUP_ID;
   const enabled = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled')?.checked ?? true;
@@ -1304,13 +1753,14 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
   };
 
   try {
-    if (currentEditingWhitelistId) {
+    if (isEdit) {
       await updateWhitelist(entry);
     } else {
       await addWhitelist(entry);
     }
     closeWhitelistModal();
     await renderGroups();
+    announceStatus(isEdit ? 'Exception saved.' : 'Exception added.');
   } catch (error) {
     console.error('Failed to save exception:', error);
     showDialogError(
@@ -1327,6 +1777,7 @@ async function handleWhitelistDelete(): Promise<void> {
     await deleteWhitelist(currentEditingWhitelistId);
     closeWhitelistModal();
     await renderGroups();
+    announceStatus('Exception deleted.');
   } catch (error) {
     console.error('Failed to delete exception:', error);
     showDialogError('whitelist-error', 'Failed to delete exception. Please try again.');
@@ -1354,20 +1805,14 @@ function handleGroupsListClick(e: Event): void {
     }
   } else if (action === 'edit-group' && groupId) {
     openGroupModal(groupId);
-  } else if (action === 'delete-group' && groupId) {
-    void deleteGroupConfirm(groupId);
   } else if (action === 'add-filter' && groupId) {
     openFilterModal(undefined, groupId);
   } else if (action === 'add-whitelist' && groupId) {
     openWhitelistModal(undefined, groupId);
   } else if (action === 'edit-filter' && filterId) {
     openFilterModal(filterId);
-  } else if (action === 'delete-filter' && filterId) {
-    void deleteFilterConfirm(filterId);
   } else if (action === 'edit-whitelist' && whitelistId) {
     openWhitelistModal(whitelistId);
-  } else if (action === 'delete-whitelist' && whitelistId) {
-    void deleteWhitelistConfirm(whitelistId);
   }
 }
 
@@ -1469,36 +1914,11 @@ async function toggleGroupEnabled(groupId: string, enabled: boolean): Promise<vo
   }
 }
 
-async function deleteFilterConfirm(filterId: string): Promise<void> {
-  if (confirm('Are you sure you want to delete this filter?')) {
-    await deleteFilter(filterId);
-    await renderGroups();
-  }
-}
-
-async function deleteGroupConfirm(groupId: string): Promise<void> {
-  if (
-    confirm(
-      'Are you sure you want to delete this group? Filters and exceptions in this group will be moved to the default 24/7 group.'
-    )
-  ) {
-    await deleteGroup(groupId);
-    await renderGroups();
-  }
-}
-
 async function toggleWhitelistEntry(whitelistId: string, enabled: boolean): Promise<void> {
   const data = await loadData();
   const entry = data.whitelist.find((w) => w.id === whitelistId);
   if (entry) {
     await updateWhitelist({ ...entry, enabled });
-  }
-}
-
-async function deleteWhitelistConfirm(whitelistId: string): Promise<void> {
-  if (confirm('Are you sure you want to delete this exception?')) {
-    await deleteWhitelist(whitelistId);
-    await renderGroups();
   }
 }
 
@@ -1526,9 +1946,16 @@ function updateScheduleTime(
   schedule[field] = value;
 }
 
+/** The removed schedule's button is gone, so focus moves to its neighbor or New schedule. */
 function removeSchedule(scheduleIndex: number): void {
   temporarySchedules.splice(scheduleIndex, 1);
   renderSchedules();
+
+  const nextIndex = Math.min(scheduleIndex, temporarySchedules.length - 1);
+  const nextButton = getElementByIdOrNull('schedules-list')?.querySelector<HTMLElement>(
+    `[data-action="remove-schedule"][data-schedule-index="${nextIndex}"]`
+  );
+  (nextButton ?? getElementByIdOrNull('add-schedule-btn'))?.focus();
 }
 
 // Initialize on load

@@ -16,7 +16,7 @@ import { getActiveTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
 import { getExtensionUrl } from '../shared/api/runtime';
 import { ALARMS, PAGES } from '../shared/constants';
 import type { FilterDecision } from '../shared/filtering/engine';
-import { getNextRulesChangeAt } from '../shared/filtering/schedules';
+import { getNextRulesChangeAt, isTemporaryFilter } from '../shared/filtering/schedules';
 import {
   type BlockedPageState,
   STORAGE_KEY,
@@ -533,6 +533,8 @@ function createFilterSnapshot(
     pattern: filter?.pattern ?? fallbackFilterId,
     matchMode: filter?.matchMode ?? 'contains',
     ...(filter?.description ? { description: filter.description } : {}),
+    // Kept so the block page can say when a temporary block ends instead of only the group schedule.
+    ...(filter && isTemporaryFilter(filter) ? { expiresAt: filter.expiresAt } : {}),
   };
 }
 

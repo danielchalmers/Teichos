@@ -255,7 +255,7 @@ test('whitelisting keeps navigation allowed and hides the matching popup filter 
   const defaultGroupCard = optionsPage
     .locator('.group-item')
     .filter({ hasText: '24/7 (Always Active)' });
-  await defaultGroupCard.getByRole('button', { name: 'New Exception' }).click();
+  await defaultGroupCard.getByRole('button', { name: 'New exception' }).click();
 
   const whitelistModal = optionsPage.locator('#whitelist-modal.active');
   await expect(whitelistModal).toBeVisible();

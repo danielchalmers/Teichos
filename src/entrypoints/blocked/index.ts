@@ -6,6 +6,7 @@
 import { sendExtensionMessage } from '../../shared/api/messaging';
 import { openOptionsPage } from '../../shared/api/runtime';
 import { loadData } from '../../shared/api/storage';
+import { removeTabs, updateTab } from '../../shared/api/tabs';
 import {
   MessageType,
   type BlockedPageState,
@@ -13,7 +14,11 @@ import {
   type GetBlockedPageStateResponse,
 } from '../../shared/types';
 import { getElementByIdOrNull } from '../../shared/utils/dom';
-import { formatGroupScheduleSummary } from '../../shared/utils/schedules';
+import {
+  formatGroupScheduleSummary,
+  formatScheduleSummary,
+  formatUntil,
+} from '../../shared/utils/schedules';
 
 interface BlockedPageViewModel {
   readonly targetUrl: string;
@@ -62,6 +67,7 @@ async function init(): Promise<void> {
  */
 async function renderPage(): Promise<void> {
   const state = await getBlockedPageState();
+  renderPreviewNote();
   renderBlockedUrl(state);
   renderResponsibleFilter(state);
   renderActions(state);
@@ -215,6 +221,12 @@ function isBlockedPageStateResponse(response: unknown): response is GetBlockedPa
 }
 
 async function handleGoBack(): Promise<void> {
+  // A preview has no page to return to, so close it and return to the tab that opened it.
+  if (isPreviewMode()) {
+    await closePreview();
+    return;
+  }
+
   const response = await sendExtensionMessage({
     type: MessageType.GO_BACK_ACTIVE_TAB,
   });
@@ -224,7 +236,27 @@ async function handleGoBack(): Promise<void> {
   }
 }
 
+async function closePreview(): Promise<void> {
+  const tab = await chrome.tabs.getCurrent();
+  if (typeof tab?.id === 'number') {
+    // Chrome may otherwise activate a neighbouring tab instead of Settings.
+    if (typeof tab.openerTabId === 'number') {
+      // Settings may have been closed since; closing the preview still works without it.
+      await updateTab(tab.openerTabId, { active: true }).catch(() => undefined);
+    }
+    await removeTabs([tab.id]);
+    return;
+  }
+
+  window.close();
+}
+
 async function handleContinue(): Promise<void> {
+  // The sample block has nothing to bypass. The button is disabled there; this guards stray calls.
+  if (isPreviewMode()) {
+    return;
+  }
+
   const blockId = getBlockedPageBlockId();
   const response = await sendExtensionMessage({
     type: MessageType.CONTINUE_ACTIVE_TAB,
@@ -236,10 +268,23 @@ async function handleContinue(): Promise<void> {
   }
 }
 
+/**
+ * The preview looks like a real block, so it says it uses sample data. The note sits outside the
+ * collapsible details so it shows before Learn more is clicked.
+ */
+function renderPreviewNote(): void {
+  const previewNote = getElementByIdOrNull<HTMLElement>('preview-note');
+  if (previewNote) {
+    previewNote.hidden = !isPreviewMode();
+  }
+}
+
 function renderBlockedUrl(state: BlockedPageViewModel): void {
   const blockedUrlElement = getElementByIdOrNull('blocked-url');
   if (blockedUrlElement) {
     blockedUrlElement.textContent = state.targetUrl;
+    // Without block state the slot holds a message rather than an address, so it is not set as code.
+    blockedUrlElement.classList.toggle('is-unavailable', !state.state);
   }
 }
 
@@ -258,18 +303,76 @@ function renderResponsibleFilter(state: BlockedPageViewModel): void {
   setText('responsible-filter-pattern', state.state.filter.pattern);
   setText('responsible-filter-match', formatMatchMode(state.state.filter.matchMode));
   setText('responsible-filter-group', state.state.group?.name ?? 'Unknown group');
-  setText(
-    'responsible-filter-schedule',
-    state.state.group ? formatGroupScheduleSummary(state.state.group) : 'Unavailable'
-  );
+  renderSchedule(state.state);
 
   detailSection.hidden = false;
+}
+
+/**
+ * The group's schedule, plus when the block ends if a temporary filter caused it, e.g.
+ * "Temporary · until 3:45 PM". Temporary blocks usually sit in the 24/7 group, where "Always
+ * active" alone would read as a permanent block.
+ */
+function renderSchedule(state: BlockedPageState): void {
+  const scheduleElement = getElementByIdOrNull('responsible-filter-schedule');
+  if (!scheduleElement) {
+    return;
+  }
+
+  const { filter, group } = state;
+  const expiresAt =
+    typeof filter.expiresAt === 'number' && Number.isFinite(filter.expiresAt)
+      ? filter.expiresAt
+      : undefined;
+  const summaries = getScheduleSummaries(group, expiresAt !== undefined);
+
+  // Each part is its own box ending in its separator, so a long schedule wraps between parts
+  // rather than inside a range like "09:00–17:00", and no wrapped line starts with a separator.
+  const parts = summaries.map((summary, index) =>
+    index < summaries.length - 1 ? `${summary};` : summary
+  );
+  if (expiresAt !== undefined) {
+    parts.push(`${parts.pop() ?? ''} ·`, formatUntil(expiresAt));
+  }
+
+  scheduleElement.replaceChildren(
+    ...parts.flatMap((part, index) => {
+      const partElement = document.createElement('span');
+      partElement.className = 'schedule-part';
+      partElement.textContent = part;
+      return index === 0 ? [partElement] : [' ', partElement];
+    })
+  );
+}
+
+/**
+ * One summary per schedule, which joined with "; " is the text of formatGroupScheduleSummary. A
+ * temporary filter in the 24/7 group, where quick blocks land, reads "Temporary" instead.
+ */
+function getScheduleSummaries(group: BlockedPageState['group'], isTemporary: boolean): string[] {
+  if (!group || group.is24x7) {
+    if (isTemporary) {
+      return ['Temporary'];
+    }
+
+    return [group ? formatGroupScheduleSummary(group) : 'Unavailable'];
+  }
+
+  return group.schedules.length > 0
+    ? group.schedules.map(formatScheduleSummary)
+    : [formatGroupScheduleSummary(group)];
 }
 
 function renderActions(state: BlockedPageViewModel): void {
   const continueButton = getElementByIdOrNull<HTMLButtonElement>('continue');
   if (continueButton) {
     continueButton.hidden = !state.state;
+    // The preview keeps the button so its layout matches a real block, but there is nothing to
+    // continue to. The preview note explains why, on screen and as the button's description.
+    if (isPreviewMode()) {
+      continueButton.disabled = true;
+      continueButton.setAttribute('aria-describedby', 'preview-note');
+    }
   }
 }
 

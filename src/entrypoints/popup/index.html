@@ -25,10 +25,20 @@
           >
             <span class="status-dot" aria-hidden="true"></span>
             <span class="snooze-trigger-text" id="snooze-label">Active</span>
+            <svg class="snooze-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path
+                d="M4 6l4 4 4-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
           </button>
         </div>
         <button
-          class="header-icon-button"
+          class="icon-button"
           id="open-options"
           type="button"
           aria-label="Settings"
@@ -39,7 +49,7 @@
               d="M19.4 12.94a7.63 7.63 0 0 0 .04-.94 7.63 7.63 0 0 0-.04-.94l2.02-1.57a.5.5 0 0 0 .12-.64l-1.91-3.3a.5.5 0 0 0-.6-.22l-2.38.96a7.52 7.52 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.82a.5.5 0 0 0-.5.42l-.36 2.54c-.57.22-1.12.53-1.63.94l-2.38-.96a.5.5 0 0 0-.6.22l-1.91 3.3a.5.5 0 0 0 .12.64l2.02 1.57c-.03.31-.04.62-.04.94s.01.63.04.94l-2.02 1.57a.5.5 0 0 0-.12.64l1.91 3.3a.5.5 0 0 0 .6.22l2.38-.96c.51.41 1.06.72 1.63.94l.36 2.54a.5.5 0 0 0 .5.42h3.82a.5.5 0 0 0 .5-.42l.36-2.54c.57-.22 1.12-.53 1.63-.94l2.38.96a.5.5 0 0 0 .6-.22l1.91-3.3a.5.5 0 0 0-.12-.64l-2.02-1.57ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"
               fill="none"
               stroke="currentColor"
-              stroke-width="1.5"
+              stroke-width="2.25"
               stroke-linecap="round"
               stroke-linejoin="round"
             />
@@ -48,24 +58,36 @@
       </div>
     </header>
     <main class="content">
+      <!-- Not a live region: it shows an absolute end time, and the status region already
+           announces snoozing and resuming. -->
+      <div class="notice snooze-banner" id="snooze-banner" hidden>
+        <span class="status-dot" aria-hidden="true"></span>
+        <div class="notice-text">
+          <p class="notice-title">Filtering is snoozed</p>
+          <p class="notice-detail" id="snooze-banner-detail"></p>
+          <p class="dialog-error" id="snooze-banner-error" hidden></p>
+        </div>
+        <button class="button small secondary" id="snooze-banner-resume" type="button">
+          Resume
+        </button>
+      </div>
       <div class="filter-list" id="filter-list" role="list" aria-label="Active filters"></div>
     </main>
     <footer class="footer-bar">
       <button
-        class="button footer-action"
+        class="button block"
         id="open-quick-add"
         type="button"
         aria-expanded="false"
         aria-controls="quick-add-panel"
-        title="New temporary block"
       >
         <span class="button-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path
-              d="M12 5v14M5 12h14"
+              d="M8 3.5v9M3.5 8h9"
               fill="none"
               stroke="currentColor"
-              stroke-width="2"
+              stroke-width="1.5"
               stroke-linecap="round"
             />
           </svg>
@@ -80,71 +102,60 @@
         aria-hidden="true"
       ></div>
       <div
-        class="snooze-dialog-panel dialog-panel"
+        class="dialog-panel dialog"
         id="snooze-dialog-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="snooze-dialog-title"
+        aria-describedby="snooze-dialog-subtitle"
       >
-        <div class="snooze-dialog-header dialog-header">
+        <div class="dialog-header">
           <div class="dialog-heading">
-            <div class="snooze-dialog-title dialog-title" id="snooze-dialog-title">
-              Snooze filtering
+            <div class="dialog-title" id="snooze-dialog-title">Snooze filtering</div>
+            <div class="dialog-subtitle" id="snooze-dialog-subtitle">
+              Pause all filtering for a set time.
             </div>
-            <div class="dialog-subtitle">Pause all filtering for a set time.</div>
           </div>
           <button
             class="icon-button"
             type="button"
             data-action="close-snooze-dialog"
             aria-label="Close snooze dialog"
-            title="Close"
+            title="Close snooze dialog"
           >
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
               <path
-                d="M3.5 3.5l9 9M12.5 3.5l-9 9"
+                d="M4 4l8 8M12 4l-8 8"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="1.6"
+                stroke-width="1.5"
                 stroke-linecap="round"
               />
             </svg>
           </button>
         </div>
-        <div class="snooze-section dialog-section" role="group" aria-label="Quick snooze durations">
-          <div class="snooze-section-title dialog-section-title">Quick durations</div>
-          <div class="snooze-options">
-            <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="15">
-              15m
-            </button>
-            <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="30">
-              30m
-            </button>
-            <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="60">
-              1h
-            </button>
-            <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="120">
-              2h
-            </button>
-            <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="240">
-              4h
-            </button>
-            <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="480">
-              8h
-            </button>
-            <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="1440">
-              1d
-            </button>
-            <button class="snooze-option dialog-chip" type="button" data-snooze-minutes="4320">
-              3d
-            </button>
+        <button class="button block" type="button" data-action="resume-snooze" hidden>
+          Resume filtering
+        </button>
+        <div class="dialog-section" role="group" aria-labelledby="snooze-quick-label">
+          <div class="field-label" id="snooze-quick-label">Snooze for</div>
+          <div class="chip-grid">
+            <button class="chip snooze-option" type="button" data-snooze-minutes="15">15m</button>
+            <button class="chip snooze-option" type="button" data-snooze-minutes="30">30m</button>
+            <button class="chip snooze-option" type="button" data-snooze-minutes="60">1h</button>
+            <button class="chip snooze-option" type="button" data-snooze-minutes="120">2h</button>
+            <button class="chip snooze-option" type="button" data-snooze-minutes="240">4h</button>
+            <button class="chip snooze-option" type="button" data-snooze-minutes="480">8h</button>
+            <button class="chip snooze-option" type="button" data-snooze-minutes="1440">1d</button>
+            <button class="chip snooze-option" type="button" data-snooze-minutes="4320">3d</button>
           </div>
         </div>
-        <div class="snooze-section dialog-section" role="group" aria-label="Custom snooze duration">
-          <div class="snooze-section-title dialog-section-title">Custom duration</div>
-          <div class="snooze-custom">
+        <div class="dialog-section" role="group" aria-labelledby="snooze-custom-label">
+          <div class="field-label" id="snooze-custom-label">Custom duration</div>
+          <!-- A form, so Enter in the field snoozes, as it does in the temporary block dialog. -->
+          <form class="snooze-custom" id="snooze-custom-form" novalidate>
             <input
-              class="snooze-custom-input"
+              class="input"
               type="number"
               id="snooze-custom-duration"
               min="1"
@@ -153,46 +164,31 @@
               value="30"
               aria-label="Custom snooze duration"
             />
-            <select
-              class="snooze-custom-unit"
-              id="snooze-custom-unit"
-              aria-label="Custom snooze unit"
-            >
+            <select class="input" id="snooze-custom-unit" aria-label="Custom snooze unit">
               <option value="minutes">Minutes</option>
               <option value="hours">Hours</option>
               <option value="days">Days</option>
             </select>
-            <button class="snooze-custom-apply" type="button" data-action="apply-custom-snooze">
-              Set
-            </button>
-          </div>
+            <button class="button secondary" type="submit">Snooze</button>
+          </form>
         </div>
         <p class="dialog-error" id="snooze-error" hidden></p>
-        <div class="snooze-dialog-actions dialog-actions">
-          <button
-            class="snooze-resume button ghost dialog-action-full"
-            type="button"
-            data-action="resume-snooze"
-          >
-            Resume filtering
-          </button>
-        </div>
       </div>
     </div>
     <div class="quick-add" id="quick-add" aria-hidden="true" inert>
       <div class="quick-add-backdrop" data-action="close-quick-add" aria-hidden="true"></div>
       <div
-        class="quick-add-panel dialog-panel"
+        class="dialog-panel dialog"
         id="quick-add-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="quick-add-title"
         aria-describedby="quick-add-subtitle"
       >
-        <div class="quick-add-header dialog-header">
+        <div class="dialog-header">
           <div class="dialog-heading">
-            <div class="quick-add-title dialog-title" id="quick-add-title">Temporary block</div>
-            <div class="quick-add-subtitle dialog-subtitle" id="quick-add-subtitle">
+            <div class="dialog-title" id="quick-add-title">New temporary block</div>
+            <div class="dialog-subtitle" id="quick-add-subtitle">
               Create a short-lived block that expires automatically.
             </div>
           </div>
@@ -200,25 +196,23 @@
             class="icon-button"
             type="button"
             data-action="close-quick-add"
-            aria-label="Close quick add"
-            title="Close"
+            aria-label="Close temporary block dialog"
+            title="Close temporary block dialog"
           >
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" role="img">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
               <path
-                d="M3.5 3.5l9 9M12.5 3.5l-9 9"
+                d="M4 4l8 8M12 4l-8 8"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="1.6"
+                stroke-width="1.5"
                 stroke-linecap="round"
               />
             </svg>
           </button>
         </div>
-        <form id="quick-add-form" class="quick-add-form dialog-form" novalidate>
-          <div class="quick-add-row dialog-section">
-            <label class="form-label dialog-section-title" for="quick-add-pattern"
-              >Site or pattern</label
-            >
+        <form id="quick-add-form" class="quick-add-form" novalidate>
+          <div class="dialog-section">
+            <label class="field-label" for="quick-add-pattern">Site or pattern</label>
             <input
               class="input"
               type="text"
@@ -228,10 +222,8 @@
               required
             />
           </div>
-          <div class="quick-add-row dialog-section">
-            <label class="form-label dialog-section-title" for="quick-add-duration"
-              >Block for</label
-            >
+          <div class="dialog-section">
+            <label class="field-label" for="quick-add-duration">Block for</label>
             <div class="quick-add-duration">
               <input
                 class="input"
@@ -242,75 +234,91 @@
                 inputmode="numeric"
                 required
               />
-              <select
-                class="input select"
-                id="quick-add-unit"
-                name="unit"
-                aria-label="Duration unit"
-              >
+              <select class="input" id="quick-add-unit" name="unit" aria-label="Duration unit">
                 <option value="minutes">Minutes</option>
                 <option value="hours">Hours</option>
                 <option value="days">Days</option>
               </select>
             </div>
-            <div class="quick-add-presets" role="group" aria-label="Duration presets">
-              <button
-                class="pill-button dialog-chip"
-                type="button"
-                data-duration="15"
-                data-unit="minutes"
-              >
-                15m
-              </button>
-              <button
-                class="pill-button dialog-chip"
-                type="button"
-                data-duration="30"
-                data-unit="minutes"
-              >
-                30m
-              </button>
-              <button
-                class="pill-button dialog-chip"
-                type="button"
-                data-duration="1"
-                data-unit="hours"
-              >
-                1h
-              </button>
-              <button
-                class="pill-button dialog-chip"
-                type="button"
-                data-duration="2"
-                data-unit="hours"
-              >
-                2h
-              </button>
+            <div class="chip-grid" role="group" aria-label="Duration presets">
+              <button class="chip" type="button" data-duration="15" data-unit="minutes">15m</button>
+              <button class="chip" type="button" data-duration="30" data-unit="minutes">30m</button>
+              <button class="chip" type="button" data-duration="1" data-unit="hours">1h</button>
+              <button class="chip" type="button" data-duration="2" data-unit="hours">2h</button>
             </div>
           </div>
           <p class="dialog-error" id="quick-add-error" hidden></p>
-          <div class="quick-add-actions dialog-actions">
+          <div class="dialog-actions fill">
+            <button class="button secondary" type="button" data-action="close-quick-add">
+              Cancel
+            </button>
             <button class="button" type="submit">Start block</button>
-            <button class="button ghost" type="button" data-action="close-quick-add">Cancel</button>
           </div>
-          <button class="text-link" type="button" data-action="open-full-editor">
-            Need a full filter or exception? Open the full editor
-          </button>
+          <p class="quick-add-more">
+            Need a schedule or exception?
+            <button class="text-link" type="button" data-action="open-settings">
+              Open settings
+            </button>
+          </p>
         </form>
       </div>
     </div>
     <div id="status-message" class="sr-only" role="status"></div>
     <template id="popup-empty-state-template">
       <div class="empty-state" role="listitem">
-        <p>No filters configured.</p>
-        <button class="button" type="button" data-action="add-first-filter">+ New Filter</button>
+        <svg class="empty-state-icon" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <path
+            d="M16 2.75c.3 0 .6.05.875.15 2.475.85 5.4 1.85 8.75 3.025a2.4 2.4 0 0 1 1.6 2.25v5.15c0 7.125-3.875 12.375-10.625 15.6a1.4 1.4 0 0 1-1.2 0c-6.75-3.225-10.625-8.475-10.625-15.6V8.175a2.4 2.4 0 0 1 1.6-2.25c3.35-1.175 6.275-2.175 8.75-3.025.275-.1.575-.15.875-.15Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <p class="empty-state-title">No filters yet</p>
+        <p class="empty-state-text">
+          Block a site for a while with a temporary block, or set up filters and schedules in
+          settings.
+        </p>
+        <button class="button secondary" type="button" data-action="add-first-filter">
+          <span class="button-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path
+                d="M8 3.5v9M3.5 8h9"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+          </span>
+          New filter
+        </button>
+      </div>
+    </template>
+    <!-- Filters exist, but none of them shows: the text says why (see describeHiddenFilters). -->
+    <template id="popup-inactive-state-template">
+      <div class="empty-state" role="listitem">
+        <svg class="empty-state-icon" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <path
+            d="M16 2.75c.3 0 .6.05.875.15 2.475.85 5.4 1.85 8.75 3.025a2.4 2.4 0 0 1 1.6 2.25v5.15c0 7.125-3.875 12.375-10.625 15.6a1.4 1.4 0 0 1-1.2 0c-6.75-3.225-10.625-8.475-10.625-15.6V8.175a2.4 2.4 0 0 1 1.6-2.25c3.35-1.175 6.275-2.175 8.75-3.025.275-.1.575-.15.875-.15Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <p class="empty-state-title">No filters apply here right now</p>
+        <p class="empty-state-text empty-state-reasons"></p>
+        <button class="button secondary" type="button" data-action="open-settings">
+          Open settings
+        </button>
       </div>
     </template>
     <template id="popup-filter-item-template">
       <div class="filter-item" role="listitem">
         <div class="filter-info">
           <div class="filter-name"></div>
-          <div class="filter-meta"></div>
           <div class="filter-group"></div>
         </div>
         <div class="filter-actions">
@@ -319,36 +327,27 @@
               class="icon-button"
               type="button"
               data-action="copy-url"
-              aria-label="Copy URL"
-              title="Copy URL"
+              aria-label="Copy pattern"
+              title="Copy pattern"
             >
-              <svg
-                class="icon-copy"
-                viewBox="0 0 16 16"
-                aria-hidden="true"
-                focusable="false"
-                role="img"
-              >
-                <path d="M6 6.5h6v7H6z" fill="none" stroke="currentColor" stroke-width="1.5" />
-                <path
-                  d="M4 9.5H3.5A1.5 1.5 0 0 1 2 8V3.5A1.5 1.5 0 0 1 3.5 2H8a1.5 1.5 0 0 1 1.5 1.5V4"
+              <svg class="icon-copy" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <g
                   fill="none"
                   stroke="currentColor"
                   stroke-width="1.5"
-                />
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+                  <path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" />
+                </g>
               </svg>
-              <svg
-                class="icon-tick"
-                viewBox="0 0 16 16"
-                aria-hidden="true"
-                focusable="false"
-                role="img"
-              >
+              <svg class="icon-tick" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                 <path
-                  d="M3.5 8.5l3 3L12.5 5.5"
+                  d="M3.5 8.5l3 3 6-6"
                   fill="none"
                   stroke="currentColor"
-                  stroke-width="1.7"
+                  stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 />
@@ -358,27 +357,17 @@
               class="icon-button"
               type="button"
               data-action="edit-filter"
-              aria-label="Edit Filter"
-              title="Edit Filter"
+              aria-label="Edit filter"
+              title="Edit filter"
             >
-              <svg
-                class="icon-edit"
-                viewBox="0 0 16 16"
-                aria-hidden="true"
-                focusable="false"
-                role="img"
-              >
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                 <path
-                  d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z"
+                  d="M10.5 2.5l3 3-8 8H2.5v-3zM9 4l3 3"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="1.5"
-                />
-                <path
-                  d="M9.5 4.5l1.5-1.5 1.5 1.5-1.5 1.5-1.5-1.5z"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
                 />
               </svg>
             </button>
@@ -386,40 +375,13 @@
               class="icon-button"
               type="button"
               data-action="delete-filter"
-              aria-label="Delete Filter"
-              title="Delete Filter"
+              aria-label="Delete filter"
+              title="Delete filter"
               hidden
             >
-              <svg
-                class="icon-delete"
-                viewBox="0 0 16 16"
-                aria-hidden="true"
-                focusable="false"
-                role="img"
-              >
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                 <path
-                  d="M3 4.5h10"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M6 4.5V3h4v1.5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M5.5 6v5M10.5 6v5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M4.5 4.5l.7 8.5h5.6l.7-8.5"
+                  d="M3 4.5h10M6 4.5V3h4v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5M6.75 7v3.5M9.25 7v3.5"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="1.5"
@@ -431,7 +393,7 @@
           </div>
           <label class="toggle">
             <input type="checkbox" />
-            <span class="slider"></span>
+            <span class="slider" aria-hidden="true"></span>
           </label>
         </div>
       </div>

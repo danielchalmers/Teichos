@@ -70,7 +70,7 @@ export async function expectOnBlockedPage(page: Page, targetUrl: string): Promis
       );
     })
     .toBe(true);
-  await expect(page.getByRole('heading', { name: 'Page Blocked' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Page blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText(targetUrl);
 }
 
@@ -149,7 +149,7 @@ export async function createFilterViaOptions(
   await openGroupIfNeeded(optionsPage, groupName);
 
   const group = optionsPage.locator('.group-item').filter({ hasText: groupName });
-  await group.getByRole('button', { name: 'New Filter' }).click();
+  await group.getByRole('button', { name: 'New filter' }).click();
 
   const modal = optionsPage.locator('#filter-modal.active');
   await expect(modal).toBeVisible();
@@ -184,21 +184,21 @@ export async function createGroupViaOptions(
     }[];
   }
 ): Promise<void> {
-  await optionsPage.getByRole('button', { name: 'New Group' }).click();
+  await optionsPage.getByRole('button', { name: 'New group' }).click();
 
   const modal = optionsPage.locator('#group-modal.active');
   await expect(modal).toBeVisible();
   await expect(modal.locator('#group-name')).toBeFocused();
   await modal.locator('#group-name').fill(group.name);
 
-  const alwaysActive = modal.getByLabel('Always Active (24/7)');
+  const alwaysActive = modal.getByLabel('Always active (24/7)');
   const is24x7 = group.is24x7 ?? false;
   if (is24x7) {
     await alwaysActive.check();
   } else {
     await alwaysActive.uncheck();
     for (const [index, schedule] of (group.schedules ?? []).entries()) {
-      await modal.getByRole('button', { name: 'New Schedule' }).click();
+      await modal.getByRole('button', { name: 'New schedule' }).click();
       const scheduleItem = modal.locator('#schedules-list .schedule-item').nth(index);
       const dayCheckboxes = scheduleItem.locator('label.day-checkbox input');
       const selectedDays = new Set(schedule.daysOfWeek);
@@ -245,7 +245,7 @@ export async function createWhitelistViaOptions(
   await openGroupIfNeeded(optionsPage, groupName);
 
   const group = optionsPage.locator('.group-item').filter({ hasText: groupName });
-  await group.getByRole('button', { name: 'New Exception' }).click();
+  await group.getByRole('button', { name: 'New exception' }).click();
 
   const modal = optionsPage.locator('#whitelist-modal.active');
   await expect(modal).toBeVisible();

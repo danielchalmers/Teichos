@@ -5,42 +5,41 @@ html {
   background-color: var(--bg);
   /* Chrome caps popups at 800x600 device px, so at high zoom the layout must be able to scroll. */
   overflow: auto;
+  /* When it does, keep focused controls clear of the sticky header and footer. */
+  scroll-padding-block: 60px 68px;
 }
 
 body {
-  font-family: var(--font-sans);
   margin: 0;
-  padding: 0;
   min-width: 400px;
   min-height: 600px;
   height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   background: var(--bg);
   color: var(--text-primary);
-  font-size: 14px;
-  line-height: 1.45;
+  font: var(--text-md) / 1.45 var(--font-sans);
 }
 
-/* Header: brand + settings only */
+/* Header: brand, snooze status and settings on a plain surface. */
 .header {
-  background: var(--header-bg);
-  color: var(--header-text);
-  padding: 12px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-  box-shadow: var(--header-shadow-compact);
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 5;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .header .app-title {
-  font-size: 1.2rem;
   flex-shrink: 0;
+  font-size: var(--text-lg);
 }
 
 .header .app-icon {
@@ -51,120 +50,67 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
-.header-actions .header-icon-button {
-  flex-shrink: 0;
-}
-
-.header-icon-button {
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  border: 1px solid var(--header-control-border);
-  background: var(--header-control-bg);
-  color: var(--header-text);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition:
-    background 0.2s,
-    border-color 0.2s,
-    transform 0.2s;
-}
-
-.header-icon-button svg {
-  width: 16px;
-  height: 16px;
-}
-
-.header-icon-button:hover {
-  background: var(--header-control-bg-hover);
-  border-color: var(--header-control-border-hover);
-}
-
-.header-icon-button:active {
-  transform: scale(0.96);
-}
-
-.header-icon-button:focus-visible {
-  outline: 2px solid var(--header-focus-ring);
-  outline-offset: 2px;
-}
-
-/* Snooze chip in the header */
+/* Status chip: shows whether filtering is on and opens the snooze dialog. */
 .snooze-popover {
-  position: relative;
   min-width: 0;
 }
 
 .snooze-button {
-  border: 1px solid var(--header-control-border);
-  border-radius: 999px;
-  background: var(--header-control-bg);
-  color: var(--header-text);
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  height: 30px;
+  gap: 6px;
+  height: var(--chip-height);
   max-width: 100%;
-  padding: 0 0.7rem;
-  font-family: inherit;
-  font-size: 0.74rem;
-  font-weight: 600;
+  padding: 0 10px 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  font: 600 var(--text-sm) / 1 var(--font-sans);
   cursor: pointer;
   transition:
-    background 0.2s,
-    border-color 0.2s,
-    transform 0.2s;
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease);
 }
 
 .snooze-button:hover {
-  background: var(--header-control-bg-hover);
-  border-color: var(--header-control-border-hover);
-}
-
-.snooze-button:active {
-  transform: scale(0.96);
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
 }
 
 .snooze-button:focus-visible {
-  outline: 2px solid var(--header-focus-ring);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex: 0 0 auto;
-  background: var(--status-active);
-  box-shadow: 0 0 0 2.5px var(--status-active-glow);
+.snooze-trigger.is-snoozed {
+  background: var(--snoozed-bg);
+  border-color: var(--snoozed-border);
+}
+
+.snooze-trigger.is-snoozed:hover {
+  border-color: var(--status-snoozed);
 }
 
 .snooze-trigger-text {
-  white-space: nowrap;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
-  line-height: 1;
+  white-space: nowrap;
 }
 
-.snooze-trigger.is-snoozed {
-  background: var(--snooze-bg);
-  border-color: var(--snooze-border);
-  color: var(--header-text);
+.snooze-chevron {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--text-secondary);
 }
 
-.snooze-trigger.is-snoozed .status-dot {
-  background: var(--status-snoozed);
-  box-shadow: 0 0 0 2.5px var(--status-snoozed-glow);
-}
-
-/* Dialog overlays (snooze + quick add share the pattern) */
+/* Dialog overlays (snooze + quick add share the pattern); the panels take the theme's .dialog. */
 .snooze-dialog,
 .quick-add {
   position: fixed;
@@ -184,7 +130,7 @@ body {
   inset: 0;
   background: var(--modal-overlay);
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--duration) var(--ease);
 }
 
 .snooze-dialog.is-open .snooze-dialog-backdrop,
@@ -196,263 +142,72 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: min(336px, calc(100% - 1.5rem));
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: var(--dialog-shadow);
-  padding: 0.95rem;
   display: flex;
   flex-direction: column;
-  gap: 0.72rem;
-  max-height: calc(100% - 1.5rem);
+  gap: var(--space-4);
+  width: min(352px, calc(100% - 2 * var(--space-3)));
+  max-height: calc(100% - 2 * var(--space-3));
   overflow-y: auto;
+  padding: var(--space-5);
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.98);
   transition:
-    opacity 0.2s,
-    transform 0.2s;
+    opacity var(--duration) var(--ease),
+    transform var(--duration) var(--ease);
   pointer-events: none;
 }
 
 .snooze-dialog.is-open .dialog-panel,
 .quick-add.is-open .dialog-panel {
   opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, -50%);
   pointer-events: auto;
 }
 
-.dialog-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.15rem;
+.dialog-panel .dialog-header {
+  margin-bottom: 0;
 }
 
-.dialog-heading {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+.dialog-panel .dialog-title {
+  font-size: var(--text-base);
 }
 
-.dialog-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  letter-spacing: 0.01em;
-}
-
-.dialog-subtitle {
-  font-size: 0.74rem;
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
-
-.dialog-header .icon-button {
-  width: 28px;
-  height: 28px;
-}
-
-.dialog-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.42rem;
-  padding: 0.56rem;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface-muted);
-}
-
-.dialog-section-title {
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.dialog-chip {
-  font-family: inherit;
-  border: 1px solid var(--border);
-  background: var(--surface-muted);
-  color: var(--text-secondary);
-  border-radius: 999px;
-  font-size: 0.73rem;
-  padding: 0.32rem 0.55rem;
-  cursor: pointer;
-  text-align: center;
-  transition:
-    border-color 0.2s,
-    color 0.2s,
-    background 0.2s,
-    transform 0.2s;
-}
-
-.dialog-chip:hover {
-  border-color: var(--border-hover);
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.dialog-chip:active {
-  transform: scale(0.97);
-}
-
-.dialog-chip:focus-visible,
-.text-link:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.dialog-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.dialog-actions > * {
-  flex: 1 1 calc(50% - 0.25rem);
-  min-width: 0;
-}
-
-.dialog-actions > .dialog-action-full {
-  flex-basis: 100%;
-}
-
-.dialog-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.72rem;
-}
-
-/* Snooze dialog specifics */
-.snooze-options {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.35rem;
-}
-
+/* Snooze dialog */
 .snooze-custom {
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) auto;
-  gap: 0.35rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  gap: var(--space-2);
 }
 
-.snooze-custom-input,
-.snooze-custom-unit,
-.snooze-custom-apply {
-  font-family: inherit;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  font-size: 0.73rem;
-}
-
-.snooze-custom-input,
-.snooze-custom-unit {
-  background: var(--surface-muted);
-  color: var(--text-secondary);
-  padding: 0.36rem 0.45rem;
-}
-
-.snooze-custom-apply {
-  background-color: var(--button-primary-bg);
-  color: var(--button-primary-text);
-  border-color: transparent;
-  padding: 0.36rem 0.6rem;
-  cursor: pointer;
-  font-weight: 600;
-  transition:
-    background-color 0.2s,
-    border-color 0.2s;
-}
-
-.snooze-custom-input:focus-visible,
-.snooze-custom-unit:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
-  border-color: var(--focus-ring);
-}
-
-.snooze-custom-apply:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.snooze-custom-apply:hover {
-  background-color: var(--button-primary-hover-bg);
-}
-
-.snooze-resume {
-  font-size: 0.78rem;
-  padding: 0.45rem 0.62rem;
-  cursor: pointer;
-  text-align: center;
-}
-
-.snooze-resume[hidden] {
-  display: none;
-}
-
-/* Quick add dialog specifics */
-.quick-add-row {
+/* Quick add dialog */
+.quick-add-form {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-4);
 }
 
 .quick-add-duration {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
-.quick-add-duration .input {
+.quick-add-duration input.input {
   flex: 1;
+  min-width: 0;
 }
 
-.form-label {
-  font-size: 0.74rem;
-  font-weight: 600;
+.quick-add-duration select.input {
+  flex: none;
+  width: 8rem;
+}
+
+.quick-add-more {
+  margin: 0;
+  text-align: center;
   color: var(--text-secondary);
 }
 
-.input {
-  font-family: var(--font-sans);
-  padding: 0.5rem 0.65rem;
-  border-radius: 10px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-muted);
-  color: var(--text-primary);
-  font-size: 0.85rem;
-}
-
-.select {
-  background: var(--surface-muted);
-}
-
-.quick-add-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.text-link {
-  border: none;
-  background: none;
-  color: var(--link);
-  padding: 0;
-  font-size: 0.74rem;
-  cursor: pointer;
-  text-align: left;
-}
-
-.text-link:hover {
-  color: var(--link-hover);
-  text-decoration: underline;
-}
-
-/* Filter list */
+/* Main content: the snooze banner, then the scrolling filter list. */
 .content {
   flex: 1 1 auto;
   min-height: 0;
@@ -462,110 +217,118 @@ body {
   position: relative;
 }
 
+.snooze-banner {
+  flex-shrink: 0;
+  margin: var(--space-3) var(--space-3) 0;
+}
+
+/* A failed resume shows under the detail line, set slightly apart from it. */
+.snooze-banner .dialog-error {
+  margin-top: var(--space-1);
+}
+
 .filter-list {
   display: flex;
   flex-direction: column;
-  padding: 0.5rem;
-  gap: 0.5rem;
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
+  padding: var(--space-3);
   overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
-.filter-list::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+/* The list is a tab stop only while its rows are read-only (see updateFilterListTabStop). */
+.filter-list:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 
-/* Snoozed text drops to the muted color, which still meets 4.5:1; only the disabled controls fade. */
-.content.is-snoozed :is(.filter-name, .filter-meta, .empty-state) {
-  color: var(--text-muted);
+.filter-list:has(> .empty-state) {
+  justify-content: safe center;
 }
 
-.content.is-snoozed :is(.button, .icon-button, .toggle) {
-  opacity: 0.5;
-}
-
-.inactive-summary {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  text-align: center;
-  padding: 0.2rem 0 0.4rem;
-}
-
+/* Rows form one grouped list: a shared outline, hairlines between rows and rounded outer corners. */
 .filter-item {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
+  gap: var(--space-3);
   min-width: 0;
-  padding: 0.6rem 0.7rem;
-  gap: 0.75rem;
+  min-height: 56px;
+  padding: var(--space-3);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+}
+
+.filter-item + .filter-item {
+  border-top-width: 0;
+}
+
+.filter-item:first-child {
+  border-top-left-radius: var(--radius-md);
+  border-top-right-radius: var(--radius-md);
+}
+
+.filter-item:not(:has(+ .filter-item)) {
+  border-bottom-left-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
 }
 
 .filter-info {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
   flex: 1 1 auto;
+  min-width: 0;
+}
+
+.filter-name,
+.filter-group {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .filter-name {
-  font-weight: 500;
-  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
   color: var(--text-primary);
-  line-height: 1.35;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.filter-meta {
-  font-size: 0.72rem;
-  color: var(--text-secondary);
 }
 
 .filter-group {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
+  line-height: 1.4;
   color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
 }
 
+/* Fixed action columns, so temporary rows (no switch) line their buttons up with regular rows. */
 .filter-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
   flex-shrink: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: var(--icon-button-md) var(--icon-button-md) 52px;
+  column-gap: var(--space-1);
+  align-items: center;
 }
 
 .quick-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
+  display: contents;
 }
 
+.filter-actions > .toggle {
+  justify-self: end;
+}
+
+/* Snoozed rows are read-only; their names step back with the disabled controls. */
+.content.is-snoozed .filter-name {
+  color: var(--text-muted);
+}
+
+/* Copy feedback: the copy icon swaps to a tick for a moment. */
 .filter-item .icon-button {
-  width: 30px;
-  height: 30px;
-  border-color: var(--border);
-  background: var(--surface-muted);
-  color: var(--text-secondary);
   position: relative;
-}
-
-.filter-item .icon-button:not(:disabled):hover {
-  color: var(--text-primary);
-  border-color: var(--border-hover);
-  background: var(--surface-hover);
 }
 
 .icon-button .icon-copy,
@@ -575,8 +338,8 @@ body {
   left: 50%;
   transform: translate(-50%, -50%) scale(1);
   transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
+    opacity var(--duration) var(--ease),
+    transform var(--duration) var(--ease);
 }
 
 .icon-button .icon-tick {
@@ -607,55 +370,61 @@ body {
   }
 }
 
-.empty-state {
+.inactive-summary {
+  flex-shrink: 0;
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
   text-align: center;
-  padding: 20px 12px;
-  color: var(--text-secondary);
-  background: var(--surface);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
 }
 
-.empty-state p {
-  margin: 0 0 12px 0;
-  font-size: 0.9rem;
+.empty-state {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+}
+
+.empty-state-icon {
+  width: 32px;
+  height: 32px;
+  margin-bottom: var(--space-1);
+  color: var(--text-muted);
+}
+
+.empty-state-title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.empty-state-text {
+  max-width: 30ch;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Why no filter is active: one reason per line, wide enough that most fit on it. */
+.empty-state-reasons {
+  max-width: 40ch;
+  white-space: pre-line;
+}
+
+.empty-state .button {
+  margin-top: var(--space-2);
 }
 
 /* Footer action */
 .footer-bar {
-  padding: 0.5rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
   flex-shrink: 0;
-}
-
-.footer-action {
-  width: 100%;
-  padding: 0.6rem 1rem;
-  font-size: 0.85rem;
-}
-
-.footer-action:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.footer-action:disabled:hover {
-  background-color: var(--button-primary-bg);
-}
-
-/* Popup-scale button sizing */
-.button {
-  padding: 0.45rem 0.9rem;
-  font-size: 0.78rem;
-}
-
-.button.small {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.74rem;
-}
-
-.footer-bar .button {
-  padding: 0.6rem 1rem;
-  font-size: 0.85rem;
+  padding: var(--space-3);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
 }

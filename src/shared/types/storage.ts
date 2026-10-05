@@ -74,6 +74,7 @@ export interface BlockedFilterSnapshot {
   readonly pattern: string;
   readonly matchMode: FilterMatchMode;
   readonly description?: string;
+  readonly expiresAt?: number; // Epoch ms when the temporary filter that caused the block expires
 }
 
 export type BlockedGroupSnapshot = FilterGroup;

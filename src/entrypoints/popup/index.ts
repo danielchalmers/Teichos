@@ -36,6 +36,7 @@ import {
   showDialogError,
 } from '../../shared/utils/dom';
 import { formatDuration, generateId, isInternalUrl } from '../../shared/utils/helpers';
+import { formatSnoozeEnd, formatTemporaryFilterLabel } from '../../shared/utils/schedules';
 import type { SnoozeState, StorageData } from '../../shared/types';
 
 let cachedData: StorageData | null = null;
@@ -46,11 +47,20 @@ let closeQuickAddDialog: (() => void) | null = null;
 /** Controls in the filter list that can take focus, skipping the per-row buttons that are hidden. */
 const FILTER_LIST_FOCUSABLE = 'button:not([hidden]):not(:disabled), input:not(:disabled)';
 
+/** Controls in the filter list that lock while snoozed. Open settings only navigates, so it stays. */
+const FILTER_LIST_LOCKABLE = 'button:not([data-action="open-settings"]), input';
+
 interface FilterListFocus {
   readonly filterId: string | undefined;
   readonly controlSelector: string | null;
   readonly rowIndex: number;
 }
+
+/** Why a filter is left out of the list: the state of its group, or an exception for this page. */
+type HiddenReason = 'outside-schedule' | 'no-schedule' | 'group-off' | 'exception';
+
+/** The group id of each hidden filter, by the reason it is hidden. */
+type HiddenFilters = Record<HiddenReason, string[]>;
 
 function updateSnoozeCountdownTick(): void {
   const snooze = cachedData?.snooze;
@@ -103,20 +113,25 @@ async function init(): Promise<void> {
  * Set up event listeners for popup interactions
  */
 function setupEventListeners(): void {
-  const openOptionsButton = getElementByIdOrNull('open-options');
-  openOptionsButton?.addEventListener('click', () => {
-    void sendExtensionMessage({ type: MessageType.CLOSE_INFO_PANEL });
-    openOptionsPage()
-      .catch((error: unknown) => {
-        console.error('Failed to open options page:', error);
-      })
-      .finally(() => {
-        window.close();
-      });
-  });
+  getElementByIdOrNull('open-options')?.addEventListener('click', openSettings);
   setupSnoozePopover();
   setupQuickAdd();
   setupFilterListEvents();
+}
+
+/**
+ * Open Settings as it is, with no dialog, and close the popup. Settings may already be open with
+ * its About panel showing, so close that panel first.
+ */
+function openSettings(): void {
+  void sendExtensionMessage({ type: MessageType.CLOSE_INFO_PANEL });
+  openOptionsPage()
+    .catch((error: unknown) => {
+      console.error('Failed to open options page:', error);
+    })
+    .finally(() => {
+      window.close();
+    });
 }
 
 function setupStorageSync(): void {
@@ -185,7 +200,7 @@ function describeSnoozeStatus(snooze: SnoozeState): string {
 
   const remainingMs = getSnoozeRemainingMs(snooze);
   if (remainingMs === null) {
-    return 'Snoozed until you resume filtering.';
+    return `Snoozed ${formatSnoozeEnd(snooze)}.`;
   }
 
   return `Snoozed for ${formatDuration(remainingMs)} more.`;
@@ -196,12 +211,47 @@ function describeSnoozeButtonLabel(snooze: SnoozeState): string {
     return 'Active';
   }
 
+  // A snooze with no end, as older or imported settings can hold, has no countdown to show.
   const remainingMs = getSnoozeRemainingMs(snooze);
   if (remainingMs === null) {
-    return 'Snoozed: Always';
+    return 'Snoozed';
   }
 
   return `Snoozed: ${formatDuration(remainingMs)}`;
+}
+
+/** The snooze dialog's subtitle, which says when an active snooze ends. */
+function describeSnoozeDialogSubtitle(snooze: SnoozeState): string {
+  if (!isSnoozeActive(snooze)) {
+    return 'Pause all filtering for a set time.';
+  }
+
+  return `Snoozed ${formatSnoozeEnd(snooze)}. Pick a new time to change it.`;
+}
+
+/** The snooze banner's detail line, e.g. "Until 3:45 PM · filters are locked". */
+function describeSnoozeBannerDetail(snooze: SnoozeState): string {
+  const end = formatSnoozeEnd(snooze);
+  return `${end.charAt(0).toUpperCase()}${end.slice(1)} · filters are locked`;
+}
+
+/** The ticker re-applies the snooze state every second, so only touch text that changed. */
+function setTextIfChanged(element: HTMLElement | null, text: string): void {
+  if (element && element.textContent !== text) {
+    element.textContent = text;
+  }
+}
+
+/** Hide an element; if focus was inside it, hand focus to `fallback` so it isn't lost. */
+function hidePreservingFocus(element: HTMLElement, fallback: HTMLElement | null | undefined): void {
+  if (element.hidden) {
+    return;
+  }
+  const hadFocus = element.contains(document.activeElement);
+  element.hidden = true;
+  if (hadFocus) {
+    fallback?.focus();
+  }
 }
 
 function applySnoozeVisualState(snooze: SnoozeState): void {
@@ -210,6 +260,9 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
   const snoozeLabel = getElementByIdOrNull('snooze-label');
   const quickAddButton = getElementByIdOrNull<HTMLButtonElement>('open-quick-add');
   const quickAddPopover = getElementByIdOrNull('quick-add');
+  const banner = getElementByIdOrNull('snooze-banner');
+  const dialogSubtitle = getElementByIdOrNull('snooze-dialog-subtitle');
+  // The banner's own button is deliberately not a resume-snooze action, so this is the dialog's.
   const resumeButton = document.querySelector<HTMLButtonElement>(
     'button[data-action="resume-snooze"]'
   );
@@ -230,9 +283,12 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
 
   if (quickAddButton) {
     quickAddButton.disabled = isActive;
-    quickAddButton.title = isActive
-      ? 'Temporary blocks are unavailable while snoozed'
-      : 'New temporary block';
+    // Only the disabled button needs a tooltip; otherwise its label says it all.
+    if (isActive) {
+      quickAddButton.title = 'Temporary blocks are unavailable while snoozed';
+    } else {
+      quickAddButton.removeAttribute('title');
+    }
   }
 
   if (isActive && quickAddPopover?.classList.contains('is-open')) {
@@ -244,8 +300,31 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
   }
 
   if (resumeButton) {
-    resumeButton.hidden = !isActive;
+    if (isActive) {
+      resumeButton.hidden = false;
+    } else {
+      hidePreservingFocus(
+        resumeButton,
+        document.querySelector<HTMLElement>('#snooze-dialog .snooze-option')
+      );
+    }
   }
+
+  if (banner) {
+    if (isActive) {
+      setTextIfChanged(
+        getElementByIdOrNull('snooze-banner-detail'),
+        describeSnoozeBannerDetail(snooze)
+      );
+      banner.hidden = false;
+    } else if (!banner.hidden) {
+      // An earlier failed resume may have left an error in the banner; it goes with the banner.
+      clearDialogError('snooze-banner-error');
+      hidePreservingFocus(banner, snoozeTrigger);
+    }
+  }
+
+  setTextIfChanged(dialogSubtitle, describeSnoozeDialogSubtitle(snooze));
 
   const content = document.querySelector<HTMLElement>('.content');
   content?.classList.toggle('is-snoozed', isActive);
@@ -270,7 +349,13 @@ function setupSnoozePopover(): void {
       dialog.removeAttribute('inert');
       setBackgroundInert(true);
       if (!wasOpen) {
-        dialog.querySelector<HTMLElement>('.snooze-option')?.focus();
+        // A fresh dialog never starts with an error from an earlier attempt.
+        clearDialogError('snooze-error');
+        // While snoozed the likely next step is resuming, so start there; otherwise on 15m.
+        const resumeButton = dialog.querySelector<HTMLElement>(
+          'button[data-action="resume-snooze"]:not([hidden])'
+        );
+        (resumeButton ?? dialog.querySelector<HTMLElement>('.snooze-option'))?.focus();
       }
     } else {
       dialog.setAttribute('inert', '');
@@ -315,6 +400,27 @@ function setupSnoozePopover(): void {
     setOpen(!dialog.classList.contains('is-open'));
   });
 
+  // The banner hides once filtering resumes; applySnoozeVisualState moves its focus to the trigger.
+  // A failure shows in the banner, since the dialog is closed.
+  getElementByIdOrNull('snooze-banner-resume')?.addEventListener('click', () => {
+    void applySnoozeSelection('off', () => undefined, 'snooze-banner-error');
+  });
+
+  getElementByIdOrNull<HTMLFormElement>('snooze-custom-form')?.addEventListener(
+    'submit',
+    (event) => {
+      event.preventDefault();
+      const minutes = resolveCustomMinutes();
+      if (!minutes) {
+        showDialogError('snooze-error', 'Enter a valid snooze duration.', customDurationInput);
+        customDurationInput?.focus();
+        return;
+      }
+
+      void applySnoozeSelection(minutes, () => setOpen(false, true));
+    }
+  );
+
   dialog.addEventListener('click', (event) => {
     const target = event.target as HTMLElement;
     const closeAction = target.closest<HTMLElement>('[data-action="close-snooze-dialog"]');
@@ -335,18 +441,6 @@ function setupSnoozePopover(): void {
       return;
     }
 
-    if (actionButton.dataset['action'] === 'apply-custom-snooze') {
-      const minutes = resolveCustomMinutes();
-      if (!minutes) {
-        showDialogError('snooze-error', 'Enter a valid snooze duration.', customDurationInput);
-        customDurationInput?.focus();
-        return;
-      }
-
-      void applySnoozeSelection(minutes, () => setOpen(false, true));
-      return;
-    }
-
     const minutesRaw = actionButton.dataset['snoozeMinutes'];
     const minutes = minutesRaw ? Number.parseInt(minutesRaw, 10) : Number.NaN;
     if (Number.isFinite(minutes) && minutes > 0) {
@@ -361,7 +455,12 @@ function setupSnoozePopover(): void {
   });
 }
 
-async function applySnoozeSelection(value: number | 'off', onComplete: () => void): Promise<void> {
+/** Snooze for `value` minutes, or resume; a failure shows in `errorId`, beside the control used. */
+async function applySnoozeSelection(
+  value: number | 'off',
+  onComplete: () => void,
+  errorId = 'snooze-error'
+): Promise<void> {
   try {
     if (value === 'off') {
       await clearSnooze();
@@ -378,10 +477,17 @@ async function applySnoozeSelection(value: number | 'off', onComplete: () => voi
     }
 
     await renderFilters();
+    // A new snooze from the dialog leaves the banner up, so drop an error from an earlier resume.
+    clearDialogError('snooze-banner-error');
     onComplete();
   } catch (error) {
     console.error('Failed to update snooze state:', error);
-    showDialogError('snooze-error', 'Failed to update snooze setting.');
+    showDialogError(
+      errorId,
+      value === 'off'
+        ? 'Failed to resume filtering. Please try again.'
+        : 'Failed to snooze filtering. Please try again.'
+    );
   }
 }
 
@@ -423,9 +529,18 @@ function setupFilterListEvents(): void {
     }
 
     if (action === 'add-first-filter') {
-      openOptionsPageWithParams({ modal: 'filter' }).catch((error: unknown) => {
-        console.error('Failed to open options page:', error);
-      });
+      openOptionsPageWithParams({ modal: 'filter' })
+        .catch((error: unknown) => {
+          console.error('Failed to open options page:', error);
+        })
+        .finally(() => {
+          window.close();
+        });
+      return;
+    }
+
+    if (action === 'open-settings') {
+      openSettings();
     }
   });
 
@@ -507,14 +622,9 @@ function setupQuickAdd(): void {
       setOpen(false, true);
       return;
     }
-    if (action === 'open-full-editor') {
-      openOptionsPageWithParams({ modal: 'filter' })
-        .catch((error: unknown) => {
-          console.error('Failed to open full editor:', error);
-        })
-        .finally(() => {
-          window.close();
-        });
+    // Schedules and exceptions start from their groups in Settings, so open it with no dialog.
+    if (action === 'open-settings') {
+      openSettings();
       return;
     }
 
@@ -602,15 +712,17 @@ async function handleQuickAddSubmit(
   };
   try {
     await addFilter(filter);
-    announceStatus(`Temporary filter added for ${formatDuration(durationMs)}.`);
+    announceStatus(`Temporary block started for ${formatDuration(durationMs)}.`);
     patternInput.value = '';
     await renderFilters();
     onClose();
   } catch (error) {
-    console.error('Failed to add temporary filter:', error);
+    console.error('Failed to start temporary block:', error);
     showDialogError(
       'quick-add-error',
-      error instanceof SettingsSaveError ? error.message : 'Failed to add temporary filter.'
+      error instanceof SettingsSaveError
+        ? error.message
+        : "Couldn't start the temporary block. Try again."
     );
   }
 }
@@ -635,11 +747,11 @@ async function getSuggestedPattern(): Promise<string | null> {
 async function handleCopyPattern(pattern: string, button: HTMLButtonElement): Promise<void> {
   try {
     await copyText(pattern);
-    announceStatus('Copied URL pattern to clipboard.');
+    announceStatus('Copied pattern to clipboard.');
     showCopyFeedback(button);
   } catch (error) {
-    console.error('Failed to copy URL:', error);
-    announceStatus('Failed to copy URL pattern.');
+    console.error('Failed to copy pattern:', error);
+    announceStatus('Failed to copy pattern.');
   }
 }
 
@@ -671,22 +783,72 @@ async function handleDeleteFilter(filterId: string): Promise<void> {
     const latestData = await loadData();
     cachedData = latestData;
     await renderFilters();
-    announceStatus('Temporary filter deleted.');
+    announceStatus('Temporary block deleted.');
   } catch (error) {
     console.error('Failed to delete filter:', error);
     announceStatus('Failed to delete filter.');
   }
 }
 
-function createInactiveSummary(inactiveCount: number): HTMLElement | null {
-  if (inactiveCount <= 0) {
-    return null;
-  }
-
+/** The line under the rows that counts the filters left out of them. */
+function createInactiveSummary(inactiveCount: number): HTMLElement {
   const summary = cloneTemplate<HTMLDivElement>('popup-inactive-summary-template');
-  const label = inactiveCount === 1 ? 'filter' : 'filters';
-  summary.textContent = `${inactiveCount} more inactive ${label}`;
+  // Every hidden reason, an exception for this page included, means the filter doesn't apply here.
+  const subject = inactiveCount === 1 ? "filter doesn't" : "filters don't";
+  summary.textContent = `${inactiveCount} more ${subject} apply here right now`;
   return summary;
+}
+
+/** Hidden-filter reasons in the order their sentences appear: the common schedule case first. */
+const HIDDEN_REASONS: readonly HiddenReason[] = [
+  'outside-schedule',
+  'no-schedule',
+  'group-off',
+  'exception',
+];
+
+/** How one reason reads, given how many filters it hides and across how many groups. */
+function describeHiddenReason(reason: HiddenReason, count: number, groupCount: number): string {
+  const oneGroup = groupCount === 1;
+  switch (reason) {
+    case 'outside-schedule':
+      return count === 1
+        ? "1 filter is outside its group's schedule."
+        : `${count} filters are outside their ${oneGroup ? "group's schedule" : "groups' schedules"}.`;
+    case 'no-schedule':
+      return count === 1
+        ? '1 filter is in a group with no schedule.'
+        : `${count} filters are in ${oneGroup ? 'a group' : 'groups'} with no schedule.`;
+    case 'group-off':
+      return count === 1
+        ? "1 filter is in a group that's turned off."
+        : `${count} filters are in ${oneGroup ? "a group that's" : 'groups that are'} turned off.`;
+    case 'exception':
+      return count === 1
+        ? '1 filter has an exception for this page.'
+        : `${count} filters have exceptions for this page.`;
+  }
+}
+
+/**
+ * Say why the hidden filters aren't blocking, one sentence per reason, each on its own line. It
+ * never claims nothing is blocked: a filter that an exception sets aside here still blocks other
+ * pages.
+ */
+function describeHiddenFilters(hidden: HiddenFilters): string {
+  return HIDDEN_REASONS.filter((reason) => hidden[reason].length > 0)
+    .map((reason) =>
+      describeHiddenReason(reason, hidden[reason].length, new Set(hidden[reason]).size)
+    )
+    .join('\n');
+}
+
+/** Filters exist, but none shows here: say why in place of the rows. */
+function createInactiveState(hidden: HiddenFilters): HTMLElement {
+  const state = cloneTemplate<HTMLDivElement>('popup-inactive-state-template');
+  querySelector<HTMLElement>('.empty-state-text', state).textContent =
+    describeHiddenFilters(hidden);
+  return state;
 }
 
 /**
@@ -730,23 +892,43 @@ async function renderFilters(): Promise<void> {
     }
   }
 
+  const hidden: HiddenFilters = {
+    'outside-schedule': [],
+    'no-schedule': [],
+    'group-off': [],
+    exception: [],
+  };
   const visibleFilters = data.filters.filter((filter) => {
-    if (!getFilterEffectiveState(filter, groupsById, scheduleContext).groupActive) {
+    const state = getFilterEffectiveState(filter, groupsById, scheduleContext);
+    if (!state.groupEnabled) {
+      hidden['group-off'].push(filter.groupId);
+      return false;
+    }
+    if (!state.groupActive) {
+      const group = groupsById.get(filter.groupId);
+      const hasNoSchedule = group !== undefined && !group.is24x7 && group.schedules.length === 0;
+      hidden[hasNoSchedule ? 'no-schedule' : 'outside-schedule'].push(filter.groupId);
       return false;
     }
     if (!isTemporaryFilter(filter) && isUrlEligible && whitelistedGroups.has(filter.groupId)) {
+      hidden.exception.push(filter.groupId);
       return false;
     }
     return true;
   });
   const inactiveCount = data.filters.length - visibleFilters.length;
 
+  if (visibleFilters.length === 0) {
+    replaceFilterList(filterList, createInactiveState(hidden), snoozeActive);
+    return;
+  }
+
   const orderedFilters = sortFiltersTemporaryFirst(visibleFilters);
 
   const fragment = document.createDocumentFragment();
   for (const filter of orderedFilters) {
     const group = groupsById.get(filter.groupId);
-    const groupName = group?.name ?? 'Unknown Group';
+    const groupName = group?.name ?? 'Unknown group';
     const description = filter.description?.trim();
     let displayName = filter.pattern;
     if (description) {
@@ -758,7 +940,6 @@ async function renderFilters(): Promise<void> {
 
     const item = cloneTemplate<HTMLDivElement>('popup-filter-item-template');
     const nameElement = querySelector<HTMLElement>('.filter-name', item);
-    const metaElement = item.querySelector<HTMLElement>('.filter-meta');
     const groupElement = querySelector<HTMLElement>('.filter-group', item);
     const toggleWrapper = item.querySelector<HTMLLabelElement>('label.toggle');
     const toggleInput =
@@ -774,17 +955,7 @@ async function renderFilters(): Promise<void> {
     nameElement.title = displayName;
     const isTemporary = isTemporaryFilter(filter);
     const remainingMs = getTemporaryFilterRemainingMs(filter);
-    if (metaElement) {
-      metaElement.remove();
-    }
-    let groupLabel = groupName;
-    if (remainingMs !== null) {
-      if (remainingMs <= 0) {
-        groupLabel = 'Temporary expired';
-      } else {
-        groupLabel = `Temporary - ${formatDuration(remainingMs)} left`;
-      }
-    }
+    const groupLabel = remainingMs !== null ? formatTemporaryFilterLabel(remainingMs) : groupName;
     groupElement.textContent = groupLabel;
     groupElement.title = groupLabel;
 
@@ -803,7 +974,7 @@ async function renderFilters(): Promise<void> {
 
     item.dataset['filterId'] = filter.id;
     copyButton.dataset['pattern'] = filter.pattern;
-    copyButton.setAttribute('aria-label', `Copy URL for ${displayName}`);
+    copyButton.setAttribute('aria-label', `Copy pattern for ${displayName}`);
     editButton.dataset['filterId'] = filter.id;
     editButton.setAttribute('aria-label', `Edit filter ${displayName}`);
     deleteButton.dataset['filterId'] = filter.id;
@@ -812,32 +983,59 @@ async function renderFilters(): Promise<void> {
     fragment.appendChild(item);
   }
 
-  const inactiveSummary = createInactiveSummary(inactiveCount);
-  if (inactiveSummary) {
-    fragment.appendChild(inactiveSummary);
+  if (inactiveCount > 0) {
+    fragment.appendChild(createInactiveSummary(inactiveCount));
   }
 
   replaceFilterList(filterList, fragment, snoozeActive);
 }
 
 /**
- * Swap in freshly rendered rows. While snoozed the list is dimmed and blocked for the pointer, so
- * its controls are disabled too, giving keyboard and screen reader users the same read-only state.
+ * Swap in freshly rendered rows. While snoozed the list is read-only, so its controls are disabled,
+ * giving pointer, keyboard and screen reader users the same state.
  */
 function replaceFilterList(filterList: HTMLElement, content: Node, snoozeActive: boolean): void {
   const focus = captureFilterListFocus(filterList);
   filterList.replaceChildren(content);
   filterList
-    .querySelectorAll<HTMLButtonElement | HTMLInputElement>('button, input')
+    .querySelectorAll<HTMLButtonElement | HTMLInputElement>(FILTER_LIST_LOCKABLE)
     .forEach((control) => {
       control.disabled = snoozeActive;
     });
+  updateFilterListTabStop(filterList);
   restoreFilterListFocus(filterList, focus);
+}
+
+/**
+ * Read-only rows, such as while snoozed, leave the list with no enabled controls, so it takes focus
+ * itself and keyboard users can still scroll it. Once it has controls again, focus moves into the
+ * list before the stop goes.
+ */
+function updateFilterListTabStop(filterList: HTMLElement): void {
+  const firstControl = filterList.querySelector<HTMLElement>(FILTER_LIST_FOCUSABLE);
+  if (firstControl) {
+    if (document.activeElement === filterList) {
+      firstControl.focus();
+    }
+    filterList.removeAttribute('tabindex');
+    return;
+  }
+
+  if (filterList.querySelector('.filter-item')) {
+    filterList.tabIndex = 0;
+    return;
+  }
+
+  // A snoozed empty state has nothing to scroll or act on, so it is no stop.
+  if (document.activeElement === filterList) {
+    getElementByIdOrNull('open-snooze')?.focus();
+  }
+  filterList.removeAttribute('tabindex');
 }
 
 function captureFilterListFocus(filterList: HTMLElement): FilterListFocus | null {
   const active = document.activeElement;
-  if (!(active instanceof HTMLElement) || !filterList.contains(active)) {
+  if (!(active instanceof HTMLElement) || active === filterList || !filterList.contains(active)) {
     return null;
   }
 

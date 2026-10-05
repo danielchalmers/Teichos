@@ -1,6 +1,7 @@
 /**
  * Shared Teichos theme: design tokens and UI primitives used by every entrypoint.
- * Page stylesheets import this file and only add page-specific layout on top.
+ * Page stylesheets import this file and only add page-specific layout on top; a control looks the
+ * same on every page and is sized only by its modifiers (.small, .large, .block).
  */
 
 * {
@@ -8,24 +9,64 @@
 }
 
 /*
- * Both themes are drawn from the same two ramps at the brand hue (OKLCH 277°): a cool neutral
- * ramp for surfaces and text, and an indigo ramp for the header, primary actions, toggles,
- * links and focus. Light and dark only pick different steps, so they share one design language.
+ * Both themes are drawn from the same two ramps at the brand hue (OKLCH 277°, the logo's hue): a
+ * cool neutral ramp for surfaces and text, and an indigo accent. Light and dark only pick different
+ * steps, so they share one design language. The accent stays calm (chroma 0.15 in light, 0.12 in
+ * dark) and is reserved for one filled primary action per view, switches and selected chips that
+ * are on, links, focus rings and the logo. Everything else is neutral.
  *
  * Accessibility contract (WCAG 2.2 AA), held by every value below in both themes:
  * - text tokens reach at least 4.5:1 on --bg, --surface, --surface-muted and --surface-hover;
- * - control boundaries (--border-strong, toggle tracks) and --focus-ring reach at least 3:1;
- * - surfaces are flat colors so contrast can be checked by automated tools.
- * --border is decorative only (card outlines); never use it as the sole outline of a control.
+ * - controls identified by their outline (inputs, switches, checkable chips) use --border-strong,
+ *   and switch tracks and --focus-ring reach at least 3:1;
+ * - button fills and --border are decorative: buttons are identified by their label or icon;
+ * - in-flow surfaces are flat colors so contrast can be checked by automated tools; only overlays
+ *   (dialogs, popovers) are lifted with --shadow-overlay.
  */
 :root {
   color-scheme: light;
   accent-color: var(--accent);
   --font-sans:
     'Avenir Next', 'SF Pro Text', 'Segoe UI Variable', 'Segoe UI', 'Noto Sans', sans-serif;
-  --font-display:
-    'Space Grotesk', 'Avenir Next', 'SF Pro Display', 'Segoe UI Variable', 'Segoe UI', sans-serif;
-  --font-mono: 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+  --font-mono:
+    ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'Cascadia Mono', Consolas, 'Liberation Mono',
+    monospace;
+
+  /* Type scale. rem is the 16px root on every page. */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.75rem;
+
+  /* Spacing scale (4px grid). */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Radii: inputs, inner boxes, cards and dialogs; pills for buttons, chips and switches. */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+
+  /* Control heights. */
+  --control-sm: 28px;
+  --control-md: 36px;
+  --control-lg: 44px;
+  --chip-height: 32px;
+  --icon-button-sm: 28px;
+  --icon-button-md: 32px;
+
+  --duration: 150ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
 
   --bg: #f9fafe;
   --surface: #ffffff;
@@ -39,49 +80,40 @@
   --text-secondary: #4b4c55;
   --text-muted: #676871;
 
-  --accent: #4d4bd1;
-  --link: #4845ca;
-  --link-hover: #3b30b6;
-  --focus-ring: #4d4bd1;
+  --accent: #4b50b0;
+  --accent-hover: #3f439a;
+  --link: var(--accent);
+  --link-hover: var(--accent-hover);
+  --focus-ring: var(--accent);
 
-  --button-primary-bg: #4d4bd1;
-  --button-primary-hover-bg: #423bc0;
+  --button-primary-bg: var(--accent);
+  --button-primary-hover-bg: var(--accent-hover);
   --button-primary-text: #ffffff;
   --danger: #be222a;
   --danger-hover: #a51e24;
   --danger-text: #b71824;
+  --danger-tint: #ffedeb;
 
-  --header-bg: #443ec3;
-  --header-text: #ffffff;
-  --header-control-bg: rgba(255, 255, 255, 0.12);
-  --header-control-bg-hover: rgba(255, 255, 255, 0.18);
-  --header-control-border: rgba(255, 255, 255, 0.45);
-  --header-control-border-hover: rgba(255, 255, 255, 0.7);
-  --header-focus-ring: #ffffff;
-
-  --toggle-track-on: #4d4bd1;
+  --toggle-track-on: var(--accent);
   --toggle-thumb-on: #ffffff;
+  --toggle-thumb-disabled-on: var(--surface);
+  --selected-bg: var(--accent);
+  --selected-text: #ffffff;
 
-  --snooze-bg: rgba(255, 255, 255, 0.18);
-  --snooze-border: rgba(255, 255, 255, 0.7);
-  --status-active: #6ce98d;
-  --status-active-glow: rgba(108, 233, 141, 0.3);
-  --status-snoozed: #ffbd3e;
-  --status-snoozed-glow: rgba(255, 189, 62, 0.3);
+  --status-active: #2a9a4c;
+  --status-snoozed: #9a6200;
+  --snoozed-bg: #fff4dc;
+  --snoozed-border: #e6bd77;
 
   --modal-overlay: rgba(24, 26, 35, 0.45);
-  --header-shadow: 0 8px 24px rgba(40, 36, 140, 0.18);
-  --header-shadow-compact: 0 2px 10px rgba(40, 36, 140, 0.16);
-  --dialog-shadow: 0 18px 40px rgba(24, 26, 35, 0.18);
-  --shadow-sm: 0 1px 3px rgba(24, 26, 35, 0.06);
-  --shadow-lg: 0 18px 44px rgba(24, 26, 35, 0.18);
+  --shadow-overlay: 0 1px 2px rgba(24, 26, 35, 0.06), 0 12px 32px rgba(24, 26, 35, 0.16);
 
-  --radius-lg: 18px;
-  --radius-md: 12px;
-  --radius-sm: 10px;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%234b4c55' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --alert-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6.25' fill='none' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M8 4.75v3.75' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'/%3E%3Ccircle cx='8' cy='11' r='.9' fill='black'/%3E%3C/svg%3E");
+  --chevron-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
-/* Dark theme: near-black neutrals for night use; indigo stays a small accent. */
+/* Dark theme: near-black neutrals for night use; the accent stays a small, softer highlight. */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -91,55 +123,72 @@
     --surface-hover: #1f212a;
     --border: #252731;
     --border-hover: #40424b;
-    --border-strong: #676871;
+    --border-strong: #6d6f78;
 
     --text-primary: #e3e4e9;
     --text-secondary: #b5b7be;
     --text-muted: #909299;
 
-    --accent: #8691ff;
-    --link: #95a1ff;
-    --link-hover: #acb8ff;
-    --focus-ring: #8e99ff;
+    --accent: #929def;
+    --accent-hover: #afb9f8;
 
-    --button-primary-bg: #474ca4;
-    --button-primary-hover-bg: #5157b1;
+    --button-primary-bg: #494f9a;
+    --button-primary-hover-bg: #535aa6;
     --button-primary-text: #f4f5f9;
     --danger: #9a3130;
     --danger-hover: #892a29;
     --danger-text: #eb827b;
+    --danger-tint: #321a18;
 
-    --header-bg: #1b1d4c;
-    --header-text: #eaebf0;
-    --header-control-bg: rgba(255, 255, 255, 0.1);
-    --header-control-bg-hover: rgba(255, 255, 255, 0.16);
-    --header-control-border: rgba(255, 255, 255, 0.3);
-    --header-control-border-hover: rgba(255, 255, 255, 0.5);
-    --header-focus-ring: #eaebf0;
-
-    --toggle-track-on: #5e65c7;
+    --toggle-track-on: #636cba;
     --toggle-thumb-on: #dcdee3;
+    /* Lighter than the disabled track, like every other thumb, so it never reads as a hole. */
+    --toggle-thumb-disabled-on: var(--border-strong);
+    --selected-bg: var(--toggle-track-on);
+    --selected-text: #ffffff;
 
-    --snooze-bg: rgba(255, 255, 255, 0.16);
-    --snooze-border: rgba(255, 255, 255, 0.4);
     --status-active: #4ac06c;
-    --status-active-glow: rgba(74, 192, 108, 0.25);
     --status-snoozed: #efa831;
-    --status-snoozed-glow: rgba(239, 168, 49, 0.25);
+    --snoozed-bg: #2b210f;
+    --snoozed-border: #65470f;
 
     --modal-overlay: rgba(0, 0, 0, 0.7);
-    --header-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-    --header-shadow-compact: 0 2px 10px rgba(0, 0, 0, 0.45);
-    --dialog-shadow: 0 24px 50px rgba(0, 0, 0, 0.6);
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 24px 58px rgba(0, 0, 0, 0.6);
+    --shadow-overlay: 0 16px 40px rgba(0, 0, 0, 0.6);
+
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%23b5b7be' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   }
+}
+
+/* Short wrapped texts (subtitles, hints, notices) should not leave one word on their last line. */
+body {
+  text-wrap: pretty;
+}
+
+/* Form controls default to the page font instead of the browser's (Arial on Windows). */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
 }
 
 /* Browser default placeholder grays fall below 4.5:1 on the muted input fills. */
 ::placeholder {
   color: var(--text-muted);
   opacity: 1;
+}
+
+/* Component display rules outrank the UA [hidden] style, so restore hiding explicitly. */
+.button[hidden],
+.icon-button[hidden],
+.text-link[hidden],
+.notice[hidden],
+.dialog-error[hidden],
+.dialog-section[hidden],
+.dialog-confirm[hidden],
+.dialog-actions[hidden] {
+  display: none;
 }
 
 /* Accessibility helpers */
@@ -159,95 +208,125 @@
 .app-title {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0;
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 600;
   line-height: 1;
+  color: var(--text-primary);
 }
 
 .app-icon {
   display: block;
   flex: 0 0 auto;
-  transform: translateY(1px);
 }
 
-/* Buttons */
+/*
+ * Buttons: one emphasis scale. The default is the filled primary, used once per view; .secondary
+ * for every other action; .danger-quiet to start a destructive action; .danger only to confirm it.
+ */
 .button {
-  font-family: var(--font-sans);
-  padding: 0.55rem 1rem;
-  background-color: var(--button-primary-bg);
-  color: var(--button-primary-text);
-  border: 1px solid transparent;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 0.88rem;
-  font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  line-height: 1;
+  gap: var(--space-2);
+  min-height: var(--control-md);
+  padding: 0 var(--space-4);
+  font: 600 var(--text-md) / 1.2 var(--font-sans);
+  white-space: nowrap;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  cursor: pointer;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    box-shadow 0.2s;
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
 }
 
 .button:not(:disabled):hover {
-  background-color: var(--button-primary-hover-bg);
+  background: var(--button-primary-hover-bg);
 }
 
-.button:focus-visible,
-.icon-button:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+.button.small {
+  min-height: var(--control-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+  gap: 6px;
+}
+
+.button.large {
+  min-height: var(--control-lg);
+  padding: 0 var(--space-6);
+  font-size: var(--text-base);
+}
+
+.button.block {
+  width: 100%;
 }
 
 .button.secondary {
   background: var(--surface-muted);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  box-shadow: none;
+  border-color: var(--border);
+  color: var(--text-primary);
 }
 
 .button.secondary:not(:disabled):hover {
   background: var(--surface-hover);
   border-color: var(--border-hover);
-  color: var(--text-primary);
 }
 
-.button.ghost {
-  background: var(--surface-muted);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  box-shadow: none;
+.button.danger-quiet {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--danger-text);
 }
 
-.button.ghost:not(:disabled):hover {
-  background: var(--surface-hover);
-  border-color: var(--border-hover);
-  color: var(--text-primary);
+.button.danger-quiet:not(:disabled):hover {
+  background: var(--danger-tint);
+  border-color: var(--danger-text);
 }
 
 .button.danger {
   background: var(--danger);
-  border-color: transparent;
-  box-shadow: none;
+  color: var(--button-primary-text);
 }
 
 .button.danger:not(:disabled):hover {
   background: var(--danger-hover);
 }
 
-.button.small {
-  padding: 0.42rem 0.8rem;
-  font-size: 0.78rem;
-  box-shadow: none;
+/* Disabled buttons turn neutral rather than fading their fill; disabled controls are exempt from
+   contrast minimums, but this still keeps their label readable. */
+.button:disabled {
+  cursor: not-allowed;
+  background: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.button.danger-quiet:disabled {
+  background: transparent;
+}
+
+.button:focus-visible,
+.icon-button:focus-visible,
+.chip:focus-visible,
+.text-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .button-icon {
   display: inline-flex;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.button.small .button-icon {
   width: 14px;
   height: 14px;
 }
@@ -257,41 +336,38 @@
   height: 100%;
 }
 
+/* Icon buttons are ghosts: no fill or outline until hovered. The transparent border stays so
+   forced-colors mode can draw it. */
 .icon-button {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-secondary);
+  width: var(--icon-button-md);
+  height: var(--icon-button-md);
+  padding: 0;
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
   cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
   transition:
-    background 0.2s,
-    border-color 0.2s,
-    color 0.2s,
-    transform 0.2s;
+    background-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
 }
 
 .icon-button.small {
-  width: 28px;
-  height: 28px;
+  width: var(--icon-button-sm);
+  height: var(--icon-button-sm);
 }
 
-.icon-button svg {
-  width: 16px;
-  height: 16px;
-}
-
+.icon-button svg,
 .icon-button .button-icon {
   width: 16px;
   height: 16px;
 }
 
+.icon-button.small svg,
 .icon-button.small .button-icon {
   width: 14px;
   height: 14px;
@@ -299,87 +375,60 @@
 
 .icon-button:not(:disabled):hover {
   background: var(--surface-hover);
-  border-color: var(--border-hover);
   color: var(--text-primary);
 }
 
-.icon-button:active {
-  transform: scale(0.96);
-}
-
-/* Disabled controls are exempt from contrast minimums; they fade and stop reacting to hover. */
-.button:disabled,
 .icon-button:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
-.icon-button[hidden] {
-  display: none;
-}
-
-/* Toggle switch: an outlined track when off and a filled track when on, so state reads by
-   shape and thumb position as well as color. */
-.toggle {
-  position: relative;
-  display: inline-flex;
-  width: 44px;
-  height: 22px;
-  flex-shrink: 0;
-}
-
-.toggle input {
-  position: absolute;
-  opacity: 0;
-  inset: 0;
-}
-
-.toggle input:focus-visible + .slider {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.slider {
-  position: absolute;
-  inset: 0;
+/* Text link: an inline action that reads as a link. */
+.text-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: var(--text-md);
+  color: var(--link);
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   cursor: pointer;
-  background-color: transparent;
-  box-shadow: inset 0 0 0 1.5px var(--border-strong);
-  transition: 0.3s;
-  border-radius: 22px;
 }
 
-.slider:before {
-  position: absolute;
-  content: '';
-  height: 16px;
-  width: 16px;
-  left: 3px;
-  bottom: 3px;
-  background-color: var(--text-muted);
-  transition: 0.3s;
-  border-radius: 50%;
+.text-link:hover {
+  color: var(--link-hover);
 }
 
-input:checked + .slider {
-  background-color: var(--toggle-track-on);
-  box-shadow: inset 0 0 0 1.5px var(--toggle-track-on);
+.text-link:focus-visible {
+  border-radius: 4px;
 }
 
-input:checked + .slider:before {
-  background-color: var(--toggle-thumb-on);
-  transform: translateX(22px);
+/* Form fields: one 36px field with a strong outline, used for text, number, time and select. */
+.input {
+  width: 100%;
+  height: var(--control-md);
+  padding: 0 var(--space-3);
+  font-size: var(--text-md);
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
 }
 
-/* Dialog input and save errors, shown inline and also announced through the status region. */
-.dialog-error {
-  margin: 0;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--danger-text);
+select.input {
+  appearance: none;
+  padding-right: 36px;
+  background: var(--surface) var(--select-chevron) no-repeat right 10px center / 16px;
+  cursor: pointer;
 }
 
-/* Form fields share one focus ring and mark invalid input with the danger color. */
+input[type='time'].input {
+  font-variant-numeric: tabular-nums;
+}
+
 .input:focus-visible,
 select:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -393,12 +442,423 @@ select[aria-invalid='true'] {
   border-color: var(--danger-text);
 }
 
+.input[aria-invalid='true']:focus-visible,
+select[aria-invalid='true']:focus-visible {
+  outline-color: var(--danger-text);
+}
+
+.field-label {
+  display: block;
+  margin: 0;
+  font: 600 var(--text-sm) / 1.4 var(--font-sans);
+  color: var(--text-secondary);
+}
+
+.field-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/*
+ * Switch: an outlined track when off and a filled track when on, so state reads by shape and
+ * thumb position as well as color. The real checkbox sits on top, invisible, so it takes every
+ * click; the slider is drawing only.
+ */
+.toggle {
+  position: relative;
+  display: inline-flex;
+  width: 44px;
+  height: 22px;
+  flex: none;
+}
+
+.toggle input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  z-index: 1;
+  cursor: pointer;
+}
+
+.toggle input:disabled {
+  cursor: not-allowed;
+}
+
+.toggle input:focus-visible + .slider {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.slider {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
+  border-radius: var(--radius-full);
+  transition:
+    background-color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
+}
+
+.slider::before {
+  position: absolute;
+  content: '';
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text-muted);
+  border-radius: 50%;
+  transition:
+    transform var(--duration) var(--ease),
+    background-color var(--duration) var(--ease);
+}
+
+input:checked + .slider {
+  background-color: var(--toggle-track-on);
+  box-shadow: inset 0 0 0 1.5px var(--toggle-track-on);
+}
+
+input:checked + .slider::before {
+  background-color: var(--toggle-thumb-on);
+  transform: translateX(22px);
+}
+
+/* Disabled switches turn neutral; on and off still read from the fill and thumb position. */
+.toggle input:disabled + .slider {
+  box-shadow: inset 0 0 0 1.5px var(--border-hover);
+}
+
+.toggle input:disabled + .slider::before {
+  background-color: var(--border-hover);
+}
+
+.toggle input:disabled:checked + .slider {
+  background-color: var(--border-hover);
+}
+
+.toggle input:disabled:checked + .slider::before {
+  background-color: var(--toggle-thumb-disabled-on);
+}
+
+/* A labelled switch row for settings and dialog fields. */
+.switch-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--control-md);
+}
+
+/* Same tier as .field-label, so a switch reads as one more field in the form. */
+.switch-field > label {
+  font: 600 var(--text-sm) / 1.4 var(--font-sans);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* Chips: compact pill choices such as duration presets. */
+.chip {
+  min-height: var(--chip-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  font: 600 var(--text-sm) / 1 var(--font-sans);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease);
+}
+
+.chip:not(:disabled):hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+}
+
+.chip-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+/* Checkable day chips: the real checkbox covers the chip, so the label is the whole target. */
+.day-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.day-checkbox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--chip-height);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  font: 600 var(--text-sm) / 1 var(--font-sans);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
+}
+
+.day-checkbox input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.day-checkbox:hover {
+  background: var(--surface-hover);
+}
+
+.day-checkbox:has(input:checked) {
+  background: var(--selected-bg);
+  border-color: var(--selected-bg);
+  color: var(--selected-text);
+}
+
+/* The ring sits on the chip's edge with a surface halo inside, so it stays clear of the
+   neighbouring chips in the 4px gap and readable on a selected chip. */
+.day-checkbox:has(input:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+  border-color: var(--focus-ring);
+  box-shadow: inset 0 0 0 2px var(--surface);
+}
+
+/* A schedule whose days are missing marks its unselected chips where focus lands. */
+.day-checkboxes[aria-invalid='true'] .day-checkbox:not(:has(input:checked)) {
+  border-color: var(--danger-text);
+}
+
+/* Status dot: green while filtering, amber while snoozed. */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--status-active);
+}
+
+.is-snoozed .status-dot,
+.notice .status-dot {
+  background: var(--status-snoozed);
+}
+
+/* In a notice the dot stays level with the title's first line when the detail wraps. */
+.notice .status-dot {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+/* Notice: an inline callout for a temporary state, such as a snooze, with an optional action. */
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--snoozed-border);
+  border-radius: var(--radius-md);
+  background: var(--snoozed-bg);
+  color: var(--text-primary);
+}
+
+/* In a narrow container the action wraps below the text and stays on the right edge. */
+.notice-text {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.notice-title {
+  margin: 0;
+  font: 600 var(--text-md) / 1.4 var(--font-sans);
+}
+
+.notice-detail {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.notice .button.secondary {
+  flex: none;
+  margin-left: auto;
+  background: var(--surface);
+}
+
+.notice .button.secondary:not(:disabled):hover {
+  background: var(--surface-hover);
+}
+
+/*
+ * Dialogs: one anatomy for the options modals and the popup panels. Header (title, optional
+ * subtitle, close icon button), body fields, then actions ordered [quiet delete] … [Cancel] [Primary].
+ */
+.dialog {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-overlay);
+  padding: var(--space-6);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.dialog-heading {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.dialog-title {
+  margin: 0;
+  font: 600 var(--text-lg) / 1.3 var(--font-sans);
+  color: var(--text-primary);
+}
+
+.dialog-subtitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* Pull the close button into the corner so its glyph, not its hit area, aligns with the padding. */
+.dialog-header .icon-button {
+  margin: -6px -6px 0 0;
+}
+
+.dialog-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.dialog-actions .danger-quiet {
+  margin-right: auto;
+}
+
+.dialog-actions.fill > .button {
+  flex: 1 1 0;
+}
+
+/* The confirm step of a destructive action, shown in place of the dialog's actions. */
+.dialog-confirm {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--danger-tint);
+}
+
+.dialog-confirm-text {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.dialog-confirm .dialog-actions {
+  margin-top: 0;
+}
+
+.dialog-confirm .button.secondary {
+  background: var(--surface);
+}
+
+.dialog-confirm .button.secondary:not(:disabled):hover {
+  background: var(--surface-hover);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
+/* Inline errors (dialog input and save errors, settings status errors) carry an alert icon so
+   they read as errors without color too; they are also announced through a status region. */
+.dialog-error,
+.global-settings-status.is-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font: 500 var(--text-sm) / 1.4 var(--font-sans);
+  color: var(--danger-text);
+}
+
+.dialog-error::before,
+.global-settings-status.is-error:not(:empty)::before {
+  content: '';
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  background-color: currentColor;
+  -webkit-mask: var(--alert-icon) center / contain no-repeat;
+  mask: var(--alert-icon) center / contain no-repeat;
+}
+
 /* In forced-colors mode (e.g. Windows High Contrast) backgrounds and shadows are replaced, which
-   would erase the toggle track and thumb; redraw them with system colors. */
+   would erase the switch track and thumb, the chips' selected fill and mask-drawn icons; redraw
+   them with system colors. */
 @media (forced-colors: active) {
   .slider,
-  .slider::before {
+  .slider::before,
+  .day-checkbox,
+  .status-dot,
+  .dialog-error::before,
+  .global-settings-status.is-error::before {
     forced-color-adjust: none;
+  }
+
+  /* forced-color-adjust: none also stops outline forcing on these. */
+  .toggle input:focus-visible + .slider,
+  .day-checkbox:has(input:focus-visible) {
+    outline-color: Highlight;
   }
 
   .slider {
@@ -416,6 +876,59 @@ select[aria-invalid='true'] {
 
   input:checked + .slider::before {
     background-color: HighlightText;
+  }
+
+  .toggle input:disabled + .slider,
+  .toggle input:disabled:checked + .slider {
+    background-color: Canvas;
+    box-shadow: inset 0 0 0 1.5px GrayText;
+  }
+
+  .toggle input:disabled + .slider::before,
+  .toggle input:disabled:checked + .slider::before {
+    background-color: GrayText;
+  }
+
+  /* Selectors match the specificity of the themed rules they replace. */
+  .day-checkbox,
+  .day-checkbox:hover {
+    background: Canvas;
+    color: CanvasText;
+    border-color: CanvasText;
+  }
+
+  .day-checkbox:not(:has(input:checked)):hover {
+    border-color: Highlight;
+  }
+
+  .day-checkbox:has(input:checked) {
+    background: Highlight;
+    color: HighlightText;
+    border-color: Highlight;
+  }
+
+  .day-checkbox:has(input:focus-visible) {
+    box-shadow: inset 0 0 0 2px Canvas;
+  }
+
+  .status-dot,
+  .is-snoozed .status-dot,
+  .notice .status-dot,
+  .dialog-error::before,
+  .global-settings-status.is-error::before {
+    background-color: CanvasText;
+  }
+
+  /* The danger tint is dropped, so frame the confirm step instead. */
+  .dialog-confirm {
+    border: 1px solid CanvasText;
+  }
+
+  /* The native arrow returns, so drop the padding kept for the drawn chevron. */
+  select.input {
+    appearance: auto;
+    background-image: none;
+    padding-right: var(--space-1);
   }
 }
 
