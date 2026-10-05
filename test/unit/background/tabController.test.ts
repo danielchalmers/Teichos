@@ -191,6 +191,49 @@ describe('TabController', () => {
     );
   });
 
+  it('records when the temporary filter behind a block expires in its page snapshot', async () => {
+    const expiresAt = Date.now() + 30 * 60_000;
+    getChromeMock().storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({
+        filters: [
+          {
+            id: 'temporary-filter',
+            pattern: 'blocked.com',
+            groupId: DEFAULT_GROUP_ID,
+            enabled: true,
+            matchMode: 'contains',
+            expiresAt,
+          },
+          { ...newsFilter, id: 'regular-filter' },
+        ],
+      })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(6, 'https://blocked.com/focus');
+    await getTabController().evaluateNavigation(7, 'https://news.com/today');
+
+    const temporaryBlock = await getBlockedTabState(6);
+    await expect(
+      getTabController().getBlockedPageStateByBlockId(temporaryBlock!.blockId)
+    ).resolves.toMatchObject({
+      status: 'blocked',
+      state: { filter: { id: 'temporary-filter', pattern: 'blocked.com', expiresAt } },
+    });
+
+    // A regular filter's snapshot has no expiry, so the block page shows only the group schedule.
+    const regularBlock = await getBlockedTabState(7);
+    await expect(
+      getTabController().getBlockedPageStateByBlockId(regularBlock!.blockId)
+    ).resolves.toEqual({
+      status: 'blocked',
+      state: expect.objectContaining({
+        filter: { id: 'regular-filter', pattern: 'news.com', matchMode: 'contains' },
+      }),
+    });
+  });
+
   it('stores the last allowed url for allowed navigations', async () => {
     const { getTabController } = await import('../../../src/background/tabController');
     await getTabController().evaluateNavigation(9, 'https://allowed.com');

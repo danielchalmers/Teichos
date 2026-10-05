@@ -4,7 +4,7 @@
 
 export const EXTENSION_NAME = 'Teichos' as const;
 
-export const DAY_NAMES = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const;
+export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 /** Spoken names for DAY_NAMES; each starts with its abbreviation so the visible label stays in the name. */
 export const DAY_FULL_NAMES = [

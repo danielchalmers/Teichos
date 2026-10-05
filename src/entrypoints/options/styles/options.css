@@ -9,56 +9,49 @@ html {
 body {
   font-family: var(--font-sans);
   margin: 0;
-  padding: 28px 24px 72px;
+  padding: var(--space-6) var(--space-6) 64px;
   min-height: 100vh;
   background: var(--bg);
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--text-base);
   line-height: 1.5;
 }
 
 .container {
+  /* Horizontal padding shared by every card, so row content and switches line up across them. */
+  --inset: var(--space-5);
   max-width: 880px;
   margin: 0 auto;
 }
 
-/* Page header: compact brand bar */
+/* Page header: the brand and page name on a neutral rule, with About at the trailing edge. */
 .page-header {
-  background: var(--header-bg);
-  color: var(--header-text);
-  border-radius: var(--radius-lg);
-  padding: 0.85rem 1.35rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
-  box-shadow: var(--header-shadow);
-  margin-bottom: 2rem;
-}
-
-.title-block {
-  min-width: 0;
-  display: flex;
-  align-items: center;
+  gap: var(--space-4);
+  min-height: 56px;
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-8);
+  border-bottom: 1px solid var(--border);
 }
 
 .page-header .app-title {
-  font-weight: 700;
-  font-size: 1.45rem;
-  letter-spacing: 0.3px;
-  gap: 0.6rem;
+  min-width: 0;
+  font-size: var(--text-lg);
 }
 
 .page-header .app-icon {
-  width: 30px;
-  height: 30px;
-  filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.2));
+  width: 24px;
+  height: 24px;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
+.app-title-context {
+  margin-left: var(--space-1);
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--border);
+  font-weight: 400;
+  color: var(--text-muted);
 }
 
 /* About popover */
@@ -66,323 +59,196 @@ body {
   position: relative;
 }
 
-.info-button {
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  border: 1px solid var(--header-control-border);
-  background: var(--header-control-bg);
-  color: var(--header-text);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition:
-    background 0.2s,
-    border-color 0.2s,
-    transform 0.2s;
-}
-
-.info-button svg {
-  width: 18px;
-  height: 18px;
-}
-
-.info-button:hover {
-  background: var(--header-control-bg-hover);
-  border-color: var(--header-control-border-hover);
-}
-
-.info-button:active {
-  transform: scale(0.97);
-}
-
-.info-button:focus-visible {
-  outline: 2px solid var(--header-focus-ring);
-  outline-offset: 3px;
-}
-
 .info-panel {
   position: absolute;
-  top: calc(100% + 0.55rem);
+  top: calc(100% + var(--space-2));
   right: 0;
-  width: 360px;
-  max-width: 90vw;
+  width: 320px;
+  max-width: calc(100vw - 2 * var(--space-4));
+  padding: var(--space-4);
   background: var(--surface);
   color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 1rem 1.1rem;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-overlay);
   opacity: 0;
-  transform: translateY(-6px);
+  transform: translateY(-4px);
   pointer-events: none;
   transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
+    opacity var(--duration) var(--ease),
+    transform var(--duration) var(--ease);
   z-index: 20;
 }
 
 .info-popover.is-open .info-panel {
   opacity: 1;
-  transform: translateY(0);
+  transform: none;
   pointer-events: auto;
 }
 
 .info-title {
-  font-weight: 700;
-  font-size: 0.95rem;
-  font-family: var(--font-display);
-  color: var(--text-primary);
+  font: 600 var(--text-base) / 1.4 var(--font-sans);
 }
 
 .info-text {
-  margin: 0.45rem 0 0.6rem;
+  margin: var(--space-1) 0 var(--space-3);
+  font-size: var(--text-md);
+  line-height: 1.45;
   color: var(--text-secondary);
-  font-size: 0.88rem;
-  line-height: 1.4;
 }
 
 .info-meta {
-  margin: 0 0 0.75rem;
-  padding: 0.5rem 0.6rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface-muted);
   display: grid;
-  gap: 0.35rem;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-4);
 }
 
 .info-meta-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 0.75rem;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
+  gap: var(--space-3);
+  font-size: var(--text-sm);
 }
 
 .info-label {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-secondary);
 }
 
 .info-value {
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
 }
 
 .info-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.info-links .info-badge {
-  flex: 1 1 0;
-  justify-content: center;
-  white-space: nowrap;
-}
-
-.info-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  background: var(--button-primary-bg);
-  color: var(--button-primary-text);
-  font-weight: 600;
-  font-size: 0.78rem;
-  text-decoration: none;
-  transition: background-color 0.2s;
-}
-
-.info-badge:hover {
-  background: var(--button-primary-hover-bg);
-}
-
-.info-badge:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.info-badge-icon {
-  display: inline-flex;
-  width: 14px;
-  height: 14px;
-}
-
-.info-badge-icon svg {
-  width: 100%;
-  height: 100%;
+  display: grid;
+  gap: var(--space-2);
 }
 
 /* Sections */
 .settings-section {
-  margin-bottom: 2.25rem;
+  margin-bottom: var(--space-10);
+}
+
+.settings-section:last-child {
+  margin-bottom: 0;
 }
 
 .section-header {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
 .section-heading-block {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .section-header h2 {
   margin: 0;
+  font: 600 var(--text-xl) / 1.4 var(--font-sans);
+  letter-spacing: -0.01em;
   color: var(--text-primary);
-  font-size: 1.25rem;
-  font-weight: 600;
-  font-family: var(--font-display);
 }
 
 .section-hint {
   margin: 0;
-  color: var(--text-muted);
-  font-size: 0.88rem;
-}
-
-/* Snooze status carries the same amber dot as the popup's snooze chip. */
-#snooze-notice:not([hidden]) {
-  display: flex;
-  align-items: baseline;
-  gap: 0.45rem;
+  font-size: var(--text-md);
+  line-height: 1.45;
   color: var(--text-secondary);
-  font-weight: 600;
 }
 
-#snooze-notice::before {
-  content: '';
-  flex: 0 0 auto;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--status-snoozed);
-  box-shadow: 0 0 0 2.5px var(--status-snoozed-glow);
-  transform: translateY(-1px);
+/* Centers the 36px button on the 28px heading line. */
+#add-group-btn {
+  margin-top: -4px;
 }
 
+/* Inset like the cards below, so its Resume button ends on the same edge as their switches. */
+#snooze-notice {
+  margin-bottom: var(--space-4);
+  padding-inline: var(--inset);
+}
+
+/* Centre the 8px dot in the chevron's 16px column, so the text starts on the group titles' --indent. */
+#snooze-notice .status-dot {
+  margin-inline: 4px;
+}
+
+#snooze-notice-error {
+  margin-top: var(--space-1);
+}
+
+/* Cards: flat surfaces whose rows are separated by hairlines, never cards inside cards. */
+.group-item,
 .settings-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1.25rem;
-  box-shadow: var(--shadow-sm);
-}
-
-.list-footer {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 0.8rem;
-}
-
-.group-section .list-footer {
-  margin-top: 0.65rem;
-}
-
-/* Form elements */
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.input,
-select {
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  font-size: 0.92rem;
-  background: var(--surface);
-  color: var(--text-primary);
-}
-
-label,
-.field-label {
-  display: block;
-  margin: 0;
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-}
-
-.form-row {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-/* Group cards */
-.group-item {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  margin-bottom: 1rem;
   overflow: hidden;
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
-  box-shadow: var(--shadow-sm);
+}
+
+/* Row content starts under the group title, past the leading chevron. */
+.group-item {
+  --indent: calc(var(--inset) + 16px + var(--space-3));
+  margin-bottom: var(--space-3);
 }
 
 .group-header {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
-  cursor: pointer;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-4) var(--inset);
+  background: var(--surface);
+  transition: background-color var(--duration) var(--ease);
+}
+
+/* surface-muted rather than surface-hover, so an off switch's outline keeps 3:1 under the pointer. */
+.group-header:has(.group-disclosure:hover) {
   background: var(--surface-muted);
 }
 
+/* Leading disclosure chevron, on the title's first line: points right when closed, down when open. */
 .group-header::after {
   content: '';
+  order: -1;
+  align-self: flex-start;
+  flex: none;
   width: 16px;
   height: 16px;
-  flex: 0 0 auto;
-  margin-left: 0.75rem;
-  background-color: var(--text-muted);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-    center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-    center / contain no-repeat;
-  transition: transform 0.2s;
+  margin-top: calc((var(--text-base) * 1.4 - 16px) / 2);
+  background-color: var(--text-secondary);
+  -webkit-mask: var(--chevron-icon) center / contain no-repeat;
+  mask: var(--chevron-icon) center / contain no-repeat;
+  transform: rotate(-90deg);
+  transition: transform var(--duration) var(--ease);
   /* Decorative: clicks fall through to the disclosure overlay in both states. */
   pointer-events: none;
 }
 
 .group-item.is-open .group-header::after {
-  transform: rotate(180deg);
+  transform: none;
 }
 
 .group-item.is-open .group-header {
   border-bottom: 1px solid var(--border);
 }
 
-.group-item.group-disabled .group-header {
-  background: var(--surface);
+.group-item.group-disabled :is(.group-title, .group-meta) {
+  color: var(--text-muted);
 }
 
-.group-item.group-disabled .group-title,
-.group-item.group-disabled .filter-meta,
 .group-item.group-disabled .group-header::after {
-  color: var(--text-muted);
+  background-color: var(--text-muted);
 }
 
 /* The group name is the disclosure button; its overlay makes the whole header row clickable. */
@@ -424,33 +290,34 @@ label,
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 2px;
 }
 
 .group-title {
   margin: 0;
-  font-weight: 700;
-  font-size: 1.1rem;
+  font: 600 var(--text-base) / 1.4 var(--font-sans);
   color: var(--text-primary);
-  font-family: var(--font-display);
+  overflow-wrap: anywhere;
+}
+
+.group-meta {
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/*
+ * A narrow meta line wraps between its parts (one per schedule, then the counts); each part carries
+ * its trailing separator, so a line never starts with one. A part wider than the whole line wraps
+ * inside itself rather than running under the header controls.
+ */
+.meta-part {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
 }
 
 .group-content {
-  padding: 1rem 1.25rem 1.25rem;
-  background: var(--surface);
-  position: relative;
-}
-
-/* hidden="until-found" only skips the contents and keeps the box, so drop its padding too. */
-.group-content[hidden] {
-  padding: 0;
-}
-
-.group-content.is-snoozed [data-role='filter-list'] {
-  position: relative;
-}
-
-.group-content.is-readonly {
   position: relative;
 }
 
@@ -459,71 +326,74 @@ label,
   z-index: 1;
 }
 
-/* Read-only text drops to the muted color, which still meets 4.5:1; only the disabled controls fade. */
+/* Read-only text drops to the muted color, which still meets 4.5:1; disabled controls turn neutral. */
 .group-content.is-readonly
   :is(.filter-title, .filter-pattern, .empty-state, .group-section-header h4) {
   color: var(--text-muted);
 }
 
-.group-content.is-readonly :is(.button, .icon-button, .toggle) {
-  opacity: 0.5;
-}
-
 .group-content.is-readonly::after {
   content: '';
   position: absolute;
-  inset: -0.2rem;
-  border-radius: 12px;
+  inset: 0;
   pointer-events: auto;
   cursor: not-allowed;
   z-index: 2;
 }
 
-.group-section {
-  margin-bottom: 1.25rem;
+.group-note {
+  margin: 0;
+  padding: var(--space-3) var(--inset) 0 var(--indent);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-muted);
 }
 
-.group-section:last-child {
-  margin-bottom: 0;
+.group-section + .group-section {
+  border-top: 1px solid var(--border);
 }
 
 .group-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.6rem;
-  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--inset) var(--space-2) var(--indent);
 }
 
 .group-section-header h4 {
   margin: 0;
-  font-size: 0.98rem;
-  color: var(--text-primary);
-  font-weight: 600;
-  font-family: var(--font-display);
+  font: 600 var(--text-sm) / 1.4 var(--font-sans);
+  color: var(--text-secondary);
 }
 
 .empty-state {
-  margin: 0.4rem 0 0.75rem;
-  font-size: 0.9rem;
+  margin: 0;
+  padding: var(--space-2) var(--inset) var(--space-4) var(--indent);
+  font-size: var(--text-md);
+  line-height: 1.45;
   color: var(--text-muted);
 }
 
 /* Filter / exception rows */
 .filter-item {
-  background: var(--surface);
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: var(--space-3) var(--inset) var(--space-3) var(--indent);
 }
 
-.filter-item + .filter-item {
-  margin-top: 0.5rem;
+/* Rows in a list are divided by hairlines inset to the text column, so the full-width rules
+   between the header and each section stay the stronger grouping. */
+.filter-item + .filter-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--indent);
+  right: 0;
+  border-top: 1px solid var(--border);
 }
 
 .filter-details {
@@ -531,84 +401,117 @@ label,
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 2px;
 }
 
 .filter-title {
-  font-weight: 600;
+  font: 600 var(--text-md) / 1.4 var(--font-sans);
   color: var(--text-primary);
-  font-size: 0.95rem;
+  overflow-wrap: anywhere;
 }
 
 .filter-pattern {
   font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.45;
   color: var(--text-secondary);
-  font-size: 0.85rem;
   /* Wrap long patterns so the whole pattern stays readable at any width. */
   overflow-wrap: anywhere;
-  max-width: 100%;
 }
 
 .filter-meta {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
+  line-height: 1.4;
   color: var(--text-muted);
 }
 
+/* Trailing controls: [icon actions][switch], so every switch shares one right edge. */
 .actions {
   display: flex;
-  gap: 0.5rem;
   align-items: center;
-  flex-wrap: wrap;
+  gap: var(--space-2);
+  flex: none;
 }
 
-/* Above the disclosure's row overlay, so the toggle and Edit button stay clickable. */
+/* Above the disclosure's row overlay, so the switch and Edit button stay clickable. */
 .group-header .actions {
   position: relative;
   z-index: 1;
   margin-left: auto;
 }
 
-/* Global settings */
-.global-settings-panel {
-  display: grid;
-  gap: 0.9rem;
-}
-
-.global-settings-actions {
+/* General settings: one row per setting, title and description leading, controls trailing. */
+.setting-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--inset);
+}
+
+.setting-row + .setting-row {
+  border-top: 1px solid var(--border);
+}
+
+.setting-text {
+  flex: 1 1 16rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setting-title {
+  font: 600 var(--text-md) / 1.4 var(--font-sans);
+  color: var(--text-primary);
+}
+
+label.setting-title {
+  cursor: pointer;
+}
+
+.setting-desc {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* Wrapped controls stay at the trailing edge, so the switch keeps its column. */
+.setting-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-left: auto;
 }
 
 .global-settings-status {
-  min-height: 1.4rem;
   margin: 0;
+  padding: 0 var(--inset) var(--space-4);
+  font-size: var(--text-sm);
+  line-height: 1.4;
   color: var(--text-secondary);
-  font-size: 0.88rem;
 }
 
 /*
- * Take the empty status out of the grid so it adds no row or gap, but keep it rendered: a live
- * region that is display: none until its first message is often not announced.
+ * Take the empty status out of the flow so it adds no space, but keep it rendered: a live region
+ * that is display: none until its first message is often not announced.
  */
 .global-settings-status:empty {
   position: absolute;
-  min-height: 0;
+  padding: 0;
 }
 
-.global-settings-status.is-error {
-  color: var(--danger-text);
-}
-
-/* Modal */
+/* Modal: positioning and open state; the panel itself is the shared .dialog. */
 .modal {
   display: none;
   position: fixed;
   z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
+  padding: var(--space-4);
   background-color: var(--modal-overlay);
 }
 
@@ -616,144 +519,41 @@ label,
   display: flex;
   justify-content: center;
   align-items: center;
+  animation: fade-in var(--duration) var(--ease);
+}
+
+.modal.active .dialog {
+  animation: dialog-in var(--duration) var(--ease);
 }
 
 .modal-content {
-  background: var(--surface);
-  padding: 1.75rem;
-  border-radius: var(--radius-lg);
-  max-width: 520px;
-  width: 92%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: var(--shadow-lg);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 1.15rem;
-}
-
-.modal-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.modal-actions .button.danger {
-  margin-right: auto;
-}
-
-.close {
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-muted);
-  background: none;
-  border: none;
-  padding: 0;
-  width: 30px;
-  height: 30px;
-}
-
-.close:hover {
-  color: var(--text-secondary);
-}
-
-.close:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-/* Checkbox label */
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.checkbox-label input {
-  margin: 0;
-}
-
-/* Schedule items */
-.schedule-item {
-  background: var(--surface-muted);
-  padding: 0.9rem;
-  margin-bottom: 0.6rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-}
-
-.time-inputs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.time-inputs input {
-  flex: 1 1 140px;
-}
-
-.time-inputs span {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
-.day-checkboxes {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
   width: 100%;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.6rem;
+  max-width: 480px;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
-.day-checkbox {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
+/* "In {group}": a long group name wraps like it does on its card, while "Temporary · 45m left"
+   moves to the next line whole. */
+.modal .dialog-subtitle {
+  overflow-wrap: anywhere;
 }
 
-.day-checkbox input {
+.subtitle-expiry {
+  white-space: nowrap;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.form-row {
   margin: 0;
-}
-
-/* Mark the schedule whose days are missing, where focus lands, not only in the message below. */
-.day-checkboxes[aria-invalid='true'] {
-  outline: 2px solid var(--danger-text);
-  outline-offset: 4px;
-  border-radius: var(--radius-sm);
-}
-
-/* Native checkboxes use the shared focus ring instead of the browser default. */
-.checkbox-label input:focus-visible,
-.day-checkbox input:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-#schedules-container {
-  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .required-marker {
@@ -761,74 +561,141 @@ label,
   font-weight: 600;
 }
 
-@media (max-width: 720px) {
+/* Schedule editor */
+.schedules-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+#schedules-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.schedule-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3) var(--space-2);
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.time-inputs {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-separator {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 520px) {
   body {
-    padding: 20px;
+    padding: var(--space-4);
   }
 
-  .page-header {
-    position: relative;
-  }
-
-  /* The stacked header puts the About button at the left, so span the panel across the header. */
-  .info-popover {
-    position: static;
-  }
-
-  .info-panel {
-    left: 0;
-    right: 0;
-    width: auto;
-    max-width: none;
-  }
-
-  .section-header {
-    align-items: flex-start;
-  }
-
-  .group-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  /* Keep the chevron beside the title and leave blank header space clickable. */
-  .group-header::after {
-    position: absolute;
-    top: 1.15rem;
-    right: 1.25rem;
-    margin: 0;
-  }
-
-  .group-info {
-    align-self: stretch;
-    padding-right: 1.75rem;
-  }
-
-  .group-header .actions {
-    width: auto;
-    margin-left: 0;
-  }
-
-  .filter-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .filter-details {
-    align-self: stretch;
-  }
-
-  .actions {
-    width: 100%;
-  }
-
-  .global-settings-actions {
-    flex-direction: column;
-    align-items: stretch;
+  .container {
+    --inset: var(--space-4);
   }
 }
 
-/* Forced-colors mode drops background-color, which draws the chevron; use the text color. */
+@media (max-width: 480px) {
+  .dialog {
+    padding: var(--space-5);
+  }
+
+  .day-checkbox {
+    font-size: var(--text-xs);
+  }
+}
+
+/* Reflow at 320-400px (zoom up to 400%): seven day chips and two side-by-side time inputs no longer
+   fit, so they wrap rather than clip their labels or the time's AM/PM. */
+@media (max-width: 400px) {
+  .modal {
+    padding: var(--space-2);
+  }
+
+  .dialog {
+    padding: var(--space-4);
+  }
+
+  /* Wrap the days 4 + 3, which leaves room for the full-size labels again. */
+  .day-checkboxes {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .day-checkbox {
+    font-size: var(--text-sm);
+  }
+
+  /* A time input needs about 120px to show its AM/PM, so stack start over end. Stacked, a dash
+     no longer reads as a range, so the screen-reader "to" is shown in its place. */
+  .time-inputs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .time-separator {
+    display: none;
+  }
+
+  .time-inputs .time-to {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    font-size: var(--text-sm);
+    line-height: 1;
+    color: var(--text-secondary);
+  }
+
+  /* The chips wrap to two rows, so keep Delete schedule level with the first one. */
+  .schedule-item > [data-action='remove-schedule'] {
+    align-self: start;
+    margin-top: calc((var(--chip-height) - var(--icon-button-sm)) / 2);
+  }
+
+  /* Keep Cancel and Save paired: the quiet Delete takes its own row above them. */
+  .dialog-actions > .button {
+    flex: 1 1 0;
+  }
+
+  .dialog-actions .danger-quiet {
+    flex-basis: 100%;
+    margin-right: 0;
+  }
+}
+
+/* Below 360px the Groups hint would wrap beside New group in a thin column, so the button moves
+   under the hint, still on the trailing edge like New filter and New exception. */
+@media (max-width: 360px) {
+  .section-header {
+    flex-wrap: wrap;
+    row-gap: var(--space-3);
+  }
+
+  .section-heading-block {
+    flex: 1 1 100%;
+  }
+
+  #add-group-btn {
+    margin: 0 0 0 auto;
+  }
+}
+
+/* Forced-colors mode drops background-color, which draws the chevron mask; use the text color. */
 @media (forced-colors: active) {
   .group-header::after {
     forced-color-adjust: none;

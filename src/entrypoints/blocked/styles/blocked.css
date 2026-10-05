@@ -1,92 +1,53 @@
 @import '../../../shared/styles/theme.css';
 
-/* The block page uses the same surfaces and buttons as the rest of the app in both themes. */
-:root {
-  --text-2xl: 2.25rem;
-  --text-lg: 1.1rem;
-  --text-md: 0.98rem;
-}
-
+/* The block page uses the shared tokens and controls; this file only lays the page out. */
 body {
-  font-family: var(--font-sans);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
   margin: 0;
   background: var(--bg);
   color: var(--text-primary);
-  font-size: 16px;
-  line-height: 1.5;
+  font: var(--text-base) / 1.5 var(--font-sans);
 }
 
+/* Anchored to the top rather than centered, so revealing the details only grows the page downward
+   and the icon and heading stay where they were. */
 .container {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: clamp(48px, 14vh, 128px) var(--space-6) var(--space-10);
   text-align: center;
-  padding: 2rem;
-  max-width: 600px;
 }
 
 .icon {
   display: block;
-  width: 88px;
-  height: 88px;
-  margin: 0 auto 1rem;
-  filter: drop-shadow(0 14px 26px rgba(17, 19, 40, 0.28));
-}
-
-.icon[aria-hidden='true'] {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--space-5);
   pointer-events: none;
   user-select: none;
 }
 
 h1 {
-  font-family: var(--font-display);
-  font-size: var(--text-2xl);
-  margin: 0 0 1rem 0;
+  margin: 0 0 var(--space-2);
+  font: 600 var(--text-2xl) / 1.25 var(--font-sans);
+  letter-spacing: -0.01em;
 }
 
-p {
-  font-size: var(--text-lg);
-  margin: 0 0 2rem 0;
+.message {
+  max-width: 44ch;
+  margin: 0 auto var(--space-6);
+  font-size: var(--text-base);
   color: var(--text-secondary);
+  text-wrap: balance;
 }
 
-.url {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  word-break: break-all;
-  margin-bottom: 2rem;
-  font-family: var(--font-mono);
-  font-size: var(--text-md);
-}
-
-.learn-more {
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0 0 0.5rem;
-  color: var(--link);
-  font: inherit;
-  font-size: var(--text-md);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.learn-more:hover {
-  color: var(--link-hover);
-}
-
-.learn-more:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 3px;
-  border-radius: 4px;
-}
-
-.learn-more[hidden] {
-  display: none;
+/* Shown only in preview, outside the collapsible details so it is visible before Learn more. The
+   negative top margin tucks it under the message, whose bottom margin it collapses with. */
+.preview-note {
+  max-width: 44ch;
+  margin: calc(-1 * var(--space-4)) auto var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-wrap: balance;
 }
 
 /* Receives focus from "Learn more" so the reveal is announced; it is not a tab stop. */
@@ -94,64 +55,90 @@ p {
   outline: none;
 }
 
-.details {
-  margin: 0 0 2rem;
-  padding: 1rem;
+/* One card holds the blocked address and, below a hairline, the filter that caught it. */
+.block-card {
+  margin: 0 0 var(--space-6);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface);
   text-align: left;
 }
 
-.details[hidden] {
-  display: none;
+.url {
+  padding: var(--space-3) var(--space-4);
+  font: var(--text-sm) / 1.5 var(--font-mono);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* Without block state the slot holds a sentence rather than an address and there are no details
+   to group, so the card gives way to a plain centered note. */
+.block-card:has(.url.is-unavailable) {
+  background: none;
+  border: 0;
+  text-align: center;
+}
+
+.url.is-unavailable {
+  padding: 0;
+  font: var(--text-md) / 1.5 var(--font-sans);
+  color: var(--text-secondary);
+}
+
+.details {
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border);
 }
 
 .details dl {
-  display: grid;
-  gap: 0.75rem;
   margin: 0;
 }
 
 .details dl > div {
   display: grid;
-  grid-template-columns: minmax(5.5rem, 0.35fr) minmax(0, 1fr);
-  gap: 0.75rem;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-2) 0;
 }
 
 .details dt {
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  font: 500 var(--text-sm) / 1.5 var(--font-sans);
+  color: var(--text-secondary);
 }
 
 .details dd {
   margin: 0;
+  font-size: var(--text-md);
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 480px) {
-  .details dl > div {
-    grid-template-columns: 1fr;
-    gap: 0.2rem;
-  }
+#responsible-filter-pattern {
+  font: var(--text-sm) / 1.5 var(--font-mono);
+}
+
+/* Each schedule and the end time wrap as units, so a long list never breaks inside "09:00–17:00".
+   A part wider than the column still wraps inside itself. */
+.schedule-part {
+  display: inline-block;
 }
 
 .actions {
   display: flex;
-  justify-content: center;
-  gap: 1rem;
   flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
 }
 
-/* Block page actions are the shared buttons at a larger size. */
-.button {
-  padding: 12px 24px;
-  font-size: 1rem;
-}
+/* On narrow screens the labels give the values more room and the actions stack full width,
+   primary first. */
+@media (max-width: 480px) {
+  .details dl > div {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+  }
 
-/* The `.button` display rule outranks the UA `[hidden]` style, so restore hiding explicitly. */
-.button[hidden] {
-  display: none;
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }

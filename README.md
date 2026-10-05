@@ -40,7 +40,6 @@ Then load the unpacked extension: open `chrome://extensions`, enable **Developer
 
 ## Quick start
 
-1. Open **Options** and click **New Filter**.
-2. Enter a URL pattern. Typing `reddit` is enough to block the whole site.
-3. Pick a group: **Always Active** blocks it 24/7, or create a group like "Work Hours" with its own days and times.
-4. Browse as usual. Matching pages are blocked before they load.
+1. Open **Settings** (the gear in the popup) and pick a group: the default **24/7 (Always Active)** group blocks around the clock, or click **New group** to create one like "Work Hours" with its own days and times.
+2. Click **New filter** in that group and enter a URL pattern. Typing `reddit` is enough to block the whole site.
+3. Browse as usual. Matching pages are blocked before they load.

@@ -192,6 +192,9 @@ function normalizeBlockedFilterSnapshot(value: unknown): BlockedFilterSnapshot |
     pattern: candidate.pattern,
     matchMode: candidate.matchMode,
     ...(typeof candidate.description === 'string' ? { description: candidate.description } : {}),
+    ...(typeof candidate.expiresAt === 'number' && Number.isFinite(candidate.expiresAt)
+      ? { expiresAt: candidate.expiresAt }
+      : {}),
   };
 }
 

@@ -9,10 +9,13 @@
   <body>
     <main class="container">
       <img class="icon" src="/assets/icons/icon.svg" alt="" aria-hidden="true" />
-      <h1>Page Blocked</h1>
-      <p>This page has been blocked by Teichos based on your filter settings.</p>
+      <h1>Page blocked</h1>
+      <p class="message">This page has been blocked by Teichos based on your filter settings.</p>
+      <p class="preview-note" id="preview-note" hidden>
+        This is a preview with sample data, so the Continue anyway button is turned off.
+      </p>
       <button
-        class="learn-more"
+        class="text-link"
         id="learn-more"
         type="button"
         aria-expanded="false"
@@ -21,35 +24,41 @@
         Learn more
       </button>
       <div id="block-extras" role="group" aria-label="Block details" tabindex="-1" hidden>
-        <div class="url" id="blocked-url" role="status" aria-label="Blocked URL"></div>
-        <section class="details" id="responsible-filter" aria-label="Responsible filter" hidden>
-          <dl>
-            <div>
-              <dt>Filter</dt>
-              <dd id="responsible-filter-name"></dd>
-            </div>
-            <div>
-              <dt>Pattern</dt>
-              <dd id="responsible-filter-pattern"></dd>
-            </div>
-            <div>
-              <dt>Match</dt>
-              <dd id="responsible-filter-match"></dd>
-            </div>
-            <div>
-              <dt>Group</dt>
-              <dd id="responsible-filter-group"></dd>
-            </div>
-            <div>
-              <dt>Schedule</dt>
-              <dd id="responsible-filter-schedule"></dd>
-            </div>
-          </dl>
-        </section>
+        <div class="block-card">
+          <div class="url" id="blocked-url" role="status" aria-label="Blocked URL"></div>
+          <section class="details" id="responsible-filter" aria-label="Responsible filter" hidden>
+            <dl>
+              <div>
+                <dt>Filter</dt>
+                <dd id="responsible-filter-name"></dd>
+              </div>
+              <div>
+                <dt>Pattern</dt>
+                <dd id="responsible-filter-pattern"></dd>
+              </div>
+              <div>
+                <dt>Match</dt>
+                <dd id="responsible-filter-match"></dd>
+              </div>
+              <div>
+                <dt>Group</dt>
+                <dd id="responsible-filter-group"></dd>
+              </div>
+              <div>
+                <dt>Schedule</dt>
+                <dd id="responsible-filter-schedule"></dd>
+              </div>
+            </dl>
+          </section>
+        </div>
         <div class="actions">
-          <button class="button" id="go-back" type="button">Go Back</button>
-          <button class="button secondary" id="continue" type="button" hidden>Continue</button>
-          <button class="button secondary" id="open-options" type="button">Manage Filters</button>
+          <button class="button large" id="go-back" type="button">Go back</button>
+          <button class="button large secondary" id="continue" type="button" hidden>
+            Continue anyway
+          </button>
+          <button class="button large secondary" id="open-options" type="button">
+            Manage filters
+          </button>
         </div>
       </div>
     </main>

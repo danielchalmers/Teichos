@@ -1,20 +1,21 @@
 import { DAY_NAMES } from '../constants';
-import type { FilterGroup, TimeSchedule } from '../types';
+import type { FilterGroup, SnoozeState, TimeSchedule } from '../types';
+import { formatDuration } from './helpers';
 
 export function formatGroupScheduleSummary(group: FilterGroup): string {
   if (group.is24x7) {
-    return 'Always Active';
+    return 'Always active';
   }
 
   if (group.schedules.length === 0) {
-    return '0 schedules';
+    return 'No schedule';
   }
 
-  return group.schedules.map(formatScheduleSummary).join(', ');
+  return group.schedules.map(formatScheduleSummary).join('; ');
 }
 
 export function formatScheduleSummary(schedule: TimeSchedule): string {
-  return `${formatScheduleDays(schedule.daysOfWeek)} ${schedule.startTime}-${schedule.endTime}`;
+  return `${formatScheduleDays(schedule.daysOfWeek)} ${schedule.startTime}–${schedule.endTime}`;
 }
 
 export function formatScheduleDays(daysOfWeek: readonly number[]): string {
@@ -60,5 +61,52 @@ function formatScheduleDayRange(startDay: number, endDay: number): string {
     return DAY_NAMES[startDay] ?? 'Unknown';
   }
 
-  return `${DAY_NAMES[startDay] ?? 'Unknown'}-${DAY_NAMES[endDay] ?? 'Unknown'}`;
+  return `${DAY_NAMES[startDay] ?? 'Unknown'}–${DAY_NAMES[endDay] ?? 'Unknown'}`;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function startOfDay(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+/**
+ * Describe a moment as a clock time, e.g. "until 3:45 PM". It adds the weekday when the moment
+ * falls on another day within the next six days, and the date when it is a week or more away, so
+ * a weekday never reads as today's. An absolute time stays correct without a ticking countdown,
+ * so it is safe in text that screen readers may revisit.
+ */
+export function formatUntil(timestamp: number, now = Date.now(), locale?: string): string {
+  const end = new Date(timestamp);
+  // Beyond the Date range (about 275,000 years away) there is no clock time to show.
+  if (Number.isNaN(end.getTime())) {
+    return 'until further notice';
+  }
+  // Rounding absorbs the 23- and 25-hour days around daylight saving changes.
+  const dayDiff = Math.round((startOfDay(end) - startOfDay(new Date(now))) / DAY_MS);
+  const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+  if (dayDiff >= 7) {
+    options.month = 'short';
+    options.day = 'numeric';
+  } else if (dayDiff !== 0) {
+    options.weekday = 'short';
+  }
+
+  return `until ${new Intl.DateTimeFormat(locale, options).format(end)}`;
+}
+
+/** Describe when a snooze ends, e.g. "until 3:45 PM", or "until you resume it" when it has no end. */
+export function formatSnoozeEnd(snooze: SnoozeState, now = Date.now(), locale?: string): string {
+  if (typeof snooze.until !== 'number' || !Number.isFinite(snooze.until)) {
+    return 'until you resume it';
+  }
+
+  return formatUntil(snooze.until, now, locale);
+}
+
+/** Label for a temporary filter, e.g. "Temporary · 45m left", or "Temporary · expired". */
+export function formatTemporaryFilterLabel(remainingMs: number): string {
+  return remainingMs <= 0
+    ? 'Temporary · expired'
+    : `Temporary · ${formatDuration(remainingMs)} left`;
 }

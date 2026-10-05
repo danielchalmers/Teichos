@@ -64,7 +64,7 @@ test('loads the extension service worker and extension pages', async ({
 
   await page.goto(extensionPage(PAGES.POPUP));
   await expect(page.getByRole('heading', { name: 'Teichos' })).toBeVisible();
-  await expect(page.getByText('No filters configured.')).toBeVisible();
+  await expect(page.getByText('No filters yet')).toBeVisible();
   expect(await readStorage(page)).toBeUndefined();
 });
 
@@ -131,7 +131,7 @@ for (const navigationMethod of ['push-state', 'replace-state'] as const) {
     await captureScreenshot(page, testInfo, `${navigationMethod}-blocked-page.png`);
 
     await showBlockPageDetails(page);
-    await page.getByRole('button', { name: 'Go Back' }).click();
+    await page.getByRole('button', { name: 'Go back' }).click();
     await expect.poll(() => page.url(), { timeout: 15_000 }).toBe(initialUrl);
     await expect(page.getByRole('heading', { name: 'SPA Route Test' })).toBeVisible();
     await expect(page.locator('#current-url')).toHaveText(initialUrl);
@@ -173,7 +173,7 @@ test('blocks matching same-tab hash navigations and preserves go back', async ({
   await captureScreenshot(page, testInfo, 'hash-blocked-page.png');
 
   await showBlockPageDetails(page);
-  await page.getByRole('button', { name: 'Go Back' }).click();
+  await page.getByRole('button', { name: 'Go back' }).click();
   await expect.poll(() => page.url(), { timeout: 15_000 }).toBe(initialUrl);
   await expect(page.getByRole('heading', { name: 'SPA Route Test' })).toBeVisible();
   await expect(page.locator('#current-url')).toHaveText(initialUrl);
