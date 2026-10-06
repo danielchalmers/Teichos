@@ -187,6 +187,56 @@ test('shows dialog errors inline and ties them to the field', async ({ extension
   await expect(page.locator('#filter-error')).toBeHidden();
 });
 
+test('closes a dialog with a click on the backdrop, like Cancel', async ({
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+
+  // The backdrop fills the page around the dialog, so its top corner is outside it.
+  const clickBackdrop = (): Promise<void> => page.mouse.click(4, 4);
+  const newGroupButton = page.getByRole('button', { name: 'New group' });
+  await newGroupButton.click();
+  const groupModal = page.locator('#group-modal.active');
+  await expect(groupModal).toBeVisible();
+  await groupModal.locator('#group-name').fill('Unsaved');
+  await clickBackdrop();
+  await expect(groupModal).toHaveCount(0);
+  await expect(newGroupButton).toBeFocused();
+  expect((await readStorage(page))?.groups.some((group) => group.name === 'Unsaved')).not.toBe(
+    true
+  );
+
+  // A click inside the dialog, even on its padding, keeps it open.
+  const addFilter = page.locator('button[data-action="add-filter"]').first();
+  await addFilter.click();
+  const filterModal = page.locator('#filter-modal.active');
+  await expect(filterModal).toBeVisible();
+  await filterModal.locator('.modal-content').click({ position: { x: 4, y: 4 } });
+  await expect(filterModal).toBeVisible();
+
+  // A text selection dragged out of a field ends on the backdrop, but is not a click on it.
+  const patternInput = filterModal.locator('#filter-pattern');
+  await patternInput.fill('drag.example.test');
+  const box = await patternInput.boundingBox();
+  await page.mouse.move((box?.x ?? 0) + 8, (box?.y ?? 0) + 8);
+  await page.mouse.down();
+  await page.mouse.move(4, 4);
+  await page.mouse.up();
+  await expect(filterModal).toBeVisible();
+
+  // Nor is a press on the backdrop dragged back into the dialog.
+  await page.mouse.move(4, 4);
+  await page.mouse.down();
+  await page.mouse.move((box?.x ?? 0) + 8, (box?.y ?? 0) + 8);
+  await page.mouse.up();
+  await expect(filterModal).toBeVisible();
+
+  await clickBackdrop();
+  await expect(filterModal).toHaveCount(0);
+  await expect(addFilter).toBeFocused();
+});
+
 test('exports current settings from global settings', async ({ extensionPage, page }) => {
   await gotoOptions(extensionPage, page);
   const expectedData = createStorageData({
@@ -677,9 +727,9 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
   await disclosure.click();
   await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
 
-  // The lock is explained in the group, since nothing else on the page says why.
-  const offNote = workHoursGroup.getByText('This group is off. Turn it on to make changes.');
-  await expect(offNote).toBeVisible();
+  // The off switch and the dimmed, disabled controls show the lock, with no note to read.
+  const groupContent = workHoursGroup.locator('[data-role="group-content"]');
+  await expect(groupContent).toHaveClass(/is-readonly/);
   await expect(workHoursGroup.locator('button[data-action="edit-group"]')).toBeDisabled();
   await expect(workHoursGroup.getByRole('button', { name: 'New filter' })).toBeDisabled();
   await expect(workHoursGroup.getByRole('button', { name: 'New exception' })).toBeDisabled();
@@ -695,7 +745,7 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
   await workHoursGroup.locator('label.group-toggle').click();
   await expect(groupToggle).toBeChecked();
   await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
-  await expect(offNote).toHaveCount(0);
+  await expect(groupContent).not.toHaveClass(/is-readonly/);
   await expect
     .poll(
       async () =>
@@ -890,9 +940,8 @@ test('explains a snooze in a notice that resumes filtering', async ({ extensionP
   await expect(notice).toBeVisible();
   await expect(noticeTitle).toHaveText(/^Filtering is snoozed until \S.*\.$/);
   await expect(noticeTitle).not.toContainText('resume');
-  await expect(notice).toContainText(
-    'Nothing is blocked. Filters, exceptions and group details are locked.'
-  );
+  // The notice is one line: the dimmed, disabled controls below show what is locked.
+  await expect(notice.locator('p:not([hidden])')).toHaveCount(1);
   await expect(firstAddFilter).toBeDisabled();
 
   // The dot sits in the chevron's column, so the notice text starts on the group titles' edge.
@@ -1311,7 +1360,7 @@ test('wraps group meta lines, the Groups header and the snooze notice at 320px',
     const box = (selector: string): DOMRect =>
       document.querySelector(selector)?.getBoundingClientRect() ?? new DOMRect();
     return {
-      hint: box('.section-hint'),
+      heading: box('#groups-heading'),
       newGroup: box('#add-group-btn'),
       header: box('.section-header'),
       noticeText: box('#snooze-notice .notice-text'),
@@ -1320,8 +1369,11 @@ test('wraps group meta lines, the Groups header and the snooze notice at 320px',
       pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     };
   });
-  // New group moves under the hint, still on the trailing edge like New filter.
-  expect(header.newGroup.top).toBeGreaterThanOrEqual(header.hint.bottom);
+  // New group stays beside the heading, centered on it, on the trailing edge like New filter.
+  expect((header.newGroup.top + header.newGroup.bottom) / 2).toBeCloseTo(
+    (header.heading.top + header.heading.bottom) / 2,
+    0
+  );
   expect(header.newGroup.right).toBeCloseTo(header.header.right, 0);
   // The notice text keeps the row; Resume wraps under it and ends on the switches' edge.
   expect(header.resume.top).toBeGreaterThanOrEqual(header.noticeText.bottom);

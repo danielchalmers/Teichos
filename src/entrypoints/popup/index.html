@@ -39,6 +39,25 @@
         </div>
         <button
           class="icon-button"
+          id="open-quick-add"
+          type="button"
+          aria-label="New temporary block"
+          aria-expanded="false"
+          aria-controls="quick-add-panel"
+          title="New temporary block"
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path
+              d="M8 3.5v9M3.5 8h9"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+        <button
+          class="icon-button"
           id="open-options"
           type="button"
           aria-label="Settings"
@@ -58,43 +77,8 @@
       </div>
     </header>
     <main class="content">
-      <!-- Not a live region: it shows an absolute end time, and the status region already
-           announces snoozing and resuming. -->
-      <div class="notice snooze-banner" id="snooze-banner" hidden>
-        <span class="status-dot" aria-hidden="true"></span>
-        <div class="notice-text">
-          <p class="notice-title">Filtering is snoozed</p>
-          <p class="notice-detail" id="snooze-banner-detail"></p>
-          <p class="dialog-error" id="snooze-banner-error" hidden></p>
-        </div>
-        <button class="button small secondary" id="snooze-banner-resume" type="button">
-          Resume
-        </button>
-      </div>
       <div class="filter-list" id="filter-list" role="list" aria-label="Active filters"></div>
     </main>
-    <footer class="footer-bar">
-      <button
-        class="button block"
-        id="open-quick-add"
-        type="button"
-        aria-expanded="false"
-        aria-controls="quick-add-panel"
-      >
-        <span class="button-icon" aria-hidden="true">
-          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-            <path
-              d="M8 3.5v9M3.5 8h9"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
-          </svg>
-        </span>
-        New temporary block
-      </button>
-    </footer>
     <div class="snooze-dialog" id="snooze-dialog" aria-hidden="true" inert>
       <div
         class="snooze-dialog-backdrop"
@@ -112,9 +96,8 @@
         <div class="dialog-header">
           <div class="dialog-heading">
             <div class="dialog-title" id="snooze-dialog-title">Snooze filtering</div>
-            <div class="dialog-subtitle" id="snooze-dialog-subtitle">
-              Pause all filtering for a set time.
-            </div>
+            <!-- Only a snooze in progress has something to say here: when it ends. -->
+            <div class="dialog-subtitle" id="snooze-dialog-subtitle" hidden></div>
           </div>
           <button
             class="icon-button"
@@ -183,14 +166,10 @@
         role="dialog"
         aria-modal="true"
         aria-labelledby="quick-add-title"
-        aria-describedby="quick-add-subtitle"
       >
         <div class="dialog-header">
           <div class="dialog-heading">
             <div class="dialog-title" id="quick-add-title">New temporary block</div>
-            <div class="dialog-subtitle" id="quick-add-subtitle">
-              Create a short-lived block that expires automatically.
-            </div>
           </div>
           <button
             class="icon-button"
@@ -276,11 +255,7 @@
           />
         </svg>
         <p class="empty-state-title">No filters yet</p>
-        <p class="empty-state-text">
-          Block a site for a while with a temporary block, or set up filters and schedules in
-          settings.
-        </p>
-        <button class="button secondary" type="button" data-action="add-first-filter">
+        <button class="button" type="button" data-action="add-first-filter">
           <span class="button-icon" aria-hidden="true">
             <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
               <path

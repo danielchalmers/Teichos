@@ -46,11 +46,8 @@ body {
   height: 24px;
 }
 
+/* "Teichos Settings" reads as one title: one run of the same type, the page name a step quieter. */
 .app-title-context {
-  margin-left: var(--space-1);
-  padding-left: var(--space-3);
-  border-left: 1px solid var(--border);
-  font-weight: 400;
   color: var(--text-muted);
 }
 
@@ -145,25 +142,11 @@ body {
   margin-bottom: var(--space-4);
 }
 
-.section-heading-block {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .section-header h2 {
   margin: 0;
   font: 600 var(--text-xl) / 1.4 var(--font-sans);
   letter-spacing: -0.01em;
   color: var(--text-primary);
-}
-
-.section-hint {
-  margin: 0;
-  font-size: var(--text-md);
-  line-height: 1.45;
-  color: var(--text-secondary);
 }
 
 /* Centers the 36px button on the 28px heading line. */
@@ -339,14 +322,6 @@ body {
   pointer-events: auto;
   cursor: not-allowed;
   z-index: 2;
-}
-
-.group-note {
-  margin: 0;
-  padding: var(--space-3) var(--inset) 0 var(--indent);
-  font-size: var(--text-sm);
-  line-height: 1.45;
-  color: var(--text-muted);
 }
 
 .group-section + .group-section {
@@ -675,23 +650,6 @@ form {
   .dialog-actions .danger-quiet {
     flex-basis: 100%;
     margin-right: 0;
-  }
-}
-
-/* Below 360px the Groups hint would wrap beside New group in a thin column, so the button moves
-   under the hint, still on the trailing edge like New filter and New exception. */
-@media (max-width: 360px) {
-  .section-header {
-    flex-wrap: wrap;
-    row-gap: var(--space-3);
-  }
-
-  .section-heading-block {
-    flex: 1 1 100%;
-  }
-
-  #add-group-btn {
-    margin: 0 0 0 auto;
   }
 }
 

@@ -12,8 +12,7 @@
       <header class="page-header">
         <h1 class="app-title">
           <img class="app-icon" src="/assets/icons/icon.svg" alt="" />
-          Teichos
-          <span class="app-title-context">Settings</span>
+          <span>Teichos <span class="app-title-context">Settings</span></span>
         </h1>
         <div class="info-popover">
           <button
@@ -143,12 +142,7 @@
       <main>
         <section class="settings-section" aria-labelledby="groups-heading">
           <div class="section-header">
-            <div class="section-heading-block">
-              <h2 id="groups-heading">Groups</h2>
-              <p class="section-hint">
-                Each group holds filters and exceptions, and decides when they apply.
-              </p>
-            </div>
+            <h2 id="groups-heading">Groups</h2>
             <button class="button" id="add-group-btn" type="button">
               <span class="button-icon" aria-hidden="true">
                 <svg
@@ -169,9 +163,6 @@
             <span class="status-dot" aria-hidden="true"></span>
             <div class="notice-text">
               <p class="notice-title" id="snooze-notice-title">Filtering is snoozed.</p>
-              <p class="notice-detail">
-                Nothing is blocked. Filters, exceptions and group details are locked.
-              </p>
               <p class="dialog-error" id="snooze-notice-error" hidden></p>
             </div>
             <button class="button small secondary" id="snooze-notice-resume" type="button">
@@ -183,10 +174,7 @@
 
         <section class="settings-section" aria-labelledby="general-heading">
           <div class="section-header">
-            <div class="section-heading-block">
-              <h2 id="general-heading">General</h2>
-              <p class="section-hint">Extension-wide preferences and backups.</p>
-            </div>
+            <h2 id="general-heading">General</h2>
           </div>
           <div class="settings-card">
             <div class="setting-row">

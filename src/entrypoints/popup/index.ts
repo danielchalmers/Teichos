@@ -150,11 +150,9 @@ function setupStorageSync(): void {
  * siblings of these, so they stay available.
  */
 function setBackgroundInert(isInert: boolean): void {
-  document
-    .querySelectorAll<HTMLElement>('body > header, body > main, body > footer')
-    .forEach((element) => {
-      element.inert = isInert;
-    });
+  document.querySelectorAll<HTMLElement>('body > header, body > main').forEach((element) => {
+    element.inert = isInert;
+  });
 }
 
 async function copyText(value: string): Promise<void> {
@@ -193,17 +191,12 @@ function showCopyFeedback(button: HTMLButtonElement): void {
   copyFeedbackTimers.set(button, timeoutId);
 }
 
+/**
+ * The status chip's tooltip and description, and the status announced after a change. The chip
+ * already counts down, so this says when the snooze ends instead.
+ */
 function describeSnoozeStatus(snooze: SnoozeState): string {
-  if (!isSnoozeActive(snooze)) {
-    return 'Filtering is active.';
-  }
-
-  const remainingMs = getSnoozeRemainingMs(snooze);
-  if (remainingMs === null) {
-    return `Snoozed ${formatSnoozeEnd(snooze)}.`;
-  }
-
-  return `Snoozed for ${formatDuration(remainingMs)} more.`;
+  return isSnoozeActive(snooze) ? `Snoozed ${formatSnoozeEnd(snooze)}.` : 'Filtering is active.';
 }
 
 function describeSnoozeButtonLabel(snooze: SnoozeState): string {
@@ -220,19 +213,9 @@ function describeSnoozeButtonLabel(snooze: SnoozeState): string {
   return `Snoozed: ${formatDuration(remainingMs)}`;
 }
 
-/** The snooze dialog's subtitle, which says when an active snooze ends. */
+/** The snooze dialog's subtitle, which says when an active snooze ends; empty otherwise. */
 function describeSnoozeDialogSubtitle(snooze: SnoozeState): string {
-  if (!isSnoozeActive(snooze)) {
-    return 'Pause all filtering for a set time.';
-  }
-
-  return `Snoozed ${formatSnoozeEnd(snooze)}. Pick a new time to change it.`;
-}
-
-/** The snooze banner's detail line, e.g. "Until 3:45 PM · filters are locked". */
-function describeSnoozeBannerDetail(snooze: SnoozeState): string {
-  const end = formatSnoozeEnd(snooze);
-  return `${end.charAt(0).toUpperCase()}${end.slice(1)} · filters are locked`;
+  return isSnoozeActive(snooze) ? describeSnoozeStatus(snooze) : '';
 }
 
 /** The ticker re-applies the snooze state every second, so only touch text that changed. */
@@ -260,9 +243,7 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
   const snoozeLabel = getElementByIdOrNull('snooze-label');
   const quickAddButton = getElementByIdOrNull<HTMLButtonElement>('open-quick-add');
   const quickAddPopover = getElementByIdOrNull('quick-add');
-  const banner = getElementByIdOrNull('snooze-banner');
   const dialogSubtitle = getElementByIdOrNull('snooze-dialog-subtitle');
-  // The banner's own button is deliberately not a resume-snooze action, so this is the dialog's.
   const resumeButton = document.querySelector<HTMLButtonElement>(
     'button[data-action="resume-snooze"]'
   );
@@ -282,13 +263,15 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
   }
 
   if (quickAddButton) {
-    quickAddButton.disabled = isActive;
-    // Only the disabled button needs a tooltip; otherwise its label says it all.
-    if (isActive) {
-      quickAddButton.title = 'Temporary blocks are unavailable while snoozed';
-    } else {
-      quickAddButton.removeAttribute('title');
+    // Disabling a focused button drops focus to the body, so hand it to the status chip first.
+    if (isActive && document.activeElement === quickAddButton) {
+      snoozeTrigger?.focus();
     }
+    quickAddButton.disabled = isActive;
+    // The icon button's tooltip is its name, or why it is unavailable while it is disabled.
+    quickAddButton.title = isActive
+      ? 'Temporary blocks are unavailable while snoozed'
+      : 'New temporary block';
   }
 
   if (isActive && quickAddPopover?.classList.contains('is-open')) {
@@ -310,21 +293,10 @@ function applySnoozeVisualState(snooze: SnoozeState): void {
     }
   }
 
-  if (banner) {
-    if (isActive) {
-      setTextIfChanged(
-        getElementByIdOrNull('snooze-banner-detail'),
-        describeSnoozeBannerDetail(snooze)
-      );
-      banner.hidden = false;
-    } else if (!banner.hidden) {
-      // An earlier failed resume may have left an error in the banner; it goes with the banner.
-      clearDialogError('snooze-banner-error');
-      hidePreservingFocus(banner, snoozeTrigger);
-    }
+  if (dialogSubtitle) {
+    setTextIfChanged(dialogSubtitle, describeSnoozeDialogSubtitle(snooze));
+    dialogSubtitle.hidden = !isActive;
   }
-
-  setTextIfChanged(dialogSubtitle, describeSnoozeDialogSubtitle(snooze));
 
   const content = document.querySelector<HTMLElement>('.content');
   content?.classList.toggle('is-snoozed', isActive);
@@ -395,15 +367,9 @@ function setupSnoozePopover(): void {
     return minutes;
   };
 
-  trigger.addEventListener('click', (event) => {
-    event.stopPropagation();
-    setOpen(!dialog.classList.contains('is-open'));
-  });
-
-  // The banner hides once filtering resumes; applySnoozeVisualState moves its focus to the trigger.
-  // A failure shows in the banner, since the dialog is closed.
-  getElementByIdOrNull('snooze-banner-resume')?.addEventListener('click', () => {
-    void applySnoozeSelection('off', () => undefined, 'snooze-banner-error');
+  // Everything behind an open dialog is inert, so a trigger only ever opens its dialog.
+  trigger.addEventListener('click', () => {
+    setOpen(true);
   });
 
   getElementByIdOrNull<HTMLFormElement>('snooze-custom-form')?.addEventListener(
@@ -455,12 +421,8 @@ function setupSnoozePopover(): void {
   });
 }
 
-/** Snooze for `value` minutes, or resume; a failure shows in `errorId`, beside the control used. */
-async function applySnoozeSelection(
-  value: number | 'off',
-  onComplete: () => void,
-  errorId = 'snooze-error'
-): Promise<void> {
+/** Snooze for `value` minutes, or resume; a failure shows in the dialog, which stays open. */
+async function applySnoozeSelection(value: number | 'off', onComplete: () => void): Promise<void> {
   try {
     if (value === 'off') {
       await clearSnooze();
@@ -477,13 +439,11 @@ async function applySnoozeSelection(
     }
 
     await renderFilters();
-    // A new snooze from the dialog leaves the banner up, so drop an error from an earlier resume.
-    clearDialogError('snooze-banner-error');
     onComplete();
   } catch (error) {
     console.error('Failed to update snooze state:', error);
     showDialogError(
-      errorId,
+      'snooze-error',
       value === 'off'
         ? 'Failed to resume filtering. Please try again.'
         : 'Failed to snooze filtering. Please try again.'
@@ -608,10 +568,6 @@ function setupQuickAdd(): void {
   };
 
   openButton.addEventListener('click', () => {
-    if (popover.classList.contains('is-open')) {
-      setOpen(false, true);
-      return;
-    }
     void openQuickAdd();
   });
 
@@ -647,17 +603,6 @@ function setupQuickAdd(): void {
     if (event.key === 'Escape' && popover.classList.contains('is-open')) {
       setOpen(false, true);
     }
-  });
-
-  document.addEventListener('click', (event) => {
-    if (!popover.classList.contains('is-open')) {
-      return;
-    }
-    const target = event.target as Node;
-    if (popover.contains(target) || openButton.contains(target)) {
-      return;
-    }
-    setOpen(false);
   });
 
   form.addEventListener('submit', (event) => {
@@ -793,9 +738,8 @@ async function handleDeleteFilter(filterId: string): Promise<void> {
 /** The line under the rows that counts the filters left out of them. */
 function createInactiveSummary(inactiveCount: number): HTMLElement {
   const summary = cloneTemplate<HTMLDivElement>('popup-inactive-summary-template');
-  // Every hidden reason, an exception for this page included, means the filter doesn't apply here.
-  const subject = inactiveCount === 1 ? "filter doesn't" : "filters don't";
-  summary.textContent = `${inactiveCount} more ${subject} apply here right now`;
+  // Every hidden reason, an exception for this page included, means the filter is inactive here.
+  summary.textContent = `${inactiveCount} inactive ${inactiveCount === 1 ? 'filter' : 'filters'} hidden`;
   return summary;
 }
 

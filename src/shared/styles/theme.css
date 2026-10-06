@@ -100,10 +100,12 @@
   --selected-bg: var(--accent);
   --selected-text: #ffffff;
 
+  /* Snoozed is a calm sky blue (OKLCH hue 235): a pause rather than a warning, apart from the
+     green Active dot for red-green color blindness, and apart from the indigo accent. */
   --status-active: #2a9a4c;
-  --status-snoozed: #9a6200;
-  --snoozed-bg: #fff4dc;
-  --snoozed-border: #e6bd77;
+  --status-snoozed: #007bad;
+  --snoozed-bg: #e8f6fe;
+  --snoozed-border: #b5d6eb;
 
   --modal-overlay: rgba(24, 26, 35, 0.45);
   --shadow-overlay: 0 1px 2px rgba(24, 26, 35, 0.06), 0 12px 32px rgba(24, 26, 35, 0.16);
@@ -148,9 +150,9 @@
     --selected-text: #ffffff;
 
     --status-active: #4ac06c;
-    --status-snoozed: #efa831;
-    --snoozed-bg: #2b210f;
-    --snoozed-border: #65470f;
+    --status-snoozed: #6ab8e4;
+    --snoozed-bg: #0e1e27;
+    --snoozed-border: #204154;
 
     --modal-overlay: rgba(0, 0, 0, 0.7);
     --shadow-overlay: 0 16px 40px rgba(0, 0, 0, 0.6);
@@ -299,7 +301,8 @@ textarea {
 }
 
 /* Disabled buttons turn neutral rather than fading their fill; disabled controls are exempt from
-   contrast minimums, but this still keeps their label readable. */
+   contrast minimums, but this still keeps their label readable. Quiet buttons also drop their
+   fill, so they read as off beside enabled ones. */
 .button:disabled {
   cursor: not-allowed;
   background: var(--surface-muted);
@@ -307,6 +310,7 @@ textarea {
   color: var(--text-muted);
 }
 
+.button.secondary:disabled,
 .button.danger-quiet:disabled {
   background: transparent;
 }
@@ -648,7 +652,8 @@ input:checked + .slider::before {
   border-color: var(--danger-text);
 }
 
-/* Status dot: green while filtering, amber while snoozed. */
+/* Status dot: a filled green dot while filtering, a hollow blue ring while snoozed, so the state
+   reads by shape as well as color. */
 .status-dot {
   width: 8px;
   height: 8px;
@@ -659,24 +664,21 @@ input:checked + .slider::before {
 
 .is-snoozed .status-dot,
 .notice .status-dot {
-  background: var(--status-snoozed);
+  background: transparent;
+  border: 2px solid var(--status-snoozed);
 }
 
-/* In a notice the dot stays level with the title's first line when the detail wraps. */
-.notice .status-dot {
-  align-self: flex-start;
-  margin-top: 6px;
-}
-
-/* Notice: an inline callout for a temporary state, such as a snooze, with an optional action. */
+/* Notice: an inline callout for a temporary state, such as a snooze, with an optional action.
+   Items share the title's first baseline, so the dot (which sits on it) and the button's label
+   stay level with the first line however the title wraps. */
 .notice {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--snoozed-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--snoozed-bg);
   color: var(--text-primary);
 }
@@ -690,13 +692,6 @@ input:checked + .slider::before {
 .notice-title {
   margin: 0;
   font: 600 var(--text-md) / 1.4 var(--font-sans);
-}
-
-.notice-detail {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  color: var(--text-secondary);
 }
 
 .notice .button.secondary {
@@ -912,11 +907,15 @@ input:checked + .slider::before {
   }
 
   .status-dot,
-  .is-snoozed .status-dot,
-  .notice .status-dot,
   .dialog-error::before,
   .global-settings-status.is-error::before {
     background-color: CanvasText;
+  }
+
+  .is-snoozed .status-dot,
+  .notice .status-dot {
+    background-color: Canvas;
+    border-color: CanvasText;
   }
 
   /* The danger tint is dropped, so frame the confirm step instead. */
