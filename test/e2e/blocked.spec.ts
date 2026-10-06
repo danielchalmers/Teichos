@@ -15,8 +15,7 @@ import {
 import { PAGES } from '../../src/shared/constants';
 import { formatUntil } from '../../src/shared/utils/schedules';
 
-const PREVIEW_NOTE =
-  'This is a preview with sample data, so the Continue anyway button is turned off.';
+const PREVIEW_NOTE = 'Preview with sample data.';
 
 /**
  * Click Go back and wait until the background has answered that there is nothing to restore, so a

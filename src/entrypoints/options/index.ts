@@ -132,6 +132,7 @@ function setupEventListeners(): void {
   // Filter modal
   getElementByIdOrNull('close-filter-modal')?.addEventListener('click', closeFilterModal);
   getElementByIdOrNull('cancel-filter')?.addEventListener('click', closeFilterModal);
+  closeOnBackdropClick('filter-modal', closeFilterModal);
   getElementByIdOrNull('filter-form')?.addEventListener('submit', handleFilterSubmit);
   clearDialogErrorOnEdit('filter-form', 'filter-error');
   setupDeleteConfirm('filter', describeFilterDelete, handleFilterDelete);
@@ -140,6 +141,7 @@ function setupEventListeners(): void {
   // Group modal
   getElementByIdOrNull('close-group-modal')?.addEventListener('click', closeGroupModal);
   getElementByIdOrNull('cancel-group')?.addEventListener('click', closeGroupModal);
+  closeOnBackdropClick('group-modal', closeGroupModal);
   getElementByIdOrNull('group-form')?.addEventListener('submit', handleGroupSubmit);
   clearDialogErrorOnEdit('group-form', 'group-error');
   setupDeleteConfirm('group', describeGroupDelete, handleGroupDelete);
@@ -155,6 +157,7 @@ function setupEventListeners(): void {
   // Whitelist modal
   getElementByIdOrNull('close-whitelist-modal')?.addEventListener('click', closeWhitelistModal);
   getElementByIdOrNull('cancel-whitelist')?.addEventListener('click', closeWhitelistModal);
+  closeOnBackdropClick('whitelist-modal', closeWhitelistModal);
   getElementByIdOrNull('whitelist-form')?.addEventListener('submit', handleWhitelistSubmit);
   clearDialogErrorOnEdit('whitelist-form', 'whitelist-error');
   setupDeleteConfirm('whitelist', describeWhitelistDelete, handleWhitelistDelete);
@@ -168,6 +171,32 @@ function setupEventListeners(): void {
   getElementByIdOrNull('schedules-list')?.addEventListener('change', handleSchedulesListClick);
 
   document.addEventListener('keydown', handleGlobalKeydown);
+}
+
+/**
+ * A click on the backdrop around a dialog closes it, like Cancel. The backdrop holds the dialog, so
+ * a press that starts or ends inside the dialog (a text selection dragged out of a field, or a
+ * press dragged back in) also clicks the backdrop; only a press that starts and ends on it counts.
+ */
+function closeOnBackdropClick(modalId: string, close: () => void): void {
+  const modal = getElementByIdOrNull(modalId);
+  if (!modal) return;
+
+  let pressStartedOnBackdrop = false;
+  let pressEndedOnBackdrop = false;
+  modal.addEventListener('pointerdown', (event) => {
+    pressStartedOnBackdrop = event.target === modal;
+  });
+  modal.addEventListener('pointerup', (event) => {
+    pressEndedOnBackdrop = event.target === modal;
+  });
+  modal.addEventListener('click', (event) => {
+    if (pressStartedOnBackdrop && pressEndedOnBackdrop && event.target === modal) {
+      close();
+    }
+    pressStartedOnBackdrop = false;
+    pressEndedOnBackdrop = false;
+  });
 }
 
 /** An error describes the input it was raised for, so drop it once the user changes the form. */
@@ -1045,9 +1074,7 @@ function renderGroup(
   }
 
   if (whitelist.length === 0) {
-    whitelistList.appendChild(
-      createEmptyState('No exceptions in this group. Add one to allow a page a filter would block.')
-    );
+    whitelistList.appendChild(createEmptyState('No exceptions in this group.'));
   } else {
     const whitelistFragment = document.createDocumentFragment();
     for (const entry of whitelist) {
@@ -1056,15 +1083,8 @@ function renderGroup(
     whitelistList.appendChild(whitelistFragment);
   }
 
-  // A snooze is explained once by the page notice; a group that is off explains its own lock,
-  // which covers its Edit button (name, schedules, Delete) as well as its rows.
-  if (!groupEnabled && !snoozeActive) {
-    const note = document.createElement('p');
-    note.className = 'group-note';
-    note.textContent = 'This group is off. Turn it on to make changes.';
-    content.prepend(note);
-  }
-
+  // A group that is off, or every group while snoozed, is read-only: its Edit button (name,
+  // schedules, Delete) as well as its rows. The dimmed controls show it; the switch stays live.
   setGroupReadonlyState(groupElement, snoozeActive || !groupEnabled);
 
   return groupElement;

@@ -5,8 +5,8 @@ html {
   background-color: var(--bg);
   /* Chrome caps popups at 800x600 device px, so at high zoom the layout must be able to scroll. */
   overflow: auto;
-  /* When it does, keep focused controls clear of the sticky header and footer. */
-  scroll-padding-block: 60px 68px;
+  /* When it does, keep focused controls clear of the sticky header. */
+  scroll-padding-top: 60px;
 }
 
 body {
@@ -21,7 +21,7 @@ body {
   font: var(--text-md) / 1.45 var(--font-sans);
 }
 
-/* Header: brand, snooze status and settings on a plain surface. */
+/* Header: brand, then snooze status, new temporary block and settings, on a plain surface. */
 .header {
   position: sticky;
   top: 0;
@@ -32,7 +32,9 @@ body {
   justify-content: space-between;
   gap: var(--space-3);
   min-height: 52px;
-  padding: 0 var(--space-3);
+  /* The trailing edge is trimmed so the gear's glyph, not its hit area, ends on the switches' edge,
+     as a dialog's close button sits in its corner. */
+  padding: 0 var(--space-1) 0 var(--space-3);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -207,7 +209,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* Main content: the snooze banner, then the scrolling filter list. */
+/* Main content: the scrolling filter list. */
 .content {
   flex: 1 1 auto;
   min-height: 0;
@@ -217,22 +219,11 @@ body {
   position: relative;
 }
 
-.snooze-banner {
-  flex-shrink: 0;
-  margin: var(--space-3) var(--space-3) 0;
-}
-
-/* A failed resume shows under the detail line, set slightly apart from it. */
-.snooze-banner .dialog-error {
-  margin-top: var(--space-1);
-}
-
 .filter-list {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  padding: var(--space-3);
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -248,7 +239,8 @@ body {
   justify-content: safe center;
 }
 
-/* Rows form one grouped list: a shared outline, hairlines between rows and rounded outer corners. */
+/* Rows run edge to edge on the header's surface, divided by its hairline, so the popup reads as
+   one sheet; their 12px padding lines names up with the logo and switches with the gear. */
 .filter-item {
   flex-shrink: 0;
   display: flex;
@@ -259,21 +251,7 @@ body {
   min-height: 56px;
   padding: var(--space-3);
   background: var(--surface);
-  border: 1px solid var(--border);
-}
-
-.filter-item + .filter-item {
-  border-top-width: 0;
-}
-
-.filter-item:first-child {
-  border-top-left-radius: var(--radius-md);
-  border-top-right-radius: var(--radius-md);
-}
-
-.filter-item:not(:has(+ .filter-item)) {
-  border-bottom-left-radius: var(--radius-md);
-  border-bottom-right-radius: var(--radius-md);
+  border-bottom: 1px solid var(--border);
 }
 
 .filter-info {
@@ -370,9 +348,10 @@ body {
   }
 }
 
+/* Padding, not margin, so the space below it stays inside the scroller at the end of a long list. */
 .inactive-summary {
   flex-shrink: 0;
-  margin-top: var(--space-3);
+  padding: var(--space-3);
   font-size: var(--text-xs);
   color: var(--text-muted);
   text-align: center;
@@ -416,15 +395,4 @@ body {
 
 .empty-state .button {
   margin-top: var(--space-2);
-}
-
-/* Footer action */
-.footer-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
-  flex-shrink: 0;
-  padding: var(--space-3);
-  background: var(--surface);
-  border-top: 1px solid var(--border);
 }

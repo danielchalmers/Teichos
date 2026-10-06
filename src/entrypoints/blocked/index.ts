@@ -368,7 +368,7 @@ function renderActions(state: BlockedPageViewModel): void {
   if (continueButton) {
     continueButton.hidden = !state.state;
     // The preview keeps the button so its layout matches a real block, but there is nothing to
-    // continue to. The preview note explains why, on screen and as the button's description.
+    // continue to, so it is disabled; the preview note is its description.
     if (isPreviewMode()) {
       continueButton.disabled = true;
       continueButton.setAttribute('aria-describedby', 'preview-note');

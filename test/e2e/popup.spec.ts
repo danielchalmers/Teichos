@@ -133,9 +133,8 @@ test('opens the full filter editor from the popup empty state', async ({
   await gotoPopup(extensionPage, page);
 
   const emptyState = page.getByRole('listitem').filter({ hasText: 'No filters yet' });
-  await expect(emptyState).toContainText(
-    'Block a site for a while with a temporary block, or set up filters and schedules in settings.'
-  );
+  // The title and its one button say what to do, with no paragraph to read.
+  await expect(emptyState.locator('.empty-state-text')).toHaveCount(0);
 
   const optionsPagePromise = context.waitForEvent('page');
   await emptyState.getByRole('button', { name: 'New filter' }).click();
@@ -344,13 +343,16 @@ test('snoozes and resumes filtering from the popup', async ({ extensionPage, pag
 
   const filterToggle = page.getByRole('checkbox', { name: 'Toggle filter Snooze Test' });
   const snoozeDialog = page.getByRole('dialog', { name: 'Snooze filtering' });
-  const banner = page.locator('#snooze-banner');
+  const quickAddButton = page.getByRole('button', { name: 'New temporary block' });
 
-  await expect(banner).toBeHidden();
-  // The button's label says what it does, so it has no tooltip until snoozing disables it.
-  await expect(page.locator('#open-quick-add')).not.toHaveAttribute('title');
+  // The header holds the snooze status beside New temporary block, an icon button whose tooltip
+  // repeats its name until snoozing disables it.
+  await expect(page.locator('header #open-quick-add')).toHaveCount(1);
+  await expect(quickAddButton).toHaveAttribute('title', 'New temporary block');
   await page.locator('#open-snooze').click();
-  await expect(snoozeDialog).toHaveAccessibleDescription('Pause all filtering for a set time.');
+  // With no snooze to describe, the dialog's title says it all.
+  await expect(snoozeDialog).toHaveAccessibleDescription('');
+  await expect(page.locator('#snooze-dialog-subtitle')).toBeHidden();
   await expect(snoozeDialog.getByRole('button', { name: 'Close snooze dialog' })).toHaveAttribute(
     'title',
     'Close snooze dialog'
@@ -367,32 +369,28 @@ test('snoozes and resumes filtering from the popup', async ({ extensionPage, pag
   await page.locator('#open-snooze').click();
   await page.getByRole('button', { name: '15m' }).click();
   await expect(page.locator('#snooze-label')).toContainText('Snoozed:');
-  await expect(page.locator('#open-quick-add')).toBeDisabled();
-  await expect(page.locator('#open-quick-add')).toHaveAttribute(
+  // The chip counts down, so its tooltip says when the snooze ends instead.
+  await expect(page.locator('#open-snooze')).toHaveAttribute('title', /^Snoozed until \S.*\.$/);
+  await expect(quickAddButton).toBeDisabled();
+  await expect(quickAddButton).toHaveAttribute(
     'title',
     'Temporary blocks are unavailable while snoozed'
   );
-  // The snoozed list is read-only for keyboard users too, not only behind the pointer overlay.
+  // The status chip is the only notice: the dimmed, disabled rows show the list is read-only,
+  // for keyboard users too, not only behind the pointer.
   await expect(filterToggle).toBeDisabled();
-  // A banner says when the snooze ends, as a clock time rather than a ticking countdown.
-  await expect(banner).toBeVisible();
-  await expect(banner.locator('.notice-title')).toHaveText('Filtering is snoozed');
-  await expect(banner.locator('#snooze-banner-detail')).toHaveText(
-    /^Until \S.* · filters are locked$/
-  );
+  await expect(page.locator('.notice')).toHaveCount(0);
 
-  // While snoozed the dialog leads with resuming, and its description says when the snooze ends.
+  // While snoozed the dialog leads with resuming, and its description says when the snooze ends,
+  // as a clock time rather than a ticking countdown.
   await page.locator('#open-snooze').click();
   await expect(page.getByRole('button', { name: 'Resume filtering' })).toBeFocused();
-  await expect(snoozeDialog).toHaveAccessibleDescription(
-    /^Snoozed until \S.*\. Pick a new time to change it\.$/
-  );
+  await expect(snoozeDialog).toHaveAccessibleDescription(/^Snoozed until \S.*\.$/);
   await page.getByRole('button', { name: 'Resume filtering' }).click();
   await expect(page.locator('#snooze-label')).toHaveText('Active');
-  await expect(page.locator('#open-quick-add')).toBeEnabled();
-  await expect(page.locator('#open-quick-add')).not.toHaveAttribute('title');
+  await expect(quickAddButton).toBeEnabled();
+  await expect(quickAddButton).toHaveAttribute('title', 'New temporary block');
   await expect(filterToggle).toBeEnabled();
-  await expect(banner).toBeHidden();
 });
 
 test('snoozes for a custom duration when Enter is pressed in its field', async ({
@@ -431,12 +429,13 @@ test('describes a snooze with no end time', async ({ extensionPage, page }) => {
   await expect(page.locator('#snooze-label')).toHaveText('Snoozed');
   await expect(trigger).toHaveAccessibleName('Snoozed, snooze filtering');
   await expect(trigger).toHaveAttribute('title', 'Snoozed until you resume it.');
-  await expect(page.locator('#snooze-banner-detail')).toHaveText(
-    'Until you resume it · filters are locked'
+  await trigger.click();
+  await expect(page.getByRole('dialog', { name: 'Snooze filtering' })).toHaveAccessibleDescription(
+    'Snoozed until you resume it.'
   );
 });
 
-test('shows a failed resume in the banner rather than in the closed snooze dialog', async ({
+test('shows a failed resume in the snooze dialog, which stays open', async ({
   extensionPage,
   page,
 }) => {
@@ -447,30 +446,57 @@ test('shows a failed resume in the banner rather than in the closed snooze dialo
   );
   await gotoPopup(extensionPage, page);
 
-  const banner = page.locator('#snooze-banner');
-  const bannerError = banner.locator('#snooze-banner-error');
+  const snoozeDialog = page.locator('#snooze-dialog');
+  const snoozeError = page.locator('#snooze-error');
+  const resumeButton = page.getByRole('button', { name: 'Resume filtering' });
   const restoreWrites = await failSettingsWrites(page);
-  await banner.getByRole('button', { name: 'Resume', exact: true }).click();
-  await expect(bannerError).toHaveText('Failed to resume filtering. Please try again.');
-  await expect(bannerError).toBeVisible();
+  await page.locator('#open-snooze').click();
+  await resumeButton.click();
+  await expect(snoozeError).toHaveText('Failed to resume filtering. Please try again.');
   await expect(page.locator('#status-message')).toHaveText(
     'Failed to resume filtering. Please try again.'
   );
+  await expect(snoozeDialog).toHaveClass(/is-open/);
   await expect(page.locator('#snooze-label')).toHaveText(/^Snoozed: /);
 
-  // The dialog opens without an error from an attempt made outside it.
-  await page.locator('#open-snooze').click();
-  await expect(page.getByRole('dialog', { name: 'Snooze filtering' })).toBeVisible();
-  await expect(page.locator('#snooze-error')).toBeHidden();
+  // The error belongs to that attempt, so the dialog reopens without it.
   await page.keyboard.press('Escape');
+  await page.locator('#open-snooze').click();
+  await expect(snoozeError).toBeHidden();
 
-  // A retry that works takes the banner, and its error, away.
+  // A retry that works closes the dialog.
   await restoreWrites();
-  await banner.getByRole('button', { name: 'Resume', exact: true }).click();
-  await expect(banner).toBeHidden();
-  await expect(bannerError).toBeHidden();
-  await expect(bannerError).toHaveText('');
+  await resumeButton.click();
+  await expect(snoozeDialog).not.toHaveClass(/is-open/);
+  await expect(snoozeError).toBeHidden();
   await expect(page.locator('#snooze-label')).toHaveText('Active');
+});
+
+test('closes either dialog with a click outside it', async ({ extensionPage, page }) => {
+  await gotoPopup(extensionPage, page);
+
+  // The backdrop covers the popup, so its bottom corner is outside either dialog.
+  const clickOutside = (): Promise<void> => page.mouse.click(8, 590);
+  const quickAdd = await openQuickAdd(page);
+  await clickOutside();
+  await expect(quickAdd).not.toHaveClass(/is-open/);
+  await expect(page.locator('#open-quick-add')).toBeFocused();
+
+  await page.locator('#open-snooze').click();
+  const snoozeDialog = page.locator('#snooze-dialog');
+  await expect(snoozeDialog).toHaveClass(/is-open/);
+  await clickOutside();
+  await expect(snoozeDialog).not.toHaveClass(/is-open/);
+  await expect(page.locator('#open-snooze')).toBeFocused();
+
+  // A text selection dragged out of a field ends outside the dialog, but is not a click outside.
+  await openQuickAdd(page);
+  const patternBox = await page.getByLabel('Site or pattern').boundingBox();
+  await page.mouse.move((patternBox?.x ?? 0) + 8, (patternBox?.y ?? 0) + 8);
+  await page.mouse.down();
+  await page.mouse.move(8, 590);
+  await page.mouse.up();
+  await expect(quickAdd).toHaveClass(/is-open/);
 });
 
 test('shows a failed temporary block in its dialog', async ({ extensionPage, page }) => {
@@ -486,19 +512,19 @@ test('shows a failed temporary block in its dialog', async ({ extensionPage, pag
   await expect(quickAdd).toHaveClass(/is-open/);
 });
 
-test('resumes filtering from the snooze banner', async ({ extensionPage, page }) => {
+test('locks the list while snoozed and unlocks it on resume', async ({ extensionPage, page }) => {
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(
     page,
     createStorageData({
       filters: [
         {
-          id: 'banner-filter',
-          pattern: 'banner.example.invalid',
+          id: 'locked-filter',
+          pattern: 'locked.example.invalid',
           groupId: defaultGroup.id,
           enabled: true,
           matchMode: 'contains',
-          description: 'Banner Test',
+          description: 'Locked Test',
         },
       ],
       snooze: { active: true, until: Date.now() + 30 * 60_000 },
@@ -507,21 +533,16 @@ test('resumes filtering from the snooze banner', async ({ extensionPage, page })
 
   await gotoPopup(extensionPage, page);
 
-  const banner = page.locator('#snooze-banner');
   const filterList = page.getByRole('list', { name: 'Active filters' });
-  await expect(banner).toBeVisible();
-  await expect(page.getByRole('checkbox', { name: 'Toggle filter Banner Test' })).toBeDisabled();
+  await expect(page.getByRole('checkbox', { name: 'Toggle filter Locked Test' })).toBeDisabled();
   // With every row control disabled, the list itself takes focus so it can still be scrolled.
   await expect(filterList).toHaveAttribute('tabindex', '0');
 
-  // The banner's button is named apart from the dialog's "Resume filtering".
-  const resumeButton = banner.getByRole('button', { name: 'Resume', exact: true });
-  await resumeButton.click();
+  await page.locator('#open-snooze').click();
+  await page.getByRole('button', { name: 'Resume filtering' }).click();
   await expect(page.locator('#snooze-label')).toHaveText('Active');
-  await expect(banner).toBeHidden();
-  // The banner took the focused button with it, so focus lands on the snooze status instead.
   await expect(page.locator('#open-snooze')).toBeFocused();
-  await expect(page.getByRole('checkbox', { name: 'Toggle filter Banner Test' })).toBeEnabled();
+  await expect(page.getByRole('checkbox', { name: 'Toggle filter Locked Test' })).toBeEnabled();
   await expect(filterList).not.toHaveAttribute('tabindex');
   await expect.poll(async () => (await readStorage(page))?.snooze.active).toBe(false);
 });
@@ -585,9 +606,7 @@ test('lines temporary row actions up with regular rows and summarizes hidden fil
   );
 
   await expect(page.locator('.filter-item').filter({ hasText: 'Off Row' })).toHaveCount(0);
-  await expect(page.locator('.inactive-summary')).toHaveText(
-    "1 more filter doesn't apply here right now"
-  );
+  await expect(page.locator('.inactive-summary')).toHaveText('1 inactive filter hidden');
 });
 
 test('explains a list with no active filters and opens settings from it', async ({
