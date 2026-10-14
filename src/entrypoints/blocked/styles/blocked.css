@@ -1,27 +1,51 @@
 @import '../../../shared/styles/theme.css';
 
 /* The block page uses the shared tokens and controls; this file only lays the page out. */
+:root {
+  /* Lets the details' height transition to and from auto. */
+  interpolate-size: allow-keywords;
+  --reveal-duration: 420ms;
+}
+
+/* The page sits a little above the middle of the window, where the eye rests: the free space is
+   shared 3:4 above and below. When the open details fill a short window the spacers shrink to
+   nothing, so the top stays in view and no extra scrolling is added. */
 body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   background: var(--bg);
   color: var(--text-primary);
   font: var(--text-base) / 1.5 var(--font-sans);
 }
 
-/* Anchored to the top rather than centered, so revealing the details only grows the page downward
-   and the icon and heading stay where they were. */
+body::before,
+body::after {
+  content: '';
+  flex: 3 1 0;
+}
+
+body::after {
+  flex-grow: 4;
+}
+
+/* Plain block flow inside the flex column, so the details' height can animate to auto. */
 .container {
+  flex: none;
+  width: 100%;
   max-width: 560px;
   margin: 0 auto;
-  padding: clamp(48px, 14vh, 128px) var(--space-6) var(--space-10);
+  padding: var(--space-10) var(--space-6);
   text-align: center;
 }
 
 .icon {
   display: block;
-  width: 64px;
-  height: 64px;
-  margin: 0 auto var(--space-5);
+  width: 80px;
+  height: 80px;
+  margin: 0 auto var(--space-6);
   pointer-events: none;
   user-select: none;
 }
@@ -50,6 +74,61 @@ h1 {
   text-wrap: balance;
 }
 
+/* A little padding gives the link a comfortable target and focus ring. */
+#learn-more {
+  display: block;
+  width: fit-content;
+  height: auto;
+  margin: 0 auto;
+  padding: var(--space-1) var(--space-2);
+}
+
+#learn-more[hidden] {
+  display: none;
+  height: 0;
+  padding-block: 0;
+  overflow: clip;
+  opacity: 0;
+}
+
+/* It holds its children's margins (flow-root) so they grow with it while it animates, and the clip
+   margin leaves room for the buttons' focus rings. */
+#block-extras {
+  display: flow-root;
+  height: auto;
+  overflow: clip;
+  overflow-clip-margin: 6px;
+}
+
+#block-extras[hidden] {
+  display: none;
+}
+
+/* Only a Learn more click animates (index.ts sets .is-revealing), so details expanded by default
+   appear at once. The link folds away while the details grow from nothing; the page stays centered,
+   so the icon and heading glide up by half the added height instead of jumping. */
+.is-revealing #learn-more {
+  transition:
+    height 220ms var(--ease),
+    padding 220ms var(--ease),
+    opacity 160ms var(--ease),
+    display 220ms allow-discrete;
+}
+
+.is-revealing #block-extras {
+  transition:
+    height var(--reveal-duration) var(--ease),
+    opacity 320ms var(--ease) 60ms,
+    display var(--reveal-duration) allow-discrete;
+}
+
+@starting-style {
+  .is-revealing #block-extras {
+    height: 0;
+    opacity: 0;
+  }
+}
+
 /* Receives focus from "Learn more" so the reveal is announced; it is not a tab stop. */
 #block-extras:focus {
   outline: none;
@@ -57,13 +136,15 @@ h1 {
 
 /* One card holds the blocked address and, below a hairline, the filter that caught it. */
 .block-card {
-  margin: 0 0 var(--space-6);
+  margin: var(--space-1) 0 var(--space-6);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   text-align: left;
 }
 
+/* index.ts adds a break opportunity after each separator, so the address wraps between its parts;
+   a part wider than the card still wraps inside itself. */
 .url {
   padding: var(--space-3) var(--space-4);
   font: var(--text-sm) / 1.5 var(--font-mono);
@@ -133,6 +214,10 @@ h1 {
 /* On narrow screens the labels give the values more room and the actions stack full width,
    primary first. */
 @media (max-width: 480px) {
+  .container {
+    padding: var(--space-8) var(--space-6);
+  }
+
   .details dl > div {
     grid-template-columns: 5.5rem minmax(0, 1fr);
   }

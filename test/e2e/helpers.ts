@@ -76,11 +76,13 @@ export async function expectOnBlockedPage(page: Page, targetUrl: string): Promis
 
 /**
  * Expand the block page details and action buttons, which are collapsed behind the
- * "Learn more" link unless the global expand-by-default setting is enabled.
+ * "Learn more" link unless the global expand-by-default setting is enabled. Waits for the reveal
+ * animation to finish, since the centered page moves while it runs and would skew layout checks.
  */
 export async function showBlockPageDetails(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Learn more' }).click();
   await expect(page.locator('#block-extras')).toBeVisible();
+  await page.waitForFunction(() => document.getAnimations().length === 0);
 }
 
 /**
