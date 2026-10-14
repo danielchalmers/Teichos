@@ -636,6 +636,27 @@ describe('TabController', () => {
     expect(state?.blockedBy.filterId).toBe(gamesFilter.id);
   });
 
+  it('bypasses only the filter the block page names, even when Continue repeats', async () => {
+    const chromeMock = getChromeMock();
+    const gamesFilter = { ...newsFilter, id: 'games-filter', pattern: 'news.com/games' };
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({ filters: [newsFilter, gamesFilter] })
+    );
+    await seedBlock(52, 'block-52', 'https://news.com/games/chess');
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await expect(getTabController().continueFromBlockedPage('block-52')).resolves.toBe(true);
+    // The block page's snapshot outlives the click, so a second Continue from it must not hand
+    // the games filter, which now wins for this page, a bypass the user never chose.
+    await expect(getTabController().continueFromBlockedPage('block-52')).resolves.toBe(true);
+    await expect(getBypassState(52)).resolves.toEqual({ filterIds: [newsFilter.id] });
+
+    await getTabController().evaluateNavigation(52, 'https://news.com/games/chess');
+    const state = await getBlockedTabState(52);
+    expect(state?.blockedBy.filterId).toBe(gamesFilter.id);
+  });
+
   it('refuses to continue when the block is unknown or the target is no longer blocked', async () => {
     const chromeMock = getChromeMock();
     await seedBlock(42, 'block-42', 'https://news.com/story');

@@ -30,6 +30,8 @@ import { getRulesProvider, type CurrentRules, type RulesProvider } from './rules
 interface ResolvedBlockedTarget {
   readonly targetUrl: string;
   readonly tabId?: number;
+  /** The filter the block page names. */
+  readonly filterId: string;
 }
 
 interface BlockedStateResult {
@@ -263,10 +265,15 @@ class TabController {
       return false;
     }
 
-    // Continue adds only the first filter still blocking, the one the block page names. If another
-    // filter also matches, the tab lands on a fresh block page for it.
+    // Bypass only the filter the block page names, never whichever filter wins now: a repeated
+    // Continue from a page whose filter is already bypassed, or one made stale by a rules change,
+    // must not quietly pass a filter the user never saw. Another matching filter gets a fresh
+    // block page when the tab navigates.
+    const { filterId } = resolvedTarget;
     await Promise.all([
-      setBypassState(targetTabId, { filterIds: [...filterIds, decision.filterId] }),
+      filterIds.includes(filterId)
+        ? Promise.resolve()
+        : setBypassState(targetTabId, { filterIds: [...filterIds, filterId] }),
       clearBlockedTabState(targetTabId),
       setLastAllowedUrl(targetTabId, resolvedTarget.targetUrl),
     ]);
@@ -388,6 +395,7 @@ class TabController {
         return {
           targetUrl: pageState.targetUrl,
           tabId: pageState.tabId,
+          filterId: pageState.blockedBy.filterId,
         };
       }
     }
@@ -396,6 +404,7 @@ class TabController {
       ? {
           targetUrl: existingState.targetUrl,
           tabId: existingState.tabId,
+          filterId: existingState.blockedBy.filterId,
         }
       : undefined;
   }
