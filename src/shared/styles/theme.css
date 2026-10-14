@@ -12,8 +12,8 @@
  * Both themes are drawn from the same two ramps at the brand hue (OKLCH 277°, the logo's hue): a
  * cool neutral ramp for surfaces and text, and an indigo accent. Light and dark only pick different
  * steps, so they share one design language. The accent stays calm (chroma 0.15 in light, 0.12 in
- * dark) and is reserved for one filled primary action per view, switches and selected chips that
- * are on, links, focus rings and the logo. Everything else is neutral.
+ * dark) and is reserved for one filled primary action per view, switches, selected chips and the
+ * status chip while they are on, links, focus rings and the logo. Everything else is neutral.
  *
  * Accessibility contract (WCAG 2.2 AA), held by every value below in both themes:
  * - text tokens reach at least 4.5:1 on --bg, --surface, --surface-muted and --surface-hover;
@@ -82,6 +82,7 @@
 
   --accent: #4b50b0;
   --accent-hover: #3f439a;
+  --accent-tint: #edf1ff;
   --link: var(--accent);
   --link-hover: var(--accent-hover);
   --focus-ring: var(--accent);
@@ -101,12 +102,8 @@
   --selected-text: #ffffff;
 
   /* Snoozed is a calm sky blue (OKLCH hue 235): a pause rather than a warning, apart from the
-     green Active dot for red-green color blindness, and apart from the indigo accent. Active is
-     tinted green at the dot's hue (OKLCH 150), so the status chip reads in either state. */
+     green Active dot for red-green color blindness, and apart from the indigo accent. */
   --status-active: #2a9a4c;
-  --active-bg: #e8f6ea;
-  --active-border: #acd8b4;
-  --active-text: #1c6b36;
   --status-snoozed: #007bad;
   --snoozed-bg: #e8f6fe;
   --snoozed-border: #b5d6eb;
@@ -137,6 +134,7 @@
 
     --accent: #929def;
     --accent-hover: #afb9f8;
+    --accent-tint: #1a1d34;
 
     --button-primary-bg: #494f9a;
     --button-primary-hover-bg: #535aa6;
@@ -154,9 +152,6 @@
     --selected-text: #ffffff;
 
     --status-active: #4ac06c;
-    --active-bg: #132617;
-    --active-border: #2d5a38;
-    --active-text: #93dfa3;
     --status-snoozed: #6ab8e4;
     --snoozed-bg: #0e1e27;
     --snoozed-border: #204154;

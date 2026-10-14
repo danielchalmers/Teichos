@@ -55,8 +55,10 @@ body {
   min-width: 0;
 }
 
-/* Status chip: shows whether filtering is on and opens the snooze dialog. It is tinted for its state,
-   green while active and blue while snoozed, so it stands off the header in either. */
+/* Status chip: shows whether filtering is on and opens the snooze dialog. It takes the accent while
+   filtering is active, tinted rather than filled since it opens a menu instead of acting, and goes
+   dull like the header's outlined buttons while snoozed, since filtering is off. Its dot follows the
+   label's color. */
 .snooze-popover {
   min-width: 0;
 }
@@ -68,19 +70,21 @@ body {
   height: var(--chip-height);
   max-width: 100%;
   padding: 0 10px 0 var(--space-3);
-  border: 1px solid var(--active-border);
+  border: 1px solid var(--accent);
   border-radius: var(--radius-full);
-  background: var(--active-bg);
-  color: var(--active-text);
+  background: var(--accent-tint);
+  color: var(--accent);
   font: 600 var(--text-sm) / 1 var(--font-sans);
   cursor: pointer;
   transition:
     background-color var(--duration) var(--ease),
-    border-color var(--duration) var(--ease);
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
 }
 
 .snooze-button:hover {
-  border-color: var(--status-active);
+  border-color: var(--accent-hover);
+  color: var(--accent-hover);
 }
 
 .snooze-button:focus-visible {
@@ -88,14 +92,24 @@ body {
   outline-offset: 2px;
 }
 
+.snooze-trigger .status-dot {
+  background: currentColor;
+}
+
 .snooze-trigger.is-snoozed {
-  background: var(--snoozed-bg);
-  border-color: var(--snoozed-border);
-  color: var(--text-primary);
+  background: var(--surface-muted);
+  border-color: var(--border-hover);
+  color: var(--text-secondary);
 }
 
 .snooze-trigger.is-snoozed:hover {
-  border-color: var(--status-snoozed);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.snooze-trigger.is-snoozed .status-dot {
+  background: transparent;
+  border-color: currentColor;
 }
 
 .snooze-trigger-text {
@@ -112,7 +126,7 @@ body {
 }
 
 .snooze-trigger.is-snoozed .snooze-chevron {
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 /* Dialog overlays (snooze + quick add share the pattern); the panels take the theme's .dialog. */
