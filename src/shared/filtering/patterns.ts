@@ -291,8 +291,7 @@ export function preparePattern(
  * Compare exact patterns the way the browser reports URLs, not character for character. The
  * browser always gives an origin a path, so https://example.com arrives as https://example.com/,
  * and a fragment only scrolls within the page, so #anything must not get around an exact filter.
- * Continue keys its bypass on the page without the fragment for the same reason. A pattern that
- * isn't a URL is compared as typed.
+ * A pattern that isn't a URL is compared as typed.
  */
 function normalizeExactUrl(value: string): string {
   try {

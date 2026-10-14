@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   clearBlockedTabState,
-  clearBypassState,
   clearTabSessionState,
   getBlockedPageState,
   getBlockedTabState,
@@ -157,19 +156,20 @@ describe('shared/api/session', () => {
     await expect(getSessionSnooze()).resolves.toEqual({ active: false });
   });
 
-  it('stores, retrieves, and clears bypass state by tab id', async () => {
-    await setBypassState(9, {
-      filterId: 'bypassed-filter',
-      urlKey: 'https://bypass.example.test',
-    });
+  it('stores and retrieves bypass state by tab id', async () => {
+    await setBypassState(9, { filterIds: ['bypassed-filter'] });
 
-    await expect(getBypassState(9)).resolves.toEqual({
-      filterId: 'bypassed-filter',
-      urlKey: 'https://bypass.example.test',
-    });
+    await expect(getBypassState(9)).resolves.toEqual({ filterIds: ['bypassed-filter'] });
+    await expect(getBypassState(10)).resolves.toBeUndefined();
+  });
 
-    await clearBypassState(9);
-    await expect(getBypassState(9)).resolves.toBeUndefined();
+  it('ignores malformed bypass state', async () => {
+    const session = getChromeMock().storage.session._data;
+    session.set('bypass_11', { filterId: 'old-shape', urlKey: 'https://blocked.com/' });
+    session.set('bypass_12', { filterIds: ['kept', 7, null] });
+
+    await expect(getBypassState(11)).resolves.toBeUndefined();
+    await expect(getBypassState(12)).resolves.toEqual({ filterIds: ['kept'] });
   });
 
   it('ignores malformed session snooze values', async () => {
@@ -181,14 +181,13 @@ describe('shared/api/session', () => {
   it('reads all per-tab state in one storage call', async () => {
     await Promise.all([
       setLastAllowedUrl(3, 'https://allowed.com/'),
-      setBypassState(3, { filterId: 'filter-1', urlKey: 'https://blocked.com/' }),
+      setBypassState(3, { filterIds: ['filter-1'] }),
     ]);
     getChromeMock().storage.session.get.mockClear();
 
     await expect(getTabSessionState(3)).resolves.toEqual({
       lastAllowedUrl: 'https://allowed.com/',
       blockedTabState: undefined,
-      bypass: { filterId: 'filter-1', urlKey: 'https://blocked.com/' },
     });
     expect(getChromeMock().storage.session.get).toHaveBeenCalledTimes(1);
   });
@@ -209,7 +208,7 @@ describe('shared/api/session', () => {
     });
     await Promise.all([
       setLastAllowedUrl(5, 'https://allowed.com/'),
-      setBypassState(5, { filterId: 'filter-1', urlKey: 'https://blocked.com/' }),
+      setBypassState(5, { filterIds: ['filter-1'] }),
       setBlockedTabState(blockedState(5, 'block-a')),
       setBlockedPageState(pageState(5, 'block-a')),
       setBlockedPageState(pageState(5, 'block-b')),

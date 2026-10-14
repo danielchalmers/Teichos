@@ -18,7 +18,8 @@ export type FilterDecisionAllowReason =
   | 'whitelisted'
   | 'group-inactive'
   | 'filter-disabled'
-  | 'temporary-expired';
+  | 'temporary-expired'
+  | 'bypassed';
 
 export type FilterDecision =
   | { readonly action: 'allow'; readonly reason: FilterDecisionAllowReason }
@@ -33,7 +34,13 @@ export interface FilteringEngine {
   readonly data: StorageData;
   readonly groupsById: ReadonlyMap<string, FilterGroup>;
   readonly whitelistByGroup: ReadonlyMap<string, readonly Whitelist[]>;
-  evaluate: (url: string, context?: ScheduleContext) => FilterDecision;
+  evaluate: (url: string, options?: EvaluateOptions) => FilterDecision;
+}
+
+export interface EvaluateOptions {
+  readonly context?: ScheduleContext;
+  /** Filters the user continued past in this tab. They are skipped, so a later match still blocks. */
+  readonly bypassedFilterIds?: readonly string[];
 }
 
 const FILTER_DECISION_REASON_PRIORITY: Record<FilterDecisionAllowReason, number> = {
@@ -41,8 +48,9 @@ const FILTER_DECISION_REASON_PRIORITY: Record<FilterDecisionAllowReason, number>
   'filter-disabled': 1,
   'temporary-expired': 2,
   'group-inactive': 3,
-  whitelisted: 4,
-  snoozed: 5,
+  bypassed: 4,
+  whitelisted: 5,
+  snoozed: 6,
 };
 
 /**
@@ -58,9 +66,10 @@ export function createFilteringEngine(data: StorageData): FilteringEngine {
     data,
     groupsById,
     whitelistByGroup,
-    evaluate(url, context = getScheduleContext()): FilterDecision {
+    evaluate(url, options): FilterDecision {
       return evaluateFilterDecision(url, data, {
-        context,
+        context: options?.context ?? getScheduleContext(),
+        ...(options?.bypassedFilterIds ? { bypassedFilterIds: options.bypassedFilterIds } : {}),
         filters: orderedFilters,
         groupsById,
         whitelistByGroup,
@@ -74,6 +83,7 @@ interface EvaluationOptions {
   readonly filters: readonly Filter[];
   readonly groupsById: ReadonlyMap<string, FilterGroup>;
   readonly whitelistByGroup: ReadonlyMap<string, readonly Whitelist[]>;
+  readonly bypassedFilterIds: readonly string[];
 }
 
 export function evaluateFilterDecision(
@@ -119,6 +129,11 @@ export function evaluateFilterDecision(
         fallbackReason = selectHigherPriorityReason(fallbackReason, 'whitelisted');
         continue;
       }
+    }
+
+    if (options?.bypassedFilterIds?.includes(filter.id)) {
+      fallbackReason = selectHigherPriorityReason(fallbackReason, 'bypassed');
+      continue;
     }
 
     return {
