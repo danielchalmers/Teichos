@@ -12,8 +12,8 @@
  * Both themes are drawn from the same two ramps at the brand hue (OKLCH 277°, the logo's hue): a
  * cool neutral ramp for surfaces and text, and an indigo accent. Light and dark only pick different
  * steps, so they share one design language. The accent stays calm (chroma 0.15 in light, 0.12 in
- * dark) and is reserved for one filled primary action per view, switches and selected chips that
- * are on, links, focus rings and the logo. Everything else is neutral.
+ * dark) and is reserved for one filled primary action per view, switches, selected chips and the
+ * status chip while they are on, links, focus rings and the logo. Everything else is neutral.
  *
  * Accessibility contract (WCAG 2.2 AA), held by every value below in both themes:
  * - text tokens reach at least 4.5:1 on --bg, --surface, --surface-muted and --surface-hover;
@@ -82,6 +82,7 @@
 
   --accent: #4b50b0;
   --accent-hover: #3f439a;
+  --accent-tint: #edf1ff;
   --link: var(--accent);
   --link-hover: var(--accent-hover);
   --focus-ring: var(--accent);
@@ -133,6 +134,7 @@
 
     --accent: #929def;
     --accent-hover: #afb9f8;
+    --accent-tint: #1a1d34;
 
     --button-primary-bg: #494f9a;
     --button-primary-hover-bg: #535aa6;
@@ -385,6 +387,19 @@ textarea {
 .icon-button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+/* Outlined icon buttons keep a fill and a visible edge at rest, for a toolbar on a plain surface
+   where ghosts would read as loose glyphs. */
+.icon-button.outlined {
+  background: var(--surface-muted);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.icon-button.outlined:not(:disabled):hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
 }
 
 /* Text link: an inline action that reads as a link. */
