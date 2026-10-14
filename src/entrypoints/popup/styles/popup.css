@@ -32,9 +32,8 @@ body {
   justify-content: space-between;
   gap: var(--space-3);
   min-height: 52px;
-  /* The trailing edge is trimmed so the gear's glyph, not its hit area, ends on the switches' edge,
-     as a dialog's close button sits in its corner. */
-  padding: 0 var(--space-1) 0 var(--space-3);
+  /* The rows' padding, so the gear's outline ends on the switches' edge. */
+  padding: 0 var(--space-3);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -56,7 +55,8 @@ body {
   min-width: 0;
 }
 
-/* Status chip: shows whether filtering is on and opens the snooze dialog. */
+/* Status chip: shows whether filtering is on and opens the snooze dialog. It is tinted for its state,
+   green while active and blue while snoozed, so it stands off the header in either. */
 .snooze-popover {
   min-width: 0;
 }
@@ -68,10 +68,10 @@ body {
   height: var(--chip-height);
   max-width: 100%;
   padding: 0 10px 0 var(--space-3);
-  border: 1px solid var(--border);
+  border: 1px solid var(--active-border);
   border-radius: var(--radius-full);
-  background: var(--surface-muted);
-  color: var(--text-primary);
+  background: var(--active-bg);
+  color: var(--active-text);
   font: 600 var(--text-sm) / 1 var(--font-sans);
   cursor: pointer;
   transition:
@@ -80,8 +80,7 @@ body {
 }
 
 .snooze-button:hover {
-  background: var(--surface-hover);
-  border-color: var(--border-hover);
+  border-color: var(--status-active);
 }
 
 .snooze-button:focus-visible {
@@ -92,6 +91,7 @@ body {
 .snooze-trigger.is-snoozed {
   background: var(--snoozed-bg);
   border-color: var(--snoozed-border);
+  color: var(--text-primary);
 }
 
 .snooze-trigger.is-snoozed:hover {
@@ -109,6 +109,9 @@ body {
   flex: none;
   width: 12px;
   height: 12px;
+}
+
+.snooze-trigger.is-snoozed .snooze-chevron {
   color: var(--text-secondary);
 }
 

@@ -101,8 +101,12 @@
   --selected-text: #ffffff;
 
   /* Snoozed is a calm sky blue (OKLCH hue 235): a pause rather than a warning, apart from the
-     green Active dot for red-green color blindness, and apart from the indigo accent. */
+     green Active dot for red-green color blindness, and apart from the indigo accent. Active is
+     tinted green at the dot's hue (OKLCH 150), so the status chip reads in either state. */
   --status-active: #2a9a4c;
+  --active-bg: #e8f6ea;
+  --active-border: #acd8b4;
+  --active-text: #1c6b36;
   --status-snoozed: #007bad;
   --snoozed-bg: #e8f6fe;
   --snoozed-border: #b5d6eb;
@@ -150,6 +154,9 @@
     --selected-text: #ffffff;
 
     --status-active: #4ac06c;
+    --active-bg: #132617;
+    --active-border: #2d5a38;
+    --active-text: #93dfa3;
     --status-snoozed: #6ab8e4;
     --snoozed-bg: #0e1e27;
     --snoozed-border: #204154;
@@ -385,6 +392,19 @@ textarea {
 .icon-button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+/* Outlined icon buttons keep a fill and a visible edge at rest, for a toolbar on a plain surface
+   where ghosts would read as loose glyphs. */
+.icon-button.outlined {
+  background: var(--surface-muted);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.icon-button.outlined:not(:disabled):hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
 }
 
 /* Text link: an inline action that reads as a link. */
