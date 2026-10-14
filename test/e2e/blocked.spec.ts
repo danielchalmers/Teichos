@@ -274,8 +274,21 @@ test('hides details and actions behind the Learn more link by default', async ({
   await expect(learnMore).toBeHidden();
   // The button hides itself, so focus moves to the revealed details instead of the body.
   await expect(page.getByRole('group', { name: 'Block details' })).toBeFocused();
-  // The page is anchored to the top, so the reveal only grows downward and the heading stays put.
-  expect(await heading.boundingBox()).toEqual(headingBox);
+  // The page stays centered, so the reveal eases the heading upward rather than only growing down.
+  await expect.poll(async () => (await heading.boundingBox())?.y).toBeLessThan(headingBox?.y ?? 0);
+});
+
+test('places the page a little above the middle of the window', async ({ extensionPage, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=1`);
+  await expect(page.getByRole('heading', { name: 'Page blocked' })).toBeVisible();
+
+  const box = await page.locator('main').boundingBox();
+  expect(box).not.toBeNull();
+  const spaceAbove = box?.y ?? 0;
+  const spaceBelow = 800 - spaceAbove - (box?.height ?? 0);
+  // The free space is shared 3:4 above and below rather than the page being anchored to the top.
+  expect(spaceAbove / spaceBelow).toBeCloseTo(3 / 4, 1);
 });
 
 test('stacks the actions full width on narrow screens, primary first', async ({

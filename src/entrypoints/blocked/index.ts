@@ -45,6 +45,8 @@ async function init(): Promise<void> {
 
   const learnMoreButton = getElementByIdOrNull('learn-more');
   learnMoreButton?.addEventListener('click', () => {
+    // Only this reveal animates; details expanded by default by the setting appear at once.
+    document.body.classList.add('is-revealing');
     setExtrasExpanded(true);
     // The button hides itself, so move focus to what it revealed rather than losing it.
     getElementByIdOrNull('block-extras')?.focus();
@@ -76,7 +78,8 @@ async function renderPage(): Promise<void> {
 
 /**
  * Details and action buttons stay collapsed behind the "Learn more" link unless the global
- * "expand details by default" setting is enabled.
+ * "expand details by default" setting is enabled. The page starts collapsed, so the setting only
+ * ever expands it; a Learn more click made before the setting loads is never undone.
  */
 async function renderExtrasExpansion(): Promise<void> {
   let expandByDefault = false;
@@ -87,7 +90,9 @@ async function renderExtrasExpansion(): Promise<void> {
     console.warn('[Teichos] Failed to load block page display settings:', error);
   }
 
-  setExtrasExpanded(expandByDefault);
+  if (expandByDefault) {
+    setExtrasExpanded(true);
+  }
 }
 
 function setExtrasExpanded(expanded: boolean): void {
@@ -282,10 +287,28 @@ function renderPreviewNote(): void {
 function renderBlockedUrl(state: BlockedPageViewModel): void {
   const blockedUrlElement = getElementByIdOrNull('blocked-url');
   if (blockedUrlElement) {
-    blockedUrlElement.textContent = state.targetUrl;
+    if (state.state) {
+      setUrlText(blockedUrlElement, state.targetUrl);
+    } else {
+      blockedUrlElement.textContent = state.targetUrl;
+    }
     // Without block state the slot holds a message rather than an address, so it is not set as code.
     blockedUrlElement.classList.toggle('is-unavailable', !state.state);
   }
+}
+
+/**
+ * Set a URL as text with a line-break opportunity after each separator (but not inside "//"), so a
+ * long address wraps between its parts, e.g. "…/comments/1abc23/" | "whats_your_…", instead of
+ * mid-word. The text content is unchanged.
+ */
+function setUrlText(element: HTMLElement, url: string): void {
+  const parts = url.split(/(?<=[/?&=#])(?!\/)/);
+  element.replaceChildren(
+    ...parts.flatMap((part, index) =>
+      index === 0 ? [part] : [document.createElement('wbr'), part]
+    )
+  );
 }
 
 function renderResponsibleFilter(state: BlockedPageViewModel): void {
