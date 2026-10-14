@@ -213,13 +213,13 @@ describe('filteringEngine', () => {
     });
     const engine = createFilteringEngine(data);
 
-    expect(engine.evaluate('https://blocked.com', activeContext)).toEqual({
+    expect(engine.evaluate('https://blocked.com', { context: activeContext })).toEqual({
       action: 'allow',
       reason: 'snoozed',
     });
 
     vi.setSystemTime(Date.now() + 60_000);
-    expect(engine.evaluate('https://blocked.com', activeContext)).toEqual({
+    expect(engine.evaluate('https://blocked.com', { context: activeContext })).toEqual({
       action: 'block',
       filterId: 'filter-1',
       groupId: DEFAULT_GROUP_ID,
@@ -307,23 +307,25 @@ describe('filteringEngine', () => {
       const compilationsAfterBuild = regexSpy.mock.calls.length;
       expect(compilationsAfterBuild).toBe(2);
 
-      expect(engine.evaluate('https://blocked.com/page', activeContext)).toEqual({
+      expect(engine.evaluate('https://blocked.com/page', { context: activeContext })).toEqual({
         action: 'block',
         filterId: 'regex-filter',
         groupId: DEFAULT_GROUP_ID,
         reason: 'matched-filter',
       });
-      expect(engine.evaluate('https://blocked.com/allowed/page', activeContext)).toEqual({
+      expect(
+        engine.evaluate('https://blocked.com/allowed/page', { context: activeContext })
+      ).toEqual({
         action: 'allow',
         reason: 'whitelisted',
       });
-      expect(engine.evaluate('https://other.com/', activeContext)).toEqual({
+      expect(engine.evaluate('https://other.com/', { context: activeContext })).toEqual({
         action: 'block',
         filterId: 'contains-filter',
         groupId: DEFAULT_GROUP_ID,
         reason: 'matched-filter',
       });
-      expect(engine.evaluate('https://unrelated.example/', activeContext)).toEqual({
+      expect(engine.evaluate('https://unrelated.example/', { context: activeContext })).toEqual({
         action: 'allow',
         reason: 'no-match',
       });
@@ -350,7 +352,7 @@ describe('filteringEngine', () => {
     );
     const regexSpy = vi.spyOn(globalThis, 'RegExp');
     try {
-      expect(engine.evaluate('https://blocked.com/[', activeContext)).toEqual({
+      expect(engine.evaluate('https://blocked.com/[', { context: activeContext })).toEqual({
         action: 'allow',
         reason: 'no-match',
       });
@@ -358,6 +360,27 @@ describe('filteringEngine', () => {
     } finally {
       regexSpy.mockRestore();
     }
+  });
+
+  it('skips bypassed filters but still blocks with the next match', () => {
+    const filter = (id: string, pattern: string) =>
+      ({ id, pattern, groupId: DEFAULT_GROUP_ID, enabled: true, matchMode: 'contains' }) as const;
+    const engine = createFilteringEngine(
+      createStorageData({
+        filters: [filter('broad', 'reddit.com'), filter('narrow', 'reddit.com/r/games')],
+      })
+    );
+
+    expect(engine.evaluate('https://reddit.com/r/news', { bypassedFilterIds: ['broad'] })).toEqual({
+      action: 'allow',
+      reason: 'bypassed',
+    });
+    expect(
+      engine.evaluate('https://reddit.com/r/games', { bypassedFilterIds: ['broad'] })
+    ).toMatchObject({ action: 'block', filterId: 'narrow' });
+    expect(
+      engine.evaluate('https://reddit.com/r/games', { bypassedFilterIds: ['broad', 'narrow'] })
+    ).toEqual({ action: 'allow', reason: 'bypassed' });
   });
 
   it('prefers a blocking match over earlier allowed fallbacks', () => {

@@ -91,10 +91,12 @@ export interface BlockedPageState extends BlockedTabState {
   readonly effectiveState: BlockedEffectiveState;
 }
 
-/** Per-tab record of a block the user chose to continue past. */
+/**
+ * Per-tab record of the filters the user chose to continue past. Each one stays bypassed in that
+ * tab until the tab closes, so continuing once doesn't mean clicking through every later page.
+ */
 export interface BypassState {
-  readonly filterId: string;
-  readonly urlKey: string;
+  readonly filterIds: readonly string[];
 }
 
 /** Root storage schema */

@@ -192,7 +192,7 @@ test('says when a temporary block ends instead of only the group schedule', asyn
   expect(partLineCounts).toEqual([1, 1, 1]);
 });
 
-test('Continue anyway bypasses the block for that page in that tab only', async ({
+test('Continue anyway bypasses the filter for the rest of that tab only', async ({
   context,
   extensionPage,
   page,
@@ -226,8 +226,11 @@ test('Continue anyway bypasses the block for that page in that tab only', async 
   await expect(page.getByText('Bypass allowed')).toBeVisible();
   await expectAllowed(page, targetUrl);
 
-  // The bypass is keyed to the exact page and tab the user chose to continue from.
-  await expectBlocked(page, 'https://bypass.example.test/bypass-other');
+  // The bypass covers every page the filter blocks in this tab, but not other tabs.
+  const otherUrl = 'https://bypass.example.test/bypass-other';
+  await mockAllowedPage(page, otherUrl, 'Other bypassed page');
+  await expectAllowed(page, otherUrl);
+  await expect(page.getByText('Other bypassed page')).toBeVisible();
   const otherTab = await context.newPage();
   await otherTab.goto('https://bypass.example.test/');
   await expectBlocked(otherTab, targetUrl);

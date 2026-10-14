@@ -1,6 +1,5 @@
 import {
   clearBlockedTabState,
-  clearBypassState,
   clearTabSessionState,
   getBlockedPageState,
   getBlockedTabState,
@@ -108,14 +107,9 @@ class TabController {
     }
 
     const rules = await this.getRules();
-    const decision = rules.engine.evaluate(url);
+    const decision = await this.evaluateForTab(tabId, url, rules);
 
     if (decision.action === 'block') {
-      if (await this.isBypassed(tabId, url, decision)) {
-        await this.allowTab(tabId, url, seq, { preserveBypass: true });
-        return;
-      }
-
       await this.blockTab(tabId, url, seq, decision, rules.data);
       return;
     }
@@ -220,7 +214,8 @@ class TabController {
       return false;
     }
 
-    const decision = await this.getUrlDecision(lastAllowedUrl);
+    // A page the tab continued past is still somewhere to go back to.
+    const decision = await this.evaluateForTab(tabId, lastAllowedUrl, await this.getRules());
     if (decision.action === 'block') {
       return false;
     }
@@ -259,17 +254,19 @@ class TabController {
     }
 
     const targetTabId = resolvedTarget.tabId ?? tabId;
-    const rules = await this.getRules();
-    const decision = rules.engine.evaluate(resolvedTarget.targetUrl);
+    const [rules, bypass] = await Promise.all([this.getRules(), getBypassState(targetTabId)]);
+    const filterIds = bypass?.filterIds ?? [];
+    const decision = rules.engine.evaluate(resolvedTarget.targetUrl, {
+      bypassedFilterIds: filterIds,
+    });
     if (decision.action !== 'block') {
       return false;
     }
 
+    // Continue adds only the first filter still blocking, the one the block page names. If another
+    // filter also matches, the tab lands on a fresh block page for it.
     await Promise.all([
-      setBypassState(targetTabId, {
-        filterId: decision.filterId,
-        urlKey: getBypassUrlKey(resolvedTarget.targetUrl),
-      }),
+      setBypassState(targetTabId, { filterIds: [...filterIds, decision.filterId] }),
       clearBlockedTabState(targetTabId),
       setLastAllowedUrl(targetTabId, resolvedTarget.targetUrl),
     ]);
@@ -292,18 +289,13 @@ class TabController {
     }
 
     const rules = await this.getRules();
-    const decision = rules.engine.evaluate(resolvedTarget.targetUrl);
-    const bypassed =
-      decision.action === 'block' &&
-      (await this.isBypassed(tabId, resolvedTarget.targetUrl, decision));
-    if ((decision.action === 'block' && !bypassed) || !this.isCurrentNavigation(tabId, seq)) {
+    const decision = await this.evaluateForTab(tabId, resolvedTarget.targetUrl, rules);
+    if (decision.action === 'block' || !this.isCurrentNavigation(tabId, seq)) {
       return;
     }
 
     await updateTabUrl(tabId, resolvedTarget.targetUrl);
-    await this.allowTab(tabId, resolvedTarget.targetUrl, this.getNavigationSeq(tabId), {
-      preserveBypass: bypassed,
-    });
+    await this.allowTab(tabId, resolvedTarget.targetUrl, this.getNavigationSeq(tabId));
   }
 
   private async blockTab(
@@ -329,12 +321,7 @@ class TabController {
    * Record that the tab is on an allowed page, writing only what changed: this runs for every
    * navigation and for every open tab whenever the worker wakes.
    */
-  private async allowTab(
-    tabId: number,
-    url: string,
-    seq: number,
-    options?: { readonly preserveBypass?: boolean }
-  ): Promise<void> {
+  private async allowTab(tabId: number, url: string, seq: number): Promise<void> {
     const session = await getTabSessionState(tabId);
     if (!this.isCurrentNavigation(tabId, seq)) {
       return;
@@ -346,13 +333,6 @@ class TabController {
     }
     if (session.lastAllowedUrl !== url) {
       operations.push(setLastAllowedUrl(tabId, url));
-    }
-    if (
-      !options?.preserveBypass &&
-      session.bypass &&
-      session.bypass.urlKey !== getBypassUrlKey(url)
-    ) {
-      operations.push(clearBypassState(tabId));
     }
 
     await Promise.all(operations);
@@ -458,13 +438,24 @@ class TabController {
     return this.rulesProvider.loadCurrentRules();
   }
 
-  private async isBypassed(
+  /**
+   * Evaluate a URL for a tab, skipping the filters the user continued past in it. The bypass is
+   * read only when something would block, so allowed navigations cost no extra storage read.
+   */
+  private async evaluateForTab(
     tabId: number,
-    targetUrl: string,
-    decision: Extract<FilterDecision, { action: 'block' }>
-  ): Promise<boolean> {
+    url: string,
+    rules: CurrentRules
+  ): Promise<FilterDecision> {
+    const decision = rules.engine.evaluate(url);
+    if (decision.action !== 'block') {
+      return decision;
+    }
+
     const bypass = await getBypassState(tabId);
-    return bypass?.filterId === decision.filterId && bypass.urlKey === getBypassUrlKey(targetUrl);
+    return bypass?.filterIds.length
+      ? rules.engine.evaluate(url, { bypassedFilterIds: bypass.filterIds })
+      : decision;
   }
 }
 
@@ -507,21 +498,6 @@ function createBlockId(): string {
   return (
     globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
   );
-}
-
-/**
- * Key the bypass to the exact page (without the fragment) so Continue only unlocks the page the
- * user saw blocked, not every other page on the same origin. Fragment navigations re-fire
- * evaluation but stay on the same page, so the hash is stripped.
- */
-function getBypassUrlKey(targetUrl: string): string {
-  try {
-    const parsed = new URL(targetUrl);
-    parsed.hash = '';
-    return parsed.toString();
-  } catch {
-    return targetUrl;
-  }
 }
 
 function createFilterSnapshot(

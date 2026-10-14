@@ -6,6 +6,7 @@ import {
   getLastAllowedUrl,
   setBlockedPageState,
   setBlockedTabState,
+  setBypassState,
   setLastAllowedUrl,
 } from '../../../src/shared/api/session';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
@@ -469,7 +470,7 @@ describe('TabController', () => {
     expect(chromeMock.tabs.update).not.toHaveBeenCalled();
   });
 
-  it('continues past blocks for the same tab and page only', async () => {
+  it('continues past a filter for the rest of the tab session', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(
       STORAGE_KEY,
@@ -543,19 +544,15 @@ describe('TabController', () => {
       expect.any(Function)
     );
 
-    // Re-committing the continued page, with or without a fragment, stays allowed.
+    // Other pages the same filter blocks stay allowed in this tab, even after leaving for an
+    // allowed page and coming back.
     chromeMock.tabs.update.mockClear();
-    await getTabController().evaluateNavigation(12, 'https://bypass.com/focus');
     await getTabController().evaluateNavigation(12, 'https://bypass.com/focus#section');
-    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
-
-    // Any other page, even on the same origin, is a fresh block.
     await getTabController().evaluateNavigation(12, 'https://bypass.com/next');
-    expect(chromeMock.tabs.update).toHaveBeenLastCalledWith(
-      12,
-      { url: expect.stringContaining(`/${PAGES.BLOCKED}?blockId=`) },
-      expect.any(Function)
-    );
+    await getTabController().evaluateNavigation(12, 'https://allowed.com/');
+    await getTabController().evaluateNavigation(12, 'https://bypass.com/later');
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+    await expect(getBypassState(12)).resolves.toEqual({ filterIds: ['bypassed-filter'] });
   });
 
   it('continues by block id in the blocked tab only, without unlocking other tabs', async () => {
@@ -571,10 +568,7 @@ describe('TabController', () => {
       { url: 'https://news.com/story' },
       expect.any(Function)
     );
-    await expect(getBypassState(40)).resolves.toEqual({
-      filterId: newsFilter.id,
-      urlKey: 'https://news.com/story',
-    });
+    await expect(getBypassState(40)).resolves.toEqual({ filterIds: [newsFilter.id] });
 
     await getTabController().evaluateNavigation(41, 'https://news.com/story');
     expect(chromeMock.tabs.update).toHaveBeenLastCalledWith(
@@ -582,6 +576,64 @@ describe('TabController', () => {
       { url: expect.stringContaining(`/${PAGES.BLOCKED}?blockId=`) },
       expect.any(Function)
     );
+  });
+
+  it('keeps earlier bypasses when the tab continues past another filter', async () => {
+    const chromeMock = getChromeMock();
+    const sportsFilter = { ...newsFilter, id: 'sports-filter', pattern: 'sports.com' };
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({ filters: [newsFilter, sportsFilter] })
+    );
+    await seedBlock(50, 'block-50', 'https://news.com/story');
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await expect(getTabController().continueFromBlockedPage('block-50')).resolves.toBe(true);
+
+    // A different filter still blocks the tab until the user continues past it too.
+    chromeMock.tabs.update.mockClear();
+    await getTabController().evaluateNavigation(50, 'https://sports.com/scores');
+    expect(chromeMock.tabs.update).toHaveBeenLastCalledWith(
+      50,
+      { url: expect.stringContaining(`/${PAGES.BLOCKED}?blockId=`) },
+      expect.any(Function)
+    );
+    const sportsBlock = await getBlockedTabState(50);
+    await expect(getTabController().continueFromBlockedPage(sportsBlock!.blockId)).resolves.toBe(
+      true
+    );
+    await expect(getBypassState(50)).resolves.toEqual({
+      filterIds: [newsFilter.id, sportsFilter.id],
+    });
+
+    chromeMock.tabs.update.mockClear();
+    await getTabController().evaluateNavigation(50, 'https://news.com/other');
+    await getTabController().evaluateNavigation(50, 'https://sports.com/other');
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+  });
+
+  it('still blocks with a filter the tab never continued past when a bypassed one also matches', async () => {
+    const chromeMock = getChromeMock();
+    const gamesFilter = { ...newsFilter, id: 'games-filter', pattern: 'news.com/games' };
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({ filters: [newsFilter, gamesFilter] })
+    );
+    await seedBlock(51, 'block-51', 'https://news.com/story');
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await expect(getTabController().continueFromBlockedPage('block-51')).resolves.toBe(true);
+    await expect(getBypassState(51)).resolves.toEqual({ filterIds: [newsFilter.id] });
+
+    chromeMock.tabs.update.mockClear();
+    await getTabController().evaluateNavigation(51, 'https://news.com/games/chess');
+    expect(chromeMock.tabs.update).toHaveBeenLastCalledWith(
+      51,
+      { url: expect.stringContaining(`/${PAGES.BLOCKED}?blockId=`) },
+      expect.any(Function)
+    );
+    const state = await getBlockedTabState(51);
+    expect(state?.blockedBy.filterId).toBe(gamesFilter.id);
   });
 
   it('refuses to continue when the block is unknown or the target is no longer blocked', async () => {
@@ -603,6 +655,8 @@ describe('TabController', () => {
     await setLastAllowedUrl(43, 'https://allowed.com/page');
     await setLastAllowedUrl(44, 'https://news.com/earlier');
     await setLastAllowedUrl(45, 'chrome://settings');
+    await setLastAllowedUrl(47, 'https://news.com/continued');
+    await setBypassState(47, { filterIds: [newsFilter.id] });
 
     const { getTabController } = await import('../../../src/background/tabController');
     await expect(getTabController().goBackFromTab(43)).resolves.toBe(true);
@@ -613,11 +667,15 @@ describe('TabController', () => {
     );
 
     chromeMock.tabs.update.mockClear();
-    // A page that was allowed earlier but matches a filter now would just be blocked again.
+    // A page that was allowed earlier but matches a filter now would just be blocked again, unless
+    // the tab continued past that filter.
     await expect(getTabController().goBackFromTab(44)).resolves.toBe(false);
     await expect(getTabController().goBackFromTab(45)).resolves.toBe(false);
     await expect(getTabController().goBackFromTab(46)).resolves.toBe(false);
     expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+
+    // A page the tab already continued past is still somewhere to go back to.
+    await expect(getTabController().goBackFromTab(47)).resolves.toBe(true);
   });
 
   it('re-blocks a bypassed tab when a different filter becomes responsible', async () => {
