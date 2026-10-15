@@ -4,7 +4,7 @@ import {
   createFilteringEngine,
   evaluateFilterDecision,
 } from '../../../src/shared/filtering/engine';
-import type { StorageData } from '../../../src/shared/types';
+import type { Filter, StorageData } from '../../../src/shared/types';
 import { DEFAULT_GROUP_ID } from '../../../src/shared/types';
 
 function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
@@ -111,6 +111,7 @@ describe('filteringEngine', () => {
       action: 'block',
       filterId: 'filter-1',
       groupId: DEFAULT_GROUP_ID,
+      filterIds: ['filter-1'],
       reason: 'matched-filter',
     });
   });
@@ -223,6 +224,7 @@ describe('filteringEngine', () => {
       action: 'block',
       filterId: 'filter-1',
       groupId: DEFAULT_GROUP_ID,
+      filterIds: ['filter-1'],
       reason: 'matched-filter',
     });
   });
@@ -268,6 +270,7 @@ describe('filteringEngine', () => {
       action: 'block',
       filterId: 'temporary-filter',
       groupId: DEFAULT_GROUP_ID,
+      filterIds: ['temporary-filter'],
       reason: 'matched-filter',
     });
   });
@@ -311,6 +314,7 @@ describe('filteringEngine', () => {
         action: 'block',
         filterId: 'regex-filter',
         groupId: DEFAULT_GROUP_ID,
+        filterIds: ['regex-filter'],
         reason: 'matched-filter',
       });
       expect(
@@ -323,6 +327,7 @@ describe('filteringEngine', () => {
         action: 'block',
         filterId: 'contains-filter',
         groupId: DEFAULT_GROUP_ID,
+        filterIds: ['contains-filter'],
         reason: 'matched-filter',
       });
       expect(engine.evaluate('https://unrelated.example/', { context: activeContext })).toEqual({
@@ -383,6 +388,56 @@ describe('filteringEngine', () => {
     ).toEqual({ action: 'allow', reason: 'bypassed' });
   });
 
+  it('lists every filter that blocks a url, the responsible one first', () => {
+    const filter = (id: string, pattern: string, overrides: Partial<Filter> = {}): Filter => ({
+      id,
+      pattern,
+      groupId: DEFAULT_GROUP_ID,
+      enabled: true,
+      matchMode: 'contains',
+      ...overrides,
+    });
+    const engine = createFilteringEngine(
+      createStorageData({
+        groups: [
+          { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true },
+          { id: 'work', name: 'Work', schedules: [], is24x7: true },
+        ],
+        filters: [
+          filter('broad', 'github.com'),
+          filter('disabled', 'github.com/org', { enabled: false }),
+          filter('excepted', 'github.com/org', { groupId: 'work' }),
+          filter('exact', 'https://github.com/org/repo/pulls', { matchMode: 'exact' }),
+          filter('temporary', 'org/repo', { expiresAt: Date.now() + 60_000 }),
+          filter('bypassed', 'repo/pulls'),
+        ],
+        whitelist: [
+          {
+            id: 'work-exception',
+            pattern: 'github.com/org',
+            groupId: 'work',
+            enabled: true,
+            matchMode: 'contains',
+          },
+        ],
+      })
+    );
+
+    // Disabled, excepted, and bypassed filters are not blocking, so they are not listed.
+    expect(
+      engine.evaluate('https://github.com/org/repo/pulls', {
+        context: activeContext,
+        bypassedFilterIds: ['bypassed'],
+      })
+    ).toEqual({
+      action: 'block',
+      filterId: 'temporary',
+      groupId: DEFAULT_GROUP_ID,
+      filterIds: ['temporary', 'broad', 'exact'],
+      reason: 'matched-filter',
+    });
+  });
+
   it('prefers a blocking match over earlier allowed fallbacks', () => {
     const decision = evaluateFilterDecision(
       'https://blocked.com',
@@ -411,6 +466,7 @@ describe('filteringEngine', () => {
       action: 'block',
       filterId: 'active-filter',
       groupId: DEFAULT_GROUP_ID,
+      filterIds: ['active-filter'],
       reason: 'matched-filter',
     });
   });

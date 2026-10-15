@@ -113,6 +113,51 @@ describe('shared/api/session', () => {
     });
   });
 
+  it('keeps the other filters behind a block and drops malformed ones', async () => {
+    const chromeMock = getChromeMock();
+    const blockedBy = {
+      filterId: 'filter-1',
+      groupId: 'group-1',
+      otherFilterIds: ['filter-2', 42, 'filter-3'],
+    };
+    chromeMock.storage.session._data.set('blocked_tab_state_3', {
+      blockId: 'block-page-2',
+      tabId: 3,
+      targetUrl: 'https://blocked.com/focus',
+      blockedAt: 1234,
+      blockedBy,
+    });
+    chromeMock.storage.session._data.set('blocked_page_state_block-page-2', {
+      blockId: 'block-page-2',
+      tabId: 3,
+      targetUrl: 'https://blocked.com/focus',
+      blockedAt: 1234,
+      blockedBy,
+      filter: { id: 'filter-1', pattern: 'blocked.com', matchMode: 'contains' },
+      otherFilters: [
+        { id: 'filter-2', pattern: 'blocked.com/focus', matchMode: 'contains' },
+        { id: 'broken', pattern: 7, matchMode: 'contains' },
+        { id: 'filter-3', pattern: 'https://blocked.com/focus', matchMode: 'exact' },
+      ],
+      group: undefined,
+      effectiveState: { filterEnabled: true, groupActive: true, snoozeActive: false },
+    });
+
+    const expectedBlockedBy = {
+      filterId: 'filter-1',
+      groupId: 'group-1',
+      otherFilterIds: ['filter-2', 'filter-3'],
+    };
+    await expect(getBlockedTabState(3)).resolves.toMatchObject({ blockedBy: expectedBlockedBy });
+    await expect(getBlockedPageState('block-page-2')).resolves.toMatchObject({
+      blockedBy: expectedBlockedBy,
+      otherFilters: [
+        { id: 'filter-2', pattern: 'blocked.com/focus', matchMode: 'contains' },
+        { id: 'filter-3', pattern: 'https://blocked.com/focus', matchMode: 'exact' },
+      ],
+    });
+  });
+
   it('keeps a temporary filter expiry in blocked page snapshots only when it is a finite time', async () => {
     const pageState = (blockId: string, expiresAt: unknown): unknown => ({
       blockId,

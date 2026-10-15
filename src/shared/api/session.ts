@@ -71,6 +71,12 @@ function normalizeBlockedTabState(value: unknown): BlockedTabState | undefined {
     return undefined;
   }
 
+  const otherFilterIds = Array.isArray(candidate.blockedBy.otherFilterIds)
+    ? candidate.blockedBy.otherFilterIds.filter(
+        (filterId): filterId is string => typeof filterId === 'string'
+      )
+    : [];
+
   return {
     blockId: candidate.blockId,
     tabId: candidate.tabId,
@@ -79,6 +85,7 @@ function normalizeBlockedTabState(value: unknown): BlockedTabState | undefined {
     blockedBy: {
       filterId: candidate.blockedBy.filterId,
       groupId: candidate.blockedBy.groupId,
+      ...(otherFilterIds.length > 0 ? { otherFilterIds } : {}),
     },
   };
 }
@@ -274,9 +281,16 @@ function normalizeBlockedPageState(value: unknown): BlockedPageState | undefined
     return undefined;
   }
 
+  const otherFilters = Array.isArray(candidate.otherFilters)
+    ? candidate.otherFilters
+        .map(normalizeBlockedFilterSnapshot)
+        .filter((snapshot): snapshot is BlockedFilterSnapshot => Boolean(snapshot))
+    : [];
+
   return {
     ...tabState,
     filter,
+    ...(otherFilters.length > 0 ? { otherFilters } : {}),
     group: normalizeBlockedGroupSnapshot(candidate.group),
     effectiveState,
   };

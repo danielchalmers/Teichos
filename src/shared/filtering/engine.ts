@@ -27,6 +27,8 @@ export type FilterDecision =
       readonly action: 'block';
       readonly filterId: string;
       readonly groupId: string;
+      /** Every filter that blocks the URL, `filterId` first, so one Continue can pass them all. */
+      readonly filterIds: readonly string[];
       readonly reason: 'matched-filter';
     };
 
@@ -102,6 +104,8 @@ export function evaluateFilterDecision(
   const urlLower = url.toLowerCase();
   const now = Date.now();
   let fallbackReason: FilterDecisionAllowReason = 'no-match';
+  let primary: Filter | undefined;
+  const blockingFilterIds: string[] = [];
 
   for (const filter of filters) {
     if (!matchesPattern(url, filter, undefined, urlLower)) {
@@ -136,15 +140,21 @@ export function evaluateFilterDecision(
       continue;
     }
 
-    return {
-      action: 'block',
-      filterId: filter.id,
-      groupId: filter.groupId,
-      reason: 'matched-filter',
-    };
+    primary ??= filter;
+    if (!blockingFilterIds.includes(filter.id)) {
+      blockingFilterIds.push(filter.id);
+    }
   }
 
-  return { action: 'allow', reason: fallbackReason };
+  return primary
+    ? {
+        action: 'block',
+        filterId: primary.id,
+        groupId: primary.groupId,
+        filterIds: blockingFilterIds,
+        reason: 'matched-filter',
+      }
+    : { action: 'allow', reason: fallbackReason };
 }
 
 function withPreparedPattern<T extends Filter | Whitelist>(entry: T): T & PreparedPattern {

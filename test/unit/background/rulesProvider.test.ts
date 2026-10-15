@@ -45,6 +45,7 @@ describe('RulesProvider', () => {
       action: 'block',
       filterId: 'filter-1',
       groupId: DEFAULT_GROUP_ID,
+      filterIds: ['filter-1'],
       reason: 'matched-filter',
     });
   });
@@ -148,18 +149,21 @@ describe('RulesProvider', () => {
       action: 'block',
       filterId: 'stale-filter',
       groupId: DEFAULT_GROUP_ID,
+      filterIds: ['stale-filter'],
       reason: 'matched-filter',
     });
     expect(refreshedRules.engine.evaluate('https://fresh.example')).toEqual({
       action: 'block',
       filterId: 'fresh-filter',
       groupId: DEFAULT_GROUP_ID,
+      filterIds: ['fresh-filter'],
       reason: 'matched-filter',
     });
     expect(cachedRules.engine.evaluate('https://fresh.example')).toEqual({
       action: 'block',
       filterId: 'fresh-filter',
       groupId: DEFAULT_GROUP_ID,
+      filterIds: ['fresh-filter'],
       reason: 'matched-filter',
     });
     expect(cachedRules.engine.evaluate('https://stale.example')).toEqual({
@@ -201,6 +205,7 @@ describe('RulesProvider', () => {
       action: 'block',
       filterId: 'filter-2',
       groupId: DEFAULT_GROUP_ID,
+      filterIds: ['filter-2'],
       reason: 'matched-filter',
     });
   });

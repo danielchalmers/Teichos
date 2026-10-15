@@ -117,6 +117,8 @@ test('renders the blocked url and responsible filter from block id state', async
   await showBlockPageDetails(page);
   await expect(page.getByLabel('Responsible filter')).toContainText('Blocked State');
   await expect(page.getByLabel('Responsible filter')).toContainText('blocked-state.example.test');
+  // With a single filter there are no others to name.
+  await expect(page.locator('#other-filters')).toBeHidden();
 });
 
 test('says when a temporary block ends instead of only the group schedule', async ({
@@ -234,6 +236,49 @@ test('Continue anyway bypasses the filter for the rest of that tab only', async 
   const otherTab = await context.newPage();
   await otherTab.goto('https://bypass.example.test/');
   await expectBlocked(otherTab, targetUrl);
+});
+
+test('Continue anyway passes every filter that blocks the page in one step', async ({
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://overlap.example.test/org/repo/pulls';
+  await mockAllowedPage(page, targetUrl, 'Overlap allowed');
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'overlap-broad',
+          pattern: 'overlap.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Overlap',
+        },
+        {
+          id: 'overlap-exact',
+          pattern: targetUrl,
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'exact',
+        },
+      ],
+    })
+  );
+
+  await expectBlocked(page, targetUrl);
+  await showBlockPageDetails(page);
+  await expect(page.locator('#responsible-filter-name')).toHaveText('Overlap');
+  await expect(page.locator('#other-filters')).toBeVisible();
+  await expect(page.locator('#other-filters-list')).toHaveText(targetUrl);
+
+  await page.getByRole('button', { name: 'Continue anyway' }).click();
+  await expect(page).toHaveURL(targetUrl);
+  await expect(page.getByText('Overlap allowed')).toBeVisible();
+  await expectAllowed(page, targetUrl);
 });
 
 test('renders a sample block in preview mode', async ({ extensionPage, page }) => {

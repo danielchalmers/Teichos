@@ -657,6 +657,67 @@ describe('TabController', () => {
     expect(state?.blockedBy.filterId).toBe(gamesFilter.id);
   });
 
+  it('names every filter that blocks a page and continues past them all at once', async () => {
+    const chromeMock = getChromeMock();
+    const storyFilter = {
+      ...newsFilter,
+      id: 'story-filter',
+      pattern: 'https://news.com/story',
+      matchMode: 'exact',
+      description: 'That one story',
+    } as const;
+    const sportsFilter = { ...newsFilter, id: 'sports-filter', pattern: 'news.com/sports' };
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({ filters: [newsFilter, storyFilter, sportsFilter] })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(60, 'https://news.com/story');
+
+    const state = await getBlockedTabState(60);
+    expect(state?.blockedBy).toEqual({
+      filterId: newsFilter.id,
+      groupId: DEFAULT_GROUP_ID,
+      otherFilterIds: [storyFilter.id],
+    });
+    await expect(getTabController().getBlockedPageStateByBlockId(state!.blockId)).resolves.toEqual({
+      status: 'blocked',
+      state: expect.objectContaining({
+        filter: expect.objectContaining({ id: newsFilter.id }),
+        otherFilters: [
+          {
+            id: storyFilter.id,
+            pattern: storyFilter.pattern,
+            matchMode: 'exact',
+            description: 'That one story',
+          },
+        ],
+      }),
+    });
+
+    chromeMock.tabs.update.mockClear();
+    await expect(getTabController().continueFromBlockedPage(state!.blockId)).resolves.toBe(true);
+    await expect(getBypassState(60)).resolves.toEqual({
+      filterIds: [newsFilter.id, storyFilter.id],
+    });
+
+    // Arriving at the target does not put up a second block page for the other filter.
+    await getTabController().evaluateNavigation(60, 'https://news.com/story');
+    expect(chromeMock.tabs.update).toHaveBeenCalledTimes(1);
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      60,
+      { url: 'https://news.com/story' },
+      expect.any(Function)
+    );
+
+    // A filter the block page never named still blocks.
+    await getTabController().evaluateNavigation(60, 'https://news.com/sports');
+    await expect(getBlockedTabState(60)).resolves.toMatchObject({
+      blockedBy: { filterId: sportsFilter.id },
+    });
+  });
+
   it('refuses to continue when the block is unknown or the target is no longer blocked', async () => {
     const chromeMock = getChromeMock();
     await seedBlock(42, 'block-42', 'https://news.com/story');
@@ -914,6 +975,7 @@ describe('TabController', () => {
       action: 'block',
       filterId: 'filter-3',
       groupId: DEFAULT_GROUP_ID,
+      filterIds: ['filter-3'],
       reason: 'matched-filter',
     });
   });

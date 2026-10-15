@@ -59,6 +59,8 @@ export interface SnoozeState {
 export interface BlockedBy {
   readonly filterId: string;
   readonly groupId: string;
+  /** Other filters that also blocked the target, so Continue anyway passes them in one step. */
+  readonly otherFilterIds?: readonly string[];
 }
 
 export interface BlockedTabState {
@@ -87,6 +89,8 @@ export interface BlockedEffectiveState {
 
 export interface BlockedPageState extends BlockedTabState {
   readonly filter: BlockedFilterSnapshot;
+  /** Snapshots of `blockedBy.otherFilterIds`, so the block page names every filter it passes. */
+  readonly otherFilters?: readonly BlockedFilterSnapshot[];
   readonly group: BlockedGroupSnapshot | undefined;
   readonly effectiveState: BlockedEffectiveState;
 }

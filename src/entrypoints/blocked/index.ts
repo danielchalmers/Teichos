@@ -9,6 +9,7 @@ import { loadData } from '../../shared/api/storage';
 import { removeTabs, updateTab } from '../../shared/api/tabs';
 import {
   MessageType,
+  type BlockedFilterSnapshot,
   type BlockedPageState,
   type FilterMatchMode,
   type GetBlockedPageStateResponse,
@@ -322,13 +323,37 @@ function renderResponsibleFilter(state: BlockedPageViewModel): void {
     return;
   }
 
-  setText('responsible-filter-name', getFilterDisplayName(state.state));
+  setText('responsible-filter-name', getFilterDisplayName(state.state.filter));
   setText('responsible-filter-pattern', state.state.filter.pattern);
   setText('responsible-filter-match', formatMatchMode(state.state.filter.matchMode));
   setText('responsible-filter-group', state.state.group?.name ?? 'Unknown group');
   renderSchedule(state.state);
+  renderOtherFilters(state.state);
 
   detailSection.hidden = false;
+}
+
+/**
+ * Other filters that also block the page, one per line. Continue anyway passes them too, so the
+ * page names each one rather than letting it be bypassed unseen.
+ */
+function renderOtherFilters(state: BlockedPageState): void {
+  const row = getElementByIdOrNull<HTMLElement>('other-filters');
+  const list = getElementByIdOrNull('other-filters-list');
+  if (!row || !list) {
+    return;
+  }
+
+  const otherFilters = state.otherFilters ?? [];
+  list.replaceChildren(
+    ...otherFilters.map((filter) => {
+      const item = document.createElement('span');
+      item.className = 'other-filter';
+      item.textContent = getFilterDisplayName(filter);
+      return item;
+    })
+  );
+  row.hidden = otherFilters.length === 0;
 }
 
 /**
@@ -406,13 +431,13 @@ function setText(elementId: string, value: string): void {
   }
 }
 
-function getFilterDisplayName(state: BlockedPageState): string {
-  const name = state.filter.description?.trim();
+function getFilterDisplayName(filter: BlockedFilterSnapshot): string {
+  const name = filter.description?.trim();
   if (typeof name === 'string' && name.length > 0) {
     return name;
   }
 
-  return state.filter.pattern;
+  return filter.pattern;
 }
 
 function formatMatchMode(matchMode: FilterMatchMode): string {

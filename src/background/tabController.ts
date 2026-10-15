@@ -30,8 +30,8 @@ import { getRulesProvider, type CurrentRules, type RulesProvider } from './rules
 interface ResolvedBlockedTarget {
   readonly targetUrl: string;
   readonly tabId?: number;
-  /** The filter the block page names. */
-  readonly filterId: string;
+  /** Every filter the block page names, the responsible one first. */
+  readonly filterIds: readonly string[];
 }
 
 interface BlockedStateResult {
@@ -257,23 +257,23 @@ class TabController {
 
     const targetTabId = resolvedTarget.tabId ?? tabId;
     const [rules, bypass] = await Promise.all([this.getRules(), getBypassState(targetTabId)]);
-    const filterIds = bypass?.filterIds ?? [];
-    const decision = rules.engine.evaluate(resolvedTarget.targetUrl, {
-      bypassedFilterIds: filterIds,
-    });
+    const bypassedFilterIds = bypass?.filterIds ?? [];
+    const decision = rules.engine.evaluate(resolvedTarget.targetUrl, { bypassedFilterIds });
     if (decision.action !== 'block') {
       return false;
     }
 
-    // Bypass only the filter the block page names, never whichever filter wins now: a repeated
-    // Continue from a page whose filter is already bypassed, or one made stale by a rules change,
-    // must not quietly pass a filter the user never saw. Another matching filter gets a fresh
-    // block page when the tab navigates.
-    const { filterId } = resolvedTarget;
+    // Bypass the filters the block page names, all of them so one Continue reaches the page, but
+    // never whichever filters win now: a repeated Continue from a page whose filters are already
+    // bypassed, or one made stale by a rules change, must not quietly pass a filter the user never
+    // saw. Any other matching filter gets a fresh block page when the tab navigates.
+    const newFilterIds = resolvedTarget.filterIds.filter(
+      (filterId) => !bypassedFilterIds.includes(filterId)
+    );
     await Promise.all([
-      filterIds.includes(filterId)
+      newFilterIds.length === 0
         ? Promise.resolve()
-        : setBypassState(targetTabId, { filterIds: [...filterIds, filterId] }),
+        : setBypassState(targetTabId, { filterIds: [...bypassedFilterIds, ...newFilterIds] }),
       clearBlockedTabState(targetTabId),
       setLastAllowedUrl(targetTabId, resolvedTarget.targetUrl),
     ]);
@@ -356,6 +356,7 @@ class TabController {
     data: StorageData
   ): Promise<BlockedStateResult> {
     const blockId = createBlockId();
+    const otherFilterIds = decision.filterIds.filter((filterId) => filterId !== decision.filterId);
     const tabState: BlockedTabState = {
       blockId,
       tabId,
@@ -364,12 +365,22 @@ class TabController {
       blockedBy: {
         filterId: decision.filterId,
         groupId: decision.groupId,
+        ...(otherFilterIds.length > 0 ? { otherFilterIds } : {}),
       },
     };
-    const filter = data.filters.find((entry) => entry.id === decision.filterId);
+    const findFilter = (filterId: string): Filter | undefined =>
+      data.filters.find((entry) => entry.id === filterId);
+    const filter = findFilter(decision.filterId);
     const pageState: BlockedPageState = {
       ...tabState,
       filter: createFilterSnapshot(filter, decision.filterId),
+      ...(otherFilterIds.length > 0
+        ? {
+            otherFilters: otherFilterIds.map((filterId) =>
+              createFilterSnapshot(findFilter(filterId), filterId)
+            ),
+          }
+        : {}),
       group: data.groups.find((entry) => entry.id === decision.groupId),
       effectiveState: {
         filterEnabled: filter?.enabled ?? true,
@@ -395,7 +406,7 @@ class TabController {
         return {
           targetUrl: pageState.targetUrl,
           tabId: pageState.tabId,
-          filterId: pageState.blockedBy.filterId,
+          filterIds: getBlockedFilterIds(pageState),
         };
       }
     }
@@ -404,7 +415,7 @@ class TabController {
       ? {
           targetUrl: existingState.targetUrl,
           tabId: existingState.tabId,
-          filterId: existingState.blockedBy.filterId,
+          filterIds: getBlockedFilterIds(existingState),
         }
       : undefined;
   }
@@ -495,6 +506,10 @@ function parseBlockedPageBlockId(tabUrl: string | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+function getBlockedFilterIds(state: BlockedTabState): readonly string[] {
+  return [state.blockedBy.filterId, ...(state.blockedBy.otherFilterIds ?? [])];
 }
 
 function getBlockedPageUrl(blockId: string): string {
