@@ -165,6 +165,7 @@ describe('handleMessage', () => {
       action: 'block',
       filterId: 'filter-1',
       groupId: DEFAULT_GROUP_ID,
+      filterIds: ['filter-1'],
       reason: 'matched-filter',
     });
     const sendResponse = vi.fn();

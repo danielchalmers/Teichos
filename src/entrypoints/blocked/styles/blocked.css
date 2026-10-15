@@ -198,6 +198,14 @@ h1 {
   font: var(--text-sm) / 1.5 var(--font-mono);
 }
 
+.details dl > div[hidden] {
+  display: none;
+}
+
+.other-filter {
+  display: block;
+}
+
 /* Each schedule and the end time wrap as units, so a long list never breaks inside "09:00–17:00".
    A part wider than the column still wraps inside itself. */
 .schedule-part {
