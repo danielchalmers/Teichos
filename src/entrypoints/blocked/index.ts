@@ -45,11 +45,9 @@ async function init(): Promise<void> {
 
   const learnMoreButton = getElementByIdOrNull('learn-more');
   learnMoreButton?.addEventListener('click', () => {
-    // Only this reveal animates; details expanded by default by the setting appear at once.
-    document.body.classList.add('is-revealing');
-    setExtrasExpanded(true);
+    revealExtras();
     // The button hides itself, so move focus to what it revealed rather than losing it.
-    getElementByIdOrNull('block-extras')?.focus();
+    getElementByIdOrNull('block-extras')?.focus({ preventScroll: true });
   });
 
   // Set up options button
@@ -93,6 +91,72 @@ async function renderExtrasExpansion(): Promise<void> {
   if (expandByDefault) {
     setExtrasExpanded(true);
   }
+}
+
+/**
+ * Opens the details from a Learn more click; details expanded by default by the setting appear at
+ * once instead. The page is laid out at full size straight away and then animated from where it
+ * was: the centered column glides up by the distance it moved, the link fades out in place and the
+ * details fade in while rising a few pixels, so nothing grows or is clipped on the way.
+ */
+function revealExtras(): void {
+  const container = document.querySelector<HTMLElement>('main.container');
+  const extras = getElementByIdOrNull<HTMLElement>('block-extras');
+  const learnMoreButton = getElementByIdOrNull<HTMLButtonElement>('learn-more');
+  if (
+    !container ||
+    !extras ||
+    !learnMoreButton ||
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ) {
+    setExtrasExpanded(true);
+    return;
+  }
+
+  const startTop = container.getBoundingClientRect().top;
+  const fadingLink = createFadingLink(learnMoreButton);
+  setExtrasExpanded(true);
+  container.append(fadingLink);
+  const shift = startTop - container.getBoundingClientRect().top;
+
+  const easing = getComputedStyle(document.documentElement).getPropertyValue('--ease').trim();
+  if (Math.abs(shift) > 0.5) {
+    container.animate([{ transform: `translateY(${String(shift)}px)` }, { transform: 'none' }], {
+      duration: 380,
+      easing,
+    });
+  }
+  extras.animate(
+    [
+      { opacity: 0, transform: 'translateY(12px)' },
+      { opacity: 1, transform: 'none' },
+    ],
+    { duration: 360, delay: 60, easing, fill: 'backwards' }
+  );
+  const fade = fadingLink.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(0.96)' }], {
+    duration: 140,
+    easing,
+    fill: 'forwards',
+  });
+  fade.onfinish = () => {
+    fadingLink.remove();
+  };
+  fade.oncancel = fade.onfinish;
+}
+
+/**
+ * A decorative copy of the Learn more link, pinned where the link sits in the container, that
+ * fades out on top of the details once the real link is hidden.
+ */
+function createFadingLink(learnMoreButton: HTMLButtonElement): HTMLElement {
+  const copy = document.createElement('span');
+  copy.className = 'text-link learn-more-fading';
+  copy.textContent = learnMoreButton.textContent.trim();
+  copy.setAttribute('aria-hidden', 'true');
+  copy.style.top = `${String(learnMoreButton.offsetTop)}px`;
+  copy.style.left = `${String(learnMoreButton.offsetLeft)}px`;
+  copy.style.width = `${String(learnMoreButton.offsetWidth)}px`;
+  return copy;
 }
 
 function setExtrasExpanded(expanded: boolean): void {

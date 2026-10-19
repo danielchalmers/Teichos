@@ -276,6 +276,22 @@ test('hides details and actions behind the Learn more link by default', async ({
   await expect(page.getByRole('group', { name: 'Block details' })).toBeFocused();
   // The page stays centered, so the reveal eases the heading upward rather than only growing down.
   await expect.poll(async () => (await heading.boundingBox())?.y).toBeLessThan(headingBox?.y ?? 0);
+  // The copy of the link that fades out in its place is removed once the reveal ends.
+  await page.waitForFunction(() => document.getAnimations().length === 0);
+  await expect(page.locator('.learn-more-fading')).toHaveCount(0);
+});
+
+test('opens the details without motion when reduced motion is requested', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=1`);
+  await page.getByRole('button', { name: 'Learn more' }).click();
+
+  await expect(page.getByRole('button', { name: 'Go back' })).toBeVisible();
+  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  await expect(page.locator('.learn-more-fading')).toHaveCount(0);
 });
 
 test('places the page a little above the middle of the window', async ({ extensionPage, page }) => {
