@@ -1,12 +1,6 @@
 @import '../../../shared/styles/theme.css';
 
 /* The block page uses the shared tokens and controls; this file only lays the page out. */
-:root {
-  /* Lets the details' height transition to and from auto. */
-  interpolate-size: allow-keywords;
-  --reveal-duration: 420ms;
-}
-
 /* The page sits a little above the middle of the window, where the eye rests: the free space is
    shared 3:4 above and below. When the open details fill a short window the spacers shrink to
    nothing, so the top stays in view and no extra scrolling is added. */
@@ -31,8 +25,9 @@ body::after {
   flex-grow: 4;
 }
 
-/* Plain block flow inside the flex column, so the details' height can animate to auto. */
+/* Positioned so the Learn more link can be pinned in place while it fades out (index.ts). */
 .container {
+  position: relative;
   flex: none;
   width: 100%;
   max-width: 560px;
@@ -85,48 +80,24 @@ h1 {
 
 #learn-more[hidden] {
   display: none;
-  height: 0;
-  padding-block: 0;
-  overflow: clip;
-  opacity: 0;
 }
 
-/* It holds its children's margins (flow-root) so they grow with it while it animates, and the clip
-   margin leaves room for the buttons' focus rings. */
+/* The copy of the link that fades out where it stood after a Learn more click; index.ts sets its
+   position and animates the reveal. */
+.learn-more-fading {
+  position: absolute;
+  padding: var(--space-1) var(--space-2);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* It holds its children's margins (flow-root), so the card keeps its gap below the message. */
 #block-extras {
   display: flow-root;
-  height: auto;
-  overflow: clip;
-  overflow-clip-margin: 6px;
 }
 
 #block-extras[hidden] {
   display: none;
-}
-
-/* Only a Learn more click animates (index.ts sets .is-revealing), so details expanded by default
-   appear at once. The link folds away while the details grow from nothing; the page stays centered,
-   so the icon and heading glide up by half the added height instead of jumping. */
-.is-revealing #learn-more {
-  transition:
-    height 220ms var(--ease),
-    padding 220ms var(--ease),
-    opacity 160ms var(--ease),
-    display 220ms allow-discrete;
-}
-
-.is-revealing #block-extras {
-  transition:
-    height var(--reveal-duration) var(--ease),
-    opacity 320ms var(--ease) 60ms,
-    display var(--reveal-duration) allow-discrete;
-}
-
-@starting-style {
-  .is-revealing #block-extras {
-    height: 0;
-    opacity: 0;
-  }
 }
 
 /* Receives focus from "Learn more" so the reveal is announced; it is not a tab stop. */
