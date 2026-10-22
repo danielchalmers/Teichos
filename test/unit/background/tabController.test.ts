@@ -870,6 +870,35 @@ describe('TabController', () => {
     expect(chromeMock.tabs.goBack).toHaveBeenCalledTimes(2);
   });
 
+  it('lets the commit of a page wait for its start instead of cancelling a Go back step', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+    await seedBlock(43, 'block-43', 'https://news.com/story');
+    await setLastAllowedUrl(43, 'https://allowed.com/page');
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().goBackFromTab(43);
+    // The blocked entry starts and commits almost at once, as a page restored from the back/forward
+    // cache does, so the commit arrives while its start is still being judged.
+    await Promise.all([
+      getTabController().evaluateNavigation(43, 'https://news.com/story', { beforeCommit: true }),
+      getTabController().evaluateNavigation(43, 'https://news.com/story'),
+    ]);
+
+    expect(chromeMock.tabs.goBack).toHaveBeenCalledTimes(2);
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+  });
+
+  it('records a committed page whose start was already judged allowed', async () => {
+    const { getTabController } = await import('../../../src/background/tabController');
+    await Promise.all([
+      getTabController().evaluateNavigation(9, 'https://allowed.com/a', { beforeCommit: true }),
+      getTabController().evaluateNavigation(9, 'https://allowed.com/a'),
+    ]);
+
+    await expect(getLastAllowedUrl(9)).resolves.toBe('https://allowed.com/a');
+  });
+
   it.each([
     ['a page the blocked address replaced', 'https://earlier.com/'],
     ['another blocked entry', 'https://news.com/earlier'],

@@ -81,6 +81,15 @@ class TabController {
    * restart only means that step shows whatever block page the entry gets.
    */
   private readonly goBackSteps = new Map<number, GoBackStep>();
+  /**
+   * The before-navigate judgment of each tab's latest navigation. Its commit gets the same
+   * decision, so it waits for that judgment instead of superseding it, which would drop a Go back
+   * step the judgment holds. Losing it on worker restart only means the commit is judged in full.
+   */
+  private readonly startedNavigations = new Map<
+    number,
+    { readonly url: string; readonly judged: Promise<void> }
+  >();
 
   constructor(private readonly rulesProvider: RulesProvider) {}
 
@@ -126,8 +135,48 @@ class TabController {
     url: string,
     timing: NavigationTiming = {}
   ): Promise<void> {
+    const started = this.startedNavigations.get(tabId);
+    if (!timing.beforeCommit && started?.url === url) {
+      this.startedNavigations.delete(tabId);
+      await this.recordCommitOfJudgedStart(tabId, url, started.judged);
+      return;
+    }
+
     const goBackStep = this.takeGoBackStep(tabId);
-    await this.evaluateTab(tabId, url, this.bumpNavigationSeq(tabId), goBackStep, timing);
+    const evaluation = this.evaluateTab(
+      tabId,
+      url,
+      this.bumpNavigationSeq(tabId),
+      goBackStep,
+      timing
+    );
+    if (timing.beforeCommit) {
+      this.startedNavigations.set(tabId, { url, judged: evaluation.catch(() => undefined) });
+    } else {
+      this.startedNavigations.delete(tabId);
+    }
+    await evaluation;
+  }
+
+  /**
+   * A navigation committed to the URL its start was judged on. Blocking, and any Go back step,
+   * were handled there; all that is left is recording an allowed page as the one to return to.
+   */
+  private async recordCommitOfJudgedStart(
+    tabId: number,
+    url: string,
+    judged: Promise<void>
+  ): Promise<void> {
+    await judged;
+    if (url.startsWith(getExtensionUrl(PAGES.BLOCKED)) || isInternalUrl(url)) {
+      return;
+    }
+
+    const seq = this.getNavigationSeq(tabId);
+    const decision = await this.evaluateForTab(tabId, url, await this.getRules());
+    if (decision.action !== 'block') {
+      await this.allowTab(tabId, url, seq);
+    }
   }
 
   private async evaluateTab(
@@ -202,6 +251,7 @@ class TabController {
   private forgetTab(tabId: number): void {
     this.bumpNavigationSeq(tabId);
     this.goBackSteps.delete(tabId);
+    this.startedNavigations.delete(tabId);
     clearTabSessionState(tabId).catch((error: unknown) => {
       console.error('[Teichos] Failed to clear state for closed tab:', error);
     });
