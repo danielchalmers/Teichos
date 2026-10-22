@@ -490,6 +490,35 @@ test('labels the preview, keeps Continue anyway inactive, and closes it with Go 
     .toBe(true);
 });
 
+test('Close tab keeps the window open when the block page is its only tab', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  // Like Chrome opened from a link to a blocked site: one window, one tab.
+  const blockPagePromise = context.waitForEvent('page');
+  const windowId = await page.evaluate(async (url) => {
+    const window = await chrome.windows.create({ url });
+    return window?.id;
+  }, extensionPage(PAGES.BLOCKED));
+  const blockPage = await blockPagePromise;
+  await expect(blockPage.getByRole('heading', { name: 'Page blocked' })).toBeVisible();
+
+  await showBlockPageDetails(blockPage);
+  const closed = blockPage.waitForEvent('close');
+  await blockPage.getByRole('button', { name: 'Close tab' }).click();
+  await closed;
+
+  // The window stays, with a New Tab page in place of the block page.
+  const remaining = await page.evaluate(async (id) => {
+    const tabs = await chrome.tabs.query({ windowId: id });
+    return tabs.map((tab) => tab.pendingUrl ?? tab.url);
+  }, windowId);
+  expect(remaining).toHaveLength(1);
+  expect(remaining[0]).not.toContain(PAGES.BLOCKED);
+});
+
 test('handles missing or stale block ids safely and still goes back', async ({
   extensionPage,
   page,

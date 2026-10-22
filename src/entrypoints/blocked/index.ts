@@ -6,7 +6,7 @@
 import { sendExtensionMessage } from '../../shared/api/messaging';
 import { openOptionsPage } from '../../shared/api/runtime';
 import { loadData } from '../../shared/api/storage';
-import { removeTabs, updateTab } from '../../shared/api/tabs';
+import { createTab, queryTabs, removeTabs, updateTab } from '../../shared/api/tabs';
 import {
   MessageType,
   type BlockedFilterSnapshot,
@@ -329,6 +329,12 @@ async function closeThisTab(): Promise<void> {
     if (typeof tab.openerTabId === 'number') {
       // The opener may have been closed since; closing this tab still works without it.
       await updateTab(tab.openerTabId, { active: true }).catch(() => undefined);
+    }
+    // Closing a window's last tab closes the window, and with it the whole browser when Chrome was
+    // opened from a link to a blocked site. Leave a New Tab page in its place instead.
+    const windowTabs = await queryTabs({ windowId: tab.windowId });
+    if (windowTabs.length <= 1) {
+      await createTab({ windowId: tab.windowId, active: true });
     }
     await removeTabs([tab.id]);
     return;
