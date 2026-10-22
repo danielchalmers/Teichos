@@ -169,7 +169,7 @@ export async function clearTabSessionState(tabId: number): Promise<void> {
 }
 
 function isFilterMatchMode(value: unknown): value is FilterMatchMode {
-  return value === 'contains' || value === 'exact' || value === 'regex';
+  return value === 'domain' || value === 'contains' || value === 'exact' || value === 'regex';
 }
 
 function normalizeBlockedFilterSnapshot(value: unknown): BlockedFilterSnapshot | undefined {

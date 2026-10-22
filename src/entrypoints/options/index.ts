@@ -29,7 +29,7 @@ import type {
   Whitelist,
   MutableTimeSchedule,
 } from '../../shared/types';
-import { getRegexValidationError } from '../../shared/filtering/patterns';
+import { getRegexValidationError, normalizeDomainPattern } from '../../shared/filtering/patterns';
 import {
   isGroupEnabled,
   isSnoozeActive,
@@ -342,9 +342,13 @@ function getDefaultGroupName(data: StorageData): string {
 }
 
 const MATCH_MODE_HINTS: Record<FilterMatchMode, { filter: string; whitelist: string }> = {
+  domain: {
+    filter: 'Blocks the site and its subdomains, like reddit.com.',
+    whitelist: 'Allows the site and its subdomains, like docs.google.com.',
+  },
   contains: {
-    filter: 'Blocks any address containing this text, like reddit.com.',
-    whitelist: 'Allows any address containing this text, like reddit.com.',
+    filter: 'Blocks any address containing this text, like youtube.com/shorts.',
+    whitelist: 'Allows any address containing this text, like reddit.com/r/programming.',
   },
   exact: {
     filter: 'Blocks only this exact address.',
@@ -1171,7 +1175,7 @@ function describeSaveError(error: unknown, fallback: string): string {
 
 function getMatchModeSelectValue(selectId: string): FilterMatchMode {
   const value = getElementByIdOrNull<HTMLSelectElement>(selectId)?.value;
-  if (value === 'contains' || value === 'exact' || value === 'regex') {
+  if (value === 'domain' || value === 'contains' || value === 'exact' || value === 'regex') {
     return value;
   }
   return 'contains';
@@ -1181,7 +1185,8 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
  * Resolve a pattern input into what should be stored, or null when it can't be used.
  *
  * Whitespace around a pasted pattern would stop it matching anything, and a blank pattern matches
- * every URL, so neither is accepted silently. Regex patterns keep their exact text.
+ * every URL, so neither is accepted silently. Regex patterns keep their exact text. A domain is
+ * stored as the host browsers report, so a pasted site address works as typed.
  */
 function readPatternInput(
   elementId: string,
@@ -1191,16 +1196,21 @@ function readPatternInput(
   const input = getElementByIdOrNull<HTMLInputElement>(elementId);
   const raw = input?.value ?? '';
   const pattern = matchMode === 'regex' ? raw : raw.trim();
+  const domain = matchMode === 'domain' ? normalizeDomainPattern(pattern) : undefined;
 
   const problem =
-    pattern.trim() === '' ? 'Enter a pattern to match.' : describeInvalidRegex(pattern, matchMode);
+    pattern.trim() === ''
+      ? 'Enter a pattern to match.'
+      : domain === null
+        ? 'Enter a site, like reddit.com. To match one page or some text, choose another match mode.'
+        : describeInvalidRegex(pattern, matchMode);
   if (problem) {
     showDialogError(errorId, problem, input);
     input?.focus();
     return null;
   }
 
-  return pattern;
+  return domain ?? pattern;
 }
 
 function describeInvalidRegex(pattern: string, matchMode: FilterMatchMode): string | null {

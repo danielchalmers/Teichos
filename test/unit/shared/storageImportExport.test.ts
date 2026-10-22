@@ -52,6 +52,7 @@ function createSampleData(): StorageData {
     snooze: { active: true, until: 1_234_567_890 },
     expandBlockPageDetails: false,
     rulesVersion: 4,
+    schemaVersion: 2,
   };
 }
 
@@ -106,11 +107,13 @@ describe('storage import/export', () => {
           pattern: 'allowed.example.test',
           enabled: true,
           groupId: DEFAULT_GROUP_ID,
-          matchMode: 'contains',
+          // A file from before domain matching is migrated like synced data.
+          matchMode: 'domain',
         },
       ],
       snooze: { active: false },
       rulesVersion: 0,
+      schemaVersion: 2,
     });
   });
 
@@ -228,6 +231,16 @@ describe('storage import/export', () => {
       label: 'an invalid legacy isRegex filter',
       file: { filters: [{ ...validFilter, pattern: '(', matchMode: undefined, isRegex: true }] },
       error: 'Imported filter "filter-1" has an invalid regex pattern.',
+    },
+    {
+      label: 'a domain filter that names a page rather than a site',
+      file: { filters: [{ ...validFilter, pattern: 'example.test/page', matchMode: 'domain' }] },
+      error: 'Imported filter "filter-1" has a domain pattern that is not a site.',
+    },
+    {
+      label: 'a domain exception that is not a site',
+      file: { whitelist: [{ ...validException, pattern: 'not a site', matchMode: 'domain' }] },
+      error: 'Imported exception "exception-1" has a domain pattern that is not a site.',
     },
   ])('rejects $label', ({ file, error }) => {
     expect(() => parseImportedData(JSON.stringify(file))).toThrow(error);

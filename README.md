@@ -12,7 +12,7 @@ Teichos is a free, open-source website blocker for Chrome and other Chromium bro
 ## Features
 
 - **Scheduled groups.** Sort filters into groups and give each one a schedule. Block social media during work hours, everything at bedtime, or a site around the clock.
-- **Flexible filters.** Match a whole domain with plain text, or use an exact URL or regular expression. Name each filter so your list stays readable.
+- **Flexible filters.** Block a whole site by its domain, subdomains included, or match text anywhere in the address, an exact URL, or a regular expression. Name each filter so your list stays readable.
 - **Exceptions.** Keep the pages you still need, like a specific playlist on an otherwise blocked YouTube.
 - **Temporary blocks.** One-off blocks that expire on their own, right from the popup.
 - **Snooze.** Pause all filtering for a set time when you genuinely need a break.
@@ -41,5 +41,5 @@ Then load the unpacked extension: open `chrome://extensions`, enable **Developer
 ## Quick start
 
 1. Open **Settings** (the gear in the popup) and pick a group: the default **24/7 (Always Active)** group blocks around the clock, or click **New group** to create one like "Work Hours" with its own days and times.
-2. Click **New filter** in that group and enter a URL pattern. Typing `reddit` is enough to block the whole site.
+2. Click **New filter** in that group and enter a site, like `reddit.com`. That blocks the whole site, including `old.reddit.com`, without touching other sites that happen to mention it.
 3. Browse as usual. Matching pages are blocked before they load.

@@ -41,7 +41,7 @@ function isNonBlankString(value: unknown): value is string {
 }
 
 export function isValidMatchMode(value: unknown): value is FilterMatchMode {
-  return value === 'contains' || value === 'exact' || value === 'regex';
+  return value === 'domain' || value === 'contains' || value === 'exact' || value === 'regex';
 }
 
 function isOptionalString(value: unknown): value is string | undefined {
