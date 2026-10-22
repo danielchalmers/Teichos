@@ -291,9 +291,10 @@ function isBlockedPageStateResponse(response: unknown): response is GetBlockedPa
 }
 
 async function handleGoBack(): Promise<void> {
-  // A preview has no page to return to, so close it and return to the tab that opened it.
-  if (isPreviewMode()) {
-    await closePreview();
+  // A preview has no page to return to, so close it and return to the tab that opened it. A tab
+  // that opened straight onto the block page has none either; its button reads Close tab.
+  if (isPreviewMode() || !hasEarlierEntry()) {
+    await closeThisTab();
     return;
   }
 
@@ -306,12 +307,21 @@ async function handleGoBack(): Promise<void> {
   }
 }
 
-async function closePreview(): Promise<void> {
+/**
+ * Whether the tab has a history entry before this page. Session history length counts every
+ * entry, so this misses only the rare tab with forward entries and nothing behind.
+ */
+function hasEarlierEntry(): boolean {
+  return window.history.length > 1;
+}
+
+async function closeThisTab(): Promise<void> {
   const tab = await chrome.tabs.getCurrent();
   if (typeof tab?.id === 'number') {
-    // Chrome may otherwise activate a neighbouring tab instead of Settings.
+    // Return to the tab that opened this one (Settings for a preview, the page whose link opened a
+    // blocked site); Chrome may otherwise activate a neighbouring tab.
     if (typeof tab.openerTabId === 'number') {
-      // Settings may have been closed since; closing the preview still works without it.
+      // The opener may have been closed since; closing this tab still works without it.
       await updateTab(tab.openerTabId, { active: true }).catch(() => undefined);
     }
     await removeTabs([tab.id]);
@@ -476,6 +486,13 @@ function getScheduleSummaries(group: BlockedPageState['group'], isTemporary: boo
 }
 
 function renderActions(state: BlockedPageViewModel): void {
+  // With nothing to go back to, Go back would do nothing; offer to close the tab instead, as
+  // uBlock Origin's block page does. The preview keeps the label of the page it previews.
+  const goBackButton = getElementByIdOrNull<HTMLButtonElement>('go-back');
+  if (goBackButton && !isPreviewMode() && !hasEarlierEntry()) {
+    goBackButton.textContent = 'Close tab';
+  }
+
   const continueButton = getElementByIdOrNull<HTMLButtonElement>('continue');
   if (continueButton) {
     continueButton.hidden = !state.state;
