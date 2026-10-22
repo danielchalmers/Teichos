@@ -6,6 +6,7 @@ import {
   defaultGroup,
   expectAllowed,
   expectBlocked,
+  expectOnBlockedPage,
   mockAllowedPage,
   readStorage,
   seedStorage,
@@ -29,7 +30,7 @@ async function clickGoBackWithNothingToRestore(page: Page): Promise<void> {
   await noTargetWarning;
 }
 
-test('go back restores the last allowed url', async ({
+test('go back steps back in history so forward returns to the block page', async ({
   context,
   extensionPage,
   page,
@@ -41,7 +42,7 @@ test('go back restores the last allowed url', async ({
     await route.fulfill({
       status: 200,
       contentType: 'text/html',
-      body: '<!doctype html><title>Allowed</title><main>Allowed page</main>',
+      body: `<!doctype html><title>Allowed</title><main>Allowed page <a href="${blockedUrl}">Open blocked page</a></main>`,
     });
   });
 
@@ -61,19 +62,28 @@ test('go back restores the last allowed url', async ({
       ],
     })
   );
-  await page.evaluate(async (url) => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (typeof tab?.id === 'number') {
-      await chrome.storage.session.set({ [`last_allowed_url_${tab.id}`]: url });
-    }
-  }, allowedUrl);
-  await expectBlocked(page, blockedUrl);
+  await page.goto(allowedUrl);
+  await page.getByRole('link', { name: 'Open blocked page' }).click();
+  await expectOnBlockedPage(page, blockedUrl);
   await captureScreenshot(page, testInfo, 'blocked-page.png');
 
   await showBlockPageDetails(page);
   await page.getByRole('button', { name: 'Go back' }).click();
   await expect.poll(() => page.url(), { timeout: 15_000 }).toBe(allowedUrl);
   await expect(page.getByText('Allowed page')).toBeVisible();
+
+  // Forward returns to the block page, and Go back leaves it again. The blocked address can commit
+  // just before the block page replaces it; Forward then lands there and is blocked afresh, which
+  // replaces that navigation.
+  await page.goForward().catch(() => undefined);
+  await expectOnBlockedPage(page, blockedUrl);
+  await showBlockPageDetails(page);
+  await page.getByRole('button', { name: 'Go back' }).click();
+  await expect.poll(() => page.url(), { timeout: 15_000 }).toBe(allowedUrl);
+
+  // Going back leaves no state behind that would let the next blocked navigation through.
+  await page.getByRole('link', { name: 'Open blocked page' }).click();
+  await expectOnBlockedPage(page, blockedUrl);
 });
 
 test('opens settings from the blocked page', async ({ context, extensionPage, page }) => {

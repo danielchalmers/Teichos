@@ -11,7 +11,7 @@ import {
   setBypassState,
   setLastAllowedUrl,
 } from '../shared/api/session';
-import { getActiveTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
+import { getActiveTab, goBackTab, queryTabs, updateTabUrl } from '../shared/api/tabs';
 import { getExtensionUrl } from '../shared/api/runtime';
 import { ALARMS, PAGES } from '../shared/constants';
 import type { FilterDecision } from '../shared/filtering/engine';
@@ -39,9 +39,20 @@ interface BlockedStateResult {
   readonly pageState: BlockedPageState;
 }
 
+/** A history step Go back took, waiting for the navigation event of the entry it lands on. */
+interface GoBackStep {
+  readonly expiresAt: number;
+  /** Whether this step is the second one, taken to pass a blocked entry the first landed on. */
+  readonly passedBlockedEntry: boolean;
+}
+
 // Land just inside the minute a schedule window opens or closes, since windows are compared by
 // wall-clock minute and an alarm can fire at the exact boundary.
 const RULES_CHANGE_SLACK_MS = 1000;
+
+// A Go back step's navigation event arrives within moments; the limit only keeps a step whose
+// event never came from applying to a later, unrelated navigation.
+const GO_BACK_STEP_TTL_MS = 3000;
 
 class TabController {
   private didRegister = false;
@@ -53,6 +64,12 @@ class TabController {
    * worker lifetime.
    */
   private readonly navigationSeq = new Map<number, number>();
+  /**
+   * The history step Go back just took in each tab. The next navigation event takes it, so the
+   * entry the step lands on can be checked against where Go back means to go. Losing it on worker
+   * restart only means that step shows whatever block page the entry gets.
+   */
+  private readonly goBackSteps = new Map<number, GoBackStep>();
 
   constructor(private readonly rulesProvider: RulesProvider) {}
 
@@ -94,10 +111,20 @@ class TabController {
    * tab.
    */
   async evaluateNavigation(tabId: number, url: string): Promise<void> {
-    await this.evaluateTab(tabId, url, this.bumpNavigationSeq(tabId));
+    const goBackStep = this.takeGoBackStep(tabId);
+    await this.evaluateTab(tabId, url, this.bumpNavigationSeq(tabId), goBackStep);
   }
 
-  private async evaluateTab(tabId: number, url: string, seq: number): Promise<void> {
+  private async evaluateTab(
+    tabId: number,
+    url: string,
+    seq: number,
+    goBackStep?: GoBackStep
+  ): Promise<void> {
+    if (await this.leaveReplacedEntryLanding(tabId, url, seq, goBackStep)) {
+      return;
+    }
+
     const blockedPageUrl = getExtensionUrl(PAGES.BLOCKED);
     if (url.startsWith(blockedPageUrl)) {
       await this.reconcileBlockedTab(tabId, seq, url);
@@ -112,11 +139,43 @@ class TabController {
     const decision = await this.evaluateForTab(tabId, url, rules);
 
     if (decision.action === 'block') {
-      await this.blockTab(tabId, url, seq, decision, rules.data);
+      await this.blockTab(tabId, url, seq, decision, rules.data, goBackStep);
       return;
     }
 
     await this.allowTab(tabId, url, seq);
+  }
+
+  /**
+   * Settle a Go back step on its commit when it landed on a page with no before-navigate event, such
+   * as an extension page. A step whose entry already had that event was taken there.
+   */
+  async settleGoBackStep(tabId: number, url: string): Promise<void> {
+    const goBackStep = this.takeGoBackStep(tabId);
+    await this.leaveReplacedEntryLanding(tabId, url, this.getNavigationSeq(tabId), goBackStep);
+  }
+
+  /**
+   * Passing a blocked entry normally lands on the page the tab came from. Anywhere else, the
+   * blocked entry had replaced that page (history.replaceState), so open it instead.
+   */
+  private async leaveReplacedEntryLanding(
+    tabId: number,
+    url: string,
+    seq: number,
+    goBackStep: GoBackStep | undefined
+  ): Promise<boolean> {
+    if (!goBackStep?.passedBlockedEntry || url === (await getLastAllowedUrl(tabId))) {
+      return false;
+    }
+
+    return this.openReturnUrlInstead(tabId, seq);
+  }
+
+  private takeGoBackStep(tabId: number): GoBackStep | undefined {
+    const step = this.goBackSteps.get(tabId);
+    this.goBackSteps.delete(tabId);
+    return step && Date.now() <= step.expiresAt ? step : undefined;
   }
 
   private bumpNavigationSeq(tabId: number): number {
@@ -131,6 +190,7 @@ class TabController {
 
   private forgetTab(tabId: number): void {
     this.bumpNavigationSeq(tabId);
+    this.goBackSteps.delete(tabId);
     clearTabSessionState(tabId).catch((error: unknown) => {
       console.error('[Teichos] Failed to clear state for closed tab:', error);
     });
@@ -210,20 +270,63 @@ class TabController {
     return this.goBackFromTab(activeTab.id);
   }
 
+  /**
+   * Step the tab back in its history, so Forward returns to the block page. A tab with no earlier
+   * entry opens the last allowed page instead.
+   */
   async goBackFromTab(tabId: number): Promise<boolean> {
+    const returnUrl = await this.getReturnUrl(tabId);
+    if (!returnUrl) {
+      return false;
+    }
+
+    if (!(await this.stepBack(tabId, false))) {
+      await this.openReturnUrl(tabId, returnUrl);
+    }
+    return true;
+  }
+
+  /** Step the tab back one history entry, or report that it has no earlier entry. */
+  private async stepBack(tabId: number, passedBlockedEntry: boolean): Promise<boolean> {
+    // Recorded first: the step's navigation event can arrive before goBack calls back.
+    this.goBackSteps.set(tabId, {
+      expiresAt: Date.now() + GO_BACK_STEP_TTL_MS,
+      passedBlockedEntry,
+    });
+    try {
+      await goBackTab(tabId);
+      return true;
+    } catch {
+      this.goBackSteps.delete(tabId);
+      return false;
+    }
+  }
+
+  /** The last allowed page in the tab, while it is still allowed and not a browser page. */
+  private async getReturnUrl(tabId: number): Promise<string | undefined> {
     const lastAllowedUrl = await getLastAllowedUrl(tabId);
     if (!lastAllowedUrl || isInternalUrl(lastAllowedUrl)) {
-      return false;
+      return undefined;
     }
 
     // A page the tab continued past is still somewhere to go back to.
     const decision = await this.evaluateForTab(tabId, lastAllowedUrl, await this.getRules());
-    if (decision.action === 'block') {
+    return decision.action === 'block' ? undefined : lastAllowedUrl;
+  }
+
+  private async openReturnUrl(tabId: number, returnUrl: string): Promise<void> {
+    await updateTabUrl(tabId, returnUrl);
+    await this.allowTab(tabId, returnUrl, this.getNavigationSeq(tabId));
+  }
+
+  /** Open the return page in place of the navigation `seq`, if there still is one. */
+  private async openReturnUrlInstead(tabId: number, seq: number): Promise<boolean> {
+    const returnUrl = await this.getReturnUrl(tabId);
+    if (!returnUrl || !this.isCurrentNavigation(tabId, seq)) {
       return false;
     }
 
-    await updateTabUrl(tabId, lastAllowedUrl);
-    await this.allowTab(tabId, lastAllowedUrl, this.getNavigationSeq(tabId));
+    await this.openReturnUrl(tabId, returnUrl);
     return true;
   }
 
@@ -310,10 +413,23 @@ class TabController {
     url: string,
     seq: number,
     decision: Extract<FilterDecision, { action: 'block' }>,
-    data: StorageData
+    data: StorageData,
+    goBackStep?: GoBackStep
   ): Promise<void> {
     if (!this.isCurrentNavigation(tabId, seq)) {
       return;
+    }
+
+    // Go back landed on a blocked entry: usually the blocked address itself, which is in history
+    // when it committed before the block page replaced it or came from an in-page route change.
+    // Step past it once, then settle for opening the page the tab came from.
+    if (goBackStep) {
+      if (!goBackStep.passedBlockedEntry && (await this.stepBack(tabId, true))) {
+        return;
+      }
+      if (await this.openReturnUrlInstead(tabId, seq)) {
+        return;
+      }
     }
 
     const state = await this.ensureBlockedState(tabId, url, decision, data);

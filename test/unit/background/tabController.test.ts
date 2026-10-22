@@ -731,7 +731,7 @@ describe('TabController', () => {
     await expect(getBypassState(42)).resolves.toBeUndefined();
   });
 
-  it('goes back to the last allowed url only while it is still allowed', async () => {
+  it('goes back in history only while the last allowed url is still allowed', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
     await setLastAllowedUrl(43, 'https://allowed.com/page');
@@ -741,6 +741,34 @@ describe('TabController', () => {
     await setBypassState(47, { filterIds: [newsFilter.id] });
 
     const { getTabController } = await import('../../../src/background/tabController');
+    // A real history step, so Forward returns to the block page.
+    await expect(getTabController().goBackFromTab(43)).resolves.toBe(true);
+    expect(chromeMock.tabs.goBack).toHaveBeenCalledWith(43, expect.any(Function));
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+
+    chromeMock.tabs.goBack.mockClear();
+    // A page that was allowed earlier but matches a filter now would just be blocked again, unless
+    // the tab continued past that filter.
+    await expect(getTabController().goBackFromTab(44)).resolves.toBe(false);
+    await expect(getTabController().goBackFromTab(45)).resolves.toBe(false);
+    await expect(getTabController().goBackFromTab(46)).resolves.toBe(false);
+    expect(chromeMock.tabs.goBack).not.toHaveBeenCalled();
+
+    // A page the tab already continued past is still somewhere to go back to.
+    await expect(getTabController().goBackFromTab(47)).resolves.toBe(true);
+    expect(chromeMock.tabs.goBack).toHaveBeenCalledWith(47, expect.any(Function));
+  });
+
+  it('opens the last allowed url when the tab has no earlier history entry', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.tabs.goBack.mockImplementation((_tabId: number, callback?: () => void) => {
+      chromeMock.runtime.lastError = { message: 'Cannot find a next page in history.' };
+      callback?.();
+      chromeMock.runtime.lastError = undefined;
+    });
+    await setLastAllowedUrl(43, 'https://allowed.com/page');
+
+    const { getTabController } = await import('../../../src/background/tabController');
     await expect(getTabController().goBackFromTab(43)).resolves.toBe(true);
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(
       43,
@@ -748,16 +776,123 @@ describe('TabController', () => {
       expect.any(Function)
     );
 
+    // The failed step leaves no mark, so the next blocked navigation shows its block page.
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+    const { getRulesProvider } = await import('../../../src/background/rulesProvider');
+    getRulesProvider().invalidate();
     chromeMock.tabs.update.mockClear();
-    // A page that was allowed earlier but matches a filter now would just be blocked again, unless
-    // the tab continued past that filter.
-    await expect(getTabController().goBackFromTab(44)).resolves.toBe(false);
-    await expect(getTabController().goBackFromTab(45)).resolves.toBe(false);
-    await expect(getTabController().goBackFromTab(46)).resolves.toBe(false);
+    await getTabController().evaluateNavigation(43, 'https://news.com/story');
+    const state = await getBlockedTabState(43);
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      43,
+      { url: blockedPageUrl(state!.blockId) },
+      expect.any(Function)
+    );
+  });
+
+  it('steps past the blocked address when going back lands on it', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+    await seedBlock(43, 'block-43', 'https://news.com/story');
+    await setLastAllowedUrl(43, 'https://allowed.com/page');
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await expect(getTabController().goBackFromTab(43)).resolves.toBe(true);
+    // The blocked address committed, or came from an in-page route change, just before the block
+    // page, so the first step lands on it.
+    await getTabController().evaluateNavigation(43, 'https://news.com/story');
+    expect(chromeMock.tabs.goBack).toHaveBeenCalledTimes(2);
+    await getTabController().evaluateNavigation(43, 'https://allowed.com/page');
     expect(chromeMock.tabs.update).not.toHaveBeenCalled();
 
-    // A page the tab already continued past is still somewhere to go back to.
-    await expect(getTabController().goBackFromTab(47)).resolves.toBe(true);
+    // The steps are used up, so a later blocked navigation shows its block page again.
+    await getTabController().evaluateNavigation(43, 'https://news.com/story');
+    const state = await getBlockedTabState(43);
+    expect(state?.targetUrl).toBe('https://news.com/story');
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      43,
+      { url: blockedPageUrl(state!.blockId) },
+      expect.any(Function)
+    );
+    expect(chromeMock.tabs.goBack).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['a page the blocked address replaced', 'https://earlier.com/'],
+    ['another blocked entry', 'https://news.com/earlier'],
+  ])(
+    'opens the last allowed url when passing the blocked address lands on %s',
+    async (_case, secondLandingUrl) => {
+      const chromeMock = getChromeMock();
+      chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+      await seedBlock(43, 'block-43', 'https://news.com/story');
+      await setLastAllowedUrl(43, 'https://allowed.com/page');
+
+      const { getTabController } = await import('../../../src/background/tabController');
+      await getTabController().goBackFromTab(43);
+      await getTabController().evaluateNavigation(43, 'https://news.com/story');
+      await getTabController().evaluateNavigation(43, secondLandingUrl);
+
+      expect(chromeMock.tabs.goBack).toHaveBeenCalledTimes(2);
+      expect(chromeMock.tabs.update).toHaveBeenCalledTimes(1);
+      expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+        43,
+        { url: 'https://allowed.com/page' },
+        expect.any(Function)
+      );
+    }
+  );
+
+  it('settles a step on its commit when the entry it lands on has no before-navigate event', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+    await seedBlock(43, 'block-43', 'https://news.com/story');
+    await setLastAllowedUrl(43, 'https://allowed.com/page');
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().goBackFromTab(43);
+    await getTabController().evaluateNavigation(43, 'https://news.com/story');
+    // An extension page commits without a before-navigate event.
+    await getTabController().settleGoBackStep(
+      43,
+      'chrome-extension://test-extension-id/options.html'
+    );
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      43,
+      { url: 'https://allowed.com/page' },
+      expect.any(Function)
+    );
+
+    // The step is used up, so later commits change nothing.
+    chromeMock.tabs.update.mockClear();
+    await getTabController().settleGoBackStep(
+      43,
+      'chrome-extension://test-extension-id/options.html'
+    );
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+  });
+
+  it('opens the last allowed url when there is no entry before the blocked address', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+    await seedBlock(43, 'block-43', 'https://news.com/story');
+    await setLastAllowedUrl(43, 'https://allowed.com/page');
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().goBackFromTab(43);
+    chromeMock.tabs.goBack.mockImplementation((_tabId: number, callback?: () => void) => {
+      chromeMock.runtime.lastError = { message: 'Cannot find a next page in history.' };
+      callback?.();
+      chromeMock.runtime.lastError = undefined;
+    });
+    await getTabController().evaluateNavigation(43, 'https://news.com/story');
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledTimes(1);
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      43,
+      { url: 'https://allowed.com/page' },
+      expect.any(Function)
+    );
   });
 
   it('re-blocks a bypassed tab when a different filter becomes responsible', async () => {
