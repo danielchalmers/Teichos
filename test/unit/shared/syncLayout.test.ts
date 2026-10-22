@@ -30,9 +30,21 @@ function createData(filterCount: number, rulesVersion = 1): StorageData {
   };
 }
 
-/** How chrome.storage.sync measures an item against QUOTA_BYTES_PER_ITEM. */
-function storedBytes(key: string, value: unknown): number {
-  return key.length + new TextEncoder().encode(JSON.stringify(value)).length;
+/**
+ * How Chrome measures an item against QUOTA_BYTES_PER_ITEM: the key plus the value's JSON in
+ * UTF-8, where its JSON writer spells "<", U+2028 and U+2029 as six-character \u escapes.
+ * Measured against Chrome's own limit, not taken from the implementation under test.
+ */
+function chromeItemBytes(key: string, value: unknown): number {
+  const json = JSON.stringify(value)
+    .replaceAll('<', '\\u003C')
+    .replaceAll('\u2028', '\\u2028')
+    .replaceAll('\u2029', '\\u2029');
+  return key.length + new TextEncoder().encode(json).length;
+}
+
+function splitParts(items: Readonly<Record<string, unknown>>): [string, unknown][] {
+  return Object.entries(items).filter(([key]) => key !== SPLIT_INDEX_KEY);
 }
 
 describe('encodeSettings', () => {
@@ -47,22 +59,44 @@ describe('encodeSettings', () => {
 
   it('splits settings that outgrow one item into parts that each fit', () => {
     const data = createData(300);
-    expect(storedBytes(STORAGE_KEY, data)).toBeGreaterThan(SYNC_ITEM_LIMIT_BYTES);
+    expect(chromeItemBytes(STORAGE_KEY, data)).toBeGreaterThan(SYNC_ITEM_LIMIT_BYTES);
 
-    const { items } = encodeSettings(data, [], () => 'revision-1');
+    const { items } = encodeSettings(data, []);
 
     expect(items[STORAGE_KEY]).toBeUndefined();
-    const parts = Object.entries(items).filter(([key]) => key !== SPLIT_INDEX_KEY);
+    const parts = splitParts(items);
     expect(parts.length).toBeGreaterThan(1);
     for (const [key, value] of Object.entries(items)) {
-      expect(storedBytes(key, value)).toBeLessThanOrEqual(SYNC_ITEM_LIMIT_BYTES);
+      expect(chromeItemBytes(key, value)).toBeLessThanOrEqual(SYNC_ITEM_LIMIT_BYTES);
     }
     expect(items[SPLIT_INDEX_KEY]).toEqual({
-      revision: 'revision-1',
+      revision: expect.any(String),
       parts: parts.length,
       rulesVersion: data.rulesVersion,
     });
     expect(decodeSettings(items)).toEqual({ raw: data, latestRulesVersion: 1, complete: true });
+  });
+
+  it('counts the characters Chrome escapes at their escaped size', () => {
+    // Regex lookbehinds and named groups, and "<3" in names, are all "<", six bytes each to Chrome.
+    const data = {
+      ...createData(0),
+      filters: Array.from({ length: 200 }, (_, index) => ({
+        id: `regex-${String(index)}`,
+        pattern: `(?<=watch\\?v=)(?<id>[\\w-]{11})<<<<${String(index)}`,
+        groupId: DEFAULT_GROUP_ID,
+        enabled: true,
+        matchMode: 'regex' as const,
+        description: `Videos <3\u2028line\u2029break ${String(index)}`,
+      })),
+    };
+
+    const { items } = encodeSettings(data, []);
+
+    for (const [key, value] of Object.entries(items)) {
+      expect(chromeItemBytes(key, value)).toBeLessThanOrEqual(SYNC_ITEM_LIMIT_BYTES);
+    }
+    expect(decodeSettings(items).raw).toEqual(data);
   });
 
   it('never ends a part between the two halves of a character', () => {
@@ -70,13 +104,28 @@ describe('encodeSettings', () => {
 
     const { items } = encodeSettings(data as StorageData, []);
 
-    for (const [key, value] of Object.entries(items)) {
-      if (key === SPLIT_INDEX_KEY) continue;
+    for (const [, value] of splitParts(items)) {
       const { text } = value as { text: string };
       const lastCode = text.charCodeAt(text.length - 1);
       expect(lastCode >= 0xd800 && lastCode <= 0xdbff).toBe(false);
     }
     expect(decodeSettings(items).raw).toEqual(data);
+  });
+
+  it('names a revision after the content, so identical saves write interchangeable parts', () => {
+    // Every device clears an expired snooze at the same moment, writing the same settings.
+    const first = encodeSettings(createData(300, 7), []).items;
+    const second = encodeSettings(createData(300, 7), []).items;
+    const other = encodeSettings(createData(301, 7), []).items;
+
+    expect(second[SPLIT_INDEX_KEY]).toEqual(first[SPLIT_INDEX_KEY]);
+    expect(other[SPLIT_INDEX_KEY]).not.toEqual(first[SPLIT_INDEX_KEY]);
+    const mixed = { ...first, [splitPartKey(1)]: second[splitPartKey(1)] };
+    expect(decodeSettings(mixed)).toEqual({
+      raw: createData(300, 7),
+      latestRulesVersion: 7,
+      complete: true,
+    });
   });
 
   it('marks parts past the new count, or every split item once settings fit again, as stale', () => {
@@ -108,6 +157,7 @@ describe('decodeSettings', () => {
     const split = encodeSettings(newerSplit, []).items;
 
     expect(decodeSettings({ [STORAGE_KEY]: olderSingle, ...split }).raw).toEqual(newerSplit);
+    // A newer single item written by this version, after the settings shrank back.
     expect(decodeSettings({ [STORAGE_KEY]: createData(2, 6), ...split }).raw).toEqual(
       createData(2, 6)
     );
@@ -124,11 +174,24 @@ describe('decodeSettings', () => {
     expect(decoded.raw).toEqual(split);
   });
 
+  it('never lets an older version’s single item outrank a split copy', () => {
+    // An older version writes no schemaVersion. However many edits it made on its own copy, it
+    // never saw the split settings, and letting it win would drop them on the next save.
+    const split = createData(300, 5);
+    const { schemaVersion: _schemaVersion, ...olderVersionCopy } = createData(1, 40);
+
+    const decoded = decodeSettings({
+      [STORAGE_KEY]: olderVersionCopy,
+      ...encodeSettings(split, []).items,
+    });
+
+    expect(decoded).toEqual({ raw: split, latestRulesVersion: 5, complete: true });
+  });
+
   it('keeps the older complete copy while a newer split copy is still arriving', () => {
     const olderSingle = createData(1, 4);
-    const newerItems = { ...encodeSettings(createData(300, 5), [], () => 'new').items };
-    const previousPart = encodeSettings(createData(300, 3), [], () => 'old').items[splitPartKey(1)];
-    newerItems[splitPartKey(1)] = previousPart;
+    const newerItems = { ...encodeSettings(createData(300, 5), []).items };
+    newerItems[splitPartKey(1)] = encodeSettings(createData(300, 3), []).items[splitPartKey(1)];
 
     expect(decodeSettings({ [STORAGE_KEY]: olderSingle, ...newerItems })).toEqual({
       raw: olderSingle,

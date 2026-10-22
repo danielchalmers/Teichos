@@ -80,12 +80,26 @@ async function readCompleteSettings(): Promise<unknown> {
       return decoded.raw;
     }
     if (attempt >= INCOMPLETE_RETRIES) {
-      return rulesVersionOf(newestCompleteRaw) >= rulesVersionOf(decoded.raw)
-        ? newestCompleteRaw
-        : decoded.raw;
+      const fallback =
+        rulesVersionOf(newestCompleteRaw) >= rulesVersionOf(decoded.raw)
+          ? newestCompleteRaw
+          : decoded.raw;
+      return claimLatestRulesVersion(fallback, decoded.latestRulesVersion);
     }
     await new Promise((resolve) => setTimeout(resolve, INCOMPLETE_RETRY_DELAY_MS));
   }
+}
+
+/**
+ * A copy still unassembled after the wait is treated as broken, for example a mix of two devices'
+ * parts left by a sync conflict, which no amount of waiting fixes. The fallback takes its
+ * rulesVersion, so the next save replaces it instead of every save failing as a conflict.
+ */
+function claimLatestRulesVersion(raw: unknown, latestRulesVersion: number | undefined): unknown {
+  if (raw === null || typeof raw !== 'object' || latestRulesVersion === undefined) {
+    return raw;
+  }
+  return { ...raw, rulesVersion: latestRulesVersion };
 }
 
 function rulesVersionOf(raw: unknown): number {
