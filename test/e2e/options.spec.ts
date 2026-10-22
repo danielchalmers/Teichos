@@ -1513,3 +1513,29 @@ test('keeps settings too large for one sync item, as older versions could not', 
   await expectBlocked(browsingPage, 'https://bulk-299.example.test/');
   await expectAllowed(browsingPage, 'https://other.example.test/');
 });
+
+test('keeps large settings whose text Chrome stores escaped', async ({ extensionPage, page }) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  // Chrome stores "<" as a six-byte escape, so regex lookbehinds, named groups and names like
+  // "<3" take more room than they look; every part must still fit Chrome's per-item limit.
+  const filters = Array.from({ length: 150 }, (_, index) => ({
+    id: `escaped-filter-${String(index)}`,
+    pattern: `(?<=watch\\?v=)(?<video>[\\w-]{11})<<<<${String(index)}`,
+    groupId: defaultGroup.id,
+    enabled: true,
+    matchMode: 'regex' as const,
+    description: `Videos <3 ${String(index)}`,
+  }));
+  await page.locator('#import-settings-input').setInputFiles({
+    name: 'teichos-settings.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(createStorageData({ filters }))),
+  });
+
+  await expect(page.locator('#global-settings-status')).toHaveText(
+    'Settings imported successfully.'
+  );
+  await expect.poll(async () => (await readStorage(page))?.filters.length).toBe(150);
+});

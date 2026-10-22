@@ -9,7 +9,9 @@
  * A device may hold both layouts at once (one written before the settings grew, or an older copy
  * from another device), and synced items can arrive one at a time. Every save raises
  * `rulesVersion`, so the reader takes the complete copy with the highest one, and stale or
- * half-arrived items are ignored rather than trusted.
+ * half-arrived items are ignored rather than trusted. A single item without a `schemaVersion`
+ * comes from a version that can't split settings, so it never outranks a split copy: its
+ * rulesVersion only counts edits made on that older device.
  */
 
 import { STORAGE_KEY, type StorageData } from '../types';
@@ -65,8 +67,17 @@ export function hasSettingsChange(changes: Readonly<Record<string, unknown>>): b
   return Object.keys(changes).some(isSettingsKey);
 }
 
+/**
+ * An item's size as Chrome counts it against the limit: the key plus the value's JSON in UTF-8.
+ * Chrome's JSON writer escapes "<", U+2028 and U+2029 as six-character \u escapes, which
+ * JSON.stringify leaves alone, so they count at that size (checked against Chrome's own limit).
+ */
 function itemBytes(key: string, value: unknown): number {
-  return key.length + new TextEncoder().encode(JSON.stringify(value)).length;
+  const json = JSON.stringify(value);
+  const escapedByChrome = json.match(/[<\u2028\u2029]/g) ?? [];
+  const utf8Bytes = new TextEncoder().encode(json).length;
+  const extraBytes = escapedByChrome.reduce((sum, char) => sum + (char === '<' ? 5 : 3), 0);
+  return key.length + utf8Bytes + extraBytes;
 }
 
 /**
@@ -75,19 +86,16 @@ function itemBytes(key: string, value: unknown): number {
  * the settings fit in one item again. The single item is never listed: it is the copy older
  * versions read, and the higher rulesVersion of a split copy already outranks it.
  */
-export function encodeSettings(
-  data: StorageData,
-  storedKeys: readonly string[],
-  createRevision: () => string = createRandomRevision
-): EncodedSettings {
+export function encodeSettings(data: StorageData, storedKeys: readonly string[]): EncodedSettings {
   const splitKeys = storedKeys.filter((key) => key !== STORAGE_KEY && isSettingsKey(key));
 
   if (itemBytes(STORAGE_KEY, data) <= ITEM_BUDGET_BYTES) {
     return { items: { [STORAGE_KEY]: data }, staleKeys: splitKeys };
   }
 
-  const revision = createRevision();
-  const texts = splitText(JSON.stringify(data), (text, index) =>
+  const json = JSON.stringify(data);
+  const revision = hashText(json);
+  const texts = splitText(json, (text, index) =>
     itemBytes(splitPartKey(index), { revision, text } satisfies SplitPart)
   );
   const index: SplitIndex = { revision, parts: texts.length, rulesVersion: data.rulesVersion };
@@ -129,8 +137,28 @@ function splitText(text: string, partBytes: (part: string, index: number) => num
   return parts;
 }
 
-function createRandomRevision(): string {
-  return globalThis.crypto.randomUUID();
+/**
+ * A revision named after the content, so two devices saving the same settings at once (every
+ * device clears an expired snooze at the same moment) write interchangeable parts instead of
+ * leaving a mix that can never be assembled. A 53-bit hash: a collision would need different
+ * settings saved at the same rulesVersion, and their mixed parts would then fail to parse.
+ */
+function hashText(text: string): string {
+  let high = 0xdeadbeef;
+  let low = 0x41c6ce57;
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    high = Math.imul(high ^ code, 2654435761);
+    low = Math.imul(low ^ code, 1597334677);
+  }
+  high = Math.imul(high ^ (high >>> 16), 2246822507) ^ Math.imul(low ^ (low >>> 13), 3266489909);
+  low = Math.imul(low ^ (low >>> 16), 2246822507) ^ Math.imul(high ^ (high >>> 13), 3266489909);
+  const hash = 4294967296 * (2097151 & low) + (high >>> 0);
+  return `${hash.toString(36)}-${text.length.toString(36)}`;
+}
+
+function hasSchemaVersion(value: unknown): boolean {
+  return typeof (value as { schemaVersion?: unknown } | null)?.schemaVersion === 'number';
 }
 
 function readRulesVersion(value: unknown): number {
@@ -172,22 +200,23 @@ export function decodeSettings(items: Readonly<Record<string, unknown>>): Decode
   const single = items[STORAGE_KEY];
   const index = readSplitIndex(items[SPLIT_INDEX_KEY]);
   const split = index ? readSplitSettings(items, index) : undefined;
+  // Once settings are split, a single item an older version wrote is out of the running.
+  const singleCounts = single !== undefined && !(index && !hasSchemaVersion(single));
 
   // On a tie the split copy wins: only an older version editing its single-item copy can tie it.
-  const candidates = [
-    ...(split !== undefined ? [split] : []),
-    ...(single !== undefined ? [single] : []),
-  ];
-  const raw = candidates.reduce<unknown>(
+  const candidates = [...(split !== undefined ? [split] : []), ...(singleCounts ? [single] : [])];
+  const newestCandidate = candidates.reduce<unknown>(
     (newest, candidate) =>
       newest === undefined || readRulesVersion(candidate) > readRulesVersion(newest)
         ? candidate
         : newest,
     undefined
   );
+  // With nothing else whole, an older version's copy still beats having no settings at all.
+  const raw = newestCandidate ?? single;
 
   const versions = [
-    ...(single !== undefined ? [readRulesVersion(single)] : []),
+    ...(singleCounts ? [readRulesVersion(single)] : []),
     ...(index ? [index.rulesVersion] : []),
   ];
   const latestRulesVersion = versions.length > 0 ? Math.max(...versions) : undefined;

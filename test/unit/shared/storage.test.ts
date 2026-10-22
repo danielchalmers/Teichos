@@ -578,19 +578,35 @@ describe('storage', () => {
       await expect(stale).resolves.toEqual({ ...createLargeData(300), rulesVersion: 5 });
     });
 
-    it('never saves over a newer copy that has not fully arrived', async () => {
-      const { updateData, SettingsSaveError } = await loadFreshStorage();
+    it('saves over a newer copy only once its missing parts have had time to arrive', async () => {
+      const { loadData, updateData } = await loadFreshStorage();
       vi.useFakeTimers();
       const stored = getChromeMock().storage.sync._data;
       stored.set(STORAGE_KEY, { ...createLargeData(5), rulesVersion: 4 });
-      const { items } = encodeSettings({ ...createLargeData(300), rulesVersion: 5 }, []);
+      const newer = { ...createLargeData(300), rulesVersion: 5 };
+      const { items } = encodeSettings(newer, []);
       stored.set(SPLIT_INDEX_KEY, items[SPLIT_INDEX_KEY]);
 
+      // The rest arrives while the save waits, so the save builds on the newer copy.
       const saving = updateData((data) => ({ ...data, expandBlockPageDetails: true }));
-      const rejection = expect(saving).rejects.toBeInstanceOf(SettingsSaveError);
+      await vi.advanceTimersByTimeAsync(250);
+      for (const [key, value] of Object.entries(items)) stored.set(key, value);
       await vi.runAllTimersAsync();
-      await rejection;
-      expect(getChromeMock().storage.sync.set).not.toHaveBeenCalled();
+      await expect(saving).resolves.toMatchObject({ filters: newer.filters });
+
+      // A copy that never assembles, like a mix of two devices' parts left by a sync conflict,
+      // would otherwise make every save fail; after the wait the next save replaces it.
+      stored.set(splitPartKey(1), { revision: 'from-another-device', text: '' });
+      const repairing = updateData((data) => ({ ...data, expandBlockPageDetails: false }));
+      await vi.runAllTimersAsync();
+      await expect(repairing).resolves.toMatchObject({ expandBlockPageDetails: false });
+      const repaired = loadData();
+      await vi.runAllTimersAsync();
+      await expect(repaired).resolves.toMatchObject({
+        filters: newer.filters,
+        expandBlockPageDetails: false,
+        rulesVersion: 7,
+      });
     });
   });
 
