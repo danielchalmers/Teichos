@@ -7,7 +7,7 @@ import { updateData } from '../shared/api/storage';
 import { ALARMS } from '../shared/constants';
 import { isSnoozeExpired } from '../shared/filtering/schedules';
 import type { SnoozeState } from '../shared/types';
-import { STORAGE_KEY } from '../shared/types';
+import { hasSettingsChange } from '../shared/storage/syncLayout';
 
 const INACTIVE_SNOOZE: SnoozeState = { active: false };
 
@@ -59,7 +59,7 @@ export function registerSnoozeHandlers(): void {
   didRegisterListeners = true;
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== 'sync' || !changes[STORAGE_KEY]) {
+    if (areaName !== 'sync' || !hasSettingsChange(changes)) {
       return;
     }
     queueSnoozeSync();

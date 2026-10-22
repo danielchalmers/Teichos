@@ -36,7 +36,8 @@ import {
   isTemporaryFilter,
   sortFiltersTemporaryFirst,
 } from '../../shared/filtering/schedules';
-import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage, STORAGE_KEY } from '../../shared/types';
+import { hasSettingsChange } from '../../shared/storage/syncLayout';
+import { DEFAULT_GROUP_ID, isCloseInfoPanelMessage } from '../../shared/types';
 import {
   announceStatus,
   clearDialogError,
@@ -378,7 +379,7 @@ function updateMatchModeHint(kind: 'filter' | 'whitelist'): void {
 function setupStorageSync(): void {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'sync') return;
-    if (!changes[STORAGE_KEY]) return;
+    if (!hasSettingsChange(changes)) return;
     void renderGroups().catch((error: unknown) => {
       console.error('Failed to refresh groups:', error);
     });

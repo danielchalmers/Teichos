@@ -1479,3 +1479,37 @@ test('existing site-name filters become domain filters after the update', async 
   await page.locator('[data-action="edit-filter"][data-filter-id="legacy-site-filter"]').click();
   await expect(page.locator('#filter-modal.active').getByLabel('Match mode')).toHaveValue('domain');
 });
+
+test('keeps settings too large for one sync item, as older versions could not', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  // About 45 filters filled the 8 KB that Chrome allows each synced item.
+  const filters = Array.from({ length: 300 }, (_, index) => ({
+    id: `bulk-filter-${String(index)}`,
+    pattern: `bulk-${String(index)}.example.test`,
+    groupId: defaultGroup.id,
+    enabled: true,
+    matchMode: 'domain' as const,
+    description: `Bulk site ${String(index)}`,
+  }));
+  await page.locator('#import-settings-input').setInputFiles({
+    name: 'teichos-settings.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(createStorageData({ filters }))),
+  });
+  await expect(page.locator('#global-settings-status')).toHaveText(
+    'Settings imported successfully.'
+  );
+  await expect.poll(async () => (await readStorage(page))?.filters.length).toBe(300);
+
+  await gotoOptions(extensionPage, page);
+  await expect(page.getByText('Bulk site 299', { exact: true })).toBeVisible();
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, 'https://bulk-299.example.test/');
+  await expectAllowed(browsingPage, 'https://other.example.test/');
+});
