@@ -339,6 +339,53 @@ test('opens the details without motion when reduced motion is requested', async 
   await expect(page.locator('.learn-more-fading')).toHaveCount(0);
 });
 
+test('opens the details without a passing scrollbar, and short windows still scroll', async ({
+  extensionPage,
+  page,
+}) => {
+  for (const height of [800, 480]) {
+    await page.setViewportSize({ width: 1000, height });
+    await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=1`);
+    const learnMore = page.getByRole('button', { name: 'Learn more' });
+    await expect(learnMore).toBeVisible();
+
+    // Sample every frame of the reveal for how far the page could scroll.
+    const samplingDone = page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          let maxOverflow = 0;
+          const sample = (): void => {
+            const root = document.documentElement;
+            maxOverflow = Math.max(maxOverflow, root.scrollHeight - root.clientHeight);
+            const revealed = document.getElementById('block-extras')?.hidden === false;
+            if (revealed && document.getAnimations().length === 0) {
+              resolve(maxOverflow);
+              return;
+            }
+            requestAnimationFrame(sample);
+          };
+          requestAnimationFrame(sample);
+        })
+    );
+    await learnMore.click();
+    const maxOverflow = await samplingDone;
+    const finalOverflow = await page.evaluate(
+      () => document.documentElement.scrollHeight - document.documentElement.clientHeight
+    );
+
+    // The column glides up into place, which must not briefly make the page scrollable.
+    expect(maxOverflow).toBeLessThanOrEqual(finalOverflow);
+    if (height === 800) {
+      expect(finalOverflow).toBe(0);
+    } else {
+      expect(finalOverflow).toBeGreaterThan(0);
+      const manageFilters = page.getByRole('button', { name: 'Manage filters' });
+      await manageFilters.scrollIntoViewIfNeeded();
+      await expect(manageFilters).toBeInViewport();
+    }
+  }
+});
+
 test('places the page a little above the middle of the window', async ({ extensionPage, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=1`);

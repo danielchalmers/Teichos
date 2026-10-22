@@ -4,7 +4,16 @@
 /* The page sits a little above the middle of the window, where the eye rests: the free space is
    shared 3:4 above and below. When the open details fill a short window the spacers shrink to
    nothing, so the top stays in view and no extra scrolling is added. */
+/* The reveal starts the column below where it settles (index.ts), and a transform still adds to
+   the scrollable area, so a scrollbar would flash while it glides up. The body always holds the
+   laid-out page, so clipping it cuts only that overshoot. The root's own overflow keeps the body's
+   from passing to the window, which still scrolls a page taller than it. */
+html {
+  overflow: auto;
+}
+
 body {
+  overflow: clip;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
