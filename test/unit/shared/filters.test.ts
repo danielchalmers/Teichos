@@ -149,6 +149,8 @@ describe('matchesPattern', () => {
       { url: 'https://X.COM/', expected: true },
       // A trailing dot loads the same site, so it must not get past the filter.
       { url: 'https://x.com./home', expected: true },
+      // A blob: URL belongs to the site that made it.
+      { url: 'blob:https://x.com/0f8e3c7a-1b2d-4e5f-8a9b-0c1d2e3f4a5b', expected: true },
       // Contains text matched all of these; a domain only matches whole labels of the host.
       { url: 'https://www.netflix.com/', expected: false },
       { url: 'https://www.fedex.com/', expected: false },
@@ -194,6 +196,7 @@ describe('normalizeDomainPattern', () => {
     'reddit.com:8080',
     'user@reddit.com',
     'ftp://reddit.com',
+    '*reddit.com',
     'reddit',
     'not a site',
     '',
@@ -218,6 +221,11 @@ describe('isSiteNamePattern', () => {
     'v1.2',
     '192.168.1.20',
     '.reddit.com',
+    // File names: as a domain, "viewtopic.php" would never match the page it was written for.
+    'viewtopic.php',
+    'report.pdf',
+    'readme.md',
+    'index.html',
   ])('leaves %j as text', (pattern) => {
     expect(isSiteNamePattern(pattern)).toBe(false);
   });

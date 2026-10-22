@@ -270,6 +270,7 @@ describe('storage', () => {
           legacyFilter('site', 'x.com'),
           legacyFilter('path', 'youtube.com/shorts'),
           legacyFilter('word', 'reddit'),
+          legacyFilter('file', 'viewtopic.php'),
           { ...legacyFilter('exact', 'https://x.com/'), matchMode: 'exact' },
         ],
         whitelist: [
@@ -279,7 +280,13 @@ describe('storage', () => {
 
       expect(
         Object.fromEntries(migrated.filters.map((filter) => [filter.id, filter.matchMode]))
-      ).toEqual({ site: 'domain', path: 'contains', word: 'contains', exact: 'exact' });
+      ).toEqual({
+        site: 'domain',
+        path: 'contains',
+        word: 'contains',
+        file: 'contains',
+        exact: 'exact',
+      });
       // An exception matched as text also allowed any blocked address that mentioned it.
       expect(migrated.whitelist[0]?.matchMode).toBe('domain');
       expect(migrated.schemaVersion).toBe(2);

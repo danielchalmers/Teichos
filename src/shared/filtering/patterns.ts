@@ -24,19 +24,25 @@ export function prepareUrl(url: string): PreparedUrl {
 
 /**
  * The host as matching compares it. A trailing dot names the same site (`reddit.com.` loads
- * reddit.com), so it is dropped rather than letting it slip past a domain filter.
+ * reddit.com), so it is dropped rather than letting it slip past a domain filter. A blob: URL has
+ * no host of its own and belongs to the site that made it (blob:https://reddit.com/…).
  */
 function getUrlHost(url: string): string | null {
   try {
-    return new URL(url).hostname.replace(/\.$/, '') || null;
+    const parsed = new URL(url);
+    const host = parsed.protocol === 'blob:' ? new URL(parsed.pathname).hostname : parsed.hostname;
+    return host.replace(/\.$/, '') || null;
   } catch {
     return null;
   }
 }
 
+/** Characters a site's host can hold once a URL parser has read it (punycode included). */
+const HOST_PATTERN = /^(?:[a-z\d_-]+(?:\.[a-z\d_-]+)*|\[[\da-f:.]+\])$/;
+
 /**
- * Read a domain pattern the way people write or paste one: any case, a leading `*.` or `.`, a trailing
- * dot, or a bare site address such as https://www.reddit.com/. Returns the host as browsers
+ * Read a domain pattern the way people write or paste one: any case, a leading `*.` or `.`, a
+ * trailing dot, or a bare site address such as https://www.reddit.com/. Returns the host as browsers
  * report it (lowercase, punycode for international names), or null when the input is not a site:
  * a path, query, port or credentials name less than a whole site, so they are rejected rather
  * than silently dropped, which would block more than the user asked for.
@@ -61,22 +67,75 @@ export function normalizeDomainPattern(input: string): string | null {
     (hasScheme && parsed.protocol !== 'http:' && parsed.protocol !== 'https:');
   const host = parsed.hostname.replace(/\.$/, '');
   // A single word is a valid host but almost never a site someone means ("reddit"); text like
-  // that belongs in a contains filter. localhost is the one single-label site worth naming.
-  const isSite = host === 'localhost' || host.startsWith('[') || host.includes('.');
+  // that belongs in a contains filter. localhost is the one single-label site worth naming. The
+  // parser also lets through characters no site has, such as the * in "*reddit.com".
+  const isSite =
+    HOST_PATTERN.test(host) && (host === 'localhost' || host.startsWith('[') || host.includes('.'));
   return namesMoreThanASite || !isSite ? null : host;
 }
+
+/**
+ * File names look like site names but are matched as text: "viewtopic.php" as a domain would
+ * never match the forum page it was written for. Some are also real top-level domains (.md,
+ * .zip, .mov), but a contains pattern ending in one is far more likely a file, and leaving a
+ * pattern as text keeps its old behaviour, so the doubt goes that way.
+ */
+const FILE_EXTENSIONS = new Set([
+  'asp',
+  'aspx',
+  'avi',
+  'cgi',
+  'css',
+  'csv',
+  'doc',
+  'docx',
+  'exe',
+  'gif',
+  'htm',
+  'html',
+  'ico',
+  'jpeg',
+  'jpg',
+  'js',
+  'json',
+  'jsp',
+  'md',
+  'mjs',
+  'mov',
+  'mp3',
+  'mp4',
+  'ogg',
+  'pdf',
+  'php',
+  'png',
+  'ppt',
+  'rss',
+  'shtml',
+  'svg',
+  'txt',
+  'wav',
+  'webm',
+  'webp',
+  'xls',
+  'xlsx',
+  'xml',
+  'zip',
+]);
 
 /**
  * Whether a contains pattern is nothing but a site name (reddit.com, www.youtube.com), which as
  * contains text also matched any address mentioning it: x.com blocked netflix.com, and a search
  * for reddit.com was blocked like reddit itself. Such patterns are what domain matching is for.
- * The last label must look like a top-level domain, so text like "v1.2" is left alone.
+ * The last label must look like a top-level domain and not a file extension, so text like "v1.2"
+ * or "viewtopic.php" is left alone.
  */
 export function isSiteNamePattern(pattern: string): boolean {
   const trimmed = pattern.trim().toLowerCase();
   const lastLabel = trimmed.slice(trimmed.lastIndexOf('.') + 1);
   return (
-    normalizeDomainPattern(trimmed) === trimmed && /^(?:[a-z]{2,63}|xn--[a-z\d-]+)$/.test(lastLabel)
+    normalizeDomainPattern(trimmed) === trimmed &&
+    /^(?:[a-z]{2,63}|xn--[a-z\d-]+)$/.test(lastLabel) &&
+    !FILE_EXTENSIONS.has(lastLabel)
   );
 }
 
