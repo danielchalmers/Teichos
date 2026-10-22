@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 import {
   captureScreenshot,
@@ -17,18 +16,6 @@ import { PAGES } from '../../src/shared/constants';
 import { formatUntil } from '../../src/shared/utils/schedules';
 
 const PREVIEW_NOTE = 'Preview with sample data.';
-
-/**
- * Click Go back and wait until the background has answered that there is nothing to restore, so a
- * following URL check cannot pass just because a navigation had not started yet.
- */
-async function clickGoBackWithNothingToRestore(page: Page): Promise<void> {
-  const noTargetWarning = page.waitForEvent('console', (message) =>
-    message.text().includes('No restorable tab target is available')
-  );
-  await page.getByRole('button', { name: 'Go back' }).click();
-  await noTargetWarning;
-}
 
 test('go back steps back in history so forward returns to the block page', async ({
   context,
@@ -503,33 +490,84 @@ test('labels the preview, keeps Continue anyway inactive, and closes it with Go 
     .toBe(true);
 });
 
-test('handles missing or stale block ids and no-op go back safely', async ({
+test('Close tab keeps the window open when the block page is its only tab', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  // Like Chrome opened from a link to a blocked site: one window, one tab.
+  const blockPagePromise = context.waitForEvent('page');
+  const windowId = await page.evaluate(async (url) => {
+    const window = await chrome.windows.create({ url });
+    return window?.id;
+  }, extensionPage(PAGES.BLOCKED));
+  const blockPage = await blockPagePromise;
+  await expect(blockPage.getByRole('heading', { name: 'Page blocked' })).toBeVisible();
+
+  await showBlockPageDetails(blockPage);
+  const closed = blockPage.waitForEvent('close');
+  await blockPage.getByRole('button', { name: 'Close tab' }).click();
+  await closed;
+
+  // The window stays, with a New Tab page in place of the block page.
+  const remaining = await page.evaluate(async (id) => {
+    const tabs = await chrome.tabs.query({ windowId: id });
+    return tabs.map((tab) => tab.pendingUrl ?? tab.url);
+  }, windowId);
+  expect(remaining).toHaveLength(1);
+  expect(remaining[0]).not.toContain(PAGES.BLOCKED);
+});
+
+test('handles missing or stale block ids safely and still goes back', async ({
   extensionPage,
   page,
 }) => {
   await page.goto(extensionPage(PAGES.BLOCKED));
   await expect(page.getByLabel('Blocked URL')).toHaveText('Block details unavailable');
 
-  const missingBlockPage = page.url();
   await showBlockPageDetails(page);
   // With no block state there is no filter to describe and no page to continue to.
   await expect(page.getByLabel('Responsible filter')).toBeHidden();
   await expect(page.locator('#continue')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Manage filters' })).toBeVisible();
-  await clickGoBackWithNothingToRestore(page);
-  expect(page.url()).toBe(missingBlockPage);
 
-  await page.goto(
-    `${extensionPage(PAGES.BLOCKED)}?url=${encodeURIComponent('https://blocked.example.invalid')}`
-  );
+  const unavailableBlockPage = `${extensionPage(PAGES.BLOCKED)}?url=${encodeURIComponent('https://blocked.example.invalid')}`;
+  await page.goto(unavailableBlockPage);
   await expect(page.getByLabel('Blocked URL')).toHaveText('Block details unavailable');
 
   await page.goto(`${extensionPage(PAGES.BLOCKED)}?blockId=missing-block`);
   await expect(page.getByRole('heading', { name: 'Page blocked' })).toBeVisible();
   await expect(page.getByLabel('Blocked URL')).toHaveText('Block details unavailable');
 
-  const staleBlockPage = page.url();
+  // A stale block still steps back through the tab's history, though nothing was recorded for it.
   await showBlockPageDetails(page);
-  await clickGoBackWithNothingToRestore(page);
-  expect(page.url()).toBe(staleBlockPage);
+  await page.getByRole('button', { name: 'Go back' }).click();
+  await expect.poll(() => page.url()).toBe(unavailableBlockPage);
+});
+
+test('offers Close tab when the block page is the first page in its tab', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  // Opened the way a link opens a blocked site in a new tab: the block page is the only entry.
+  const blockPagePromise = context.waitForEvent('page');
+  await page.evaluate(async (url) => {
+    const opener = await chrome.tabs.getCurrent();
+    await chrome.tabs.create({ url, ...(opener?.id ? { openerTabId: opener.id } : {}) });
+  }, extensionPage(PAGES.BLOCKED));
+  const blockPage = await blockPagePromise;
+  await expect(blockPage.getByRole('heading', { name: 'Page blocked' })).toBeVisible();
+
+  await showBlockPageDetails(blockPage);
+  await expect(blockPage.getByRole('button', { name: 'Go back' })).toHaveCount(0);
+  const closed = blockPage.waitForEvent('close');
+  await blockPage.getByRole('button', { name: 'Close tab' }).click();
+  await closed;
+  // Closing returns to the tab that opened it.
+  await expect
+    .poll(() => page.evaluate(async () => (await chrome.tabs.getCurrent())?.active))
+    .toBe(true);
 });

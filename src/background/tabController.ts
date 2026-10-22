@@ -271,18 +271,22 @@ class TabController {
   }
 
   /**
-   * Step the tab back in its history, so Forward returns to the block page. A tab with no earlier
-   * entry opens the last allowed page instead.
+   * Step the tab back in its history, so Forward returns to the block page. The step does not
+   * depend on a recorded last allowed page: a tab that came from the New Tab page or another
+   * browser page has none, and an entry that is blocked now is stepped past where it lands. Only
+   * a tab with no earlier entry opens the last allowed page instead.
    */
   async goBackFromTab(tabId: number): Promise<boolean> {
+    if (await this.stepBack(tabId, false)) {
+      return true;
+    }
+
     const returnUrl = await this.getReturnUrl(tabId);
     if (!returnUrl) {
       return false;
     }
 
-    if (!(await this.stepBack(tabId, false))) {
-      await this.openReturnUrl(tabId, returnUrl);
-    }
+    await this.openReturnUrl(tabId, returnUrl);
     return true;
   }
 
