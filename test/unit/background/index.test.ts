@@ -4,6 +4,7 @@ import { getChromeMock } from '../../fixtures/chrome-mocks';
 
 const mocks = vi.hoisted(() => ({
   handleNavigationChange: vi.fn(),
+  handleNavigationCommitted: vi.fn(),
   handleMessage: vi.fn(),
   registerTabController: vi.fn(),
   registerSnoozeHandlers: vi.fn(),
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../../src/background/handlers', () => ({
   handleNavigationChange: mocks.handleNavigationChange,
+  handleNavigationCommitted: mocks.handleNavigationCommitted,
   handleMessage: mocks.handleMessage,
 }));
 
@@ -30,6 +32,7 @@ describe('background entrypoint', () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.handleNavigationChange.mockReset().mockResolvedValue(undefined);
+    mocks.handleNavigationCommitted.mockReset().mockResolvedValue(undefined);
     mocks.handleMessage.mockReset();
     mocks.registerTabController.mockReset();
     mocks.registerSnoozeHandlers.mockReset();
@@ -70,6 +73,20 @@ describe('background entrypoint', () => {
     expect(mocks.handleNavigationChange).toHaveBeenNthCalledWith(1, details);
     expect(mocks.handleNavigationChange).toHaveBeenNthCalledWith(2, details);
     expect(mocks.handleNavigationChange).toHaveBeenNthCalledWith(3, details);
+  });
+
+  it('passes main-frame commits to the commit handler', async () => {
+    const chromeMock = getChromeMock();
+
+    const { registerBackground } = await import('../../../src/background/index');
+    registerBackground();
+
+    expect(chromeMock.webNavigation.onCommitted.addListener).toHaveBeenCalledTimes(1);
+    const details = { frameId: 0, tabId: 12, url: 'https://example.com/' };
+    await chromeMock.webNavigation.onCommitted.addListener.mock.calls[0]?.[0](details);
+
+    expect(mocks.handleNavigationCommitted).toHaveBeenCalledWith(details);
+    expect(mocks.handleNavigationChange).not.toHaveBeenCalled();
   });
 
   it('logs a failed navigation evaluation instead of leaving the rejection unhandled', async () => {

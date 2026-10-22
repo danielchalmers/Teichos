@@ -85,6 +85,20 @@ export async function updateTabUrl(tabId: number, url: string): Promise<chrome.t
 }
 
 /**
+ * Step a tab back one entry in its history. Rejects when there is no earlier entry.
+ */
+export function goBackTab(tabId: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.goBack(tabId, () => {
+      if (handleRuntimeError(reject)) {
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+/**
  * Get the current active tab
  */
 export async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {

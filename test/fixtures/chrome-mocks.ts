@@ -36,6 +36,7 @@ interface ChromeMock {
     get: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
+    goBack: ReturnType<typeof vi.fn>;
     onUpdated: {
       addListener: ReturnType<typeof vi.fn>;
       removeListener: ReturnType<typeof vi.fn>;
@@ -59,6 +60,10 @@ interface ChromeMock {
       removeListener: ReturnType<typeof vi.fn>;
     };
     onReferenceFragmentUpdated: {
+      addListener: ReturnType<typeof vi.fn>;
+      removeListener: ReturnType<typeof vi.fn>;
+    };
+    onCommitted: {
       addListener: ReturnType<typeof vi.fn>;
       removeListener: ReturnType<typeof vi.fn>;
     };
@@ -175,6 +180,9 @@ export function createChromeMock(): ChromeMock {
       remove: vi.fn((_: number | number[], callback?: () => void) => {
         callback?.();
       }),
+      goBack: vi.fn((_: number, callback?: () => void) => {
+        callback?.();
+      }),
       onUpdated: {
         addListener: vi.fn(),
         removeListener: vi.fn(),
@@ -198,6 +206,10 @@ export function createChromeMock(): ChromeMock {
         removeListener: vi.fn(),
       },
       onReferenceFragmentUpdated: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+      onCommitted: {
         addListener: vi.fn(),
         removeListener: vi.fn(),
       },

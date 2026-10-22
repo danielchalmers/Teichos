@@ -2,19 +2,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   evaluateNavigation: vi.fn(),
+  settleGoBackStep: vi.fn(),
 }));
 
 vi.mock('../../../src/background/tabController', () => ({
   getTabController: (): {
     evaluateNavigation: typeof mocks.evaluateNavigation;
+    settleGoBackStep: typeof mocks.settleGoBackStep;
   } => ({
     evaluateNavigation: mocks.evaluateNavigation,
+    settleGoBackStep: mocks.settleGoBackStep,
   }),
 }));
 
 import {
   handleBeforeNavigate,
   handleNavigationChange,
+  handleNavigationCommitted,
 } from '../../../src/background/handlers/navigation';
 
 function createNavigationDetails(
@@ -63,6 +67,21 @@ describe('handleNavigationChange', () => {
       createNavigationDetails({ frameId: 3, tabId: 8, url: 'https://example.com/page#blocked' })
     );
 
+    expect(mocks.evaluateNavigation).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleNavigationCommitted', () => {
+  it('settles a Go back step on main-frame commits only', async () => {
+    mocks.settleGoBackStep.mockResolvedValue(undefined);
+
+    await handleNavigationCommitted(
+      createNavigationDetails({ tabId: 5, url: 'chrome-extension://id/options.html' })
+    );
+    await handleNavigationCommitted(createNavigationDetails({ frameId: 2, tabId: 5 }));
+
+    expect(mocks.settleGoBackStep).toHaveBeenCalledTimes(1);
+    expect(mocks.settleGoBackStep).toHaveBeenCalledWith(5, 'chrome-extension://id/options.html');
     expect(mocks.evaluateNavigation).not.toHaveBeenCalled();
   });
 });
