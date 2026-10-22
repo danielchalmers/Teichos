@@ -3,7 +3,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getRegexValidationError, matchesPattern } from '../../../src/shared/filtering/patterns';
+import {
+  getRegexValidationError,
+  isSiteNamePattern,
+  matchesPattern,
+  normalizeDomainPattern,
+} from '../../../src/shared/filtering/patterns';
 import {
   getSnoozeRemainingMs,
   isSnoozeActive,
@@ -31,6 +36,7 @@ function findBlockingFilter(
       whitelist,
       snooze: { active: false },
       rulesVersion: 0,
+      schemaVersion: 2,
     },
     { context }
   );
@@ -136,8 +142,84 @@ describe('matchesPattern', () => {
       matchMode: 'regex' as const,
       expected: false,
     },
+    ...[
+      { url: 'https://x.com/home', expected: true },
+      { url: 'https://www.x.com/', expected: true },
+      { url: 'https://mobile.x.com:8443/', expected: true },
+      { url: 'https://X.COM/', expected: true },
+      // A trailing dot loads the same site, so it must not get past the filter.
+      { url: 'https://x.com./home', expected: true },
+      // Contains text matched all of these; a domain only matches whole labels of the host.
+      { url: 'https://www.netflix.com/', expected: false },
+      { url: 'https://www.fedex.com/', expected: false },
+      { url: 'https://x.com.example.net/', expected: false },
+      { url: 'https://www.google.com/search?q=x.com', expected: false },
+      { url: 'https://example.net/share?url=https://x.com/post', expected: false },
+    ].map(({ url, expected }) => ({
+      name: `${expected ? 'matches' : 'does not match'} ${url} with domain x.com`,
+      url,
+      pattern: 'x.com',
+      matchMode: 'domain' as const,
+      expected,
+    })),
   ])('$name', ({ url, pattern, matchMode, expected }) => {
     expect(matchesPattern(url, pattern, matchMode)).toBe(expected);
+  });
+});
+
+describe('normalizeDomainPattern', () => {
+  it.each([
+    ['reddit.com', 'reddit.com'],
+    ['  Reddit.COM ', 'reddit.com'],
+    ['www.reddit.com', 'www.reddit.com'],
+    ['*.reddit.com', 'reddit.com'],
+    ['.reddit.com', 'reddit.com'],
+    ['reddit.com.', 'reddit.com'],
+    ['https://www.reddit.com/', 'www.reddit.com'],
+    ['http://reddit.com', 'reddit.com'],
+    ['bücher.example', 'xn--bcher-kva.example'],
+    ['localhost', 'localhost'],
+    ['192.168.1.20', '192.168.1.20'],
+  ])('reads %j as the site %j', (input, expected) => {
+    expect(normalizeDomainPattern(input)).toBe(expected);
+  });
+
+  // Each of these names less than a whole site. Dropping the extra part would block the whole
+  // site when the user asked for one page, so they are refused instead.
+  it.each([
+    'reddit.com/r/all',
+    'https://reddit.com/r/all',
+    'reddit.com?ref=1',
+    'reddit.com#top',
+    'reddit.com:8080',
+    'user@reddit.com',
+    'ftp://reddit.com',
+    'reddit',
+    'not a site',
+    '',
+  ])('refuses %j', (input) => {
+    expect(normalizeDomainPattern(input)).toBeNull();
+  });
+});
+
+describe('isSiteNamePattern', () => {
+  it.each(['reddit.com', 'www.youtube.com', 'Example.ORG', 'xn--bcher-kva.example'])(
+    'treats %j as a site name',
+    (pattern) => {
+      expect(isSiteNamePattern(pattern)).toBe(true);
+    }
+  );
+
+  it.each([
+    'reddit',
+    'youtube.com/shorts',
+    'https://reddit.com',
+    '*.reddit.com',
+    'v1.2',
+    '192.168.1.20',
+    '.reddit.com',
+  ])('leaves %j as text', (pattern) => {
+    expect(isSiteNamePattern(pattern)).toBe(false);
   });
 });
 
@@ -802,6 +884,7 @@ describe('getNextRulesChangeAt', () => {
     whitelist: [],
     snooze: { active: false },
     rulesVersion: 1,
+    schemaVersion: 2,
   });
 
   it('returns the next window start before the window opens', () => {

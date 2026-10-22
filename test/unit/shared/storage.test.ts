@@ -40,6 +40,7 @@ describe('storage', () => {
         snooze: { active: false },
         expandBlockPageDetails: false,
         rulesVersion: 0,
+        schemaVersion: 2,
       });
     });
 
@@ -66,6 +67,7 @@ describe('storage', () => {
         snooze: { active: false },
         expandBlockPageDetails: true,
         rulesVersion: 2,
+        schemaVersion: 2,
       };
 
       getChromeMock().storage.sync._data.set(STORAGE_KEY, testData);
@@ -180,7 +182,7 @@ describe('storage', () => {
         whitelist: [
           {
             id: 'legacy-whitelist',
-            pattern: 'allowed.com',
+            pattern: 'allowed.com/docs',
             enabled: true,
             groupId: DEFAULT_GROUP_ID,
           },
@@ -240,13 +242,54 @@ describe('storage', () => {
             pattern: 'allowed.com',
             enabled: true,
             groupId: DEFAULT_GROUP_ID,
-            matchMode: 'contains',
+            // A site name with no match mode is legacy contains text, which schema 2 migrates.
+            matchMode: 'domain',
           },
         ],
         snooze: { active: true },
         expandBlockPageDetails: false,
         rulesVersion: 0,
+        schemaVersion: 2,
       });
+    });
+
+    it('turns site-name contains patterns into domains once, when domain matching arrives', () => {
+      const legacyFilter = (
+        id: string,
+        pattern: string,
+        matchMode: Filter['matchMode'] = 'contains'
+      ): Filter => ({
+        id,
+        pattern,
+        groupId: DEFAULT_GROUP_ID,
+        enabled: true,
+        matchMode,
+      });
+      const migrated = normalizeStoredData({
+        filters: [
+          legacyFilter('site', 'x.com'),
+          legacyFilter('path', 'youtube.com/shorts'),
+          legacyFilter('word', 'reddit'),
+          { ...legacyFilter('exact', 'https://x.com/'), matchMode: 'exact' },
+        ],
+        whitelist: [
+          { id: 'allow-site', pattern: 'docs.google.com', enabled: true, matchMode: 'contains' },
+        ],
+      });
+
+      expect(
+        Object.fromEntries(migrated.filters.map((filter) => [filter.id, filter.matchMode]))
+      ).toEqual({ site: 'domain', path: 'contains', word: 'contains', exact: 'exact' });
+      // An exception matched as text also allowed any blocked address that mentioned it.
+      expect(migrated.whitelist[0]?.matchMode).toBe('domain');
+      expect(migrated.schemaVersion).toBe(2);
+
+      // Once saved at schema 2, a site name the user sets back to contains stays contains.
+      const chosen = normalizeStoredData({
+        ...migrated,
+        filters: [legacyFilter('site', 'x.com')],
+      });
+      expect(chosen.filters[0]?.matchMode).toBe('contains');
     });
 
     it('reassigns filters whose group no longer exists to the default group', async () => {
@@ -405,6 +448,7 @@ describe('storage', () => {
         whitelist: [],
         snooze: { active: false },
         rulesVersion: 0,
+        schemaVersion: 2,
       };
 
       await saveData(testData);
@@ -427,6 +471,7 @@ describe('storage', () => {
         whitelist: [],
         snooze: { active: false },
         rulesVersion: 0,
+        schemaVersion: 2,
       };
 
       const error = await saveData(testData).catch((caught: unknown) => caught);
@@ -445,6 +490,7 @@ describe('storage', () => {
           whitelist: [],
           snooze: { active: false },
           rulesVersion: 0,
+          schemaVersion: 2,
         })
       ).rejects.toBe(writeError);
     });
@@ -458,6 +504,7 @@ describe('storage', () => {
       snooze: { active: false },
       expandBlockPageDetails: false,
       rulesVersion: 1,
+      schemaVersion: 2,
     });
 
     const makeFilter = (id: string): Filter => ({
@@ -556,6 +603,7 @@ describe('storage', () => {
         whitelist: [],
         snooze: { active: false },
         rulesVersion: 1,
+        schemaVersion: 2,
       });
 
       const data = await purgeExpiredTemporaryFilters(await loadData());

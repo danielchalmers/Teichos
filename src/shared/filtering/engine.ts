@@ -1,5 +1,5 @@
 import type { Filter, FilterGroup, StorageData, Whitelist } from '../types';
-import { matchesPattern, preparePattern, type PreparedPattern } from './patterns';
+import { matchesPattern, preparePattern, prepareUrl, type PreparedPattern } from './patterns';
 import {
   buildGroupById,
   buildWhitelistByGroup,
@@ -101,14 +101,14 @@ export function evaluateFilterDecision(
   const filters = options?.filters ?? sortFiltersTemporaryFirst(data.filters);
   const groupsById = options?.groupsById ?? buildGroupById(data.groups);
   const whitelistByGroup = options?.whitelistByGroup ?? buildWhitelistByGroup(data.whitelist);
-  const urlLower = url.toLowerCase();
+  const preparedUrl = prepareUrl(url);
   const now = Date.now();
   let fallbackReason: FilterDecisionAllowReason = 'no-match';
   let primary: Filter | undefined;
   const blockingFilterIds: string[] = [];
 
   for (const filter of filters) {
-    if (!matchesPattern(url, filter, undefined, urlLower)) {
+    if (!matchesPattern(url, filter, undefined, preparedUrl)) {
       continue;
     }
 
@@ -129,7 +129,7 @@ export function evaluateFilterDecision(
 
     if (!isTemporaryFilter(filter)) {
       const groupWhitelist = whitelistByGroup.get(filter.groupId);
-      if (groupWhitelist?.some((entry) => matchesPattern(url, entry, undefined, urlLower))) {
+      if (groupWhitelist?.some((entry) => matchesPattern(url, entry, undefined, preparedUrl))) {
         fallbackReason = selectHigherPriorityReason(fallbackReason, 'whitelisted');
         continue;
       }

@@ -7,6 +7,8 @@ import {
   createFilterViaOptions,
   createWhitelistViaOptions,
   defaultGroup,
+  expectAllowed,
+  expectBlocked,
   openPopup,
   readStorage,
   seedStorage,
@@ -1059,8 +1061,14 @@ test('explains the selected match mode under the select', async ({ extensionPage
   await page.locator('button[data-action="add-filter"]').first().click();
   const filterModal = page.locator('#filter-modal.active');
   const matchMode = filterModal.getByLabel('Match mode');
+  // A new filter starts as a domain, the way people name a site to block.
+  await expect(matchMode).toHaveValue('domain');
   await expect(matchMode).toHaveAccessibleDescription(
-    'Blocks any address containing this text, like reddit.com.'
+    'Blocks the site and its subdomains, like reddit.com.'
+  );
+  await matchMode.selectOption('contains');
+  await expect(matchMode).toHaveAccessibleDescription(
+    'Blocks any address containing this text, like youtube.com/shorts.'
   );
   await matchMode.selectOption('exact');
   await expect(matchMode).toHaveAccessibleDescription('Blocks only this exact address.');
@@ -1075,10 +1083,17 @@ test('explains the selected match mode under the select', async ({ extensionPage
   ).toHaveAccessibleDescription('Blocks only this exact address.');
   await page.keyboard.press('Escape');
 
+  // An exception usually carves a page or section out of a blocked site, so it starts as text.
   await page.locator('button[data-action="add-whitelist"]').first().click();
-  await expect(
-    page.locator('#whitelist-modal.active').getByLabel('Match mode')
-  ).toHaveAccessibleDescription('Allows any address containing this text, like reddit.com.');
+  const exceptionMatchMode = page.locator('#whitelist-modal.active').getByLabel('Match mode');
+  await expect(exceptionMatchMode).toHaveValue('contains');
+  await expect(exceptionMatchMode).toHaveAccessibleDescription(
+    'Allows any address containing this text, like reddit.com/r/programming.'
+  );
+  await exceptionMatchMode.selectOption('domain');
+  await expect(exceptionMatchMode).toHaveAccessibleDescription(
+    'Allows the site and its subdomains, like docs.google.com.'
+  );
 });
 
 test('names the group, and a temporary filter’s time left, under the dialog title', async ({
@@ -1379,4 +1394,88 @@ test('wraps group meta lines, the Groups header and the snooze notice at 320px',
   expect(header.resume.top).toBeGreaterThanOrEqual(header.noticeText.bottom);
   expect(header.resume.right).toBeCloseTo(header.switchRight, 0);
   expect(header.pageOverflow).toBeLessThanOrEqual(0);
+});
+
+test('a domain filter blocks the site and its subdomains, not addresses that mention it', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  // Domain is the default, and a pasted site address is stored as the site.
+  await page.locator('button[data-action="add-filter"]').first().click();
+  const modal = page.locator('#filter-modal.active');
+  await modal.locator('#filter-pattern').fill(' https://X.example.test/ ');
+  await modal.getByRole('button', { name: 'Save' }).click();
+  await expect(modal).toBeHidden();
+  expect((await readStorage(page))?.filters[0]).toMatchObject({
+    pattern: 'x.example.test',
+    matchMode: 'domain',
+  });
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, 'https://x.example.test/home');
+  await expectBlocked(browsingPage, 'https://www.x.example.test/');
+  // "box.example.test" contains the text "x.example.test", which a contains filter blocked.
+  await expectAllowed(browsingPage, 'https://box.example.test/');
+  await expectAllowed(browsingPage, 'https://search.example.test/?q=x.example.test');
+});
+
+test('asks for a site when a domain filter names a page', async ({ extensionPage, page }) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  await page.locator('button[data-action="add-filter"]').first().click();
+  const modal = page.locator('#filter-modal.active');
+  const patternInput = modal.locator('#filter-pattern');
+  await patternInput.fill('youtube.example.test/shorts');
+  await modal.getByRole('button', { name: 'Save' }).click();
+  // Dropping the path would block the whole site, so the dialog asks instead.
+  await expect(modal.locator('#filter-error')).toHaveText(
+    'Enter a site, like reddit.com. To match one page or some text, choose another match mode.'
+  );
+  await expect(patternInput).toBeFocused();
+  expect((await readStorage(page))?.filters).toEqual([]);
+
+  await modal.getByLabel('Match mode').selectOption('contains');
+  await modal.getByRole('button', { name: 'Save' }).click();
+  await expect(modal).toBeHidden();
+  expect((await readStorage(page))?.filters[0]).toMatchObject({
+    pattern: 'youtube.example.test/shorts',
+    matchMode: 'contains',
+  });
+});
+
+test('existing site-name filters become domain filters after the update', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  // Saved by a version without domain matching: no schema version, and a site name as text.
+  await seedStorage(page, {
+    ...createStorageData({
+      filters: [
+        {
+          id: 'legacy-site-filter',
+          pattern: 'x.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Legacy site',
+        },
+      ],
+    }),
+    schemaVersion: undefined,
+  } as unknown as Parameters<typeof seedStorage>[1]);
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, 'https://x.example.test/');
+  await expectAllowed(browsingPage, 'https://box.example.test/');
+
+  await gotoOptions(extensionPage, page);
+  await page.locator('[data-action="edit-filter"][data-filter-id="legacy-site-filter"]').click();
+  await expect(page.locator('#filter-modal.active').getByLabel('Match mode')).toHaveValue('domain');
 });
