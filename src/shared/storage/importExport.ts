@@ -1,6 +1,6 @@
 import type { Filter, FilterGroup, StorageData, Whitelist } from '../types';
 import { DEFAULT_GROUP_ID } from '../types';
-import { getRegexValidationError } from '../filtering/patterns';
+import { getRegexValidationError, normalizeDomainPattern } from '../filtering/patterns';
 import {
   isObject,
   isValidFilterLike,
@@ -55,27 +55,32 @@ function assertKnownGroupReferences(
   }
 }
 
-function assertValidRegexEntries(
-  filters: readonly Filter[],
-  whitelist: readonly Whitelist[]
-): void {
-  for (const filter of filters) {
-    if (filter.matchMode !== 'regex') {
-      continue;
-    }
+/**
+ * Why a pattern can't be used in its match mode, or null when it can. An unusable pattern would
+ * import as a filter that silently never matches.
+ */
+function describeInvalidPattern(entry: Filter | Whitelist): string | null {
+  if (entry.matchMode === 'regex' && getRegexValidationError(entry.pattern)) {
+    return 'an invalid regex pattern';
+  }
+  if (entry.matchMode === 'domain' && normalizeDomainPattern(entry.pattern) === null) {
+    return 'a domain pattern that is not a site';
+  }
+  return null;
+}
 
-    if (getRegexValidationError(filter.pattern)) {
-      throw new Error(`Imported filter "${filter.id}" has an invalid regex pattern.`);
+function assertValidPatterns(filters: readonly Filter[], whitelist: readonly Whitelist[]): void {
+  for (const filter of filters) {
+    const problem = describeInvalidPattern(filter);
+    if (problem) {
+      throw new Error(`Imported filter "${filter.id}" has ${problem}.`);
     }
   }
 
   for (const entry of whitelist) {
-    if (entry.matchMode !== 'regex') {
-      continue;
-    }
-
-    if (getRegexValidationError(entry.pattern)) {
-      throw new Error(`Imported exception "${entry.id}" has an invalid regex pattern.`);
+    const problem = describeInvalidPattern(entry);
+    if (problem) {
+      throw new Error(`Imported exception "${entry.id}" has ${problem}.`);
     }
   }
 }
@@ -190,7 +195,7 @@ export function parseImportedData(serialized: string): StorageData {
   assertUniqueIds(importedData.filters, 'filter');
   assertUniqueIds(importedData.whitelist, 'exception');
   assertKnownGroupReferences(importedData.filters, importedData.whitelist, importedData.groups);
-  assertValidRegexEntries(importedData.filters, importedData.whitelist);
+  assertValidPatterns(importedData.filters, importedData.whitelist);
 
   return importedData;
 }

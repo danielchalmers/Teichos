@@ -6,7 +6,8 @@ import type {
   StorageData,
   Whitelist,
 } from '../types';
-import { DEFAULT_GROUP_ID } from '../types';
+import { CURRENT_SCHEMA_VERSION, DEFAULT_GROUP_ID } from '../types';
+import { isSiteNamePattern, normalizeDomainPattern } from '../filtering/patterns';
 import { createDefaultData, createDefaultGroup } from './defaults';
 import { isObject, isValidSchedule } from './guards';
 
@@ -29,6 +30,7 @@ export interface LegacyStorageData {
   readonly rulesVersion?: number;
   readonly blockType?: string;
   readonly expandBlockPageDetails?: boolean;
+  readonly schemaVersion?: number;
   readonly snooze?: {
     readonly active?: boolean;
     readonly until?: number;
@@ -39,18 +41,47 @@ function resolveMatchMode(
   matchMode: FilterMatchMode | undefined,
   isRegex?: boolean
 ): FilterMatchMode {
-  if (matchMode === 'contains' || matchMode === 'exact' || matchMode === 'regex') {
+  if (
+    matchMode === 'domain' ||
+    matchMode === 'contains' ||
+    matchMode === 'exact' ||
+    matchMode === 'regex'
+  ) {
     return matchMode;
   }
   return isRegex ? 'regex' : 'contains';
 }
 
 /**
+ * Schema 2 added domain matching. A contains pattern that is only a site name was almost always
+ * meant as that site, and as contains text it also matched any address mentioning it (x.com
+ * blocked netflix.com, and a reddit.com exception allowed any address with "reddit.com" in its
+ * query), so it becomes a domain pattern. This runs once: data saved at schema 2 keeps any
+ * contains pattern a user chose since.
+ */
+function migrateMatchMode(
+  matchMode: FilterMatchMode,
+  pattern: string,
+  schemaVersion: number
+): FilterMatchMode {
+  return schemaVersion < 2 && matchMode === 'contains' && isSiteNamePattern(pattern)
+    ? 'domain'
+    : matchMode;
+}
+
+/**
  * Trim surrounding whitespace so a pasted pattern still matches. Regex patterns are left exactly
- * as written, since whitespace there can be a deliberate part of the expression.
+ * as written, since whitespace there can be a deliberate part of the expression. Domain patterns
+ * are stored as the host browsers report, so they compare directly.
  */
 function normalizePattern(pattern: string, matchMode: FilterMatchMode): string {
-  return matchMode === 'regex' ? pattern : pattern.trim();
+  if (matchMode === 'regex') {
+    return pattern;
+  }
+  if (matchMode === 'domain') {
+    return normalizeDomainPattern(pattern) ?? pattern.trim().toLowerCase();
+  }
+  return pattern.trim();
 }
 
 /**
@@ -72,7 +103,8 @@ function asArray<T>(value: readonly T[] | undefined): readonly T[] {
 
 function normalizeFilters(
   filters: readonly LegacyFilter[] | undefined,
-  groupIds: ReadonlySet<string>
+  groupIds: ReadonlySet<string>,
+  schemaVersion: number
 ): Filter[] {
   // blockType is a retired per-filter setting; strip it from legacy data.
   // A groupId whose group no longer exists would make the filter silently
@@ -80,7 +112,11 @@ function normalizeFilters(
   return asArray(filters)
     .filter(hasUsablePattern)
     .map(({ isRegex, matchMode, blockType: _blockType, ...filter }) => {
-      const resolvedMatchMode = resolveMatchMode(matchMode, isRegex);
+      const resolvedMatchMode = migrateMatchMode(
+        resolveMatchMode(matchMode, isRegex),
+        filter.pattern,
+        schemaVersion
+      );
       return {
         ...filter,
         pattern: normalizePattern(filter.pattern, resolvedMatchMode),
@@ -92,12 +128,17 @@ function normalizeFilters(
 
 function normalizeWhitelist(
   whitelist: readonly LegacyWhitelist[] | undefined,
-  groupIds: ReadonlySet<string>
+  groupIds: ReadonlySet<string>,
+  schemaVersion: number
 ): Whitelist[] {
   return asArray(whitelist)
     .filter(hasUsablePattern)
     .map(({ isRegex, matchMode, groupId, ...entry }) => {
-      const resolvedMatchMode = resolveMatchMode(matchMode, isRegex);
+      const resolvedMatchMode = migrateMatchMode(
+        resolveMatchMode(matchMode, isRegex),
+        entry.pattern,
+        schemaVersion
+      );
       return {
         ...entry,
         pattern: normalizePattern(entry.pattern, resolvedMatchMode),
@@ -143,10 +184,15 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
     return createDefaultData();
   }
 
+  // Data from before the field existed is schema 1.
+  const schemaVersion =
+    typeof raw.schemaVersion === 'number' && Number.isInteger(raw.schemaVersion)
+      ? raw.schemaVersion
+      : 1;
   const normalizedGroups = normalizeGroups(raw.groups);
   const groupIds = new Set(normalizedGroups.map((group) => group.id));
-  const filters = normalizeFilters(raw.filters, groupIds);
-  const whitelist = normalizeWhitelist(raw.whitelist, groupIds);
+  const filters = normalizeFilters(raw.filters, groupIds, schemaVersion);
+  const whitelist = normalizeWhitelist(raw.whitelist, groupIds, schemaVersion);
   // Reassignment targets the default group, so make sure it exists when needed.
   const needsDefaultGroup =
     !groupIds.has(DEFAULT_GROUP_ID) &&
@@ -167,5 +213,6 @@ export function normalizeStoredData(raw: LegacyStorageData | undefined): Storage
     snooze,
     expandBlockPageDetails,
     rulesVersion,
+    schemaVersion: Math.max(schemaVersion, CURRENT_SCHEMA_VERSION),
   };
 }

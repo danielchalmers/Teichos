@@ -15,7 +15,11 @@ import {
 import { sendExtensionMessage } from '../../shared/api/messaging';
 import { openOptionsPage, openOptionsPageWithParams } from '../../shared/api/runtime';
 import { getActiveTab } from '../../shared/api/tabs';
-import { matchesPattern } from '../../shared/filtering/patterns';
+import {
+  matchesPattern,
+  normalizeDomainPattern,
+  prepareUrl,
+} from '../../shared/filtering/patterns';
 import {
   buildGroupById,
   getFilterEffectiveState,
@@ -646,13 +650,16 @@ async function handleQuickAddSubmit(
     return;
   }
 
+  // The quick block has no match mode to pick: a site name blocks that site and its
+  // subdomains, and anything else (a path, or a word like "reddit") matches as text.
+  const domain = normalizeDomainPattern(pattern);
   const expiresAt = Date.now() + durationMs;
   const filter = {
     id: generateId(),
-    pattern,
+    pattern: domain ?? pattern,
     groupId: DEFAULT_GROUP_ID,
     enabled: true,
-    matchMode: 'contains' as const,
+    matchMode: domain ? ('domain' as const) : ('contains' as const),
     expiresAt,
   };
   try {
@@ -679,11 +686,13 @@ async function getSuggestedPattern(): Promise<string | null> {
     return null;
   }
 
-  // Suggest just the hostname: the full URL as a "contains" pattern would only
-  // match this exact page (path and query included), not the site the user
-  // means to block.
+  // Suggest just the site, which blocks it and its subdomains: the full URL would only match this
+  // exact page (path and query included). A leading www. is dropped, so blocking from
+  // www.reddit.com also covers old.reddit.com; the suggestion is shown, so it can still be edited.
   try {
-    return new URL(url).hostname || null;
+    const { hostname } = new URL(url);
+    const site = hostname.replace(/^www\./, '');
+    return (site.includes('.') ? site : hostname) || null;
   } catch {
     return null;
   }
@@ -827,10 +836,10 @@ async function renderFilters(): Promise<void> {
   const scheduleContext = getScheduleContext();
   const whitelistedGroups = new Set<string>();
   if (isUrlEligible && activeUrl) {
-    const activeUrlLower = activeUrl.toLowerCase();
+    const preparedActiveUrl = prepareUrl(activeUrl);
     for (const entry of data.whitelist) {
       if (!entry.enabled) continue;
-      if (matchesPattern(activeUrl, entry.pattern, entry.matchMode, activeUrlLower)) {
+      if (matchesPattern(activeUrl, entry.pattern, entry.matchMode, preparedActiveUrl)) {
         whitelistedGroups.add(entry.groupId);
       }
     }

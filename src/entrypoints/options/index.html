@@ -479,7 +479,8 @@
           <div class="form-row">
             <label class="field-label" for="filter-match-mode">Match mode</label>
             <select id="filter-match-mode" class="input" aria-describedby="filter-match-hint">
-              <option value="contains" selected>Contains text</option>
+              <option value="domain" selected>Domain</option>
+              <option value="contains">Contains text</option>
               <option value="exact">Exact URL</option>
               <option value="regex">Regular expression</option>
             </select>
@@ -684,6 +685,7 @@
           <div class="form-row">
             <label class="field-label" for="whitelist-match-mode">Match mode</label>
             <select id="whitelist-match-mode" class="input" aria-describedby="whitelist-match-hint">
+              <option value="domain">Domain</option>
               <option value="contains" selected>Contains text</option>
               <option value="exact">Exact URL</option>
               <option value="regex">Regular expression</option>

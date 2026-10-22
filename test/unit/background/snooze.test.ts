@@ -67,6 +67,7 @@ describe('registerSnoozeHandlers', () => {
         snooze: { active: false },
         expandBlockPageDetails: false,
         rulesVersion: 1,
+        schemaVersion: 2,
       });
     });
     expect(chromeMock.storage.session._data.get('snooze_override')).toEqual({ active: false });
@@ -136,6 +137,7 @@ describe('registerSnoozeHandlers', () => {
         snooze: { active: false },
         expandBlockPageDetails: false,
         rulesVersion: 6,
+        schemaVersion: 2,
       });
     });
     expect(chromeMock.storage.sync.set).toHaveBeenCalledTimes(1);

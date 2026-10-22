@@ -1,5 +1,5 @@
 import type { FilterGroup, StorageData } from '../types';
-import { DEFAULT_GROUP_ID } from '../types';
+import { CURRENT_SCHEMA_VERSION, DEFAULT_GROUP_ID } from '../types';
 
 export function createDefaultGroup(): FilterGroup {
   return {
@@ -19,5 +19,6 @@ export function createDefaultData(): StorageData {
     snooze: { active: false },
     expandBlockPageDetails: false,
     rulesVersion: 0,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }

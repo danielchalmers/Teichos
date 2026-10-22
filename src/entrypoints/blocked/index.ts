@@ -251,7 +251,7 @@ function getSampleBlockedPageState(): BlockedPageViewModel {
       filter: {
         id: 'preview-filter',
         pattern: 'example.com',
-        matchMode: 'contains',
+        matchMode: 'domain',
         description: 'Example filter',
       },
       group: {
@@ -527,6 +527,10 @@ function getFilterDisplayName(filter: BlockedFilterSnapshot): string {
 }
 
 function formatMatchMode(matchMode: FilterMatchMode): string {
+  if (matchMode === 'domain') {
+    return 'Domain';
+  }
+
   if (matchMode === 'regex') {
     return 'Regular expression';
   }
@@ -539,7 +543,7 @@ function formatMatchMode(matchMode: FilterMatchMode): string {
 }
 
 function isFilterMatchMode(value: unknown): value is FilterMatchMode {
-  return value === 'contains' || value === 'exact' || value === 'regex';
+  return value === 'domain' || value === 'contains' || value === 'exact' || value === 'regex';
 }
 
 // Initialize on load

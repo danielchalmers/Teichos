@@ -115,6 +115,11 @@ test('adds and deletes a temporary filter from the popup', async ({ extensionPag
 
   const temporaryItem = page.locator('.filter-item').filter({ hasText: 'quick.example.invalid' });
   await expect(temporaryItem).toContainText('Temporary · 45m left');
+  // A site name blocks that site and its subdomains, not every address that mentions it.
+  expect((await readStorage(page))?.filters[0]).toMatchObject({
+    pattern: 'quick.example.invalid',
+    matchMode: 'domain',
+  });
   // Results use the feature's name, as the dialog and its Start block button do.
   await expect(page.locator('#status-message')).toHaveText('Temporary block started for 45m.');
 
@@ -235,10 +240,10 @@ test('supports quick-add suggestions, validation, duration units, and the settin
   extensionPage,
   page,
 }) => {
-  // The suggestion is the hostname only; a full URL as a "contains" pattern
-  // would match just that exact page instead of the site.
+  // The suggestion is the site only, without a leading www., so the block covers the site and
+  // its subdomains; the full URL would match just that exact page.
   const suggestedPattern = 'suggested-current-tab.example.test';
-  await stubActiveTabUrl(page, 'https://suggested-current-tab.example.test/focus');
+  await stubActiveTabUrl(page, 'https://www.suggested-current-tab.example.test/focus');
 
   await gotoPopup(extensionPage, page);
   const quickAdd = await openQuickAdd(page);
