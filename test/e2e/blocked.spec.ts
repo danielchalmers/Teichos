@@ -323,6 +323,49 @@ test('hides details and actions behind the Learn more link by default', async ({
   await expect(page.locator('.learn-more-fading')).toHaveCount(0);
 });
 
+test('the Learn more link starts fading exactly where it stood, at any display scale', async ({
+  extensionPage,
+  page,
+}) => {
+  // Windows display scaling gives fractional pixels, where a copy positioned from rounded
+  // offsetTop and offsetWidth sat half a pixel low and could wrap "more" onto a second line.
+  const cdp = await page.context().newCDPSession(page);
+  for (const deviceScaleFactor of [1, 1.25, 1.5, 1.75]) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 1100,
+      height: 760,
+      deviceScaleFactor,
+      mobile: false,
+    });
+    await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=1`);
+    await expect(page.getByRole('button', { name: 'Learn more' })).toBeVisible();
+
+    const start = await page.evaluate(() => {
+      const textBox = (element: Element): { lines: number; top: number; left: number } => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const rects = [...range.getClientRects()];
+        return { lines: rects.length, top: rects[0]?.top ?? NaN, left: rects[0]?.left ?? NaN };
+      };
+      const link = document.getElementById('learn-more');
+      if (!link) throw new Error('Learn more is missing');
+      const before = textBox(link);
+      link.click();
+      // Hold the reveal at its first frame, where the copy should cover the link exactly.
+      for (const animation of document.getAnimations()) animation.pause();
+      const copy = document.querySelector('.learn-more-fading');
+      if (!copy) throw new Error('The fading copy is missing');
+      const after = textBox(copy);
+      return { lines: after.lines, dx: after.left - before.left, dy: after.top - before.top };
+    });
+
+    expect(start.lines, `lines at ${String(deviceScaleFactor)}x`).toBe(1);
+    expect(Math.abs(start.dx), `dx at ${String(deviceScaleFactor)}x`).toBeLessThan(0.05);
+    expect(Math.abs(start.dy), `dy at ${String(deviceScaleFactor)}x`).toBeLessThan(0.05);
+  }
+  await cdp.send('Emulation.clearDeviceMetricsOverride');
+});
+
 test('opens the details without motion when reduced motion is requested', async ({
   extensionPage,
   page,

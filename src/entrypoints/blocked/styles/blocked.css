@@ -95,6 +95,7 @@ h1 {
    position and animates the reveal. */
 .learn-more-fading {
   position: absolute;
+  white-space: nowrap;
   padding: var(--space-1) var(--space-2);
   pointer-events: none;
   user-select: none;
