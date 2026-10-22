@@ -12,8 +12,10 @@ export interface NavigationChangeDetails {
 }
 
 /**
- * Handle web navigation event
- * Only processes main frame navigations
+ * Judge a page the tab has committed to: a new document committing, or a same-document URL change
+ * (pushState, replaceState, or a fragment). A commit is the first time the destination of a server
+ * redirect is seen, and the only event for a page Chrome restores from history without a
+ * before-navigate event, such as a block page whose block has since ended.
  */
 export async function handleNavigationChange(details: NavigationChangeDetails): Promise<void> {
   // Only check main frame
@@ -25,19 +27,13 @@ export async function handleNavigationChange(details: NavigationChangeDetails): 
 }
 
 /**
- * Main-frame commits only settle a Go back step: every navigation the filters judge has already
- * been evaluated by one of the events above.
+ * Judge a navigation as soon as it starts, to block it before the page loads. Only the URL first
+ * requested is known here; a server redirect's destination appears when the navigation commits.
  */
-export async function handleNavigationCommitted(details: NavigationChangeDetails): Promise<void> {
+export async function handleBeforeNavigate(details: NavigationChangeDetails): Promise<void> {
   if (details.frameId !== 0) {
     return;
   }
 
-  await getTabController().settleGoBackStep(details.tabId, details.url);
-}
-
-export async function handleBeforeNavigate(
-  details: chrome.webNavigation.WebNavigationBaseCallbackDetails
-): Promise<void> {
-  await handleNavigationChange(details);
+  await getTabController().evaluateNavigation(details.tabId, details.url, { beforeCommit: true });
 }

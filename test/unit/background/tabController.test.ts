@@ -242,6 +242,40 @@ describe('TabController', () => {
     await expect(getLastAllowedUrl(9)).resolves.toBe('https://allowed.com');
   });
 
+  it('records the page to return to only once the navigation commits', async () => {
+    const { getTabController } = await import('../../../src/background/tabController');
+    // An allowed start may still redirect somewhere blocked, or never commit (a download).
+    await getTabController().evaluateNavigation(9, 'https://allowed.com', { beforeCommit: true });
+    await expect(getLastAllowedUrl(9)).resolves.toBeUndefined();
+
+    await getTabController().evaluateNavigation(9, 'https://allowed.com');
+    await expect(getLastAllowedUrl(9)).resolves.toBe('https://allowed.com');
+  });
+
+  it('blocks where a server redirect lands and keeps the page before it to return to', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+    await setLastAllowedUrl(9, 'https://allowed.com/article');
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    // The shortener itself is allowed; only its destination is blocked.
+    await getTabController().evaluateNavigation(9, 'https://short.link/abc', {
+      beforeCommit: true,
+    });
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+
+    await getTabController().evaluateNavigation(9, 'https://news.com/story');
+    const state = await getBlockedTabState(9);
+    expect(state?.targetUrl).toBe('https://news.com/story');
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      9,
+      { url: blockedPageUrl(state!.blockId) },
+      expect.any(Function)
+    );
+    // Reopening the shortener would only redirect to the block again.
+    await expect(getLastAllowedUrl(9)).resolves.toBe('https://allowed.com/article');
+  });
+
   it('redirects blocked tabs to the target when current rules allow them', async () => {
     const chromeMock = getChromeMock();
     const { getTabController } = await import('../../../src/background/tabController');
@@ -862,7 +896,7 @@ describe('TabController', () => {
     }
   );
 
-  it('settles a step on its commit when the entry it lands on has no before-navigate event', async () => {
+  it('takes a step on its commit when the entry it lands on has no before-navigate event', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
     await seedBlock(43, 'block-43', 'https://news.com/story');
@@ -872,7 +906,7 @@ describe('TabController', () => {
     await getTabController().goBackFromTab(43);
     await getTabController().evaluateNavigation(43, 'https://news.com/story');
     // An extension page commits without a before-navigate event.
-    await getTabController().settleGoBackStep(
+    await getTabController().evaluateNavigation(
       43,
       'chrome-extension://test-extension-id/options.html'
     );
@@ -884,7 +918,7 @@ describe('TabController', () => {
 
     // The step is used up, so later commits change nothing.
     chromeMock.tabs.update.mockClear();
-    await getTabController().settleGoBackStep(
+    await getTabController().evaluateNavigation(
       43,
       'chrome-extension://test-extension-id/options.html'
     );

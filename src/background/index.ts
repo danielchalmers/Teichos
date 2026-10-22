@@ -9,9 +9,9 @@
  */
 
 import {
+  handleBeforeNavigate,
   handleMessage,
   handleNavigationChange,
-  handleNavigationCommitted,
   type NavigationChangeDetails,
 } from './handlers';
 import { registerSnoozeHandlers } from './snooze';
@@ -20,20 +20,19 @@ import { getTabController } from './tabController';
 export function registerBackground(): void {
   // Register all event listeners synchronously.
   // This is critical for MV3 service workers.
-  const handleNavigationEvent = (details: NavigationChangeDetails): void => {
-    handleNavigationChange(details).catch((error: unknown) => {
-      console.error('[Teichos] Error handling navigation:', error);
-    });
-  };
+  const logFailures =
+    (handler: (details: NavigationChangeDetails) => Promise<void>) =>
+    (details: NavigationChangeDetails): void => {
+      handler(details).catch((error: unknown) => {
+        console.error('[Teichos] Error handling navigation:', error);
+      });
+    };
 
-  chrome.webNavigation.onBeforeNavigate.addListener(handleNavigationEvent);
-  chrome.webNavigation.onHistoryStateUpdated.addListener(handleNavigationEvent);
-  chrome.webNavigation.onReferenceFragmentUpdated.addListener(handleNavigationEvent);
-  chrome.webNavigation.onCommitted.addListener((details) => {
-    handleNavigationCommitted(details).catch((error: unknown) => {
-      console.error('[Teichos] Error handling navigation commit:', error);
-    });
-  });
+  // Every main-frame navigation is judged when it starts and again once the tab commits to it.
+  chrome.webNavigation.onBeforeNavigate.addListener(logFailures(handleBeforeNavigate));
+  chrome.webNavigation.onCommitted.addListener(logFailures(handleNavigationChange));
+  chrome.webNavigation.onHistoryStateUpdated.addListener(logFailures(handleNavigationChange));
+  chrome.webNavigation.onReferenceFragmentUpdated.addListener(logFailures(handleNavigationChange));
 
   chrome.runtime.onMessage.addListener(handleMessage);
   getTabController().register();

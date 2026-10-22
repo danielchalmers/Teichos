@@ -39,6 +39,17 @@ interface BlockedStateResult {
   readonly pageState: BlockedPageState;
 }
 
+/**
+ * When a navigation event fired. A navigation is judged before it commits, to block it as early
+ * as possible, and again when it commits, which is the first time some URLs are seen: the
+ * destination of a server redirect, or a page Chrome restores from history without a
+ * before-navigate event (extension pages such as the block page). Only a committed page is one
+ * the tab has actually shown, so only that is recorded as the page to return to.
+ */
+interface NavigationTiming {
+  readonly beforeCommit?: boolean;
+}
+
 /** A history step Go back took, waiting for the navigation event of the entry it lands on. */
 interface GoBackStep {
   readonly expiresAt: number;
@@ -110,16 +121,21 @@ class TabController {
    * Evaluate a main-frame navigation event. It supersedes any evaluation still in flight for the
    * tab.
    */
-  async evaluateNavigation(tabId: number, url: string): Promise<void> {
+  async evaluateNavigation(
+    tabId: number,
+    url: string,
+    timing: NavigationTiming = {}
+  ): Promise<void> {
     const goBackStep = this.takeGoBackStep(tabId);
-    await this.evaluateTab(tabId, url, this.bumpNavigationSeq(tabId), goBackStep);
+    await this.evaluateTab(tabId, url, this.bumpNavigationSeq(tabId), goBackStep, timing);
   }
 
   private async evaluateTab(
     tabId: number,
     url: string,
     seq: number,
-    goBackStep?: GoBackStep
+    goBackStep?: GoBackStep,
+    timing: NavigationTiming = {}
   ): Promise<void> {
     if (await this.leaveReplacedEntryLanding(tabId, url, seq, goBackStep)) {
       return;
@@ -143,16 +159,11 @@ class TabController {
       return;
     }
 
-    await this.allowTab(tabId, url, seq);
-  }
-
-  /**
-   * Settle a Go back step on its commit when it landed on a page with no before-navigate event, such
-   * as an extension page. A step whose entry already had that event was taken there.
-   */
-  async settleGoBackStep(tabId: number, url: string): Promise<void> {
-    const goBackStep = this.takeGoBackStep(tabId);
-    await this.leaveReplacedEntryLanding(tabId, url, this.getNavigationSeq(tabId), goBackStep);
+    // An allowed URL may still redirect somewhere blocked, or never commit at all (a download), so
+    // it becomes the page to return to only once it commits.
+    if (!timing.beforeCommit) {
+      await this.allowTab(tabId, url, seq);
+    }
   }
 
   /**
