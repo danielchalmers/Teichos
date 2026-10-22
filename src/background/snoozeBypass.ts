@@ -7,7 +7,7 @@
 
 import { getSessionSnooze } from '../shared/api/session';
 import { isSnoozeActive } from '../shared/filtering/schedules';
-import { STORAGE_KEY } from '../shared/types';
+import { decodeSettings } from '../shared/storage/syncLayout';
 
 interface RawSnoozeState {
   readonly active?: unknown;
@@ -32,7 +32,7 @@ export async function isSnoozeBypassActive(): Promise<boolean> {
     return true;
   }
 
-  const result = await chrome.storage.sync.get(STORAGE_KEY);
-  const rawData = result[STORAGE_KEY] as { snooze?: RawSnoozeState } | undefined;
+  const rawData = decodeSettings(await chrome.storage.sync.get(null)).raw as
+    { snooze?: RawSnoozeState } | undefined;
   return isRawSnoozeActive(rawData?.snooze);
 }

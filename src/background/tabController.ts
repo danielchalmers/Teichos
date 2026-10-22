@@ -18,13 +18,13 @@ import type { FilterDecision } from '../shared/filtering/engine';
 import { getNextRulesChangeAt, isTemporaryFilter } from '../shared/filtering/schedules';
 import {
   type BlockedPageState,
-  STORAGE_KEY,
   type BlockedTabState,
   type Filter,
   type GetBlockedPageStateResponse,
   type StorageData,
 } from '../shared/types';
 import { isInternalUrl } from '../shared/utils/helpers';
+import { hasSettingsChange } from '../shared/storage/syncLayout';
 import { getRulesProvider, type CurrentRules, type RulesProvider } from './rulesProvider';
 
 interface ResolvedBlockedTarget {
@@ -100,7 +100,7 @@ class TabController {
 
     this.didRegister = true;
     chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName !== 'sync' || !changes[STORAGE_KEY]) {
+      if (areaName !== 'sync' || !hasSettingsChange(changes)) {
         return;
       }
 

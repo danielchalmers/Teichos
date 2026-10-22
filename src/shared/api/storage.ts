@@ -4,10 +4,16 @@
  */
 
 import type { StorageData, FilterGroup, Filter, Whitelist, SnoozeState } from '../types';
-import { STORAGE_KEY, DEFAULT_GROUP_ID } from '../types';
+import { DEFAULT_GROUP_ID } from '../types';
 import { isTemporaryFilterExpired } from '../filtering/schedules';
 import { parseImportedData, serializeDataForExport } from '../storage/importExport';
 import { normalizeStoredData, type LegacyStorageData } from '../storage/normalize';
+import {
+  decodeSettings,
+  encodeSettings,
+  isSettingsKey,
+  type DecodedSettings,
+} from '../storage/syncLayout';
 import { createDefaultGroup } from '../storage/defaults';
 import { setSessionSnooze } from './session';
 
@@ -27,23 +33,85 @@ function isSyncQuotaError(error: unknown): boolean {
   return error instanceof Error && /quota.?bytes|quota exceeded/i.test(error.message);
 }
 
-async function writeStorageData(payload: StorageData): Promise<void> {
+interface StoredSettings {
+  readonly decoded: DecodedSettings;
+  /** Settings keys present in sync storage, in either layout (see syncLayout). */
+  readonly keys: readonly string[];
+}
+
+async function readStoredSettings(): Promise<StoredSettings> {
+  const items = await chrome.storage.sync.get(null);
+  return { decoded: decodeSettings(items), keys: Object.keys(items).filter(isSettingsKey) };
+}
+
+async function writeStorageData(
+  payload: StorageData,
+  storedKeys: readonly string[]
+): Promise<void> {
+  const { items, staleKeys } = encodeSettings(payload, storedKeys);
   try {
-    await chrome.storage.sync.set({ [STORAGE_KEY]: payload });
+    await chrome.storage.sync.set(items);
   } catch (error) {
     if (isSyncQuotaError(error)) {
       throw new SettingsSaveError(SYNC_QUOTA_MESSAGE);
     }
     throw error;
   }
+
+  // Stale items are already outranked by the copy just written, so leaving them only costs quota.
+  if (staleKeys.length > 0) {
+    await chrome.storage.sync.remove([...staleKeys]).catch((error: unknown) => {
+      console.warn('[Teichos] Failed to remove stale settings items:', error);
+    });
+  }
+}
+
+// Settings split across items can arrive from another device one item at a time. A reader then
+// waits briefly for the rest, and otherwise keeps the newest complete copy it has seen.
+const INCOMPLETE_RETRY_DELAY_MS = 100;
+const INCOMPLETE_RETRIES = 10;
+let newestCompleteRaw: unknown;
+
+async function readCompleteSettings(): Promise<unknown> {
+  for (let attempt = 0; ; attempt++) {
+    const { decoded } = await readStoredSettings();
+    if (decoded.complete) {
+      newestCompleteRaw = decoded.raw;
+      return decoded.raw;
+    }
+    if (attempt >= INCOMPLETE_RETRIES) {
+      const fallback =
+        rulesVersionOf(newestCompleteRaw) >= rulesVersionOf(decoded.raw)
+          ? newestCompleteRaw
+          : decoded.raw;
+      return claimLatestRulesVersion(fallback, decoded.latestRulesVersion);
+    }
+    await new Promise((resolve) => setTimeout(resolve, INCOMPLETE_RETRY_DELAY_MS));
+  }
+}
+
+/**
+ * A copy still unassembled after the wait is treated as broken, for example a mix of two devices'
+ * parts left by a sync conflict, which no amount of waiting fixes. The fallback takes its
+ * rulesVersion, so the next save replaces it instead of every save failing as a conflict.
+ */
+function claimLatestRulesVersion(raw: unknown, latestRulesVersion: number | undefined): unknown {
+  if (raw === null || typeof raw !== 'object' || latestRulesVersion === undefined) {
+    return raw;
+  }
+  return { ...raw, rulesVersion: latestRulesVersion };
+}
+
+function rulesVersionOf(raw: unknown): number {
+  const rulesVersion = (raw as { rulesVersion?: unknown } | undefined)?.rulesVersion;
+  return typeof rulesVersion === 'number' ? rulesVersion : -1;
 }
 
 /**
  * Load storage data from chrome.storage.sync
  */
 export async function loadData(): Promise<StorageData> {
-  const result = await chrome.storage.sync.get(STORAGE_KEY);
-  return normalizeStoredData(result[STORAGE_KEY] as LegacyStorageData | undefined);
+  return normalizeStoredData((await readCompleteSettings()) as LegacyStorageData | undefined);
 }
 
 export async function exportData(): Promise<string> {
@@ -55,25 +123,20 @@ export async function exportData(): Promise<string> {
  * Prefer updateData for read-modify-write edits so concurrent writers cannot clobber each other.
  */
 export async function saveData(data: StorageData): Promise<void> {
-  const storedRulesVersion = await readStoredRulesVersion();
+  const stored = await readStoredSettings();
   const previousRulesVersion =
-    storedRulesVersion ??
+    stored.decoded.latestRulesVersion ??
     (typeof data.rulesVersion === 'number' && Number.isFinite(data.rulesVersion)
       ? data.rulesVersion
       : 0);
 
-  await writeStorageData({
-    ...data,
-    rulesVersion: previousRulesVersion + 1,
-  });
-}
-
-async function readStoredRulesVersion(): Promise<number | undefined> {
-  const result = await chrome.storage.sync.get(STORAGE_KEY);
-  const storedData = result[STORAGE_KEY] as { rulesVersion?: unknown } | undefined;
-  return typeof storedData?.rulesVersion === 'number' && Number.isFinite(storedData.rulesVersion)
-    ? storedData.rulesVersion
-    : undefined;
+  await writeStorageData(
+    {
+      ...data,
+      rulesVersion: previousRulesVersion + 1,
+    },
+    stored.keys
+  );
 }
 
 /**
@@ -84,15 +147,21 @@ async function saveDataIfUnchanged(
   data: StorageData,
   expectedRulesVersion: number
 ): Promise<boolean> {
-  const storedRulesVersion = await readStoredRulesVersion();
+  // A newer copy still arriving from another device counts as a change, so this never writes over
+  // settings it hasn't seen.
+  const stored = await readStoredSettings();
+  const storedRulesVersion = stored.decoded.latestRulesVersion;
   if (storedRulesVersion !== undefined && storedRulesVersion !== expectedRulesVersion) {
     return false;
   }
 
-  await writeStorageData({
-    ...data,
-    rulesVersion: (storedRulesVersion ?? expectedRulesVersion) + 1,
-  });
+  await writeStorageData(
+    {
+      ...data,
+      rulesVersion: (storedRulesVersion ?? expectedRulesVersion) + 1,
+    },
+    stored.keys
+  );
   return true;
 }
 

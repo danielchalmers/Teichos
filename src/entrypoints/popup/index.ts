@@ -30,7 +30,8 @@ import {
   isTemporaryFilter,
   sortFiltersTemporaryFirst,
 } from '../../shared/filtering/schedules';
-import { DEFAULT_GROUP_ID, MessageType, STORAGE_KEY } from '../../shared/types';
+import { hasSettingsChange } from '../../shared/storage/syncLayout';
+import { DEFAULT_GROUP_ID, MessageType } from '../../shared/types';
 import {
   announceStatus,
   clearDialogError,
@@ -141,7 +142,7 @@ function openSettings(): void {
 function setupStorageSync(): void {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'sync') return;
-    if (!changes[STORAGE_KEY]) return;
+    if (!hasSettingsChange(changes)) return;
     void renderFilters().catch((error: unknown) => {
       console.error('Failed to refresh filters:', error);
     });

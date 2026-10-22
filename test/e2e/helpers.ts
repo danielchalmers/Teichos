@@ -1,5 +1,6 @@
 import { expect, type Page, type TestInfo } from '@playwright/test';
 import { DAY_NAMES, PAGES } from '../../src/shared/constants';
+import { decodeSettings } from '../../src/shared/storage/syncLayout';
 import type { BlockedTabState, StorageData } from '../../src/shared/types';
 
 export const STORAGE_KEY = 'pageblock_data';
@@ -42,11 +43,10 @@ export async function seedStorage(page: Page, data: StorageData): Promise<void> 
   );
 }
 
+/** Read the stored settings the way the extension does, whichever sync layout holds them. */
 export async function readStorage(page: Page): Promise<StorageData | undefined> {
-  return page.evaluate(async (key) => {
-    const result = await chrome.storage.sync.get(key);
-    return result[key] as StorageData | undefined;
-  }, STORAGE_KEY);
+  const items = await page.evaluate(() => chrome.storage.sync.get(null));
+  return decodeSettings(items).raw as StorageData | undefined;
 }
 
 export async function expectBlocked(page: Page, targetUrl: string): Promise<void> {
