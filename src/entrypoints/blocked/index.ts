@@ -30,7 +30,13 @@ interface BlockedPageViewModel {
  * Initialize blocked page
  */
 async function init(): Promise<void> {
-  const goBackButton = getElementByIdOrNull('go-back');
+  const goBackButton = getElementByIdOrNull<HTMLButtonElement>('go-back');
+  // With nothing to go back to, Go back would do nothing; offer to close the tab instead, as
+  // uBlock Origin's block page does. History length is known at once, so this is set before the
+  // details can be opened. The preview keeps the label of the page it previews.
+  if (goBackButton && !isPreviewMode() && !hasEarlierEntry()) {
+    goBackButton.textContent = 'Close tab';
+  }
   goBackButton?.addEventListener('click', () => {
     void handleGoBack().catch((error: unknown) => {
       console.error('Failed to navigate back:', error);
@@ -486,13 +492,6 @@ function getScheduleSummaries(group: BlockedPageState['group'], isTemporary: boo
 }
 
 function renderActions(state: BlockedPageViewModel): void {
-  // With nothing to go back to, Go back would do nothing; offer to close the tab instead, as
-  // uBlock Origin's block page does. The preview keeps the label of the page it previews.
-  const goBackButton = getElementByIdOrNull<HTMLButtonElement>('go-back');
-  if (goBackButton && !isPreviewMode() && !hasEarlierEntry()) {
-    goBackButton.textContent = 'Close tab';
-  }
-
   const continueButton = getElementByIdOrNull<HTMLButtonElement>('continue');
   if (continueButton) {
     continueButton.hidden = !state.state;
