@@ -68,6 +68,31 @@ test('loads the extension service worker and extension pages', async ({
   expect(await readStorage(page)).toBeUndefined();
 });
 
+test('keeps the block page out of reach of websites', async ({ extensionPage, page }) => {
+  const blockPageUrl = extensionPage(PAGES.BLOCKED);
+  await page.goto('https://probe.example.test/');
+
+  // A site that can load the block page knows Teichos is installed, and can frame the page.
+  const fetched = await page.evaluate(
+    (url) =>
+      fetch(url).then(
+        () => true,
+        () => false
+      ),
+    blockPageUrl
+  );
+  await page.evaluate(async (url) => {
+    const frame = document.createElement('iframe');
+    frame.src = url;
+    const loaded = new Promise((resolve) => frame.addEventListener('load', resolve));
+    document.body.append(frame);
+    await loaded;
+  }, blockPageUrl);
+  const framed = page.frames().some((frame) => frame.url() === blockPageUrl);
+
+  expect({ fetched, framed }).toEqual({ fetched: false, framed: false });
+});
+
 test('redirects matching top-level navigations to the blocked page', async ({
   extensionPage,
   page,
