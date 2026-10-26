@@ -121,7 +121,7 @@ function revealExtras(): void {
   }
 
   const startTop = container.getBoundingClientRect().top;
-  const fadingLink = createFadingLink(learnMoreButton);
+  const fadingLink = createFadingLink(learnMoreButton, container);
   setExtrasExpanded(true);
   container.append(fadingLink);
   const shift = startTop - container.getBoundingClientRect().top;
@@ -145,7 +145,7 @@ function revealExtras(): void {
     easing,
     fill: 'forwards',
   });
-  fade.onfinish = () => {
+  fade.onfinish = (): void => {
     fadingLink.remove();
   };
   fade.oncancel = fade.onfinish;
@@ -153,16 +153,20 @@ function revealExtras(): void {
 
 /**
  * A decorative copy of the Learn more link, pinned where the link sits in the container, that
- * fades out on top of the details once the real link is hidden.
+ * fades out on top of the details once the real link is hidden. It is placed from the link's
+ * exact box: offsetTop and offsetWidth round to whole pixels, which sat the copy half a pixel low
+ * and made it narrower than its text, so "more" wrapped onto a second line as it faded.
  */
-function createFadingLink(learnMoreButton: HTMLButtonElement): HTMLElement {
+function createFadingLink(learnMoreButton: HTMLButtonElement, container: HTMLElement): HTMLElement {
+  const linkBox = learnMoreButton.getBoundingClientRect();
+  const containerBox = container.getBoundingClientRect();
   const copy = document.createElement('span');
   copy.className = 'text-link learn-more-fading';
   copy.textContent = learnMoreButton.textContent.trim();
   copy.setAttribute('aria-hidden', 'true');
-  copy.style.top = `${String(learnMoreButton.offsetTop)}px`;
-  copy.style.left = `${String(learnMoreButton.offsetLeft)}px`;
-  copy.style.width = `${String(learnMoreButton.offsetWidth)}px`;
+  copy.style.top = `${String(linkBox.top - containerBox.top - container.clientTop)}px`;
+  copy.style.left = `${String(linkBox.left - containerBox.left - container.clientLeft)}px`;
+  copy.style.width = `${String(linkBox.width)}px`;
   return copy;
 }
 
