@@ -128,6 +128,17 @@ test('adds and deletes a temporary filter from the popup', async ({ extensionPag
   await expect(page.locator('#status-message')).toHaveText('Temporary block deleted.');
   // The deleted row's button is gone, so focus moves to what replaced it instead of the body.
   await expect(page.getByRole('button', { name: 'New filter' })).toBeFocused();
+
+  // A file name looks like a site name, but as a domain it would never match its own page.
+  await openQuickAdd(page);
+  await page.getByLabel('Site or pattern').fill('viewtopic.php');
+  await page.getByLabel('Block for').fill('45');
+  await page.getByRole('button', { name: 'Start block' }).click();
+  await expect(page.locator('.filter-item').filter({ hasText: 'viewtopic.php' })).toBeVisible();
+  expect((await readStorage(page))?.filters[0]).toMatchObject({
+    pattern: 'viewtopic.php',
+    matchMode: 'contains',
+  });
 });
 
 test('opens the full filter editor from the popup empty state', async ({

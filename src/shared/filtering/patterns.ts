@@ -77,16 +77,18 @@ export function normalizeDomainPattern(input: string): string | null {
 /**
  * File names look like site names but are matched as text: "viewtopic.php" as a domain would
  * never match the forum page it was written for. Some are also real top-level domains (.md,
- * .zip, .mov), but a contains pattern ending in one is far more likely a file, and leaving a
+ * .do, .zip), but a contains pattern ending in one is far more likely a file, and leaving a
  * pattern as text keeps its old behaviour, so the doubt goes that way.
  */
 const FILE_EXTENSIONS = new Set([
+  'action',
   'asp',
   'aspx',
   'avi',
   'cgi',
   'css',
   'csv',
+  'do',
   'doc',
   'docx',
   'exe',
@@ -109,9 +111,11 @@ const FILE_EXTENSIONS = new Set([
   'php',
   'png',
   'ppt',
+  'py',
   'rss',
   'shtml',
   'svg',
+  'ts',
   'txt',
   'wav',
   'webm',

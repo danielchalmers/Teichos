@@ -271,6 +271,7 @@ describe('storage', () => {
           legacyFilter('path', 'youtube.com/shorts'),
           legacyFilter('word', 'reddit'),
           legacyFilter('file', 'viewtopic.php'),
+          legacyFilter('struts', 'login.do'),
           { ...legacyFilter('exact', 'https://x.com/'), matchMode: 'exact' },
         ],
         whitelist: [
@@ -285,6 +286,7 @@ describe('storage', () => {
         path: 'contains',
         word: 'contains',
         file: 'contains',
+        struts: 'contains',
         exact: 'exact',
       });
       // An exception matched as text also allowed any blocked address that mentioned it.

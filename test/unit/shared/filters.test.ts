@@ -226,6 +226,9 @@ describe('isSiteNamePattern', () => {
     'report.pdf',
     'readme.md',
     'index.html',
+    'login.do',
+    'search.action',
+    'main.py',
   ])('leaves %j as text', (pattern) => {
     expect(isSiteNamePattern(pattern)).toBe(false);
   });

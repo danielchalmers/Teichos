@@ -16,6 +16,7 @@ import { sendExtensionMessage } from '../../shared/api/messaging';
 import { openOptionsPage, openOptionsPageWithParams } from '../../shared/api/runtime';
 import { getActiveTab } from '../../shared/api/tabs';
 import {
+  isSiteNamePattern,
   matchesPattern,
   normalizeDomainPattern,
   prepareUrl,
@@ -651,8 +652,9 @@ async function handleQuickAddSubmit(
   }
 
   // The quick block has no match mode to pick: a site name blocks that site and its
-  // subdomains, and anything else (a path, or a word like "reddit") matches as text.
-  const domain = normalizeDomainPattern(pattern);
+  // subdomains, and anything else (a path, a file name, or a word like "reddit") matches as text.
+  const normalized = normalizeDomainPattern(pattern);
+  const domain = normalized !== null && isSiteNamePattern(normalized) ? normalized : null;
   const expiresAt = Date.now() + durationMs;
   const filter = {
     id: generateId(),
