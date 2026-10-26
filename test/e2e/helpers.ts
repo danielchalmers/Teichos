@@ -29,6 +29,7 @@ export function createStorageData(overrides: Partial<StorageData> = {}): Storage
     snooze: overrides.snooze ?? { active: false },
     expandBlockPageDetails: overrides.expandBlockPageDetails ?? false,
     rulesVersion: overrides.rulesVersion ?? 0,
+    schemaVersion: 2,
   };
 }
 
@@ -143,7 +144,7 @@ export async function createFilterViaOptions(
     groupName?: string;
     name?: string;
     pattern: string;
-    matchMode?: 'contains' | 'exact' | 'regex';
+    matchMode?: 'domain' | 'contains' | 'exact' | 'regex';
     enabled?: boolean;
   }
 ): Promise<void> {
@@ -239,7 +240,7 @@ export async function createWhitelistViaOptions(
     groupName?: string;
     name?: string;
     pattern: string;
-    matchMode?: 'contains' | 'exact' | 'regex';
+    matchMode?: 'domain' | 'contains' | 'exact' | 'regex';
     enabled?: boolean;
   }
 ): Promise<void> {

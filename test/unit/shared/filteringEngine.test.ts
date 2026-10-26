@@ -16,6 +16,7 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     whitelist: overrides.whitelist ?? [],
     snooze: overrides.snooze ?? { active: false },
     rulesVersion: overrides.rulesVersion ?? 0,
+    schemaVersion: 2,
   };
 }
 

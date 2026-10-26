@@ -286,7 +286,7 @@ test('renders a sample block in preview mode', async ({ extensionPage, page }) =
   await expect(page.getByLabel('Responsible filter')).toContainText('Example filter');
   await expect(page.getByLabel('Responsible filter')).toContainText('example.com');
   await expect(page.getByLabel('Responsible filter')).toContainText('Example group');
-  await expect(page.locator('#responsible-filter-match')).toHaveText('Contains text');
+  await expect(page.locator('#responsible-filter-match')).toHaveText('Domain');
   await expect(page.locator('#responsible-filter-schedule')).toHaveText('Always active');
   await expect(page.locator('#continue')).toBeVisible();
 });

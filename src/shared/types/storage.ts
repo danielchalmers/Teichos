@@ -26,8 +26,11 @@ export interface FilterGroup {
   readonly enabled?: boolean;
 }
 
-/** URL matching modes for filters and whitelist entries */
-export type FilterMatchMode = 'contains' | 'exact' | 'regex';
+/**
+ * URL matching modes for filters and whitelist entries. `domain` matches a site and its
+ * subdomains by host; `contains` matches text anywhere in the address.
+ */
+export type FilterMatchMode = 'domain' | 'contains' | 'exact' | 'regex';
 
 /** URL filter pattern */
 export interface Filter {
@@ -111,7 +114,17 @@ export interface StorageData {
   readonly snooze: SnoozeState;
   readonly expandBlockPageDetails?: boolean;
   readonly rulesVersion: number;
+  /**
+   * Which one-time migrations the data has been through (see `CURRENT_SCHEMA_VERSION`). Data
+   * from before the field existed is version 1.
+   */
+  readonly schemaVersion: number;
 }
+
+/**
+ * 2: hostname-only "contains" patterns became domain patterns, when domain matching was added.
+ */
+export const CURRENT_SCHEMA_VERSION = 2;
 
 /** Default group ID constant */
 export const DEFAULT_GROUP_ID = 'default-24x7' as const;
