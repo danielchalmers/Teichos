@@ -443,8 +443,9 @@ class TabController {
         ? Promise.resolve()
         : setBypassState(targetTabId, { filterIds: [...bypassedFilterIds, ...newFilterIds] }),
       clearBlockedTabState(targetTabId),
-      setLastAllowedUrl(targetTabId, resolvedTarget.targetUrl),
     ]);
+    // The target becomes the page to return to once it commits, like any other page: it may
+    // redirect somewhere another filter blocks.
     await updateTabUrl(targetTabId, resolvedTarget.targetUrl);
     return true;
   }

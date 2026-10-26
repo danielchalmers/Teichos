@@ -33,9 +33,16 @@ const newsFilter = {
   matchMode: 'contains',
 } as const;
 
+const shortLinkFilter = { ...newsFilter, id: 'short-link-filter', pattern: 'short.link' } as const;
+
 /** Record a block of `targetUrl` in `tabId` the way the controller does when it redirects. */
-async function seedBlock(tabId: number, blockId: string, targetUrl: string): Promise<void> {
-  const blockedBy = { filterId: newsFilter.id, groupId: DEFAULT_GROUP_ID };
+async function seedBlock(
+  tabId: number,
+  blockId: string,
+  targetUrl: string,
+  filter: typeof newsFilter | typeof shortLinkFilter = newsFilter
+): Promise<void> {
+  const blockedBy = { filterId: filter.id, groupId: DEFAULT_GROUP_ID };
   await setBlockedTabState({ blockId, tabId, targetUrl, blockedAt: Date.now(), blockedBy });
   await setBlockedPageState({
     blockId,
@@ -43,7 +50,7 @@ async function seedBlock(tabId: number, blockId: string, targetUrl: string): Pro
     targetUrl,
     blockedAt: Date.now(),
     blockedBy,
-    filter: { id: newsFilter.id, pattern: newsFilter.pattern, matchMode: newsFilter.matchMode },
+    filter: { id: filter.id, pattern: filter.pattern, matchMode: filter.matchMode },
     group: { id: DEFAULT_GROUP_ID, name: '24/7', schedules: [], is24x7: true },
     effectiveState: { filterEnabled: true, groupActive: true, snoozeActive: false },
   });
@@ -273,6 +280,28 @@ describe('TabController', () => {
       expect.any(Function)
     );
     // Reopening the shortener would only redirect to the block again.
+    await expect(getLastAllowedUrl(9)).resolves.toBe('https://allowed.com/article');
+  });
+
+  it('keeps the page before a continued shortener when it redirects somewhere else blocked', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({ filters: [shortLinkFilter, newsFilter] })
+    );
+    await setLastAllowedUrl(9, 'https://allowed.com/article');
+    await seedBlock(9, 'block-short', 'https://short.link/abc', shortLinkFilter);
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await expect(getTabController().continueFromBlockedPage('block-short')).resolves.toBe(true);
+    await getTabController().evaluateNavigation(9, 'https://short.link/abc', {
+      beforeCommit: true,
+    });
+    await getTabController().evaluateNavigation(9, 'https://news.com/story');
+
+    await expect(getBlockedTabState(9)).resolves.toMatchObject({
+      targetUrl: 'https://news.com/story',
+    });
     await expect(getLastAllowedUrl(9)).resolves.toBe('https://allowed.com/article');
   });
 
