@@ -6,7 +6,7 @@
 import { sendExtensionMessage } from '../../shared/api/messaging';
 import { openOptionsPage } from '../../shared/api/runtime';
 import { loadData } from '../../shared/api/storage';
-import { removeTabs, updateTab } from '../../shared/api/tabs';
+import { createTab, queryTabs, removeTabs, updateTab } from '../../shared/api/tabs';
 import {
   MessageType,
   type BlockedFilterSnapshot,
@@ -30,7 +30,13 @@ interface BlockedPageViewModel {
  * Initialize blocked page
  */
 async function init(): Promise<void> {
-  const goBackButton = getElementByIdOrNull('go-back');
+  const goBackButton = getElementByIdOrNull<HTMLButtonElement>('go-back');
+  // With nothing to go back to, Go back would do nothing; offer to close the tab instead, as
+  // uBlock Origin's block page does. History length is known at once, so this is set before the
+  // details can be opened. The preview keeps the label of the page it previews.
+  if (goBackButton && !isPreviewMode() && !hasEarlierEntry()) {
+    goBackButton.textContent = 'Close tab';
+  }
   goBackButton?.addEventListener('click', () => {
     void handleGoBack().catch((error: unknown) => {
       console.error('Failed to navigate back:', error);
@@ -291,9 +297,10 @@ function isBlockedPageStateResponse(response: unknown): response is GetBlockedPa
 }
 
 async function handleGoBack(): Promise<void> {
-  // A preview has no page to return to, so close it and return to the tab that opened it.
-  if (isPreviewMode()) {
-    await closePreview();
+  // A preview has no page to return to, so close it and return to the tab that opened it. A tab
+  // that opened straight onto the block page has none either; its button reads Close tab.
+  if (isPreviewMode() || !hasEarlierEntry()) {
+    await closeThisTab();
     return;
   }
 
@@ -306,13 +313,28 @@ async function handleGoBack(): Promise<void> {
   }
 }
 
-async function closePreview(): Promise<void> {
+/**
+ * Whether the tab has a history entry before this page. Session history length counts every
+ * entry, so this misses only the rare tab with forward entries and nothing behind.
+ */
+function hasEarlierEntry(): boolean {
+  return window.history.length > 1;
+}
+
+async function closeThisTab(): Promise<void> {
   const tab = await chrome.tabs.getCurrent();
   if (typeof tab?.id === 'number') {
-    // Chrome may otherwise activate a neighbouring tab instead of Settings.
+    // Return to the tab that opened this one (Settings for a preview, the page whose link opened a
+    // blocked site); Chrome may otherwise activate a neighbouring tab.
     if (typeof tab.openerTabId === 'number') {
-      // Settings may have been closed since; closing the preview still works without it.
+      // The opener may have been closed since; closing this tab still works without it.
       await updateTab(tab.openerTabId, { active: true }).catch(() => undefined);
+    }
+    // Closing a window's last tab closes the window, and with it the whole browser when Chrome was
+    // opened from a link to a blocked site. Leave a New Tab page in its place instead.
+    const windowTabs = await queryTabs({ windowId: tab.windowId });
+    if (windowTabs.length <= 1) {
+      await createTab({ windowId: tab.windowId, active: true });
     }
     await removeTabs([tab.id]);
     return;
