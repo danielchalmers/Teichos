@@ -1479,3 +1479,87 @@ test('existing site-name filters become domain filters after the update', async 
   await page.locator('[data-action="edit-filter"][data-filter-id="legacy-site-filter"]').click();
   await expect(page.locator('#filter-modal.active').getByLabel('Match mode')).toHaveValue('domain');
 });
+
+/** Import `count` filters, each taking about 170 bytes of sync storage. */
+async function importBulkFilters(
+  page: Parameters<typeof waitForOptionsReady>[0],
+  count: number
+): Promise<void> {
+  const filters = Array.from({ length: count }, (_, index) => ({
+    id: `bulk-filter-${String(index)}`,
+    pattern: `bulk-${String(index)}.example.test`,
+    groupId: defaultGroup.id,
+    enabled: true,
+    matchMode: 'domain' as const,
+    description: `Bulk site ${String(index)}`,
+  }));
+  await page.locator('#import-settings-input').setInputFiles({
+    name: 'teichos-settings.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(createStorageData({ filters }))),
+  });
+  await expect.poll(async () => (await readStorage(page))?.filters.length).toBe(count);
+}
+
+test('keeps settings too large for one sync item, as older versions could not', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  // About 45 filters filled the 8 KB that Chrome allows each synced item.
+  await importBulkFilters(page, 300);
+  await expect(page.locator('#global-settings-status')).toHaveText(
+    'Settings imported successfully.'
+  );
+
+  await gotoOptions(extensionPage, page);
+  await expect(page.getByText('Bulk site 299', { exact: true })).toBeVisible();
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, 'https://bulk-299.example.test/');
+  await expectAllowed(browsingPage, 'https://other.example.test/');
+});
+
+test('shrinks large settings even when sync storage is nearly full', async ({
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  // 570 filters leave about 3 KB of the 100 KB Chrome allows the extension in sync storage.
+  await importBulkFilters(page, 570);
+  // 50 fit in one item again, but there's no room to write that item beside the larger copy.
+  await importBulkFilters(page, 50);
+  await expect(page.locator('#global-settings-status')).toHaveText(
+    'Settings imported successfully.'
+  );
+});
+
+test('keeps large settings whose text Chrome stores escaped', async ({ extensionPage, page }) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  // Chrome stores "<" as a six-byte escape, so regex lookbehinds, named groups and names like
+  // "<3" take more room than they look; every part must still fit Chrome's per-item limit.
+  const filters = Array.from({ length: 150 }, (_, index) => ({
+    id: `escaped-filter-${String(index)}`,
+    pattern: `(?<=watch\\?v=)(?<video>[\\w-]{11})<<<<${String(index)}`,
+    groupId: defaultGroup.id,
+    enabled: true,
+    matchMode: 'regex' as const,
+    description: `Videos <3 ${String(index)}`,
+  }));
+  await page.locator('#import-settings-input').setInputFiles({
+    name: 'teichos-settings.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(createStorageData({ filters }))),
+  });
+
+  await expect(page.locator('#global-settings-status')).toHaveText(
+    'Settings imported successfully.'
+  );
+  await expect.poll(async () => (await readStorage(page))?.filters.length).toBe(150);
+});

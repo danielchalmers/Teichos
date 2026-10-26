@@ -2,7 +2,7 @@
  * Tests for shared/api/storage.ts
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   loadData,
   saveData,
@@ -27,6 +27,11 @@ import { DEFAULT_GROUP_ID, STORAGE_KEY } from '../../../src/shared/types';
 import type { Filter, StorageData } from '../../../src/shared/types';
 import type { LegacyStorageData } from '../../../src/shared/storage/normalize';
 import { getChromeMock } from '../../fixtures/chrome-mocks';
+import {
+  encodeSettings,
+  SPLIT_INDEX_KEY,
+  splitPartKey,
+} from '../../../src/shared/storage/syncLayout';
 
 describe('storage', () => {
   describe('loadData', () => {
@@ -502,6 +507,136 @@ describe('storage', () => {
           schemaVersion: 2,
         })
       ).rejects.toBe(writeError);
+    });
+  });
+
+  describe('settings larger than one sync item', () => {
+    const createLargeData = (filterCount: number): StorageData => ({
+      groups: [createDefaultGroup()],
+      filters: Array.from({ length: filterCount }, (_, index) => ({
+        id: `filter-${String(index)}-${'x'.repeat(20)}`,
+        pattern: `site-${String(index)}.example.com`,
+        groupId: DEFAULT_GROUP_ID,
+        enabled: true,
+        matchMode: 'domain' as const,
+        description: `Site number ${String(index)}`,
+      })),
+      whitelist: [],
+      snooze: { active: false },
+      expandBlockPageDetails: false,
+      rulesVersion: 0,
+      schemaVersion: 2,
+    });
+
+    it('saves and loads them, keeping the single-item copy older versions read', async () => {
+      const small = createLargeData(5);
+      await saveData(small);
+      const large = createLargeData(300);
+      await saveData(large);
+
+      const stored = getChromeMock().storage.sync._data;
+      expect(stored.has(SPLIT_INDEX_KEY)).toBe(true);
+      // Older versions keep reading their last copy rather than misreading the split layout.
+      expect(stored.get(STORAGE_KEY)).toEqual({ ...small, rulesVersion: 1 });
+      await expect(loadData()).resolves.toEqual({ ...large, rulesVersion: 2 });
+
+      // Back under the limit, the settings stay split: the save overwrites the same items, so it
+      // needs no room for a second copy, and deletes nothing another context may have just saved.
+      await saveData(createLargeData(5));
+      expect(stored.get(STORAGE_KEY)).toEqual({ ...small, rulesVersion: 1 });
+      expect(getChromeMock().storage.sync.remove).not.toHaveBeenCalled();
+      await expect(loadData()).resolves.toEqual({ ...createLargeData(5), rulesVersion: 3 });
+    });
+
+    // Each reader remembers the newest complete copy it has seen, so these start from a fresh one.
+    const loadFreshStorage = async (): Promise<
+      typeof import('../../../src/shared/api/storage')
+    > => {
+      vi.resetModules();
+      return import('../../../src/shared/api/storage');
+    };
+
+    it('waits for a newer copy still arriving, then keeps the newest complete one', async () => {
+      const { loadData } = await loadFreshStorage();
+      vi.useFakeTimers();
+      const stored = getChromeMock().storage.sync._data;
+      const older = { ...createLargeData(5), rulesVersion: 4 };
+      stored.set(STORAGE_KEY, older);
+      // A newer split copy whose last part has not arrived from the other device yet.
+      const items = encodeSettings({ ...createLargeData(300), rulesVersion: 5 }, false);
+      for (const [key, value] of Object.entries(items)) {
+        if (key !== splitPartKey(1)) stored.set(key, value);
+      }
+
+      const loading = loadData();
+      await vi.advanceTimersByTimeAsync(250);
+      // The missing part arrives while the reader waits.
+      stored.set(splitPartKey(1), items[splitPartKey(1)]);
+      await vi.runAllTimersAsync();
+      await expect(loading).resolves.toEqual({ ...createLargeData(300), rulesVersion: 5 });
+
+      // If it never arrives, the reader settles for the newest complete copy.
+      stored.delete(splitPartKey(1));
+      const stale = loadData();
+      await vi.runAllTimersAsync();
+      await expect(stale).resolves.toEqual({ ...createLargeData(300), rulesVersion: 5 });
+    });
+
+    it('falls back to the copy it remembers, not an older version’s single item', async () => {
+      const { loadData } = await loadFreshStorage();
+      vi.useFakeTimers();
+      const stored = getChromeMock().storage.sync._data;
+      const remembered = { ...createLargeData(300), rulesVersion: 5 };
+      for (const [key, value] of Object.entries(encodeSettings(remembered, false))) {
+        stored.set(key, value);
+      }
+      const first = loadData();
+      await vi.runAllTimersAsync();
+      await expect(first).resolves.toEqual(remembered);
+
+      // A newer copy whose second part never arrives, and an outdated device's single item.
+      const newer = encodeSettings({ ...createLargeData(301), rulesVersion: 6 }, true);
+      for (const [key, value] of Object.entries(newer)) {
+        if (key !== splitPartKey(1)) stored.set(key, value);
+      }
+      const { schemaVersion: _schemaVersion, ...olderVersionCopy } = createLargeData(1);
+      stored.set(STORAGE_KEY, { ...olderVersionCopy, rulesVersion: 40 });
+
+      const fallback = loadData();
+      await vi.runAllTimersAsync();
+      // It takes the newer copy's rulesVersion, so the next save replaces the broken copy.
+      await expect(fallback).resolves.toEqual({ ...remembered, rulesVersion: 6 });
+    });
+
+    it('saves over a newer copy only once its missing parts have had time to arrive', async () => {
+      const { loadData, updateData } = await loadFreshStorage();
+      vi.useFakeTimers();
+      const stored = getChromeMock().storage.sync._data;
+      stored.set(STORAGE_KEY, { ...createLargeData(5), rulesVersion: 4 });
+      const newer = { ...createLargeData(300), rulesVersion: 5 };
+      const items = encodeSettings(newer, false);
+      stored.set(SPLIT_INDEX_KEY, items[SPLIT_INDEX_KEY]);
+
+      // The rest arrives while the save waits, so the save builds on the newer copy.
+      const saving = updateData((data) => ({ ...data, expandBlockPageDetails: true }));
+      await vi.advanceTimersByTimeAsync(250);
+      for (const [key, value] of Object.entries(items)) stored.set(key, value);
+      await vi.runAllTimersAsync();
+      await expect(saving).resolves.toMatchObject({ filters: newer.filters });
+
+      // A copy that never assembles, like a mix of two devices' parts left by a sync conflict,
+      // would otherwise make every save fail; after the wait the next save replaces it.
+      stored.set(splitPartKey(1), { revision: 'from-another-device', text: '' });
+      const repairing = updateData((data) => ({ ...data, expandBlockPageDetails: false }));
+      await vi.runAllTimersAsync();
+      await expect(repairing).resolves.toMatchObject({ expandBlockPageDetails: false });
+      const repaired = loadData();
+      await vi.runAllTimersAsync();
+      await expect(repaired).resolves.toMatchObject({
+        filters: newer.filters,
+        expandBlockPageDetails: false,
+        rulesVersion: 7,
+      });
     });
   });
 

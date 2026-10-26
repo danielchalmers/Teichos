@@ -4,10 +4,16 @@
  */
 
 import type { StorageData, FilterGroup, Filter, Whitelist, SnoozeState } from '../types';
-import { STORAGE_KEY, DEFAULT_GROUP_ID } from '../types';
+import { DEFAULT_GROUP_ID } from '../types';
 import { isTemporaryFilterExpired } from '../filtering/schedules';
 import { parseImportedData, serializeDataForExport } from '../storage/importExport';
 import { normalizeStoredData, type LegacyStorageData } from '../storage/normalize';
+import {
+  decodeSettings,
+  encodeSettings,
+  SPLIT_INDEX_KEY,
+  type DecodedSettings,
+} from '../storage/syncLayout';
 import { createDefaultGroup } from '../storage/defaults';
 import { setSessionSnooze } from './session';
 
@@ -27,9 +33,20 @@ function isSyncQuotaError(error: unknown): boolean {
   return error instanceof Error && /quota.?bytes|quota exceeded/i.test(error.message);
 }
 
-async function writeStorageData(payload: StorageData): Promise<void> {
+interface StoredSettings {
+  readonly decoded: DecodedSettings;
+  /** Whether the settings are split across items (see syncLayout). */
+  readonly isSplit: boolean;
+}
+
+async function readStoredSettings(): Promise<StoredSettings> {
+  const items = await chrome.storage.sync.get(null);
+  return { decoded: decodeSettings(items), isSplit: SPLIT_INDEX_KEY in items };
+}
+
+async function writeStorageData(payload: StorageData, isSplit: boolean): Promise<void> {
   try {
-    await chrome.storage.sync.set({ [STORAGE_KEY]: payload });
+    await chrome.storage.sync.set(encodeSettings(payload, isSplit));
   } catch (error) {
     if (isSyncQuotaError(error)) {
       throw new SettingsSaveError(SYNC_QUOTA_MESSAGE);
@@ -38,12 +55,47 @@ async function writeStorageData(payload: StorageData): Promise<void> {
   }
 }
 
+// Settings split across items can arrive from another device one item at a time. A reader then
+// waits briefly for the rest, and otherwise keeps the newest complete copy it has seen.
+const INCOMPLETE_RETRY_DELAY_MS = 100;
+const INCOMPLETE_RETRIES = 10;
+let newestCompleteRaw: unknown;
+
+async function readCompleteSettings(): Promise<unknown> {
+  for (let attempt = 0; ; attempt++) {
+    const items = await chrome.storage.sync.get(null);
+    const decoded = decodeSettings(items);
+    if (decoded.complete) {
+      newestCompleteRaw = decoded.raw;
+      return decoded.raw;
+    }
+    if (attempt >= INCOMPLETE_RETRIES) {
+      // The remembered copy competes under the decoder's rules, so an outdated device's single
+      // item, which it only falls back to when nothing else is whole, can't win on rulesVersion.
+      const fallback = decodeSettings(items, newestCompleteRaw).raw;
+      return claimLatestRulesVersion(fallback, decoded.latestRulesVersion);
+    }
+    await new Promise((resolve) => setTimeout(resolve, INCOMPLETE_RETRY_DELAY_MS));
+  }
+}
+
+/**
+ * A copy still unassembled after the wait is treated as broken, for example a mix of two devices'
+ * parts left by a sync conflict, which no amount of waiting fixes. The fallback takes its
+ * rulesVersion, so the next save replaces it instead of every save failing as a conflict.
+ */
+function claimLatestRulesVersion(raw: unknown, latestRulesVersion: number | undefined): unknown {
+  if (raw === null || typeof raw !== 'object' || latestRulesVersion === undefined) {
+    return raw;
+  }
+  return { ...raw, rulesVersion: latestRulesVersion };
+}
+
 /**
  * Load storage data from chrome.storage.sync
  */
 export async function loadData(): Promise<StorageData> {
-  const result = await chrome.storage.sync.get(STORAGE_KEY);
-  return normalizeStoredData(result[STORAGE_KEY] as LegacyStorageData | undefined);
+  return normalizeStoredData((await readCompleteSettings()) as LegacyStorageData | undefined);
 }
 
 export async function exportData(): Promise<string> {
@@ -55,25 +107,20 @@ export async function exportData(): Promise<string> {
  * Prefer updateData for read-modify-write edits so concurrent writers cannot clobber each other.
  */
 export async function saveData(data: StorageData): Promise<void> {
-  const storedRulesVersion = await readStoredRulesVersion();
+  const stored = await readStoredSettings();
   const previousRulesVersion =
-    storedRulesVersion ??
+    stored.decoded.latestRulesVersion ??
     (typeof data.rulesVersion === 'number' && Number.isFinite(data.rulesVersion)
       ? data.rulesVersion
       : 0);
 
-  await writeStorageData({
-    ...data,
-    rulesVersion: previousRulesVersion + 1,
-  });
-}
-
-async function readStoredRulesVersion(): Promise<number | undefined> {
-  const result = await chrome.storage.sync.get(STORAGE_KEY);
-  const storedData = result[STORAGE_KEY] as { rulesVersion?: unknown } | undefined;
-  return typeof storedData?.rulesVersion === 'number' && Number.isFinite(storedData.rulesVersion)
-    ? storedData.rulesVersion
-    : undefined;
+  await writeStorageData(
+    {
+      ...data,
+      rulesVersion: previousRulesVersion + 1,
+    },
+    stored.isSplit
+  );
 }
 
 /**
@@ -84,15 +131,21 @@ async function saveDataIfUnchanged(
   data: StorageData,
   expectedRulesVersion: number
 ): Promise<boolean> {
-  const storedRulesVersion = await readStoredRulesVersion();
+  // A newer copy still arriving from another device counts as a change, so this never writes over
+  // settings it hasn't seen.
+  const stored = await readStoredSettings();
+  const storedRulesVersion = stored.decoded.latestRulesVersion;
   if (storedRulesVersion !== undefined && storedRulesVersion !== expectedRulesVersion) {
     return false;
   }
 
-  await writeStorageData({
-    ...data,
-    rulesVersion: (storedRulesVersion ?? expectedRulesVersion) + 1,
-  });
+  await writeStorageData(
+    {
+      ...data,
+      rulesVersion: (storedRulesVersion ?? expectedRulesVersion) + 1,
+    },
+    stored.isSplit
+  );
   return true;
 }
 
