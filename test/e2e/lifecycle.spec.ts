@@ -1,3 +1,5 @@
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { PAGES } from '../../src/shared/constants';
 import { test, expect } from './fixtures';
 import {
@@ -683,4 +685,122 @@ test('disabling the default group hides popup filters and restores blocking when
 
   await expectPopupShowsFilter(popupPage, 'Default Group Filter');
   await expectBlocked(browsingPage, targetUrl);
+});
+
+test('blocks where a server redirect lands, and Go back returns to the page before it', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  // A real redirect is required here: Playwright's request interception turns a fulfilled 302 into
+  // a fresh navigation, which the before-navigate check already sees, so it cannot reproduce the gap.
+  const server: Server = createServer((req, res) => {
+    if (req.url === '/go') {
+      res.writeHead(302, { location: `${origin}/final` });
+      res.end();
+      return;
+    }
+    if (req.url === '/article') {
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end('<!doctype html><title>Article</title><main><a href="/go">Shortened link</a></main>');
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'text/html' });
+    res.end('<!doctype html><title>Final</title><main>Redirect target</main>');
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+  try {
+    // Let these requests reach the local server rather than the deterministic stub.
+    await context.route(`${origin}/**`, async (route) => {
+      await route.continue();
+    });
+
+    await page.goto(extensionPage(PAGES.OPTIONS));
+    await seedStorage(
+      page,
+      createStorageData({
+        filters: [
+          {
+            id: 'redirect-target-filter',
+            pattern: `${origin}/final`,
+            groupId: defaultGroup.id,
+            enabled: true,
+            matchMode: 'contains',
+            description: 'Redirect Target',
+          },
+        ],
+      })
+    );
+
+    // The shortened link is allowed; only where it redirects is blocked. The before-navigate check
+    // sees only /go, so this is caught when the navigation commits.
+    await page.goto(`${origin}/article`);
+    await page.getByRole('link', { name: 'Shortened link' }).click();
+    await expectOnBlockedPage(page, `${origin}/final`);
+
+    // The article, not the shortener, is the page to return to: reopening /go would only redirect
+    // back to the block.
+    await showBlockPageDetails(page);
+    await page.getByRole('button', { name: 'Go back' }).click();
+    await expect.poll(() => page.url(), { timeout: 15_000 }).toBe(`${origin}/article`);
+    await expect(page.getByRole('link', { name: 'Shortened link' })).toBeVisible();
+  } finally {
+    // The browser holds the connection open with keep-alive, and server.close() waits for every
+    // open connection before it calls back, so drop them first or teardown never finishes.
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+test('a block page reached through history opens the page once its block has ended', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://history-ended.example.test/story';
+  await context.route('https://history-start.example.test/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: `<!doctype html><title>Start</title><main><a href="${targetUrl}">Story</a></main>`,
+    });
+  });
+  await mockAllowedPage(page, targetUrl, 'History story allowed');
+
+  const optionsPage = await openOptions(extensionPage, page);
+  const seedFilters = async (enabled: boolean): Promise<void> => {
+    await seedStorage(
+      optionsPage,
+      createStorageData({
+        filters: [
+          {
+            id: 'history-ended-filter',
+            pattern: 'history-ended.example.test',
+            groupId: defaultGroup.id,
+            enabled,
+            matchMode: 'contains',
+            description: 'History Ended',
+          },
+        ],
+      })
+    );
+  };
+  await seedFilters(true);
+
+  const browsingPage = await context.newPage();
+  await browsingPage.goto('https://history-start.example.test/');
+  await browsingPage.getByRole('link', { name: 'Story' }).click();
+  await expectOnBlockedPage(browsingPage, targetUrl);
+  await showBlockPageDetails(browsingPage);
+  await browsingPage.getByRole('button', { name: 'Go back' }).click();
+  await expect.poll(() => browsingPage.url()).toBe('https://history-start.example.test/');
+
+  // The block ends while the tab is elsewhere, so nothing re-checks the block page until the tab
+  // returns to it. Extension pages commit without a before-navigate event.
+  await seedFilters(false);
+  await browsingPage.goForward().catch(() => undefined);
+  await expect.poll(() => browsingPage.url(), { timeout: 15_000 }).toBe(targetUrl);
+  await expect(browsingPage.getByText('History story allowed')).toBeVisible();
 });

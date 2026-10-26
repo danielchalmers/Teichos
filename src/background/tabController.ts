@@ -39,6 +39,17 @@ interface BlockedStateResult {
   readonly pageState: BlockedPageState;
 }
 
+/**
+ * When a navigation event fired. A navigation is judged before it commits, to block it as early
+ * as possible, and again when it commits, which is the first time some URLs are seen: the
+ * destination of a server redirect, or a page Chrome restores from history without a
+ * before-navigate event (extension pages such as the block page). Only a committed page is one
+ * the tab has actually shown, so only that is recorded as the page to return to.
+ */
+interface NavigationTiming {
+  readonly beforeCommit?: boolean;
+}
+
 /** A history step Go back took, waiting for the navigation event of the entry it lands on. */
 interface GoBackStep {
   readonly expiresAt: number;
@@ -70,6 +81,15 @@ class TabController {
    * restart only means that step shows whatever block page the entry gets.
    */
   private readonly goBackSteps = new Map<number, GoBackStep>();
+  /**
+   * The before-navigate judgment of each tab's latest navigation. Its commit gets the same
+   * decision, so it waits for that judgment instead of superseding it, which would drop a Go back
+   * step the judgment holds. Losing it on worker restart only means the commit is judged in full.
+   */
+  private readonly startedNavigations = new Map<
+    number,
+    { readonly url: string; readonly judged: Promise<void> }
+  >();
 
   constructor(private readonly rulesProvider: RulesProvider) {}
 
@@ -110,16 +130,61 @@ class TabController {
    * Evaluate a main-frame navigation event. It supersedes any evaluation still in flight for the
    * tab.
    */
-  async evaluateNavigation(tabId: number, url: string): Promise<void> {
+  async evaluateNavigation(
+    tabId: number,
+    url: string,
+    timing: NavigationTiming = {}
+  ): Promise<void> {
+    const started = this.startedNavigations.get(tabId);
+    if (!timing.beforeCommit && started?.url === url) {
+      this.startedNavigations.delete(tabId);
+      await this.recordCommitOfJudgedStart(tabId, url, started.judged);
+      return;
+    }
+
     const goBackStep = this.takeGoBackStep(tabId);
-    await this.evaluateTab(tabId, url, this.bumpNavigationSeq(tabId), goBackStep);
+    const evaluation = this.evaluateTab(
+      tabId,
+      url,
+      this.bumpNavigationSeq(tabId),
+      goBackStep,
+      timing
+    );
+    if (timing.beforeCommit) {
+      this.startedNavigations.set(tabId, { url, judged: evaluation.catch(() => undefined) });
+    } else {
+      this.startedNavigations.delete(tabId);
+    }
+    await evaluation;
+  }
+
+  /**
+   * A navigation committed to the URL its start was judged on. Blocking, and any Go back step,
+   * were handled there; all that is left is recording an allowed page as the one to return to.
+   */
+  private async recordCommitOfJudgedStart(
+    tabId: number,
+    url: string,
+    judged: Promise<void>
+  ): Promise<void> {
+    await judged;
+    if (url.startsWith(getExtensionUrl(PAGES.BLOCKED)) || isInternalUrl(url)) {
+      return;
+    }
+
+    const seq = this.getNavigationSeq(tabId);
+    const decision = await this.evaluateForTab(tabId, url, await this.getRules());
+    if (decision.action !== 'block') {
+      await this.allowTab(tabId, url, seq);
+    }
   }
 
   private async evaluateTab(
     tabId: number,
     url: string,
     seq: number,
-    goBackStep?: GoBackStep
+    goBackStep?: GoBackStep,
+    timing: NavigationTiming = {}
   ): Promise<void> {
     if (await this.leaveReplacedEntryLanding(tabId, url, seq, goBackStep)) {
       return;
@@ -143,16 +208,11 @@ class TabController {
       return;
     }
 
-    await this.allowTab(tabId, url, seq);
-  }
-
-  /**
-   * Settle a Go back step on its commit when it landed on a page with no before-navigate event, such
-   * as an extension page. A step whose entry already had that event was taken there.
-   */
-  async settleGoBackStep(tabId: number, url: string): Promise<void> {
-    const goBackStep = this.takeGoBackStep(tabId);
-    await this.leaveReplacedEntryLanding(tabId, url, this.getNavigationSeq(tabId), goBackStep);
+    // An allowed URL may still redirect somewhere blocked, or never commit at all (a download), so
+    // it becomes the page to return to only once it commits.
+    if (!timing.beforeCommit) {
+      await this.allowTab(tabId, url, seq);
+    }
   }
 
   /**
@@ -191,6 +251,7 @@ class TabController {
   private forgetTab(tabId: number): void {
     this.bumpNavigationSeq(tabId);
     this.goBackSteps.delete(tabId);
+    this.startedNavigations.delete(tabId);
     clearTabSessionState(tabId).catch((error: unknown) => {
       console.error('[Teichos] Failed to clear state for closed tab:', error);
     });
@@ -382,8 +443,9 @@ class TabController {
         ? Promise.resolve()
         : setBypassState(targetTabId, { filterIds: [...bypassedFilterIds, ...newFilterIds] }),
       clearBlockedTabState(targetTabId),
-      setLastAllowedUrl(targetTabId, resolvedTarget.targetUrl),
     ]);
+    // The target becomes the page to return to once it commits, like any other page: it may
+    // redirect somewhere another filter blocks.
     await updateTabUrl(targetTabId, resolvedTarget.targetUrl);
     return true;
   }
