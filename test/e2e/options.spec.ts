@@ -1480,16 +1480,12 @@ test('existing site-name filters become domain filters after the update', async 
   await expect(page.locator('#filter-modal.active').getByLabel('Match mode')).toHaveValue('domain');
 });
 
-test('keeps settings too large for one sync item, as older versions could not', async ({
-  context,
-  extensionPage,
-  page,
-}) => {
-  await gotoOptions(extensionPage, page);
-  await seedStorage(page, createStorageData({ filters: [] }));
-
-  // About 45 filters filled the 8 KB that Chrome allows each synced item.
-  const filters = Array.from({ length: 300 }, (_, index) => ({
+/** Import `count` filters, each taking about 170 bytes of sync storage. */
+async function importBulkFilters(
+  page: Parameters<typeof waitForOptionsReady>[0],
+  count: number
+): Promise<void> {
+  const filters = Array.from({ length: count }, (_, index) => ({
     id: `bulk-filter-${String(index)}`,
     pattern: `bulk-${String(index)}.example.test`,
     groupId: defaultGroup.id,
@@ -1502,16 +1498,44 @@ test('keeps settings too large for one sync item, as older versions could not', 
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(createStorageData({ filters }))),
   });
+  await expect.poll(async () => (await readStorage(page))?.filters.length).toBe(count);
+}
+
+test('keeps settings too large for one sync item, as older versions could not', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  // About 45 filters filled the 8 KB that Chrome allows each synced item.
+  await importBulkFilters(page, 300);
   await expect(page.locator('#global-settings-status')).toHaveText(
     'Settings imported successfully.'
   );
-  await expect.poll(async () => (await readStorage(page))?.filters.length).toBe(300);
 
   await gotoOptions(extensionPage, page);
   await expect(page.getByText('Bulk site 299', { exact: true })).toBeVisible();
   const browsingPage = await context.newPage();
   await expectBlocked(browsingPage, 'https://bulk-299.example.test/');
   await expectAllowed(browsingPage, 'https://other.example.test/');
+});
+
+test('shrinks large settings even when sync storage is nearly full', async ({
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  // 570 filters leave about 3 KB of the 100 KB Chrome allows the extension in sync storage.
+  await importBulkFilters(page, 570);
+  // 50 fit in one item again, but there's no room to write that item beside the larger copy.
+  await importBulkFilters(page, 50);
+  await expect(page.locator('#global-settings-status')).toHaveText(
+    'Settings imported successfully.'
+  );
 });
 
 test('keeps large settings whose text Chrome stores escaped', async ({ extensionPage, page }) => {

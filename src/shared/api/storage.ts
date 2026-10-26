@@ -11,7 +11,7 @@ import { normalizeStoredData, type LegacyStorageData } from '../storage/normaliz
 import {
   decodeSettings,
   encodeSettings,
-  isSettingsKey,
+  SPLIT_INDEX_KEY,
   type DecodedSettings,
 } from '../storage/syncLayout';
 import { createDefaultGroup } from '../storage/defaults';
@@ -35,34 +35,23 @@ function isSyncQuotaError(error: unknown): boolean {
 
 interface StoredSettings {
   readonly decoded: DecodedSettings;
-  /** Settings keys present in sync storage, in either layout (see syncLayout). */
-  readonly keys: readonly string[];
+  /** Whether the settings are split across items (see syncLayout). */
+  readonly isSplit: boolean;
 }
 
 async function readStoredSettings(): Promise<StoredSettings> {
   const items = await chrome.storage.sync.get(null);
-  return { decoded: decodeSettings(items), keys: Object.keys(items).filter(isSettingsKey) };
+  return { decoded: decodeSettings(items), isSplit: SPLIT_INDEX_KEY in items };
 }
 
-async function writeStorageData(
-  payload: StorageData,
-  storedKeys: readonly string[]
-): Promise<void> {
-  const { items, staleKeys } = encodeSettings(payload, storedKeys);
+async function writeStorageData(payload: StorageData, isSplit: boolean): Promise<void> {
   try {
-    await chrome.storage.sync.set(items);
+    await chrome.storage.sync.set(encodeSettings(payload, isSplit));
   } catch (error) {
     if (isSyncQuotaError(error)) {
       throw new SettingsSaveError(SYNC_QUOTA_MESSAGE);
     }
     throw error;
-  }
-
-  // Stale items are already outranked by the copy just written, so leaving them only costs quota.
-  if (staleKeys.length > 0) {
-    await chrome.storage.sync.remove([...staleKeys]).catch((error: unknown) => {
-      console.warn('[Teichos] Failed to remove stale settings items:', error);
-    });
   }
 }
 
@@ -74,16 +63,16 @@ let newestCompleteRaw: unknown;
 
 async function readCompleteSettings(): Promise<unknown> {
   for (let attempt = 0; ; attempt++) {
-    const { decoded } = await readStoredSettings();
+    const items = await chrome.storage.sync.get(null);
+    const decoded = decodeSettings(items);
     if (decoded.complete) {
       newestCompleteRaw = decoded.raw;
       return decoded.raw;
     }
     if (attempt >= INCOMPLETE_RETRIES) {
-      const fallback =
-        rulesVersionOf(newestCompleteRaw) >= rulesVersionOf(decoded.raw)
-          ? newestCompleteRaw
-          : decoded.raw;
+      // The remembered copy competes under the decoder's rules, so an outdated device's single
+      // item, which it only falls back to when nothing else is whole, can't win on rulesVersion.
+      const fallback = decodeSettings(items, newestCompleteRaw).raw;
       return claimLatestRulesVersion(fallback, decoded.latestRulesVersion);
     }
     await new Promise((resolve) => setTimeout(resolve, INCOMPLETE_RETRY_DELAY_MS));
@@ -100,11 +89,6 @@ function claimLatestRulesVersion(raw: unknown, latestRulesVersion: number | unde
     return raw;
   }
   return { ...raw, rulesVersion: latestRulesVersion };
-}
-
-function rulesVersionOf(raw: unknown): number {
-  const rulesVersion = (raw as { rulesVersion?: unknown } | undefined)?.rulesVersion;
-  return typeof rulesVersion === 'number' ? rulesVersion : -1;
 }
 
 /**
@@ -135,7 +119,7 @@ export async function saveData(data: StorageData): Promise<void> {
       ...data,
       rulesVersion: previousRulesVersion + 1,
     },
-    stored.keys
+    stored.isSplit
   );
 }
 
@@ -160,7 +144,7 @@ async function saveDataIfUnchanged(
       ...data,
       rulesVersion: (storedRulesVersion ?? expectedRulesVersion) + 1,
     },
-    stored.keys
+    stored.isSplit
   );
   return true;
 }

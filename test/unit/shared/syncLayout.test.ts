@@ -51,17 +51,14 @@ describe('encodeSettings', () => {
   it('stores settings that fit in one item exactly as before', () => {
     const data = createData(10);
 
-    const { items, staleKeys } = encodeSettings(data, [STORAGE_KEY]);
-
-    expect(items).toEqual({ [STORAGE_KEY]: data });
-    expect(staleKeys).toEqual([]);
+    expect(encodeSettings(data, false)).toEqual({ [STORAGE_KEY]: data });
   });
 
   it('splits settings that outgrow one item into parts that each fit', () => {
     const data = createData(300);
     expect(chromeItemBytes(STORAGE_KEY, data)).toBeGreaterThan(SYNC_ITEM_LIMIT_BYTES);
 
-    const { items } = encodeSettings(data, []);
+    const items = encodeSettings(data, false);
 
     expect(items[STORAGE_KEY]).toBeUndefined();
     const parts = splitParts(items);
@@ -91,7 +88,7 @@ describe('encodeSettings', () => {
       })),
     };
 
-    const { items } = encodeSettings(data, []);
+    const items = encodeSettings(data, false);
 
     for (const [key, value] of Object.entries(items)) {
       expect(chromeItemBytes(key, value)).toBeLessThanOrEqual(SYNC_ITEM_LIMIT_BYTES);
@@ -102,7 +99,7 @@ describe('encodeSettings', () => {
   it('never ends a part between the two halves of a character', () => {
     const data = { ...createData(0), groups: [], whitelist: [], note: '🚫'.repeat(6000) };
 
-    const { items } = encodeSettings(data as StorageData, []);
+    const items = encodeSettings(data as StorageData, false);
 
     for (const [, value] of splitParts(items)) {
       const { text } = value as { text: string };
@@ -114,9 +111,9 @@ describe('encodeSettings', () => {
 
   it('names a revision after the content, so identical saves write interchangeable parts', () => {
     // Every device clears an expired snooze at the same moment, writing the same settings.
-    const first = encodeSettings(createData(300, 7), []).items;
-    const second = encodeSettings(createData(300, 7), []).items;
-    const other = encodeSettings(createData(301, 7), []).items;
+    const first = encodeSettings(createData(300, 7), false);
+    const second = encodeSettings(createData(300, 7), false);
+    const other = encodeSettings(createData(301, 7), false);
 
     expect(second[SPLIT_INDEX_KEY]).toEqual(first[SPLIT_INDEX_KEY]);
     expect(other[SPLIT_INDEX_KEY]).not.toEqual(first[SPLIT_INDEX_KEY]);
@@ -128,17 +125,18 @@ describe('encodeSettings', () => {
     });
   });
 
-  it('marks parts past the new count, or every split item once settings fit again, as stale', () => {
-    const storedKeys = [STORAGE_KEY, SPLIT_INDEX_KEY, splitPartKey(0), splitPartKey(1)];
-    storedKeys.push(splitPartKey(2), splitPartKey(3), splitPartKey(4), splitPartKey(50));
+  it('keeps split settings split once they fit in one item again, overwriting the same items', () => {
+    const large = encodeSettings(createData(300, 5), false);
 
-    const grown = encodeSettings(createData(300), storedKeys);
-    expect(grown.staleKeys).toContain(splitPartKey(50));
-    expect(grown.staleKeys).not.toContain(SPLIT_INDEX_KEY);
+    const small = encodeSettings(createData(5, 6), true);
 
-    // The single item stays: it is the copy older versions read, and a newer copy outranks it.
-    const shrunk = encodeSettings(createData(5), storedKeys);
-    expect(shrunk.staleKeys).toEqual(storedKeys.filter((key) => key !== STORAGE_KEY));
+    expect(Object.keys(small)).toEqual([SPLIT_INDEX_KEY, splitPartKey(0)]);
+    // The parts the larger copy used beyond the first are left behind, and never read.
+    expect(decodeSettings({ ...large, ...small })).toEqual({
+      raw: createData(5, 6),
+      latestRulesVersion: 6,
+      complete: true,
+    });
   });
 });
 
@@ -154,7 +152,7 @@ describe('decodeSettings', () => {
   it('takes whichever complete copy has the higher rulesVersion', () => {
     const olderSingle = createData(1, 4);
     const newerSplit = createData(300, 5);
-    const split = encodeSettings(newerSplit, []).items;
+    const split = encodeSettings(newerSplit, false);
 
     expect(decodeSettings({ [STORAGE_KEY]: olderSingle, ...split }).raw).toEqual(newerSplit);
     // A newer single item written by this version, after the settings shrank back.
@@ -168,7 +166,7 @@ describe('decodeSettings', () => {
 
     const decoded = decodeSettings({
       [STORAGE_KEY]: createData(1, 5),
-      ...encodeSettings(split, []).items,
+      ...encodeSettings(split, false),
     });
 
     expect(decoded.raw).toEqual(split);
@@ -182,7 +180,7 @@ describe('decodeSettings', () => {
 
     const decoded = decodeSettings({
       [STORAGE_KEY]: olderVersionCopy,
-      ...encodeSettings(split, []).items,
+      ...encodeSettings(split, false),
     });
 
     expect(decoded).toEqual({ raw: split, latestRulesVersion: 5, complete: true });
@@ -190,8 +188,8 @@ describe('decodeSettings', () => {
 
   it('keeps the older complete copy while a newer split copy is still arriving', () => {
     const olderSingle = createData(1, 4);
-    const newerItems = { ...encodeSettings(createData(300, 5), []).items };
-    newerItems[splitPartKey(1)] = encodeSettings(createData(300, 3), []).items[splitPartKey(1)];
+    const newerItems = { ...encodeSettings(createData(300, 5), false) };
+    newerItems[splitPartKey(1)] = encodeSettings(createData(300, 3), false)[splitPartKey(1)];
 
     expect(decodeSettings({ [STORAGE_KEY]: olderSingle, ...newerItems })).toEqual({
       raw: olderSingle,
@@ -207,6 +205,27 @@ describe('decodeSettings', () => {
       latestRulesVersion: 5,
       complete: false,
     });
+  });
+});
+
+describe('decodeSettings with a remembered copy', () => {
+  it('weighs it under the same rules as the stored copies', () => {
+    const remembered = createData(300, 5);
+    // A newer split copy that never assembled, and an older version's single item from many edits.
+    const unassembled = Object.fromEntries(
+      Object.entries(encodeSettings(createData(301, 6), false)).filter(
+        ([key]) => key !== splitPartKey(1)
+      )
+    );
+    const { schemaVersion: _schemaVersion, ...olderVersionCopy } = createData(1, 40);
+    const items = { [STORAGE_KEY]: olderVersionCopy, ...unassembled };
+
+    // With nothing else whole, the older version's copy beats having no settings at all.
+    expect(decodeSettings(items).raw).toEqual(olderVersionCopy);
+    expect(decodeSettings(items, remembered).raw).toEqual(remembered);
+    // A newer stored copy still outranks it.
+    const newer = createData(300, 7);
+    expect(decodeSettings(encodeSettings(newer, false), remembered).raw).toEqual(newer);
   });
 });
 

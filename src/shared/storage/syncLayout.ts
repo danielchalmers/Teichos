@@ -5,6 +5,8 @@
  * Settings that fit are stored exactly as before: one item under STORAGE_KEY, which every version
  * of Teichos reads. Only settings that don't fit are split into numbered parts under new keys, so
  * an older version on another device never misreads them; it keeps the last single-item copy.
+ * Once split, settings stay split and every save overwrites the same items. Nothing is deleted,
+ * since a delete issued after a write can remove a newer save another context made in between.
  *
  * A device may hold both layouts at once (one written before the settings grew, or an older copy
  * from another device), and synced items can arrive one at a time. Every save raises
@@ -36,13 +38,6 @@ interface SplitIndex {
 interface SplitPart {
   readonly revision: string;
   readonly text: string;
-}
-
-export interface EncodedSettings {
-  /** Items to write in one `set` call. */
-  readonly items: Readonly<Record<string, unknown>>;
-  /** Settings items from an earlier layout that this write leaves stale; safe to remove after. */
-  readonly staleKeys: readonly string[];
 }
 
 export interface DecodedSettings {
@@ -81,16 +76,14 @@ function itemBytes(key: string, value: unknown): number {
 }
 
 /**
- * Lay settings out for a write. `storedKeys` are the settings keys already in sync storage, so a
- * write can name what it leaves stale: split parts past the new count, or every split item once
- * the settings fit in one item again. The single item is never listed: it is the copy older
- * versions read, and the higher rulesVersion of a split copy already outranks it.
+ * Lay settings out as the items to write in one `set` call. Settings already split stay split even
+ * when they would fit in one item again: the write then overwrites the same items in place, and
+ * never needs room in the sync quota for both layouts at once. Parts past the new count are left
+ * behind, and never read, since the index names how many parts there are.
  */
-export function encodeSettings(data: StorageData, storedKeys: readonly string[]): EncodedSettings {
-  const splitKeys = storedKeys.filter((key) => key !== STORAGE_KEY && isSettingsKey(key));
-
-  if (itemBytes(STORAGE_KEY, data) <= ITEM_BUDGET_BYTES) {
-    return { items: { [STORAGE_KEY]: data }, staleKeys: splitKeys };
+export function encodeSettings(data: StorageData, isSplit: boolean): Record<string, unknown> {
+  if (!isSplit && itemBytes(STORAGE_KEY, data) <= ITEM_BUDGET_BYTES) {
+    return { [STORAGE_KEY]: data };
   }
 
   const json = JSON.stringify(data);
@@ -104,7 +97,7 @@ export function encodeSettings(data: StorageData, storedKeys: readonly string[])
     items[splitPartKey(partIndex)] = { revision, text } satisfies SplitPart;
   });
 
-  return { items, staleKeys: splitKeys.filter((key) => !(key in items)) };
+  return items;
 }
 
 /**
@@ -195,8 +188,15 @@ function readSplitSettings(items: Readonly<Record<string, unknown>>, index: Spli
   }
 }
 
-/** Pick the newest complete copy of the settings out of everything in sync storage. */
-export function decodeSettings(items: Readonly<Record<string, unknown>>): DecodedSettings {
+/**
+ * Pick the newest complete copy of the settings out of everything in sync storage. `remembered` is
+ * a complete copy the reader picked earlier; it competes with the stored copies under the same
+ * rules, and loses a tie to them.
+ */
+export function decodeSettings(
+  items: Readonly<Record<string, unknown>>,
+  remembered?: unknown
+): DecodedSettings {
   const single = items[STORAGE_KEY];
   const index = readSplitIndex(items[SPLIT_INDEX_KEY]);
   const split = index ? readSplitSettings(items, index) : undefined;
@@ -204,7 +204,9 @@ export function decodeSettings(items: Readonly<Record<string, unknown>>): Decode
   const singleCounts = single !== undefined && !(index && !hasSchemaVersion(single));
 
   // On a tie the split copy wins: only an older version editing its single-item copy can tie it.
-  const candidates = [...(split !== undefined ? [split] : []), ...(singleCounts ? [single] : [])];
+  const candidates = [split, singleCounts ? single : undefined, remembered].filter(
+    (candidate) => candidate !== undefined
+  );
   const newestCandidate = candidates.reduce<unknown>(
     (newest, candidate) =>
       newest === undefined || readRulesVersion(candidate) > readRulesVersion(newest)
