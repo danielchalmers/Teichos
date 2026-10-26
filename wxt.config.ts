@@ -18,12 +18,6 @@ export default defineConfig({
     options_ui: {
       open_in_tab: true,
     },
-    web_accessible_resources: [
-      {
-        matches: ['<all_urls>'],
-        resources: ['blocked.html'],
-      },
-    ],
     icons: {
       16: 'assets/icons/icon16.png',
       32: 'assets/icons/icon32.png',
