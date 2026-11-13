@@ -413,7 +413,14 @@ function renderResponsibleFilter(state: BlockedPageViewModel): void {
     return;
   }
 
-  setText('responsible-filter-name', getFilterDisplayName(state.state.filter));
+  // A filter with no name is known by its pattern, which has its own row, so the name row would
+  // only repeat it. Settings lists an unnamed filter the same way, by its pattern alone.
+  const name = state.state.filter.description?.trim() ?? '';
+  const nameRow = getElementByIdOrNull<HTMLElement>('responsible-filter-name-row');
+  if (nameRow) {
+    nameRow.hidden = name === '';
+  }
+  setText('responsible-filter-name', name);
   setText('responsible-filter-pattern', state.state.filter.pattern);
   setText('responsible-filter-match', formatMatchMode(state.state.filter.matchMode));
   setText('responsible-filter-group', state.state.group?.name ?? 'Unknown group');
