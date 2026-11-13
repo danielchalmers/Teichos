@@ -403,6 +403,45 @@ test('keeps existing settings when global settings import fails', async ({
   expect(await readStorage(page)).toEqual(originalData);
 });
 
+test('says where to start while there are no filters at all', async ({ extensionPage, page }) => {
+  const hint =
+    'No filters yet. Add one to block a site all the time, or make a new group to block on a schedule.';
+  const workHours = {
+    id: 'work-hours',
+    name: 'Work Hours',
+    enabled: true,
+    is24x7: false,
+    schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
+  };
+  const emptyStates = page.locator('[data-role="filter-list"] .empty-state');
+
+  // A new install: one group, nothing in it.
+  await gotoOptions(extensionPage, page);
+  await expect(emptyStates).toHaveText([hint]);
+
+  // Only the always-active group carries the hint; another empty group just says it is empty.
+  await seedStorage(page, createStorageData({ groups: [defaultGroup, workHours] }));
+  await expect(emptyStates).toHaveText([hint, 'No filters in this group.']);
+
+  // Once any filter exists, anywhere, the start is behind them.
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [defaultGroup, workHours],
+      filters: [
+        {
+          id: 'focus-block',
+          pattern: 'focus.example.test',
+          groupId: 'work-hours',
+          enabled: true,
+          matchMode: 'domain',
+        },
+      ],
+    })
+  );
+  await expect(emptyStates).toHaveText(['No filters in this group.']);
+});
+
 test('opens filter, group, and exception modals from query params', async ({
   extensionPage,
   page,
@@ -576,7 +615,8 @@ test('edits and deletes individual filters and exceptions from options', async (
   ).toHaveCount(0);
   await expect(status).toHaveText('Exception deleted.');
 
-  await expect(defaultGroupCard.getByText('No filters in this group.')).toBeVisible();
+  // The last filter is gone, so the group is back to where a new install starts.
+  await expect(defaultGroupCard.getByText('No filters yet.')).toBeVisible();
   await expect(defaultGroupCard.getByText('No exceptions in this group.')).toBeVisible();
   await expect
     .poll(() => readStorage(page))
