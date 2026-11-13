@@ -123,7 +123,7 @@ test('adds and deletes a temporary filter from the popup', async ({ extensionPag
   // Results use the feature's name, as the dialog and its Start block button do.
   await expect(page.locator('#status-message')).toHaveText('Temporary block started for 45m.');
 
-  await temporaryItem.getByRole('button', { name: 'Delete filter' }).click();
+  await temporaryItem.getByRole('button', { name: 'Delete temporary block' }).click();
   await expect(page.getByText('No filters yet')).toBeVisible();
   await expect(page.locator('#status-message')).toHaveText('Temporary block deleted.');
   // The deleted row's button is gone, so focus moves to what replaced it instead of the body.
@@ -309,7 +309,7 @@ test('supports quick-add suggestions, validation, duration units, and the settin
   await expect(hoursFilter).toContainText('Temporary · 2h left');
   await expectTemporaryFilterExpiration(page, suggestedPattern, 119 * 60_000, 121 * 60_000);
 
-  await hoursFilter.getByRole('button', { name: 'Delete filter' }).click();
+  await hoursFilter.getByRole('button', { name: 'Delete temporary block' }).click();
 
   await openQuickAdd(page);
   await page.getByLabel('Site or pattern').fill('multi-day.example.invalid');
@@ -633,9 +633,21 @@ test('lines temporary row actions up with regular rows and summarizes hidden fil
   expect(await leftEdge(temporaryRow.getByRole('button', { name: 'Copy pattern' }))).toBe(
     await leftEdge(regularRow.getByRole('button', { name: 'Copy pattern' }))
   );
-  expect(await leftEdge(temporaryRow.getByRole('button', { name: 'Delete filter' }))).toBe(
+  expect(await leftEdge(temporaryRow.getByRole('button', { name: 'Delete temporary block' }))).toBe(
     await leftEdge(regularRow.getByRole('button', { name: 'Edit filter' }))
   );
+
+  // Each icon button's tooltip names its row, as its accessible name does and as Settings does.
+  for (const [row, action, label] of [
+    [regularRow, 'copy-url', 'Copy pattern for Regular Row'],
+    [regularRow, 'edit-filter', 'Edit filter Regular Row'],
+    [temporaryRow, 'copy-url', 'Copy pattern for Temporary Row'],
+    [temporaryRow, 'delete-filter', 'Delete temporary block Temporary Row'],
+  ] as const) {
+    const button = row.locator(`button[data-action="${action}"]`);
+    await expect(button).toHaveAttribute('title', label);
+    await expect(button).toHaveAccessibleName(label);
+  }
 
   await expect(page.locator('.filter-item').filter({ hasText: 'Off Row' })).toHaveCount(0);
   await expect(page.locator('.inactive-summary')).toHaveText('1 inactive filter hidden');

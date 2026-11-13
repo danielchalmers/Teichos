@@ -39,6 +39,7 @@ import {
   cloneTemplate,
   getElementByIdOrNull,
   querySelector,
+  setIconButtonLabel,
   showDialogError,
 } from '../../shared/utils/dom';
 import { formatDuration, generateId, isInternalUrl } from '../../shared/utils/helpers';
@@ -931,11 +932,12 @@ async function renderFilters(): Promise<void> {
 
     item.dataset['filterId'] = filter.id;
     copyButton.dataset['pattern'] = filter.pattern;
-    copyButton.setAttribute('aria-label', `Copy pattern for ${displayName}`);
+    setIconButtonLabel(copyButton, `Copy pattern for ${displayName}`);
     editButton.dataset['filterId'] = filter.id;
-    editButton.setAttribute('aria-label', `Edit filter ${displayName}`);
+    setIconButtonLabel(editButton, `Edit filter ${displayName}`);
     deleteButton.dataset['filterId'] = filter.id;
-    deleteButton.setAttribute('aria-label', `Delete filter ${displayName}`);
+    // Only a temporary block has this button, and the popup calls it that everywhere else.
+    setIconButtonLabel(deleteButton, `Delete temporary block ${displayName}`);
 
     fragment.appendChild(item);
   }

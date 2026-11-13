@@ -44,6 +44,7 @@ import {
   cloneTemplate,
   getElementByIdOrNull,
   querySelector,
+  setIconButtonLabel,
   showDialogError,
 } from '../../shared/utils/dom';
 import { generateId, isValidTimeString } from '../../shared/utils/helpers';
@@ -1132,12 +1133,6 @@ function renderGroupMeta(
     span.textContent = `${text}${separator}`;
     return index === 0 ? [span] : [' ', span];
   });
-}
-
-/** Icon-only buttons show their accessible name as a tooltip too. */
-function setIconButtonLabel(button: HTMLButtonElement, label: string): void {
-  button.setAttribute('aria-label', label);
-  button.title = label;
 }
 
 /**
