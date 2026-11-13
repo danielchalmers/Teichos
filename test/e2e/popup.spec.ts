@@ -526,6 +526,24 @@ test('shows a failed temporary block in its dialog', async ({ extensionPage, pag
   await expect(quickAdd).toHaveClass(/is-open/);
 });
 
+test('moves a switch back, and says so, when its change cannot be saved', async ({
+  extensionPage,
+  page,
+}) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(page, popupFilterData);
+  await gotoPopup(extensionPage, page);
+
+  const regularItem = page.locator('.filter-item').filter({ hasText: 'Focus Block' });
+  const toggle = regularItem.locator('input[type="checkbox"][data-filter-id="regular-filter"]');
+  await expect(toggle).toBeChecked();
+
+  await failSettingsWrites(page);
+  await regularItem.locator('label.toggle').click();
+  await expect(page.locator('#status-message')).toHaveText("Couldn't save the change. Try again.");
+  await expect(toggle).toBeChecked();
+});
+
 test('locks the list while snoozed and unlocks it on resume', async ({ extensionPage, page }) => {
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(

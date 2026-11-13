@@ -763,6 +763,87 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
   await expect(reloadedGroup.locator('.group-disclosure')).toHaveAttribute('aria-expanded', 'true');
 });
 
+test('moves a switch back, and says so, when its change cannot be saved', async ({
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'work-hours',
+          name: 'Work Hours',
+          enabled: true,
+          is24x7: false,
+          schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
+        },
+      ],
+      filters: [
+        {
+          id: 'focus-block',
+          pattern: 'focus.example.test',
+          groupId: 'work-hours',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Focus Block',
+        },
+      ],
+      whitelist: [
+        {
+          id: 'allow-docs',
+          pattern: 'focus.example.test/docs',
+          groupId: 'work-hours',
+          enabled: false,
+          matchMode: 'contains',
+          description: 'Allow Docs',
+        },
+      ],
+    })
+  );
+  const stored = await readStorage(page);
+
+  const workHoursGroup = page.locator('.group-item').filter({ hasText: 'Work Hours' });
+  const status = page.locator('#status-message');
+  const filterSwitch = workHoursGroup.locator('input[data-action="toggle-filter"]');
+  const exceptionSwitch = workHoursGroup.locator('input[data-action="toggle-whitelist"]');
+  const groupSwitch = workHoursGroup.locator('input[data-action="toggle-group"]');
+  await workHoursGroup.getByRole('button', { name: 'Work Hours', exact: true }).click();
+  await expect(filterSwitch).toBeChecked();
+
+  await page.evaluate(() => {
+    chrome.storage.sync.set = (): Promise<void> => Promise.reject(new Error('write failed'));
+  });
+
+  // A filter, an exception and the group itself: each switch returns to what is stored.
+  await workHoursGroup
+    .locator('.filter-item')
+    .filter({ hasText: 'Focus Block' })
+    .locator('label.toggle')
+    .click();
+  await expect(status).toHaveText("Couldn't save the change. Try again.");
+  await expect(filterSwitch).toBeChecked();
+
+  await page.evaluate(() => {
+    chrome.storage.sync.set = (): Promise<void> =>
+      Promise.reject(new Error('QUOTA_BYTES quota exceeded'));
+  });
+  await workHoursGroup
+    .locator('.filter-item')
+    .filter({ hasText: 'Allow Docs' })
+    .locator('label.toggle')
+    .click();
+  // A full sync store is not worth retrying as is, so its own message is passed on.
+  await expect(status).toContainText('Browser sync storage is full');
+  await expect(exceptionSwitch).not.toBeChecked();
+
+  await workHoursGroup.locator('label.group-toggle').click();
+  await expect(groupSwitch).toBeChecked();
+  expect(await readStorage(page)).toEqual(stored);
+});
+
 test('trims pattern whitespace and rejects a whitespace-only pattern', async ({
   extensionPage,
   page,

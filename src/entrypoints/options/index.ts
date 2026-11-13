@@ -1854,18 +1854,36 @@ function handleGroupsListChange(e: Event): void {
   if (input.dataset['action'] === 'toggle-filter') {
     const filterId = input.dataset['filterId'];
     if (filterId) {
-      void toggleFilter(filterId, input.checked);
+      void saveSwitch(input, (enabled) => toggleFilter(filterId, enabled));
     }
   } else if (input.dataset['action'] === 'toggle-group') {
     const groupId = input.dataset['groupId'];
     if (groupId) {
-      void toggleGroupEnabled(groupId, input.checked);
+      void saveSwitch(input, (enabled) => toggleGroupEnabled(groupId, enabled));
     }
   } else if (input.dataset['action'] === 'toggle-whitelist') {
     const whitelistId = input.dataset['whitelistId'];
     if (whitelistId) {
-      void toggleWhitelistEntry(whitelistId, input.checked);
+      void saveSwitch(input, (enabled) => toggleWhitelistEntry(whitelistId, enabled));
     }
+  }
+}
+
+/**
+ * Save the state a switch was just flipped to. The switch moves before the save, so a failed save
+ * moves it back and says so; otherwise it would show a state that was never stored.
+ */
+async function saveSwitch(
+  input: HTMLInputElement,
+  save: (enabled: boolean) => Promise<void>
+): Promise<void> {
+  const enabled = input.checked;
+  try {
+    await save(enabled);
+  } catch (error) {
+    console.error('Failed to save switch state:', error);
+    input.checked = !enabled;
+    announceStatus(describeSaveError(error, "Couldn't save the change. Try again."));
   }
 }
 

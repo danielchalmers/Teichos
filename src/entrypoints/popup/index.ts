@@ -731,6 +731,7 @@ async function handleToggleFilter(checkbox: HTMLInputElement): Promise<void> {
   } catch (error) {
     console.error('Failed to toggle filter:', error);
     checkbox.checked = originalState;
+    announceStatus("Couldn't save the change. Try again.");
   }
 }
 
