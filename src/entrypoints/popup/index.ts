@@ -451,8 +451,8 @@ async function applySnoozeSelection(value: number | 'off', onComplete: () => voi
     showDialogError(
       'snooze-error',
       value === 'off'
-        ? 'Failed to resume filtering. Please try again.'
-        : 'Failed to snooze filtering. Please try again.'
+        ? "Couldn't resume filtering. Try again."
+        : "Couldn't snooze filtering. Try again."
     );
   }
 }
@@ -708,7 +708,7 @@ async function handleCopyPattern(pattern: string, button: HTMLButtonElement): Pr
     showCopyFeedback(button);
   } catch (error) {
     console.error('Failed to copy pattern:', error);
-    announceStatus('Failed to copy pattern.');
+    announceStatus("Couldn't copy the pattern. Try again.");
   }
 }
 
@@ -743,7 +743,7 @@ async function handleDeleteFilter(filterId: string): Promise<void> {
     announceStatus('Temporary block deleted.');
   } catch (error) {
     console.error('Failed to delete filter:', error);
-    announceStatus('Failed to delete filter.');
+    announceStatus("Couldn't delete the temporary block. Try again.");
   }
 }
 

@@ -172,7 +172,7 @@ export async function updateData(
     }
   }
 
-  throw new SettingsSaveError('Settings changed in another window while saving. Please try again.');
+  throw new SettingsSaveError('Settings changed in another window while saving. Try again.');
 }
 
 /**

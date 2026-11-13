@@ -397,7 +397,7 @@ async function handleResumeSnooze(): Promise<void> {
     announceStatus('Filtering resumed.');
   } catch (error) {
     console.error('Failed to resume filtering:', error);
-    showDialogError('snooze-notice-error', 'Failed to resume filtering. Please try again.');
+    showDialogError('snooze-notice-error', "Couldn't resume filtering. Try again.");
   }
 }
 
@@ -558,10 +558,10 @@ async function handleExportSettings(): Promise<void> {
   try {
     const serialized = await exportData();
     downloadSettingsFile(serialized);
-    setGlobalSettingsStatus('Settings exported successfully.');
+    setGlobalSettingsStatus('Settings exported.');
   } catch (error) {
     console.error('Failed to export settings:', error);
-    setGlobalSettingsStatus('Failed to export settings.', true);
+    setGlobalSettingsStatus("Couldn't export settings. Try again.", true);
   }
 }
 
@@ -576,10 +576,10 @@ async function handleImportSettings(event: Event): Promise<void> {
     const serialized = await file.text();
     await importData(serialized);
     await renderGroups();
-    setGlobalSettingsStatus('Settings imported successfully.');
+    setGlobalSettingsStatus('Settings imported.');
   } catch (error) {
     console.error('Failed to import settings:', error);
-    const message = error instanceof Error ? error.message : 'Failed to import settings.';
+    const message = error instanceof Error ? error.message : "Couldn't import settings. Try again.";
     setGlobalSettingsStatus(message, true);
   } finally {
     input.value = '';
@@ -606,7 +606,7 @@ async function handlePreviewBlockPage(): Promise<void> {
     });
   } catch (error) {
     console.error('Failed to open block page preview:', error);
-    setGlobalSettingsStatus('Failed to open block page preview.', true);
+    setGlobalSettingsStatus("Couldn't open the block page preview. Try again.", true);
   }
 }
 
@@ -634,7 +634,7 @@ async function handleGlobalExpandDetailsChange(): Promise<void> {
   } catch (error) {
     console.error('Failed to update block page details preference:', error);
     setGlobalSettingsStatus(
-      describeSaveError(error, 'Failed to update block page details preference.'),
+      describeSaveError(error, "Couldn't save the block page details setting. Try again."),
       true
     );
     renderGlobalSettings(await loadData());
@@ -1509,7 +1509,7 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     console.error('Failed to save filter:', error);
     showDialogError(
       'filter-error',
-      describeSaveError(error, 'Failed to save filter. Please try again.')
+      describeSaveError(error, "Couldn't save the filter. Try again.")
     );
   }
 }
@@ -1524,7 +1524,7 @@ async function handleFilterDelete(): Promise<void> {
     announceStatus('Filter deleted.');
   } catch (error) {
     console.error('Failed to delete filter:', error);
-    showDialogError('filter-error', 'Failed to delete filter. Please try again.');
+    showDialogError('filter-error', "Couldn't delete the filter. Try again.");
   }
 }
 
@@ -1661,10 +1661,7 @@ async function handleGroupSubmit(e: Event): Promise<void> {
     announceStatus(isEdit ? 'Group saved.' : 'Group added.');
   } catch (error) {
     console.error('Failed to save group:', error);
-    showDialogError(
-      'group-error',
-      describeSaveError(error, 'Failed to save group. Please try again.')
-    );
+    showDialogError('group-error', describeSaveError(error, "Couldn't save the group. Try again."));
   }
 }
 
@@ -1686,7 +1683,7 @@ async function handleGroupDelete(): Promise<void> {
     );
   } catch (error) {
     console.error('Failed to delete group:', error);
-    showDialogError('group-error', 'Failed to delete group. Please try again.');
+    showDialogError('group-error', "Couldn't delete the group. Try again.");
   }
 }
 
@@ -1797,7 +1794,7 @@ async function handleWhitelistSubmit(e: Event): Promise<void> {
     console.error('Failed to save exception:', error);
     showDialogError(
       'whitelist-error',
-      describeSaveError(error, 'Failed to save exception. Please try again.')
+      describeSaveError(error, "Couldn't save the exception. Try again.")
     );
   }
 }
@@ -1812,7 +1809,7 @@ async function handleWhitelistDelete(): Promise<void> {
     announceStatus('Exception deleted.');
   } catch (error) {
     console.error('Failed to delete exception:', error);
-    showDialogError('whitelist-error', 'Failed to delete exception. Please try again.');
+    showDialogError('whitelist-error', "Couldn't delete the exception. Try again.");
   }
 }
 

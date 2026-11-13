@@ -468,10 +468,8 @@ test('shows a failed resume in the snooze dialog, which stays open', async ({
   const restoreWrites = await failSettingsWrites(page);
   await page.locator('#open-snooze').click();
   await resumeButton.click();
-  await expect(snoozeError).toHaveText('Failed to resume filtering. Please try again.');
-  await expect(page.locator('#status-message')).toHaveText(
-    'Failed to resume filtering. Please try again.'
-  );
+  await expect(snoozeError).toHaveText("Couldn't resume filtering. Try again.");
+  await expect(page.locator('#status-message')).toHaveText("Couldn't resume filtering. Try again.");
   await expect(snoozeDialog).toHaveClass(/is-open/);
   await expect(page.locator('#snooze-label')).toHaveText(/^Snoozed: /);
 
