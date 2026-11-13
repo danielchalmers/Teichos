@@ -48,7 +48,7 @@ test('shows schedule hints in the group header', async ({ extensionPage, page },
 
   const workHoursGroup = page.locator('.group-item').filter({ hasText: 'Work Hours' });
   await expect(workHoursGroup.locator('[data-role="group-meta"]')).toHaveText(
-    'Mon–Fri 09:00–17:00; Sat 10:00–12:00 · 0 filters · 0 exceptions'
+    'Mon–Fri 9:00 AM – 5:00 PM; Sat 10:00 AM – 12:00 PM · 0 filters · 0 exceptions'
   );
   // The default group's name already says when it applies, so its meta line only counts.
   const defaultGroupCard = page.locator('.group-item').filter({ hasText: defaultGroup.name });
@@ -78,7 +78,9 @@ test('creates, edits, and deletes a scheduled group with filters and exceptions'
   // Focus returns to the page after each save, so the result is also announced.
   const status = page.locator('#status-message');
   const workHoursGroup = page.locator('.group-item').filter({ hasText: 'Work Hours' });
-  await expect(workHoursGroup).toContainText('Mon–Fri 09:00–17:00 · 0 filters · 0 exceptions');
+  await expect(workHoursGroup).toContainText(
+    'Mon–Fri 9:00 AM – 5:00 PM · 0 filters · 0 exceptions'
+  );
   await expect(status).toHaveText('Group added.');
   await workHoursGroup.getByRole('button', { name: 'Work Hours', exact: true }).click();
 
@@ -624,7 +626,9 @@ test('updates selected days and rejects schedules with no days in the group edit
   await groupModal.getByRole('button', { name: 'Save' }).click();
 
   const flexibleHoursGroup = page.locator('.group-item').filter({ hasText: 'Flexible Hours' });
-  await expect(flexibleHoursGroup).toContainText('Sun, Sat 09:00–17:00 · 0 filters · 0 exceptions');
+  await expect(flexibleHoursGroup).toContainText(
+    'Sun, Sat 9:00 AM – 5:00 PM · 0 filters · 0 exceptions'
+  );
 
   await flexibleHoursGroup.locator('button[data-action="edit-group"]').click();
   await page
@@ -1328,7 +1332,7 @@ test('wraps group meta lines, the Groups header and the snooze notice at 320px',
     .filter({ hasText: 'Evenings' })
     .locator('[data-role="group-meta"]');
   await expect(eveningsMeta).toHaveText(
-    'Mon–Fri 18:00–22:00; Sun, Sat 10:00–23:00 · 0 filters · 0 exceptions'
+    'Mon–Fri 6:00 PM – 10:00 PM; Sun, Sat 10:00 AM – 11:00 PM · 0 filters · 0 exceptions'
   );
 
   const meta = await page.locator('#groups-list .group-item').evaluateAll((groups) =>

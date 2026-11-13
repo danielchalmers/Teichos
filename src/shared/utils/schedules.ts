@@ -1,8 +1,11 @@
 import { DAY_NAMES } from '../constants';
 import type { FilterGroup, SnoozeState, TimeSchedule } from '../types';
-import { formatDuration } from './helpers';
+import { formatDuration, isValidTimeString } from './helpers';
 
-export function formatGroupScheduleSummary(group: FilterGroup): string {
+/** A no-break space: it keeps a clock time with its AM/PM, and a spaced dash with both its times. */
+const NO_BREAK_SPACE = ' ';
+
+export function formatGroupScheduleSummary(group: FilterGroup, locale?: string): string {
   if (group.is24x7) {
     return 'Always active';
   }
@@ -11,11 +14,39 @@ export function formatGroupScheduleSummary(group: FilterGroup): string {
     return 'No schedule';
   }
 
-  return group.schedules.map(formatScheduleSummary).join('; ');
+  return group.schedules.map((schedule) => formatScheduleSummary(schedule, locale)).join('; ');
 }
 
-export function formatScheduleSummary(schedule: TimeSchedule): string {
-  return `${formatScheduleDays(schedule.daysOfWeek)} ${schedule.startTime}–${schedule.endTime}`;
+/** One schedule's days and hours, e.g. "Mon–Fri 9:00 AM – 5:00 PM", or "Mon–Fri 09:00–17:00". */
+export function formatScheduleSummary(schedule: TimeSchedule, locale?: string): string {
+  const start = formatScheduleTime(schedule.startTime, locale);
+  const end = formatScheduleTime(schedule.endTime, locale);
+  // Times that carry AM/PM contain a space, so the dash between them is spaced to match. None of
+  // these spaces break, so a narrow line wraps between the days and the hours, never inside them.
+  const isSpaced = start.includes(NO_BREAK_SPACE) || end.includes(NO_BREAK_SPACE);
+  const dash = isSpaced ? `${NO_BREAK_SPACE}–${NO_BREAK_SPACE}` : '–';
+  return `${formatScheduleDays(schedule.daysOfWeek)} ${start}${dash}${end}`;
+}
+
+/**
+ * A stored HH:MM schedule time on the reader's clock: "9:00 AM" where the locale uses a 12-hour
+ * clock, and the stored "09:00" where it uses a 24-hour one. The schedule editor's time inputs and
+ * the "until 3:45 PM" texts already follow the locale, so a schedule reads the way it was entered.
+ * Anything that is not a real time is shown as stored.
+ */
+export function formatScheduleTime(time: string, locale?: string): string {
+  if (!isValidTimeString(time)) {
+    return time;
+  }
+
+  const formatter = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' });
+  const { hourCycle } = formatter.resolvedOptions();
+  if (hourCycle !== 'h11' && hourCycle !== 'h12') {
+    return time;
+  }
+
+  const [hours = 0, minutes = 0] = time.split(':').map(Number);
+  return formatter.format(new Date(2000, 0, 1, hours, minutes)).replace(/\s/g, NO_BREAK_SPACE);
 }
 
 export function formatScheduleDays(daysOfWeek: readonly number[]): string {
