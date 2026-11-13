@@ -3,6 +3,7 @@ import {
   formatGroupScheduleSummary,
   formatScheduleDays,
   formatScheduleSummary,
+  formatScheduleTime,
   formatSnoozeEnd,
   formatTemporaryFilterLabel,
   formatUntil,
@@ -30,15 +31,54 @@ describe('formatScheduleDays', () => {
   });
 });
 
+// ICU versions differ on whether the space before AM/PM is a narrow no-break space, and the dash
+// between two such times is set with no-break spaces, so spaces are normalized before comparing.
+const plainSpaces = (text: string): string => text.replace(/\s+/g, ' ');
+
+describe('formatScheduleTime', () => {
+  it('uses a 12-hour clock where the locale does', () => {
+    expect(plainSpaces(formatScheduleTime('09:00', 'en-US'))).toBe('9:00 AM');
+    expect(plainSpaces(formatScheduleTime('17:30', 'en-US'))).toBe('5:30 PM');
+    expect(plainSpaces(formatScheduleTime('00:00', 'en-US'))).toBe('12:00 AM');
+    expect(plainSpaces(formatScheduleTime('12:00', 'en-US'))).toBe('12:00 PM');
+  });
+
+  it('uses a 24-hour clock where the locale does', () => {
+    expect(formatScheduleTime('09:00', 'en-GB')).toBe('09:00');
+    expect(formatScheduleTime('17:30', 'de-DE')).toBe('17:30');
+    expect(formatScheduleTime('00:00', 'en-GB')).toBe('00:00');
+  });
+
+  it('shows a value that is not a time as it is stored', () => {
+    expect(formatScheduleTime('', 'en-US')).toBe('');
+    expect(formatScheduleTime('25:00', 'en-US')).toBe('25:00');
+  });
+});
+
 describe('formatScheduleSummary', () => {
+  const workHours = { daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' };
+
   it('combines the formatted day label with the time range', () => {
+    expect(plainSpaces(formatScheduleSummary(workHours, 'en-US'))).toBe(
+      'Mon–Fri 9:00 AM – 5:00 PM'
+    );
+  });
+
+  it('keeps a 24-hour range compact', () => {
+    expect(formatScheduleSummary(workHours, 'en-GB')).toBe('Mon–Fri 09:00–17:00');
+  });
+
+  it('keeps a 12-hour range on one line', () => {
+    // Only the space after the days can break, so a narrow line never splits the hours.
+    expect(formatScheduleSummary(workHours, 'en-US').split(' ')).toHaveLength(2);
+  });
+
+  it('formats a range that crosses midnight', () => {
     expect(
-      formatScheduleSummary({
-        daysOfWeek: [1, 2, 3, 4, 5],
-        startTime: '09:00',
-        endTime: '17:00',
-      })
-    ).toBe('Mon–Fri 09:00–17:00');
+      plainSpaces(
+        formatScheduleSummary({ daysOfWeek: [5, 6], startTime: '23:00', endTime: '07:30' }, 'en-US')
+      )
+    ).toBe('Fri–Sat 11:00 PM – 7:30 AM');
   });
 });
 
@@ -66,17 +106,19 @@ describe('formatGroupScheduleSummary', () => {
   });
 
   it('joins multiple schedule hints for a custom group', () => {
-    expect(
-      formatGroupScheduleSummary({
-        id: 'work-hours',
-        name: 'Work Hours',
-        is24x7: false,
-        schedules: [
-          { daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' },
-          { daysOfWeek: [6], startTime: '10:00', endTime: '12:00' },
-        ],
-      })
-    ).toBe('Mon–Fri 09:00–17:00; Sat 10:00–12:00');
+    const group = {
+      id: 'work-hours',
+      name: 'Work Hours',
+      is24x7: false,
+      schedules: [
+        { daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' },
+        { daysOfWeek: [6], startTime: '10:00', endTime: '12:00' },
+      ],
+    };
+    expect(plainSpaces(formatGroupScheduleSummary(group, 'en-US'))).toBe(
+      'Mon–Fri 9:00 AM – 5:00 PM; Sat 10:00 AM – 12:00 PM'
+    );
+    expect(formatGroupScheduleSummary(group, 'en-GB')).toBe('Mon–Fri 09:00–17:00; Sat 10:00–12:00');
   });
 });
 

@@ -1099,7 +1099,8 @@ function renderGroup(
 const META_SEPARATOR = '\u00a0·';
 
 /**
- * The group's meta line, e.g. "Mon–Fri 09:00–17:00; Sat 10:00–12:00 · 2 filters · 0 exceptions".
+ * The group's meta line, e.g. "Mon–Fri 9:00 AM – 5:00 PM; Sat 10:00 AM – 12:00 PM · 2 filters · 0
+ * exceptions", with times in the browser's clock format.
  * Each schedule is its own part, so a narrow line wraps between schedules rather than inside one,
  * and every part but the last ends with its separator, so a wrapped line never starts with one.
  */
@@ -1114,7 +1115,7 @@ function renderGroupMeta(
     scheduleParts =
       group.is24x7 || group.schedules.length === 0
         ? [formatGroupScheduleSummary(group)]
-        : group.schedules.map(formatScheduleSummary);
+        : group.schedules.map((schedule) => formatScheduleSummary(schedule));
   }
 
   const parts = [

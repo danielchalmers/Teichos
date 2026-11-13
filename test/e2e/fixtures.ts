@@ -54,6 +54,9 @@ export const test = base.extend<ExtensionFixtures>({
     const context = await chromium.launchPersistentContext(userDataDir, {
       channel: 'chromium',
       headless: true,
+      // Schedule and end times follow the browser's clock format, so pin it: the suite reads the
+      // same on a machine set to a 24-hour locale.
+      locale: 'en-US',
       acceptDownloads: true,
       args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
     });

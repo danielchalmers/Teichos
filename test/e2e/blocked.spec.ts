@@ -177,8 +177,11 @@ test('says when a temporary block ends instead of only the group schedule', asyn
   await expectBlocked(page, 'https://timed-block.example.test/focus');
   await showBlockPageDetails(page);
   const schedule = page.locator('#responsible-filter-schedule');
-  await expect(schedule).toHaveText(`Daily 00:00–23:59; Mon–Fri 09:00–17:00 · ${until()}`);
-  // On a narrow screen the text wraps between schedules, never inside a range like 09:00–17:00.
+  await expect(schedule).toHaveText(
+    `Daily 12:00 AM – 11:59 PM; Mon–Fri 9:00 AM – 5:00 PM · ${until()}`
+  );
+  // On a narrow screen the text wraps between schedules, never inside a range like
+  // 9:00 AM – 5:00 PM.
   const partLineCounts = await schedule
     .locator('.schedule-part')
     .evaluateAll((parts) =>

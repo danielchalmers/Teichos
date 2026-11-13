@@ -465,7 +465,8 @@ function renderSchedule(state: BlockedPageState): void {
   const summaries = getScheduleSummaries(group, expiresAt !== undefined);
 
   // Each part is its own box ending in its separator, so a long schedule wraps between parts
-  // rather than inside a range like "09:00–17:00", and no wrapped line starts with a separator.
+  // rather than inside a range like "9:00 AM – 5:00 PM", and no wrapped line starts with a
+  // separator.
   const parts = summaries.map((summary, index) =>
     index < summaries.length - 1 ? `${summary};` : summary
   );
@@ -497,7 +498,7 @@ function getScheduleSummaries(group: BlockedPageState['group'], isTemporary: boo
   }
 
   return group.schedules.length > 0
-    ? group.schedules.map(formatScheduleSummary)
+    ? group.schedules.map((schedule) => formatScheduleSummary(schedule))
     : [formatGroupScheduleSummary(group)];
 }
 
