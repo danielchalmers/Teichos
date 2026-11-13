@@ -118,6 +118,57 @@ test('renders the blocked url and responsible filter from block id state', async
   await expect(page.locator('#other-filters')).toBeHidden();
 });
 
+test('names an unnamed filter once, by its pattern', async ({ extensionPage, page }) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'unnamed-filter',
+          pattern: 'unnamed.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'domain',
+        },
+        {
+          id: 'blank-name-filter',
+          pattern: 'blank-name.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'domain',
+          description: '   ',
+        },
+        {
+          id: 'named-filter',
+          pattern: 'named.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'domain',
+          description: 'Named',
+        },
+      ],
+      rulesVersion: 1,
+    })
+  );
+
+  // The pattern has its own row, so a Filter row would only repeat it.
+  const details = page.getByLabel('Responsible filter');
+  const terms = details.locator('dt:visible');
+  for (const host of ['unnamed.example.test', 'blank-name.example.test']) {
+    await expectBlocked(page, `https://${host}/focus`);
+    await showBlockPageDetails(page);
+    await expect(terms).toHaveText(['Pattern', 'Match', 'Group', 'Schedule']);
+    await expect(page.locator('#responsible-filter-pattern')).toHaveText(host);
+    await expect(details.getByText(host, { exact: true })).toHaveCount(1);
+  }
+
+  await expectBlocked(page, 'https://named.example.test/focus');
+  await showBlockPageDetails(page);
+  await expect(terms).toHaveText(['Filter', 'Pattern', 'Match', 'Group', 'Schedule']);
+  await expect(page.locator('#responsible-filter-name')).toHaveText('Named');
+});
+
 test('says when a temporary block ends instead of only the group schedule', async ({
   extensionPage,
   page,
