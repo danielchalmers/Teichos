@@ -74,6 +74,7 @@ async function init(): Promise<void> {
  */
 async function renderPage(): Promise<void> {
   const state = await getBlockedPageState();
+  renderTitle(state);
   renderPreviewNote();
   renderBlockedUrl(state);
   renderResponsibleFilter(state);
@@ -372,6 +373,27 @@ function renderPreviewNote(): void {
   const previewNote = getElementByIdOrNull<HTMLElement>('preview-note');
   if (previewNote) {
     previewNote.hidden = !isPreviewMode();
+  }
+}
+
+/**
+ * Name the blocked site in the tab title, so several blocked tabs can be told apart. The site
+ * comes first because a narrow tab keeps only the start of its title. Only the site is named,
+ * never the rest of the address, which stays behind Learn more.
+ */
+function renderTitle(state: BlockedPageViewModel): void {
+  const site = state.state ? getSiteName(state.targetUrl) : null;
+  if (site) {
+    document.title = `${site} blocked · Teichos`;
+  }
+}
+
+/** A URL's host without a leading "www.", or null when it has none (a file, a malformed URL). */
+function getSiteName(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '') || null;
+  } catch {
+    return null;
   }
 }
 
