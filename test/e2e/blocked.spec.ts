@@ -616,6 +616,41 @@ test('Close tab keeps the window open when the block page is its only tab', asyn
   expect(remaining[0]).not.toContain(PAGES.BLOCKED);
 });
 
+test('names the blocked site in the tab title', async ({ context, extensionPage, page }) => {
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'title-filter',
+          pattern: 'titled.example.invalid',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'domain',
+        },
+      ],
+    })
+  );
+
+  // The site only, without "www." or the rest of the address, and first so a narrow tab keeps it.
+  await expectBlocked(page, 'https://www.titled.example.invalid/watch?v=private#part');
+  await expect(page).toHaveTitle('titled.example.invalid blocked · Teichos');
+
+  await expectBlocked(page, 'https://news.titled.example.invalid:8443/');
+  await expect(page).toHaveTitle('news.titled.example.invalid blocked · Teichos');
+
+  // The preview names its sample site, as a real block would.
+  await page.goto(`${extensionPage(PAGES.BLOCKED)}?preview=1`);
+  await expect(page).toHaveTitle('example.com blocked · Teichos');
+
+  // With no block state there is no site to name. A new tab, as this one has a block on record.
+  const strayPage = await context.newPage();
+  await strayPage.goto(extensionPage(PAGES.BLOCKED));
+  await expect(strayPage.getByLabel('Blocked URL')).toHaveText('Block details unavailable');
+  await expect(strayPage).toHaveTitle('Blocked · Teichos');
+});
+
 test('handles missing or stale block ids safely and still goes back', async ({
   extensionPage,
   page,
