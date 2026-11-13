@@ -864,7 +864,9 @@ async function renderGroups(): Promise<void> {
   for (const [index, group] of data.groups.entries()) {
     const filters = sortFiltersTemporaryFirst(filtersByGroup.get(group.id) ?? []);
     const whitelist = whitelistByGroup.get(group.id) ?? [];
-    fragment.appendChild(renderGroup(group, index, filters, whitelist, snoozeActive));
+    fragment.appendChild(
+      renderGroup(group, index, filters, whitelist, snoozeActive, data.filters.length > 0)
+    );
   }
 
   groupsList.replaceChildren(fragment);
@@ -1006,7 +1008,8 @@ function renderGroup(
   index: number,
   filters: readonly Filter[],
   whitelist: readonly Whitelist[],
-  snoozeActive: boolean
+  snoozeActive: boolean,
+  hasAnyFilters: boolean
 ): HTMLElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
   const groupEnabled = isGroupEnabled(group);
@@ -1070,7 +1073,12 @@ function renderGroup(
   addWhitelistButton.dataset['groupId'] = group.id;
 
   if (filters.length === 0) {
-    filterList.appendChild(createEmptyState('No filters in this group.'));
+    // With no filters anywhere, as on a new install, the always-active group says where to start.
+    filterList.appendChild(
+      createEmptyState(
+        isDefault && !hasAnyFilters ? FIRST_FILTER_HINT : 'No filters in this group.'
+      )
+    );
   } else {
     const filterFragment = document.createDocumentFragment();
     for (const filter of filters) {
@@ -1154,6 +1162,9 @@ function setGroupReadonlyState(groupElement: HTMLElement, readonly: boolean): vo
       element.disabled = readonly;
     });
 }
+
+const FIRST_FILTER_HINT =
+  'No filters yet. Add one to block a site all the time, or make a new group to block on a schedule.';
 
 function createEmptyState(message: string): HTMLParagraphElement {
   const element = document.createElement('p');
