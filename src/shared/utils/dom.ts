@@ -97,6 +97,12 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
+/** Name an icon-only button, and show the same name as its tooltip. */
+export function setIconButtonLabel(button: HTMLButtonElement, label: string): void {
+  button.setAttribute('aria-label', label);
+  button.title = label;
+}
+
 /**
  * Announce a message through the page's visually hidden `#status-message` live region.
  * The text is cleared first so repeating the same message is announced again.

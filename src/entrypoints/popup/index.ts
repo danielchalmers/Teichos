@@ -39,6 +39,7 @@ import {
   cloneTemplate,
   getElementByIdOrNull,
   querySelector,
+  setIconButtonLabel,
   showDialogError,
 } from '../../shared/utils/dom';
 import { formatDuration, generateId, isInternalUrl } from '../../shared/utils/helpers';
@@ -451,8 +452,8 @@ async function applySnoozeSelection(value: number | 'off', onComplete: () => voi
     showDialogError(
       'snooze-error',
       value === 'off'
-        ? 'Failed to resume filtering. Please try again.'
-        : 'Failed to snooze filtering. Please try again.'
+        ? "Couldn't resume filtering. Try again."
+        : "Couldn't snooze filtering. Try again."
     );
   }
 }
@@ -708,7 +709,7 @@ async function handleCopyPattern(pattern: string, button: HTMLButtonElement): Pr
     showCopyFeedback(button);
   } catch (error) {
     console.error('Failed to copy pattern:', error);
-    announceStatus('Failed to copy pattern.');
+    announceStatus("Couldn't copy the pattern. Try again.");
   }
 }
 
@@ -731,6 +732,7 @@ async function handleToggleFilter(checkbox: HTMLInputElement): Promise<void> {
   } catch (error) {
     console.error('Failed to toggle filter:', error);
     checkbox.checked = originalState;
+    announceStatus("Couldn't save the change. Try again.");
   }
 }
 
@@ -743,7 +745,7 @@ async function handleDeleteFilter(filterId: string): Promise<void> {
     announceStatus('Temporary block deleted.');
   } catch (error) {
     console.error('Failed to delete filter:', error);
-    announceStatus('Failed to delete filter.');
+    announceStatus("Couldn't delete the temporary block. Try again.");
   }
 }
 
@@ -930,11 +932,12 @@ async function renderFilters(): Promise<void> {
 
     item.dataset['filterId'] = filter.id;
     copyButton.dataset['pattern'] = filter.pattern;
-    copyButton.setAttribute('aria-label', `Copy pattern for ${displayName}`);
+    setIconButtonLabel(copyButton, `Copy pattern for ${displayName}`);
     editButton.dataset['filterId'] = filter.id;
-    editButton.setAttribute('aria-label', `Edit filter ${displayName}`);
+    setIconButtonLabel(editButton, `Edit filter ${displayName}`);
     deleteButton.dataset['filterId'] = filter.id;
-    deleteButton.setAttribute('aria-label', `Delete filter ${displayName}`);
+    // Only a temporary block has this button, and the popup calls it that everywhere else.
+    setIconButtonLabel(deleteButton, `Delete temporary block ${displayName}`);
 
     fragment.appendChild(item);
   }

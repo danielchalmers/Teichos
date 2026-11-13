@@ -294,9 +294,7 @@ test('exports current settings from global settings', async ({ extensionPage, pa
 
   expect(downloadPath).not.toBeNull();
   expect(JSON.parse(await readFile(downloadPath!, 'utf8'))).toEqual(currentData);
-  await expect(page.locator('#global-settings-status')).toHaveText(
-    'Settings exported successfully.'
-  );
+  await expect(page.locator('#global-settings-status')).toHaveText('Settings exported.');
 });
 
 test('imports settings from global settings', async ({ extensionPage, page }) => {
@@ -361,9 +359,7 @@ test('imports settings from global settings', async ({ extensionPage, page }) =>
   const importedGroup = page.locator('.group-item').filter({ hasText: 'Imported Group' });
   await expect(importedGroup).toContainText('Imported Filter');
   await expect(importedGroup).toContainText('Imported Exception');
-  await expect(page.locator('#global-settings-status')).toHaveText(
-    'Settings imported successfully.'
-  );
+  await expect(page.locator('#global-settings-status')).toHaveText('Settings imported.');
   await expect
     .poll(() => readStorage(page))
     .toMatchObject({
@@ -767,6 +763,87 @@ test('disabled groups start collapsed and stay readonly until re-enabled', async
   await expect(reloadedGroup.locator('.group-disclosure')).toHaveAttribute('aria-expanded', 'true');
 });
 
+test('moves a switch back, and says so, when its change cannot be saved', async ({
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [
+        defaultGroup,
+        {
+          id: 'work-hours',
+          name: 'Work Hours',
+          enabled: true,
+          is24x7: false,
+          schedules: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }],
+        },
+      ],
+      filters: [
+        {
+          id: 'focus-block',
+          pattern: 'focus.example.test',
+          groupId: 'work-hours',
+          enabled: true,
+          matchMode: 'contains',
+          description: 'Focus Block',
+        },
+      ],
+      whitelist: [
+        {
+          id: 'allow-docs',
+          pattern: 'focus.example.test/docs',
+          groupId: 'work-hours',
+          enabled: false,
+          matchMode: 'contains',
+          description: 'Allow Docs',
+        },
+      ],
+    })
+  );
+  const stored = await readStorage(page);
+
+  const workHoursGroup = page.locator('.group-item').filter({ hasText: 'Work Hours' });
+  const status = page.locator('#status-message');
+  const filterSwitch = workHoursGroup.locator('input[data-action="toggle-filter"]');
+  const exceptionSwitch = workHoursGroup.locator('input[data-action="toggle-whitelist"]');
+  const groupSwitch = workHoursGroup.locator('input[data-action="toggle-group"]');
+  await workHoursGroup.getByRole('button', { name: 'Work Hours', exact: true }).click();
+  await expect(filterSwitch).toBeChecked();
+
+  await page.evaluate(() => {
+    chrome.storage.sync.set = (): Promise<void> => Promise.reject(new Error('write failed'));
+  });
+
+  // A filter, an exception and the group itself: each switch returns to what is stored.
+  await workHoursGroup
+    .locator('.filter-item')
+    .filter({ hasText: 'Focus Block' })
+    .locator('label.toggle')
+    .click();
+  await expect(status).toHaveText("Couldn't save the change. Try again.");
+  await expect(filterSwitch).toBeChecked();
+
+  await page.evaluate(() => {
+    chrome.storage.sync.set = (): Promise<void> =>
+      Promise.reject(new Error('QUOTA_BYTES quota exceeded'));
+  });
+  await workHoursGroup
+    .locator('.filter-item')
+    .filter({ hasText: 'Allow Docs' })
+    .locator('label.toggle')
+    .click();
+  // A full sync store is not worth retrying as is, so its own message is passed on.
+  await expect(status).toContainText('Browser sync storage is full');
+  await expect(exceptionSwitch).not.toBeChecked();
+
+  await workHoursGroup.locator('label.group-toggle').click();
+  await expect(groupSwitch).toBeChecked();
+  expect(await readStorage(page)).toEqual(stored);
+});
+
 test('trims pattern whitespace and rejects a whitespace-only pattern', async ({
   extensionPage,
   page,
@@ -994,10 +1071,8 @@ test('shows a failed resume inside the snooze notice', async ({ extensionPage, p
 
   // The failure is shown next to the button that caused it, as well as announced.
   await expect(noticeError).toBeVisible();
-  await expect(noticeError).toHaveText('Failed to resume filtering. Please try again.');
-  await expect(page.locator('#status-message')).toHaveText(
-    'Failed to resume filtering. Please try again.'
-  );
+  await expect(noticeError).toHaveText("Couldn't resume filtering. Try again.");
+  await expect(page.locator('#status-message')).toHaveText("Couldn't resume filtering. Try again.");
   await expect(notice).toBeVisible();
 
   // A later resume that works takes the error away with the notice.
@@ -1515,9 +1590,7 @@ test('keeps settings too large for one sync item, as older versions could not', 
 
   // About 45 filters filled the 8 KB that Chrome allows each synced item.
   await importBulkFilters(page, 300);
-  await expect(page.locator('#global-settings-status')).toHaveText(
-    'Settings imported successfully.'
-  );
+  await expect(page.locator('#global-settings-status')).toHaveText('Settings imported.');
 
   await gotoOptions(extensionPage, page);
   await expect(page.getByText('Bulk site 299', { exact: true })).toBeVisible();
@@ -1537,9 +1610,7 @@ test('shrinks large settings even when sync storage is nearly full', async ({
   await importBulkFilters(page, 570);
   // 50 fit in one item again, but there's no room to write that item beside the larger copy.
   await importBulkFilters(page, 50);
-  await expect(page.locator('#global-settings-status')).toHaveText(
-    'Settings imported successfully.'
-  );
+  await expect(page.locator('#global-settings-status')).toHaveText('Settings imported.');
 });
 
 test('keeps large settings whose text Chrome stores escaped', async ({ extensionPage, page }) => {
@@ -1562,8 +1633,6 @@ test('keeps large settings whose text Chrome stores escaped', async ({ extension
     buffer: Buffer.from(JSON.stringify(createStorageData({ filters }))),
   });
 
-  await expect(page.locator('#global-settings-status')).toHaveText(
-    'Settings imported successfully.'
-  );
+  await expect(page.locator('#global-settings-status')).toHaveText('Settings imported.');
   await expect.poll(async () => (await readStorage(page))?.filters.length).toBe(150);
 });
