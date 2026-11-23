@@ -356,6 +356,15 @@ test('imports settings from global settings', async ({ extensionPage, page }) =>
     buffer: Buffer.from(JSON.stringify(importedData)),
   });
 
+  // An import replaces everything, so it names the file and what would be lost, and waits.
+  const importModal = page.locator('#import-modal.active');
+  await expect(importModal).toHaveAccessibleDescription(
+    "Import “teichos-settings.json”? It replaces your 1 group and 1 filter. This can't be undone."
+  );
+  expect((await readStorage(page))?.filters.map((filter) => filter.id)).toEqual(['old-filter']);
+  await importModal.getByRole('button', { name: 'Replace settings' }).click();
+  await expect(importModal).toHaveCount(0);
+
   const importedGroup = page.locator('.group-item').filter({ hasText: 'Imported Group' });
   await expect(importedGroup).toContainText('Imported Filter');
   await expect(importedGroup).toContainText('Imported Exception');
@@ -397,10 +406,105 @@ test('keeps existing settings when global settings import fails', async ({
     buffer: Buffer.from('{'),
   });
 
+  // A file that can't be imported says so at once, without asking to replace anything first.
   await expect(page.locator('#global-settings-status')).toHaveText(
     'Settings file is not valid JSON.'
   );
+  await expect(page.locator('#import-modal.active')).toHaveCount(0);
   expect(await readStorage(page)).toEqual(originalData);
+});
+
+test('asks before an import replaces settings, and keeps them when declined', async ({
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  const importedData = createStorageData({
+    filters: [
+      {
+        id: 'imported-filter',
+        pattern: 'imported.example.test',
+        groupId: defaultGroup.id,
+        enabled: true,
+        matchMode: 'domain',
+      },
+    ],
+  });
+  const chooseFile = (): Promise<void> =>
+    page.locator('#import-settings-input').setInputFiles({
+      name: 'backup.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(importedData)),
+    });
+  const importModal = page.locator('#import-modal.active');
+  const status = page.locator('#global-settings-status');
+
+  // With nothing to lose, as on a new install restoring a backup, there is nothing to ask.
+  await chooseFile();
+  await expect(status).toHaveText('Settings imported.');
+  await expect(importModal).toHaveCount(0);
+  await expect.poll(async () => (await readStorage(page))?.filters).toEqual(importedData.filters);
+
+  const originalData = createStorageData({
+    groups: [
+      defaultGroup,
+      { id: 'work', name: 'Work', is24x7: true, schedules: [] },
+      { id: 'evening', name: 'Evening', is24x7: true, schedules: [] },
+    ],
+    filters: [
+      {
+        id: 'kept-filter',
+        pattern: 'kept.example.test',
+        groupId: 'work',
+        enabled: true,
+        matchMode: 'domain',
+      },
+    ],
+    whitelist: [
+      {
+        id: 'kept-exception',
+        pattern: 'docs.kept.example.test',
+        groupId: 'work',
+        enabled: true,
+        matchMode: 'domain',
+      },
+    ],
+    rulesVersion: 4,
+  });
+  await seedStorage(page, originalData);
+  await expect(page.locator('.group-item').filter({ hasText: 'Evening' })).toHaveCount(1);
+
+  // The dialog opens on the safe choice, and every way out of it keeps the settings.
+  const importButton = page.getByRole('button', { name: 'Import settings' });
+  await importButton.focus();
+  await chooseFile();
+  await expect(importModal).toHaveAccessibleDescription(
+    "Import “backup.json”? It replaces your 3 groups, 1 filter and 1 exception. This can't be undone."
+  );
+  const keepButton = importModal.getByRole('button', { name: 'Keep settings' });
+  await expect(keepButton).toBeFocused();
+  await keepButton.click();
+  await expect(importModal).toHaveCount(0);
+  await expect(importButton).toBeFocused();
+
+  await chooseFile();
+  await expect(importModal).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(importModal).toHaveCount(0);
+
+  await chooseFile();
+  await expect(importModal).toBeVisible();
+  await importModal.getByRole('button', { name: 'Close import dialog' }).click();
+  await expect(importModal).toHaveCount(0);
+
+  await expect(status).toBeEmpty();
+  expect(await readStorage(page)).toEqual(originalData);
+
+  // The same file can be chosen again and confirmed.
+  await chooseFile();
+  await importModal.getByRole('button', { name: 'Replace settings' }).click();
+  await expect(status).toHaveText('Settings imported.');
+  await expect.poll(async () => (await readStorage(page))?.filters).toEqual(importedData.filters);
 });
 
 test('says where to start while there are no filters at all', async ({ extensionPage, page }) => {
@@ -1542,6 +1646,43 @@ test('a domain filter blocks the site and its subdomains, not addresses that men
   await expectAllowed(browsingPage, 'https://search.example.test/?q=x.example.test');
 });
 
+test('a pasted address with www. blocks the whole site', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  // The address bar shows "www.", so a pasted address carries it; the site is what is meant.
+  await page.locator('button[data-action="add-filter"]').first().click();
+  const modal = page.locator('#filter-modal.active');
+  await modal.locator('#filter-pattern').fill('https://www.pasted.example.test/');
+  await modal.getByRole('button', { name: 'Save' }).click();
+  await expect(modal).toBeHidden();
+  expect((await readStorage(page))?.filters[0]).toMatchObject({
+    pattern: 'pasted.example.test',
+    matchMode: 'domain',
+  });
+
+  // Typed without a scheme, "www." is kept: the user named that host.
+  await page.locator('button[data-action="add-filter"]').first().click();
+  await modal.locator('#filter-pattern').fill('www.typed.example.test');
+  await modal.getByRole('button', { name: 'Save' }).click();
+  await expect(modal).toBeHidden();
+  expect((await readStorage(page))?.filters.map((filter) => filter.pattern)).toEqual([
+    'pasted.example.test',
+    'www.typed.example.test',
+  ]);
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, 'https://www.pasted.example.test/');
+  await expectBlocked(browsingPage, 'https://pasted.example.test/');
+  await expectBlocked(browsingPage, 'https://old.pasted.example.test/r/all');
+  await expectBlocked(browsingPage, 'https://www.typed.example.test/');
+  await expectAllowed(browsingPage, 'https://typed.example.test/');
+});
+
 test('asks for a site when a domain filter names a page', async ({ extensionPage, page }) => {
   await gotoOptions(extensionPage, page);
   await seedStorage(page, createStorageData({ filters: [] }));
@@ -1565,6 +1706,53 @@ test('asks for a site when a domain filter names a page', async ({ extensionPage
     pattern: 'youtube.example.test/shorts',
     matchMode: 'contains',
   });
+});
+
+test('asks for a full address when an exact pattern has no scheme', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  await page.locator('button[data-action="add-filter"]').first().click();
+  const modal = page.locator('#filter-modal.active');
+  const patternInput = modal.locator('#filter-pattern');
+  await modal.getByLabel('Match mode').selectOption('exact');
+  await patternInput.fill('exact.example.test/page');
+  await modal.getByRole('button', { name: 'Save' }).click();
+  // Saved as typed it would never match: the browser reports every page with its scheme.
+  await expect(modal.locator('#filter-error')).toHaveText(
+    'Enter a full address, like https://reddit.com/r/popular. To match part of an address, choose another match mode.'
+  );
+  await expect(patternInput).toHaveAttribute('aria-invalid', 'true');
+  await expect(patternInput).toBeFocused();
+  expect((await readStorage(page))?.filters).toEqual([]);
+
+  await patternInput.fill('https://exact.example.test/page');
+  await expect(modal.locator('#filter-error')).toBeHidden();
+  await modal.getByRole('button', { name: 'Save' }).click();
+  await expect(modal).toBeHidden();
+  expect((await readStorage(page))?.filters[0]).toMatchObject({
+    pattern: 'https://exact.example.test/page',
+    matchMode: 'exact',
+  });
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, 'https://exact.example.test/page');
+  await expectAllowed(browsingPage, 'https://exact.example.test/other');
+
+  // An exception is read the same way.
+  await page.locator('button[data-action="add-whitelist"]').first().click();
+  const exceptionModal = page.locator('#whitelist-modal.active');
+  await exceptionModal.getByLabel('Match mode').selectOption('exact');
+  await exceptionModal.locator('#whitelist-pattern').fill('exact.example.test/page');
+  await exceptionModal.getByRole('button', { name: 'Save' }).click();
+  await expect(exceptionModal.locator('#whitelist-error')).toHaveText(
+    'Enter a full address, like https://reddit.com/r/popular. To match part of an address, choose another match mode.'
+  );
+  expect((await readStorage(page))?.whitelist).toEqual([]);
 });
 
 test('existing site-name filters become domain filters after the update', async ({
@@ -1599,10 +1787,14 @@ test('existing site-name filters become domain filters after the update', async 
   await expect(page.locator('#filter-modal.active').getByLabel('Match mode')).toHaveValue('domain');
 });
 
-/** Import `count` filters, each taking about 170 bytes of sync storage. */
+/**
+ * Import `count` filters, each taking about 170 bytes of sync storage. An import over existing
+ * filters asks first; `replacing` answers it.
+ */
 async function importBulkFilters(
   page: Parameters<typeof waitForOptionsReady>[0],
-  count: number
+  count: number,
+  { replacing = false } = {}
 ): Promise<void> {
   const filters = Array.from({ length: count }, (_, index) => ({
     id: `bulk-filter-${String(index)}`,
@@ -1617,6 +1809,12 @@ async function importBulkFilters(
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(createStorageData({ filters }))),
   });
+  if (replacing) {
+    await page
+      .locator('#import-modal.active')
+      .getByRole('button', { name: 'Replace settings' })
+      .click();
+  }
   await expect.poll(async () => (await readStorage(page))?.filters.length).toBe(count);
 }
 
@@ -1649,7 +1847,7 @@ test('shrinks large settings even when sync storage is nearly full', async ({
   // 570 filters leave about 3 KB of the 100 KB Chrome allows the extension in sync storage.
   await importBulkFilters(page, 570);
   // 50 fit in one item again, but there's no room to write that item beside the larger copy.
-  await importBulkFilters(page, 50);
+  await importBulkFilters(page, 50, { replacing: true });
   await expect(page.locator('#global-settings-status')).toHaveText('Settings imported.');
 });
 

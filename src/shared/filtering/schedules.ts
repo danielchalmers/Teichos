@@ -164,7 +164,10 @@ export function getFilterEffectiveState(
     };
   }
 
-  const groupEnabled = isGroupEnabled(group);
+  // A temporary block is started on its own, from the popup, and sits in the always-active group
+  // only to have somewhere to be listed. That group's switch is not its switch: with the group
+  // off, the block the user just started would otherwise do nothing and show nowhere.
+  const groupEnabled = isTemporaryFilter(filter) || isGroupEnabled(group);
   const groupActive = groupEnabled && isGroupScheduleActive(group, context);
 
   return {

@@ -37,6 +37,9 @@ function getUrlHost(url: string): string | null {
   }
 }
 
+/** A scheme and "//", which marks text as an address copied from the address bar or a link. */
+const ADDRESS_SCHEME = /^[a-z][a-z\d+.-]*:\/\//i;
+
 /** Characters a site's host can hold once a URL parser has read it (punycode included). */
 const HOST_PATTERN = /^(?:[a-z\d_-]+(?:\.[a-z\d_-]+)*|\[[\da-f:.]+\])$/;
 
@@ -49,7 +52,7 @@ const HOST_PATTERN = /^(?:[a-z\d_-]+(?:\.[a-z\d_-]+)*|\[[\da-f:.]+\])$/;
  */
 export function normalizeDomainPattern(input: string): string | null {
   const trimmed = input.trim().replace(/^\*?\./, '');
-  const hasScheme = /^[a-z][a-z\d+.-]*:\/\//i.test(trimmed);
+  const hasScheme = ADDRESS_SCHEME.test(trimmed);
   let parsed: URL;
   try {
     parsed = new URL(hasScheme ? trimmed : `http://${trimmed}`);
@@ -72,6 +75,24 @@ export function normalizeDomainPattern(input: string): string | null {
   const isSite =
     HOST_PATTERN.test(host) && (host === 'localhost' || host.startsWith('[') || host.includes('.'));
   return namesMoreThanASite || !isSite ? null : host;
+}
+
+/**
+ * Read a domain pattern as someone enters it in a dialog, as opposed to one already saved. A
+ * pasted address shows "www." because the address bar does, not because the user wants that one
+ * host, so https://www.reddit.com/ is read as reddit.com and covers the site and its subdomains,
+ * as the popup's suggested temporary block does. A typed www.reddit.com has no scheme and is kept:
+ * there the subdomain was written on purpose. Saved patterns are never read this way, so an
+ * existing www. filter keeps matching exactly what it did.
+ */
+export function normalizeDomainEntry(input: string): string | null {
+  const host = normalizeDomainPattern(input);
+  if (host === null || !ADDRESS_SCHEME.test(input.trim())) {
+    return host;
+  }
+
+  const site = host.replace(/^www\./, '');
+  return site.includes('.') ? site : host;
 }
 
 /**
@@ -438,6 +459,25 @@ function normalizeExactUrl(value: string): string {
     return parsed.href.toLowerCase();
   } catch {
     return value.toLowerCase();
+  }
+}
+
+/**
+ * Whether an exact pattern is an address the browser could report. Every page arrives as a full
+ * address, scheme included, so a pattern such as reddit.com/r/popular is compared as typed and
+ * never matches anything.
+ */
+export function isFullAddress(pattern: string): boolean {
+  const trimmed = pattern.trim();
+  if (!ADDRESS_SCHEME.test(trimmed)) {
+    return false;
+  }
+
+  try {
+    new URL(trimmed);
+    return true;
+  } catch {
+    return false;
   }
 }
 

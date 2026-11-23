@@ -678,6 +678,52 @@ test('handles missing or stale block ids safely and still goes back', async ({
   await expect.poll(() => page.url()).toBe(unavailableBlockPage);
 });
 
+test('a block page restored after a browser restart works again', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const blockedUrl = 'https://restored.example.invalid/focus';
+  const blockingData = createStorageData({
+    filters: [
+      {
+        id: 'restored-filter',
+        pattern: 'restored.example.invalid',
+        groupId: defaultGroup.id,
+        enabled: true,
+        matchMode: 'domain',
+        description: 'Restored',
+      },
+    ],
+  });
+  const optionsPage = await context.newPage();
+  await optionsPage.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(optionsPage, blockingData);
+  await expectBlocked(page, blockedUrl);
+
+  // A restart clears session storage, where the block is recorded, and the restored tab reopens
+  // the block page it was showing.
+  await optionsPage.evaluate(() => chrome.storage.session.clear());
+  await page.reload();
+  await expectOnBlockedPage(page, blockedUrl);
+  await expect(page).toHaveTitle('restored.example.invalid blocked · Teichos');
+  await showBlockPageDetails(page);
+  await expect(page.getByLabel('Responsible filter')).toContainText('Restored');
+  await expect(page.locator('#continue')).toBeVisible();
+
+  // The block is on record again, so the tab is released when it ends.
+  await seedStorage(optionsPage, createStorageData());
+  await expect.poll(() => page.url()).toBe(blockedUrl);
+
+  // A block that ended while the browser was closed releases the tab as soon as it is restored.
+  await seedStorage(optionsPage, blockingData);
+  await expectBlocked(page, blockedUrl);
+  await optionsPage.evaluate(() => chrome.storage.session.clear());
+  await seedStorage(optionsPage, createStorageData());
+  await page.reload().catch(() => undefined);
+  await expect.poll(() => page.url()).toBe(blockedUrl);
+});
+
 test('offers Close tab when the block page is the first page in its tab', async ({
   context,
   extensionPage,

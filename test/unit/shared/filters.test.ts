@@ -5,8 +5,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   getRegexValidationError,
+  isFullAddress,
   isSiteNamePattern,
   matchesPattern,
+  normalizeDomainEntry,
   normalizeDomainPattern,
 } from '../../../src/shared/filtering/patterns';
 import {
@@ -202,6 +204,82 @@ describe('normalizeDomainPattern', () => {
     '',
   ])('refuses %j', (input) => {
     expect(normalizeDomainPattern(input)).toBeNull();
+  });
+});
+
+describe('normalizeDomainEntry', () => {
+  // The "www." of a pasted address comes from the address bar, so the site is what is meant.
+  it.each([
+    ['https://www.reddit.com/', 'reddit.com'],
+    ['  HTTP://WWW.Reddit.com ', 'reddit.com'],
+    ['https://www.old.reddit.com/', 'old.reddit.com'],
+    ['https://old.reddit.com/', 'old.reddit.com'],
+    ['https://reddit.com', 'reddit.com'],
+    // Nothing is left of these without "www.", so they are kept whole.
+    ['https://www.com/', 'www.com'],
+    ['https://www.localhost/', 'www.localhost'],
+  ])('reads the pasted address %j as the site %j', (input, expected) => {
+    expect(normalizeDomainEntry(input)).toBe(expected);
+  });
+
+  // Typed without a scheme, the subdomain was written on purpose.
+  it.each([
+    ['www.reddit.com', 'www.reddit.com'],
+    ['*.www.reddit.com', 'www.reddit.com'],
+    ['reddit.com', 'reddit.com'],
+    ['wwwhatever.example', 'wwwhatever.example'],
+  ])('keeps the typed site %j as %j', (input, expected) => {
+    expect(normalizeDomainEntry(input)).toBe(expected);
+  });
+
+  // A pasted address that names a page is still refused, not widened to its whole site.
+  it.each([
+    'https://www.reddit.com/r/all',
+    'https://www.reddit.com/?ref=1',
+    'https://www.reddit.com/#top',
+    'https://www.reddit.com:8443/',
+    'ftp://www.reddit.com/',
+    'reddit',
+    '',
+  ])('refuses %j', (input) => {
+    expect(normalizeDomainEntry(input)).toBeNull();
+  });
+
+  it('leaves a saved www. filter matching only that host', () => {
+    const saved = { pattern: 'www.reddit.com', matchMode: 'domain' } as const;
+    expect(matchesPattern('https://www.reddit.com/r/all', saved.pattern, saved.matchMode)).toBe(
+      true
+    );
+    expect(matchesPattern('https://old.reddit.com/', saved.pattern, saved.matchMode)).toBe(false);
+  });
+});
+
+describe('isFullAddress', () => {
+  it.each([
+    'https://reddit.com/r/popular',
+    'http://reddit.com',
+    '  HTTPS://Reddit.com/  ',
+    'https://example.test:8080/page?x=1#top',
+    'file:///C:/notes/today.html',
+  ])('accepts %j', (pattern) => {
+    expect(isFullAddress(pattern)).toBe(true);
+    // And such a pattern can match: the address itself does.
+    expect(matchesPattern(pattern.trim(), pattern.trim(), 'exact')).toBe(true);
+  });
+
+  // Each of these saves as an exact pattern that no address the browser reports can equal.
+  it.each([
+    'reddit.com/r/popular',
+    'www.reddit.com',
+    'example.test:8080/page',
+    'localhost:3000',
+    '//reddit.com/r/popular',
+    'https://',
+    'popular',
+    '',
+  ])('refuses %j', (pattern) => {
+    expect(isFullAddress(pattern)).toBe(false);
+    expect(matchesPattern(`https://${pattern}`, pattern, 'exact')).toBe(false);
   });
 });
 
@@ -472,6 +550,25 @@ describe('isFilterActive', () => {
       { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true },
     ];
     expect(isFilterActive(filter, groups)).toBe(true);
+  });
+
+  it('should keep a temporary filter active when its group is disabled', () => {
+    const filter: Filter = {
+      id: 'filter-1',
+      pattern: 'example',
+      groupId: 'group-1',
+      enabled: true,
+      matchMode: 'contains',
+      expiresAt: mockDate.getTime() + 60_000,
+    };
+    const groups: FilterGroup[] = [
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true, enabled: false },
+    ];
+    expect(isFilterActive(filter, groups)).toBe(true);
+    // Its own switch still turns it off, and a regular filter still follows the group's.
+    expect(isFilterActive({ ...filter, enabled: false }, groups)).toBe(false);
+    const { expiresAt: _expiresAt, ...regularFilter } = filter;
+    expect(isFilterActive(regularFilter, groups)).toBe(false);
   });
 });
 

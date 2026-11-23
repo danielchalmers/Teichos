@@ -7,6 +7,7 @@ import { loadData } from '../../shared/api/storage';
 import {
   type CheckUrlResponse,
   type ContinueActiveTabResponse,
+  type GetBlockedPageStateMessage,
   type GetBlockedPageStateResponse,
   type GetDataResponse,
   type GoBackActiveTabResponse,
@@ -54,7 +55,7 @@ export function handleMessage(
   }
 
   if (isGetBlockedPageStateMessage(message)) {
-    respond(sendResponse, () => handleGetBlockedPageState(message.blockId, sender), {
+    respond(sendResponse, () => handleGetBlockedPageState(message, sender), {
       status: 'unavailable',
     });
     return true;
@@ -114,16 +115,23 @@ async function handleContinueActiveTab(
 }
 
 async function handleGetBlockedPageState(
-  blockId: string | undefined,
+  message: GetBlockedPageStateMessage,
   sender: chrome.runtime.MessageSender
 ): Promise<GetBlockedPageStateResponse> {
   const senderTabId = sender.tab?.id;
   if (typeof senderTabId === 'number') {
-    return getTabController().getBlockedPageStateForTab(senderTabId, sender.tab?.url);
+    const response = await getTabController().getBlockedPageStateForTab(
+      senderTabId,
+      sender.tab?.url
+    );
+    // A block page whose state is gone but which remembers its address was restored with its tab.
+    return response.status === 'unavailable' && message.targetUrl !== undefined
+      ? getTabController().restoreBlockedPageForTab(senderTabId, sender.tab?.url, message.targetUrl)
+      : response;
   }
 
-  if (blockId) {
-    return getTabController().getBlockedPageStateByBlockId(blockId);
+  if (message.blockId) {
+    return getTabController().getBlockedPageStateByBlockId(message.blockId);
   }
 
   return { status: 'unavailable' };

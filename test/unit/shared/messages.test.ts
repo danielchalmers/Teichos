@@ -36,6 +36,20 @@ describe('shared/types/messages', () => {
     expect(
       isGetBlockedPageStateMessage({ type: MessageType.GET_BLOCKED_PAGE_STATE, blockId: 42 })
     ).toBe(false);
+    expect(
+      isGetBlockedPageStateMessage({
+        type: MessageType.GET_BLOCKED_PAGE_STATE,
+        blockId: 'block-1',
+        targetUrl: 'https://blocked.com/focus',
+      })
+    ).toBe(true);
+    expect(
+      isGetBlockedPageStateMessage({
+        type: MessageType.GET_BLOCKED_PAGE_STATE,
+        blockId: 'block-1',
+        targetUrl: { href: 'https://blocked.com/focus' },
+      })
+    ).toBe(false);
   });
 
   it('recognizes panel control messages', () => {

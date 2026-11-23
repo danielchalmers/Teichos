@@ -471,6 +471,97 @@ describe('TabController', () => {
     });
   });
 
+  it('brings back a restored block page whose address is still blocked', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    // A browser restart cleared session storage: all that is left is the page and its address.
+    await expect(
+      getTabController().getBlockedPageStateForTab(21, blockedPageUrl('restored-block'))
+    ).resolves.toEqual({ status: 'unavailable' });
+
+    await expect(
+      getTabController().restoreBlockedPageForTab(
+        21,
+        blockedPageUrl('restored-block'),
+        'https://news.com/story'
+      )
+    ).resolves.toEqual({
+      status: 'blocked',
+      state: expect.objectContaining({
+        blockId: 'restored-block',
+        tabId: 21,
+        targetUrl: 'https://news.com/story',
+        filter: expect.objectContaining({ id: newsFilter.id, pattern: newsFilter.pattern }),
+      }),
+    });
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+    await expect(getBlockedTabState(21)).resolves.toEqual(
+      expect.objectContaining({ blockId: 'restored-block', targetUrl: 'https://news.com/story' })
+    );
+
+    // The block is on record again, so the tab is released once it ends.
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData());
+    const { getRulesProvider } = await import('../../../src/background/rulesProvider');
+    getRulesProvider().invalidate();
+    await getTabController().evaluateNavigation(21, blockedPageUrl('restored-block'));
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      21,
+      { url: 'https://news.com/story' },
+      expect.any(Function)
+    );
+  });
+
+  it('releases a restored block page whose block has ended', async () => {
+    const chromeMock = getChromeMock();
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await expect(
+      getTabController().restoreBlockedPageForTab(
+        22,
+        blockedPageUrl('restored-block'),
+        'https://news.com/story'
+      )
+    ).resolves.toEqual({ status: 'unavailable' });
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(
+      22,
+      { url: 'https://news.com/story' },
+      expect.any(Function)
+    );
+    await expect(getBlockedTabState(22)).resolves.toBeUndefined();
+    await expect(getLastAllowedUrl(22)).resolves.toBe('https://news.com/story');
+  });
+
+  it.each([
+    { label: 'a browser page', targetUrl: 'chrome://settings/' },
+    { label: 'an extension page', targetUrl: 'chrome-extension://test-extension-id/options.html' },
+    { label: 'text that is not an address', targetUrl: 'Block details unavailable' },
+  ])('does not restore a block page that remembers $label', async ({ targetUrl }) => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(
+      STORAGE_KEY,
+      createStorageData({ filters: [{ ...newsFilter, pattern: 'e' }] })
+    );
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await expect(
+      getTabController().restoreBlockedPageForTab(23, blockedPageUrl('restored-block'), targetUrl)
+    ).resolves.toEqual({ status: 'unavailable' });
+    // Nor a page that is not a block page with an id to record the block under.
+    await expect(
+      getTabController().restoreBlockedPageForTab(
+        23,
+        `chrome-extension://test-extension-id/${PAGES.BLOCKED}`,
+        'https://news.com/story'
+      )
+    ).resolves.toEqual({ status: 'unavailable' });
+
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+    await expect(getBlockedTabState(23)).resolves.toBeUndefined();
+  });
+
   it('leaves a still-blocked page untouched when rules change', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(

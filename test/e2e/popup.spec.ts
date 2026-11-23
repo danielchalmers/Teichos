@@ -6,6 +6,8 @@ import {
   captureScreenshot,
   createStorageData,
   defaultGroup,
+  expectAllowed,
+  expectBlocked,
   readStorage,
   seedStorage,
   waitForOptionsReady,
@@ -139,6 +141,47 @@ test('adds and deletes a temporary filter from the popup', async ({ extensionPag
     pattern: 'viewtopic.php',
     matchMode: 'contains',
   });
+});
+
+test('a temporary block works while the always-active group is turned off', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const temporaryUrl = 'https://temporary-off.example.invalid/focus';
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      groups: [{ ...defaultGroup, enabled: false }],
+      filters: popupFilterData.filters,
+    })
+  );
+
+  await gotoPopup(extensionPage, page);
+  await openQuickAdd(page);
+  await page.getByLabel('Site or pattern').fill('temporary-off.example.invalid');
+  await page.getByLabel('Block for').fill('45');
+  await page.getByRole('button', { name: 'Start block' }).click();
+
+  // The block is listed, though the group it sits in is off and that group's own filter is not.
+  const temporaryItem = page.locator('.filter-item').filter({
+    hasText: 'temporary-off.example.invalid',
+  });
+  await expect(temporaryItem).toContainText('Temporary · 45m left');
+  await expect(page.locator('.filter-item')).toHaveCount(1);
+  await expect(page.locator('#filter-list')).toContainText('1 inactive filter hidden');
+
+  // It blocks, while the group's own filter stays off.
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, temporaryUrl);
+  const groupFilterPage = await context.newPage();
+  await expectAllowed(groupFilterPage, 'https://blocked.example.invalid/');
+
+  // And it can be deleted from the popup, which releases the tab.
+  await temporaryItem.getByRole('button', { name: 'Delete temporary block' }).click();
+  await expect(page.locator('#status-message')).toHaveText('Temporary block deleted.');
+  await expect.poll(() => browsingPage.url()).toBe(temporaryUrl);
 });
 
 test('opens the full filter editor from the popup empty state', async ({

@@ -285,6 +285,40 @@ class TabController {
     return pageState ? { status: 'blocked', state: pageState } : { status: 'unavailable' };
   }
 
+  /**
+   * Bring back a block page that outlived its block state: session storage is cleared when the
+   * browser closes, but a restored tab reopens the block page it was showing. All the page kept
+   * is the address it blocked, so that address is judged against the current rules. Still
+   * blocked, the block is recorded again under the page's own id and the page works as before;
+   * otherwise the block ended while the browser was closed and the tab is released to the address.
+   */
+  async restoreBlockedPageForTab(
+    tabId: number,
+    blockedPageUrl: string | undefined,
+    targetUrl: string
+  ): Promise<GetBlockedPageStateResponse> {
+    const blockId = parseBlockedPageBlockId(blockedPageUrl);
+    if (!blockId || !Number.isInteger(tabId) || !isFilterableUrl(targetUrl)) {
+      return { status: 'unavailable' };
+    }
+
+    const seq = this.getNavigationSeq(tabId);
+    const rules = await this.getRules();
+    const decision = await this.evaluateForTab(tabId, targetUrl, rules);
+    if (!this.isCurrentNavigation(tabId, seq)) {
+      return { status: 'unavailable' };
+    }
+
+    if (decision.action === 'block') {
+      const state = await this.setBlockedState(tabId, targetUrl, decision, rules.data, blockId);
+      return { status: 'blocked', state: state.pageState };
+    }
+
+    await updateTabUrl(tabId, targetUrl);
+    await this.allowTab(tabId, targetUrl, this.getNavigationSeq(tabId));
+    return { status: 'unavailable' };
+  }
+
   async getBlockedPageStateByBlockId(
     blockId: string | undefined
   ): Promise<GetBlockedPageStateResponse> {
@@ -535,9 +569,9 @@ class TabController {
     tabId: number,
     targetUrl: string,
     decision: Extract<FilterDecision, { action: 'block' }>,
-    data: StorageData
+    data: StorageData,
+    blockId = createBlockId()
   ): Promise<BlockedStateResult> {
-    const blockId = createBlockId();
     const otherFilterIds = decision.filterIds.filter((filterId) => filterId !== decision.filterId);
     const tabState: BlockedTabState = {
       blockId,
@@ -687,6 +721,20 @@ function parseBlockedPageBlockId(tabUrl: string | undefined): string | null {
     return blockId?.trim() ? blockId : null;
   } catch {
     return null;
+  }
+}
+
+/** Whether a navigation to this address would be judged at all: a parseable, non-browser URL. */
+function isFilterableUrl(url: string): boolean {
+  if (isInternalUrl(url)) {
+    return false;
+  }
+
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
   }
 }
 

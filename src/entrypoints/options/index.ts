@@ -10,6 +10,7 @@ import {
   deleteFilter,
   exportData,
   importData,
+  parseImportedData,
   updateData,
   purgeExpiredTemporaryFilters,
   SettingsSaveError,
@@ -29,7 +30,11 @@ import type {
   Whitelist,
   MutableTimeSchedule,
 } from '../../shared/types';
-import { getRegexValidationError, normalizeDomainPattern } from '../../shared/filtering/patterns';
+import {
+  getRegexValidationError,
+  isFullAddress,
+  normalizeDomainEntry,
+} from '../../shared/filtering/patterns';
 import {
   isGroupEnabled,
   isSnoozeActive,
@@ -68,6 +73,8 @@ let currentEditingWhitelistId: string | null = null;
 let currentFilterGroupId: string | null = null;
 let currentWhitelistGroupId: string | null = null;
 let temporarySchedules: MutableTimeSchedule[] = [];
+/** A settings file that has been read and checked, waiting for the user to confirm the import. */
+let pendingImport: string | null = null;
 let activeModal: HTMLElement | null = null;
 let lastFocusedElement: HTMLElement | null = null;
 let lastFocusedGroupId: string | null = null;
@@ -164,6 +171,14 @@ function setupEventListeners(): void {
   clearDialogErrorOnEdit('whitelist-form', 'whitelist-error');
   setupDeleteConfirm('whitelist', describeWhitelistDelete, handleWhitelistDelete);
   setupMatchModeHint('whitelist');
+
+  // Import modal
+  getElementByIdOrNull('close-import-modal')?.addEventListener('click', closeImportModal);
+  getElementByIdOrNull('cancel-import')?.addEventListener('click', closeImportModal);
+  closeOnBackdropClick('import-modal', closeImportModal);
+  getElementByIdOrNull('confirm-import')?.addEventListener('click', () => {
+    void handleImportConfirm();
+  });
 
   // Event delegation for list actions
   const groupsList = getElementByIdOrNull('groups-list');
@@ -575,16 +590,89 @@ async function handleImportSettings(event: Event): Promise<void> {
 
   try {
     const serialized = await file.text();
-    await importData(serialized);
-    await renderGroups();
-    setGlobalSettingsStatus('Settings imported.');
+    // Checked before asking, so a file that can't be imported says so without a question first.
+    parseImportedData(serialized);
+    const contents = describeSettingsContents(await loadData());
+    if (contents === null) {
+      await importSettings(serialized);
+    } else {
+      openImportModal(
+        serialized,
+        `Import “${file.name}”? It replaces your ${contents}. This can't be undone.`
+      );
+    }
   } catch (error) {
-    console.error('Failed to import settings:', error);
-    const message = error instanceof Error ? error.message : "Couldn't import settings. Try again.";
-    setGlobalSettingsStatus(message, true);
+    reportImportFailure(error);
   } finally {
     input.value = '';
   }
+}
+
+/**
+ * What an import would replace, e.g. "2 groups, 5 filters and 1 exception", or null when there
+ * is nothing to lose: no filters or exceptions, and no group but the built-in one.
+ */
+function describeSettingsContents(data: StorageData): string | null {
+  if (data.filters.length + data.whitelist.length === 0 && data.groups.length <= 1) {
+    return null;
+  }
+
+  const parts = [
+    pluralize(data.groups.length, 'group'),
+    data.filters.length > 0 ? pluralize(data.filters.length, 'filter') : null,
+    data.whitelist.length > 0 ? pluralize(data.whitelist.length, 'exception') : null,
+  ].filter((part): part is string => part !== null);
+  const last = parts.pop() ?? '';
+  return parts.length > 0 ? `${parts.join(', ')} and ${last}` : last;
+}
+
+/**
+ * An import replaces every group, filter and exception, so it asks first, naming the file and
+ * what would be lost. The safe choice takes focus, as in the delete step of the other dialogs.
+ */
+function openImportModal(serialized: string, prompt: string): void {
+  const modal = getElementByIdOrNull('import-modal');
+  const promptElement = getElementByIdOrNull('import-prompt');
+  if (!modal || !promptElement) return;
+
+  pendingImport = serialized;
+  promptElement.textContent = prompt;
+  clearGlobalSettingsStatus();
+  modal.classList.add('active');
+  activateModal(modal, '#cancel-import', getElementByIdOrNull('import-settings-btn'));
+}
+
+function closeImportModal(): void {
+  const modal = getElementByIdOrNull('import-modal');
+  if (modal?.classList.contains('active')) {
+    modal.classList.remove('active');
+    deactivateModal(modal);
+  }
+  pendingImport = null;
+}
+
+async function handleImportConfirm(): Promise<void> {
+  const serialized = pendingImport;
+  closeImportModal();
+  if (serialized === null) return;
+
+  try {
+    await importSettings(serialized);
+  } catch (error) {
+    reportImportFailure(error);
+  }
+}
+
+async function importSettings(serialized: string): Promise<void> {
+  await importData(serialized);
+  await renderGroups();
+  setGlobalSettingsStatus('Settings imported.');
+}
+
+function reportImportFailure(error: unknown): void {
+  console.error('Failed to import settings:', error);
+  const message = error instanceof Error ? error.message : "Couldn't import settings. Try again.";
+  setGlobalSettingsStatus(message, true);
 }
 
 /**
@@ -1194,7 +1282,9 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
  *
  * Whitespace around a pasted pattern would stop it matching anything, and a blank pattern matches
  * every URL, so neither is accepted silently. Regex patterns keep their exact text. A domain is
- * stored as the host browsers report, so a pasted site address works as typed.
+ * stored as the host browsers report, without the "www." of a pasted address, so a pasted site
+ * address blocks the site. An exact pattern has to be a full address, or it would save and then
+ * never match.
  */
 function readPatternInput(
   elementId: string,
@@ -1204,14 +1294,16 @@ function readPatternInput(
   const input = getElementByIdOrNull<HTMLInputElement>(elementId);
   const raw = input?.value ?? '';
   const pattern = matchMode === 'regex' ? raw : raw.trim();
-  const domain = matchMode === 'domain' ? normalizeDomainPattern(pattern) : undefined;
+  const domain = matchMode === 'domain' ? normalizeDomainEntry(pattern) : undefined;
 
   const problem =
     pattern.trim() === ''
       ? 'Enter a pattern to match.'
       : domain === null
         ? 'Enter a site, like reddit.com. To match one page or some text, choose another match mode.'
-        : describeInvalidRegex(pattern, matchMode);
+        : matchMode === 'exact' && !isFullAddress(pattern)
+          ? 'Enter a full address, like https://reddit.com/r/popular. To match part of an address, choose another match mode.'
+          : describeInvalidRegex(pattern, matchMode);
   if (problem) {
     showDialogError(errorId, problem, input);
     input?.focus();
@@ -1934,6 +2026,7 @@ function handleGlobalKeydown(e: KeyboardEvent): void {
   const filterModal = getElementByIdOrNull('filter-modal');
   const groupModal = getElementByIdOrNull('group-modal');
   const whitelistModal = getElementByIdOrNull('whitelist-modal');
+  const importModal = getElementByIdOrNull('import-modal');
 
   if (filterModal?.classList.contains('active')) {
     closeFilterModal();
@@ -1941,6 +2034,8 @@ function handleGlobalKeydown(e: KeyboardEvent): void {
     closeGroupModal();
   } else if (whitelistModal?.classList.contains('active')) {
     closeWhitelistModal();
+  } else if (importModal?.classList.contains('active')) {
+    closeImportModal();
   }
 }
 

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getUrlDecision: vi.fn(),
   getBlockedPageStateByBlockId: vi.fn(),
   getBlockedPageStateForTab: vi.fn(),
+  restoreBlockedPageForTab: vi.fn(),
   goBackFromActiveTab: vi.fn(),
   goBackFromTab: vi.fn(),
   loadData: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock('../../../src/background/tabController', () => ({
     getUrlDecision: typeof mocks.getUrlDecision;
     getBlockedPageStateByBlockId: typeof mocks.getBlockedPageStateByBlockId;
     getBlockedPageStateForTab: typeof mocks.getBlockedPageStateForTab;
+    restoreBlockedPageForTab: typeof mocks.restoreBlockedPageForTab;
     goBackFromActiveTab: typeof mocks.goBackFromActiveTab;
     goBackFromTab: typeof mocks.goBackFromTab;
     continueFromActiveTab: typeof mocks.continueFromActiveTab;
@@ -29,6 +31,7 @@ vi.mock('../../../src/background/tabController', () => ({
     getUrlDecision: mocks.getUrlDecision,
     getBlockedPageStateByBlockId: mocks.getBlockedPageStateByBlockId,
     getBlockedPageStateForTab: mocks.getBlockedPageStateForTab,
+    restoreBlockedPageForTab: mocks.restoreBlockedPageForTab,
     goBackFromActiveTab: mocks.goBackFromActiveTab,
     goBackFromTab: mocks.goBackFromTab,
   }),
@@ -59,6 +62,7 @@ describe('handleMessage', () => {
     mocks.getUrlDecision.mockResolvedValue({ action: 'allow', reason: 'no-match' });
     mocks.getBlockedPageStateByBlockId.mockResolvedValue({ status: 'unavailable' });
     mocks.getBlockedPageStateForTab.mockResolvedValue({ status: 'unavailable' });
+    mocks.restoreBlockedPageForTab.mockResolvedValue({ status: 'unavailable' });
     mocks.goBackFromActiveTab.mockResolvedValue(false);
     mocks.goBackFromTab.mockResolvedValue(false);
   });
@@ -278,6 +282,44 @@ describe('handleMessage', () => {
       'chrome-extension://test-extension-id/blocked.html?blockId=block-8'
     );
     expect(mocks.getBlockedPageStateByBlockId).not.toHaveBeenCalled();
+  });
+
+  it('restores a block page that remembers its address when its state is gone', async () => {
+    const restored = { status: 'blocked', state: { blockId: 'block-9', tabId: 9 } };
+    mocks.restoreBlockedPageForTab.mockResolvedValue(restored);
+    const sendResponse = vi.fn();
+    const tab = {
+      id: 9,
+      url: 'chrome-extension://test-extension-id/blocked.html?blockId=block-9',
+    } as chrome.tabs.Tab;
+    const message = {
+      type: MessageType.GET_BLOCKED_PAGE_STATE,
+      blockId: 'block-9',
+      targetUrl: 'https://blocked.com/focus',
+    };
+
+    handleMessage(message, { id: 'test-extension-id', tab }, sendResponse);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith(restored);
+    });
+    expect(mocks.restoreBlockedPageForTab).toHaveBeenCalledWith(
+      9,
+      tab.url,
+      'https://blocked.com/focus'
+    );
+
+    // A page whose block is still on record gets that record; nothing is judged again.
+    mocks.restoreBlockedPageForTab.mockClear();
+    const recorded = { status: 'blocked', state: { blockId: 'block-9', tabId: 9 } };
+    mocks.getBlockedPageStateForTab.mockResolvedValue(recorded);
+    const sendRecorded = vi.fn();
+    handleMessage(message, { id: 'test-extension-id', tab }, sendRecorded);
+
+    await vi.waitFor(() => {
+      expect(sendRecorded).toHaveBeenCalledWith(recorded);
+    });
+    expect(mocks.restoreBlockedPageForTab).not.toHaveBeenCalled();
   });
 
   it('responds to blocked-page state requests by block id without sender tab', async () => {

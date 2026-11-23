@@ -514,6 +514,11 @@ label.setting-title {
   overflow-wrap: anywhere;
 }
 
+/* The import prompt quotes the file's name, which can be one long word. */
+#import-prompt {
+  overflow-wrap: anywhere;
+}
+
 .subtitle-expiry {
   white-space: nowrap;
 }
