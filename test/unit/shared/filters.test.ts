@@ -7,6 +7,7 @@ import {
   getRegexValidationError,
   isSiteNamePattern,
   matchesPattern,
+  normalizeDomainEntry,
   normalizeDomainPattern,
 } from '../../../src/shared/filtering/patterns';
 import {
@@ -202,6 +203,53 @@ describe('normalizeDomainPattern', () => {
     '',
   ])('refuses %j', (input) => {
     expect(normalizeDomainPattern(input)).toBeNull();
+  });
+});
+
+describe('normalizeDomainEntry', () => {
+  // The "www." of a pasted address comes from the address bar, so the site is what is meant.
+  it.each([
+    ['https://www.reddit.com/', 'reddit.com'],
+    ['  HTTP://WWW.Reddit.com ', 'reddit.com'],
+    ['https://www.old.reddit.com/', 'old.reddit.com'],
+    ['https://old.reddit.com/', 'old.reddit.com'],
+    ['https://reddit.com', 'reddit.com'],
+    // Nothing is left of these without "www.", so they are kept whole.
+    ['https://www.com/', 'www.com'],
+    ['https://www.localhost/', 'www.localhost'],
+  ])('reads the pasted address %j as the site %j', (input, expected) => {
+    expect(normalizeDomainEntry(input)).toBe(expected);
+  });
+
+  // Typed without a scheme, the subdomain was written on purpose.
+  it.each([
+    ['www.reddit.com', 'www.reddit.com'],
+    ['*.www.reddit.com', 'www.reddit.com'],
+    ['reddit.com', 'reddit.com'],
+    ['wwwhatever.example', 'wwwhatever.example'],
+  ])('keeps the typed site %j as %j', (input, expected) => {
+    expect(normalizeDomainEntry(input)).toBe(expected);
+  });
+
+  // A pasted address that names a page is still refused, not widened to its whole site.
+  it.each([
+    'https://www.reddit.com/r/all',
+    'https://www.reddit.com/?ref=1',
+    'https://www.reddit.com/#top',
+    'https://www.reddit.com:8443/',
+    'ftp://www.reddit.com/',
+    'reddit',
+    '',
+  ])('refuses %j', (input) => {
+    expect(normalizeDomainEntry(input)).toBeNull();
+  });
+
+  it('leaves a saved www. filter matching only that host', () => {
+    const saved = { pattern: 'www.reddit.com', matchMode: 'domain' } as const;
+    expect(matchesPattern('https://www.reddit.com/r/all', saved.pattern, saved.matchMode)).toBe(
+      true
+    );
+    expect(matchesPattern('https://old.reddit.com/', saved.pattern, saved.matchMode)).toBe(false);
   });
 });
 

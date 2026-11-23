@@ -29,7 +29,7 @@ import type {
   Whitelist,
   MutableTimeSchedule,
 } from '../../shared/types';
-import { getRegexValidationError, normalizeDomainPattern } from '../../shared/filtering/patterns';
+import { getRegexValidationError, normalizeDomainEntry } from '../../shared/filtering/patterns';
 import {
   isGroupEnabled,
   isSnoozeActive,
@@ -1194,7 +1194,8 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
  *
  * Whitespace around a pasted pattern would stop it matching anything, and a blank pattern matches
  * every URL, so neither is accepted silently. Regex patterns keep their exact text. A domain is
- * stored as the host browsers report, so a pasted site address works as typed.
+ * stored as the host browsers report, without the "www." of a pasted address, so a pasted site
+ * address blocks the site.
  */
 function readPatternInput(
   elementId: string,
@@ -1204,7 +1205,7 @@ function readPatternInput(
   const input = getElementByIdOrNull<HTMLInputElement>(elementId);
   const raw = input?.value ?? '';
   const pattern = matchMode === 'regex' ? raw : raw.trim();
-  const domain = matchMode === 'domain' ? normalizeDomainPattern(pattern) : undefined;
+  const domain = matchMode === 'domain' ? normalizeDomainEntry(pattern) : undefined;
 
   const problem =
     pattern.trim() === ''

@@ -1542,6 +1542,43 @@ test('a domain filter blocks the site and its subdomains, not addresses that men
   await expectAllowed(browsingPage, 'https://search.example.test/?q=x.example.test');
 });
 
+test('a pasted address with www. blocks the whole site', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  // The address bar shows "www.", so a pasted address carries it; the site is what is meant.
+  await page.locator('button[data-action="add-filter"]').first().click();
+  const modal = page.locator('#filter-modal.active');
+  await modal.locator('#filter-pattern').fill('https://www.pasted.example.test/');
+  await modal.getByRole('button', { name: 'Save' }).click();
+  await expect(modal).toBeHidden();
+  expect((await readStorage(page))?.filters[0]).toMatchObject({
+    pattern: 'pasted.example.test',
+    matchMode: 'domain',
+  });
+
+  // Typed without a scheme, "www." is kept: the user named that host.
+  await page.locator('button[data-action="add-filter"]').first().click();
+  await modal.locator('#filter-pattern').fill('www.typed.example.test');
+  await modal.getByRole('button', { name: 'Save' }).click();
+  await expect(modal).toBeHidden();
+  expect((await readStorage(page))?.filters.map((filter) => filter.pattern)).toEqual([
+    'pasted.example.test',
+    'www.typed.example.test',
+  ]);
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, 'https://www.pasted.example.test/');
+  await expectBlocked(browsingPage, 'https://pasted.example.test/');
+  await expectBlocked(browsingPage, 'https://old.pasted.example.test/r/all');
+  await expectBlocked(browsingPage, 'https://www.typed.example.test/');
+  await expectAllowed(browsingPage, 'https://typed.example.test/');
+});
+
 test('asks for a site when a domain filter names a page', async ({ extensionPage, page }) => {
   await gotoOptions(extensionPage, page);
   await seedStorage(page, createStorageData({ filters: [] }));
