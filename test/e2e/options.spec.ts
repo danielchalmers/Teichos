@@ -1604,6 +1604,53 @@ test('asks for a site when a domain filter names a page', async ({ extensionPage
   });
 });
 
+test('asks for a full address when an exact pattern has no scheme', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await seedStorage(page, createStorageData({ filters: [] }));
+
+  await page.locator('button[data-action="add-filter"]').first().click();
+  const modal = page.locator('#filter-modal.active');
+  const patternInput = modal.locator('#filter-pattern');
+  await modal.getByLabel('Match mode').selectOption('exact');
+  await patternInput.fill('exact.example.test/page');
+  await modal.getByRole('button', { name: 'Save' }).click();
+  // Saved as typed it would never match: the browser reports every page with its scheme.
+  await expect(modal.locator('#filter-error')).toHaveText(
+    'Enter a full address, like https://reddit.com/r/popular. To match part of an address, choose another match mode.'
+  );
+  await expect(patternInput).toHaveAttribute('aria-invalid', 'true');
+  await expect(patternInput).toBeFocused();
+  expect((await readStorage(page))?.filters).toEqual([]);
+
+  await patternInput.fill('https://exact.example.test/page');
+  await expect(modal.locator('#filter-error')).toBeHidden();
+  await modal.getByRole('button', { name: 'Save' }).click();
+  await expect(modal).toBeHidden();
+  expect((await readStorage(page))?.filters[0]).toMatchObject({
+    pattern: 'https://exact.example.test/page',
+    matchMode: 'exact',
+  });
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, 'https://exact.example.test/page');
+  await expectAllowed(browsingPage, 'https://exact.example.test/other');
+
+  // An exception is read the same way.
+  await page.locator('button[data-action="add-whitelist"]').first().click();
+  const exceptionModal = page.locator('#whitelist-modal.active');
+  await exceptionModal.getByLabel('Match mode').selectOption('exact');
+  await exceptionModal.locator('#whitelist-pattern').fill('exact.example.test/page');
+  await exceptionModal.getByRole('button', { name: 'Save' }).click();
+  await expect(exceptionModal.locator('#whitelist-error')).toHaveText(
+    'Enter a full address, like https://reddit.com/r/popular. To match part of an address, choose another match mode.'
+  );
+  expect((await readStorage(page))?.whitelist).toEqual([]);
+});
+
 test('existing site-name filters become domain filters after the update', async ({
   context,
   extensionPage,

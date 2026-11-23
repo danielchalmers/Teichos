@@ -29,7 +29,11 @@ import type {
   Whitelist,
   MutableTimeSchedule,
 } from '../../shared/types';
-import { getRegexValidationError, normalizeDomainEntry } from '../../shared/filtering/patterns';
+import {
+  getRegexValidationError,
+  isFullAddress,
+  normalizeDomainEntry,
+} from '../../shared/filtering/patterns';
 import {
   isGroupEnabled,
   isSnoozeActive,
@@ -1195,7 +1199,8 @@ function getMatchModeSelectValue(selectId: string): FilterMatchMode {
  * Whitespace around a pasted pattern would stop it matching anything, and a blank pattern matches
  * every URL, so neither is accepted silently. Regex patterns keep their exact text. A domain is
  * stored as the host browsers report, without the "www." of a pasted address, so a pasted site
- * address blocks the site.
+ * address blocks the site. An exact pattern has to be a full address, or it would save and then
+ * never match.
  */
 function readPatternInput(
   elementId: string,
@@ -1212,7 +1217,9 @@ function readPatternInput(
       ? 'Enter a pattern to match.'
       : domain === null
         ? 'Enter a site, like reddit.com. To match one page or some text, choose another match mode.'
-        : describeInvalidRegex(pattern, matchMode);
+        : matchMode === 'exact' && !isFullAddress(pattern)
+          ? 'Enter a full address, like https://reddit.com/r/popular. To match part of an address, choose another match mode.'
+          : describeInvalidRegex(pattern, matchMode);
   if (problem) {
     showDialogError(errorId, problem, input);
     input?.focus();

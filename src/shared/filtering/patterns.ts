@@ -462,6 +462,25 @@ function normalizeExactUrl(value: string): string {
   }
 }
 
+/**
+ * Whether an exact pattern is an address the browser could report. Every page arrives as a full
+ * address, scheme included, so a pattern such as reddit.com/r/popular is compared as typed and
+ * never matches anything.
+ */
+export function isFullAddress(pattern: string): boolean {
+  const trimmed = pattern.trim();
+  if (!ADDRESS_SCHEME.test(trimmed)) {
+    return false;
+  }
+
+  try {
+    new URL(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function matchesPattern(
   url: string,
   pattern: string | PreparedPattern,

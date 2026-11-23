@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   getRegexValidationError,
+  isFullAddress,
   isSiteNamePattern,
   matchesPattern,
   normalizeDomainEntry,
@@ -250,6 +251,35 @@ describe('normalizeDomainEntry', () => {
       true
     );
     expect(matchesPattern('https://old.reddit.com/', saved.pattern, saved.matchMode)).toBe(false);
+  });
+});
+
+describe('isFullAddress', () => {
+  it.each([
+    'https://reddit.com/r/popular',
+    'http://reddit.com',
+    '  HTTPS://Reddit.com/  ',
+    'https://example.test:8080/page?x=1#top',
+    'file:///C:/notes/today.html',
+  ])('accepts %j', (pattern) => {
+    expect(isFullAddress(pattern)).toBe(true);
+    // And such a pattern can match: the address itself does.
+    expect(matchesPattern(pattern.trim(), pattern.trim(), 'exact')).toBe(true);
+  });
+
+  // Each of these saves as an exact pattern that no address the browser reports can equal.
+  it.each([
+    'reddit.com/r/popular',
+    'www.reddit.com',
+    'example.test:8080/page',
+    'localhost:3000',
+    '//reddit.com/r/popular',
+    'https://',
+    'popular',
+    '',
+  ])('refuses %j', (pattern) => {
+    expect(isFullAddress(pattern)).toBe(false);
+    expect(matchesPattern(`https://${pattern}`, pattern, 'exact')).toBe(false);
   });
 });
 
