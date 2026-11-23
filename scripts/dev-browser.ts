@@ -14,34 +14,39 @@ interface DeveloperPrivate {
   updateProfileConfiguration(update: { inDeveloperMode: boolean }): Promise<void>;
 }
 
-// Opens Chromium with the unpacked extension loaded and Settings showing, for `npm run dev`.
-// It launches through Playwright, as test/e2e/fixtures.ts does, because Chrome stopped honouring
-// --load-extension in version 137, and Playwright's own Chromium still loads it that way. Dayboard's
-// dev browser opens the same way.
-// The profile is kept under .vscode, so the filters you set up while developing survive a restart.
+// Opens the installed Chrome with the unpacked extension loaded and Settings showing, for
+// `npm run dev`. Dayboard's dev browser opens the same way.
+// Chrome stopped honouring --load-extension in version 137, so the extension is loaded through the
+// DevTools protocol, which Chrome allows when it starts with --enable-unsafe-extension-debugging.
+// Chrome forgets an extension loaded that way when it closes, so it's loaded again on every launch.
+// Its storage stays in the profile, which is kept under .vscode, so the filters you set up while
+// developing survive a restart.
 export async function openDevBrowser(extensionPath: string): Promise<DevBrowser> {
   const context = await chromium.launchPersistentContext(
     path.resolve('.vscode/chrome-debug-profile'),
     {
-      channel: 'chromium',
+      channel: 'chrome',
       headless: false,
       // Let the page follow the window, as a browser opened by hand does, instead of a fixed 1280×720.
       viewport: null,
-      // Leaves out the "controlled by automated test software" bar.
-      ignoreDefaultArgs: ['--enable-automation'],
-      args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
+      // Playwright turns extensions off, which would leave the loaded one disabled, and adds the
+      // "controlled by automated test software" bar.
+      ignoreDefaultArgs: ['--disable-extensions', '--enable-automation'],
+      args: ['--enable-unsafe-extension-debugging'],
     }
   );
 
-  // The service worker starting is the sign that the extension has loaded.
-  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
-  // URL.origin is "null" for schemes Node doesn't know, chrome-extension: among them.
-  const { protocol, host } = new URL(worker.url());
-  const extensionOrigin = `${protocol}//${host}`;
+  const browser = context.browser();
+  if (!browser) {
+    throw new Error('Playwright gave no browser to load the extension through.');
+  }
+  const session = await browser.newBrowserCDPSession();
+  const { id } = await session.send('Extensions.loadUnpacked', { path: extensionPath });
+  const extensionOrigin = `chrome-extension://${id}`;
 
   const page = context.pages()[0] ?? (await context.newPage());
-  // Chromium reloads an unpacked extension into a disabled state unless developer mode is on, and
-  // the dev script reloads it after every rebuild.
+  // Chrome reloads an unpacked extension into a disabled state unless developer mode is on, and the
+  // dev script reloads it whenever the service worker changes.
   await page.goto('chrome://extensions/');
   await page.evaluate(() =>
     (
@@ -53,9 +58,18 @@ export async function openDevBrowser(extensionPath: string): Promise<DevBrowser>
   return { context, extensionOrigin };
 }
 
-// Teichos's service worker does the blocking, so reloading its pages isn't enough after a rebuild:
-// the whole extension reloads, which restarts the worker on the new files. Chrome closes the
-// extension's tabs when it reloads, so the ones that were open are opened again. Returns how many.
+// The extension's pages read its files from disk, so reloading them picks up a rebuild that left
+// the service worker alone. Returns how many reloaded.
+export async function reloadPages({ context, extensionOrigin }: DevBrowser): Promise<number> {
+  const pages = context.pages().filter((page) => page.url().startsWith(`${extensionOrigin}/`));
+  // A page closed mid-reload has nothing left to show.
+  await Promise.all(pages.map((page) => page.reload().catch(() => {})));
+  return pages.length;
+}
+
+// A running service worker keeps the code it started with, so when a rebuild changes it the whole
+// extension reloads, which restarts the worker on the new files. Chrome closes the extension's tabs
+// when it reloads, so the ones that were open are opened again. Returns how many.
 export async function reloadExtension({ context, extensionOrigin }: DevBrowser): Promise<number> {
   const isExtension = (url: string): boolean => url.startsWith(`${extensionOrigin}/`);
   const openUrls = context
