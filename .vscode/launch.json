@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Rebuild on change",
+      "name": "Start Dev Browser",
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run dev",
