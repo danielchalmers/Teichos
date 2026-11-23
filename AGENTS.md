@@ -18,7 +18,8 @@ Read the real files before making assumptions:
 - Package scripts and validation commands: `package.json`
 - Dev loop (`npm run dev`): `scripts/dev.ts`, `scripts/dev-browser.ts`
 - TypeScript config: `tsconfig.json`, `tsconfig.test.json`
-- Formatting config: `.prettierrc`
+- Editor config: `.editorconfig`, `.gitattributes`. There's no formatter, as in Dayboard; match the
+  surrounding code's style.
 - VS Code workflow: `.vscode/extensions.json`, `.vscode/launch.json`, `.vscode/settings.json`, `.vscode/tasks.json`
 - CI expectations: `.github/workflows/ci.yml`
 - Browser behavior and regression coverage: `test/unit`, `test/e2e`

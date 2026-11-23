@@ -1,6 +1,4 @@
 {
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "files.exclude": {
     "node_modules": true,
     "dist": true,
@@ -9,8 +7,5 @@
   },
   "files.associations": {
     "*.json": "jsonc"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
   }
 }
