@@ -410,7 +410,7 @@ function setupStorageSync(): void {
   });
 }
 
-/** The hint to pin the toolbar icon goes away as soon as it's pinned, and comes back if it isn't. */
+/** The tip to pin the toolbar icon goes away as soon as it's pinned, and comes back if it isn't. */
 function setupToolbarPinSync(): void {
   onToolbarIconPinChange(() => {
     void renderGroups().catch((error: unknown) => {
@@ -931,9 +931,9 @@ async function renderGroups(): Promise<void> {
   let data = await loadData();
   data = await purgeExpiredTemporaryFilters(data);
   const hasAnyFilters = data.filters.length > 0;
-  // Only the first-run hint mentions pinning, so Chrome is only asked while that shows. Asked here,
-  // before any of the page's state is read: renders overlap, and one that waited between reading
-  // focus and redrawing would undo where another had since moved it.
+  // The tip to pin the icon is for a new install, so Chrome is only asked while there are no
+  // filters. Asked here, before any of the page's state is read: renders overlap, and one that
+  // waited between reading focus and redrawing would undo where another had since moved it.
   const suggestPinning = !hasAnyFilters && !(await isToolbarIconPinned());
   renderGlobalSettings(data);
   const groupsList = getElementByIdOrNull('groups-list');
@@ -975,12 +975,13 @@ async function renderGroups(): Promise<void> {
     const filters = sortFiltersTemporaryFirst(filtersByGroup.get(group.id) ?? []);
     const whitelist = whitelistByGroup.get(group.id) ?? [];
     fragment.appendChild(
-      renderGroup(group, index, filters, whitelist, snoozeActive, hasAnyFilters, suggestPinning)
+      renderGroup(group, index, filters, whitelist, snoozeActive, hasAnyFilters)
     );
   }
 
   groupsList.replaceChildren(fragment);
   renderSnoozeNotice(data, snoozeActive);
+  renderPinTip(suggestPinning);
   scheduleTimedRefresh(data, snoozeActive);
 
   const groupElements = groupsList.querySelectorAll<HTMLElement>('.group-item');
@@ -1027,6 +1028,18 @@ function renderSnoozeNotice(data: StorageData, snoozeActive: boolean): void {
     const firstGroupId =
       document.querySelector<HTMLElement>('#groups-list .group-item')?.dataset['groupId'] ?? null;
     getGroupFocusFallback(firstGroupId)?.focus();
+  }
+}
+
+/**
+ * Show the tip to pin the toolbar icon. Until it's pinned the popup, which blocks the site you're
+ * on and snoozes, sits two clicks away behind Chrome's extensions menu. The tip has nothing to
+ * focus, so hiding it never strands the keyboard.
+ */
+function renderPinTip(suggestPinning: boolean): void {
+  const tip = getElementByIdOrNull('pin-tip');
+  if (tip) {
+    tip.hidden = !suggestPinning;
   }
 }
 
@@ -1119,8 +1132,7 @@ function renderGroup(
   filters: readonly Filter[],
   whitelist: readonly Whitelist[],
   snoozeActive: boolean,
-  hasAnyFilters: boolean,
-  suggestPinning: boolean
+  hasAnyFilters: boolean
 ): HTMLElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
   const groupEnabled = isGroupEnabled(group);
@@ -1190,9 +1202,6 @@ function renderGroup(
         isDefault && !hasAnyFilters ? FIRST_FILTER_HINT : 'No filters in this group.'
       )
     );
-    if (isDefault && suggestPinning) {
-      filterList.appendChild(createPinHint());
-    }
   } else {
     const filterFragment = document.createDocumentFragment();
     for (const filter of filters) {
@@ -1284,17 +1293,6 @@ function createEmptyState(message: string): HTMLParagraphElement {
   const element = document.createElement('p');
   element.className = 'empty-state';
   element.textContent = message;
-  return element;
-}
-
-/**
- * A second line for a new install whose toolbar icon isn't pinned: temporary blocks and snooze are
- * only in the popup, which is two clicks away until it is.
- */
-function createPinHint(): HTMLParagraphElement {
-  const element = document.createElement('p');
-  element.className = 'pin-hint';
-  element.textContent = 'Pin Teichos to your toolbar for temporary blocks and snooze.';
   return element;
 }
 

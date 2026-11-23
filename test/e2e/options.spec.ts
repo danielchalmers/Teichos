@@ -547,25 +547,28 @@ test('says where to start while there are no filters at all', async ({ extension
   await expect(emptyStates).toHaveText(['No filters in this group.']);
 });
 
-test('suggests pinning the toolbar icon until it is pinned or a filter exists', async ({
+test('shows a tip to pin the toolbar icon until it is pinned or a filter exists', async ({
   context,
   extensionId,
   extensionPage,
   page,
 }) => {
-  const firstRunLines = page.locator('[data-role="filter-list"] > *');
-  const pinHint = page.getByText('Pin Teichos to your toolbar for temporary blocks and snooze.');
+  const pinTip = page.locator('#pin-tip');
 
-  // A new install: the icon isn't pinned, and the popup has temporary blocks and snooze.
+  // A new install: the icon isn't pinned, and the popup is two clicks away until it is.
   await gotoOptions(extensionPage, page);
-  await expect(firstRunLines).toHaveText([/^No filters yet\./, /^Pin Teichos to your toolbar/]);
+  await expect(page.getByRole('note')).toHaveText(
+    "Tip: Pin Teichos to your toolbar to block the site you're on and to snooze."
+  );
+  // The tip is a box of its own above the groups. The first-run line in the group is as it was.
+  await expect(page.locator('#pin-tip + #groups-list')).toHaveCount(1);
+  await expect(page.locator('[data-role="filter-list"] > *')).toHaveText([/^No filters yet\./]);
 
-  // Pinning it is the end of the hint, with no reload. Unpinning brings it back.
+  // Pinning it is the end of the tip, with no reload. Unpinning brings it back.
   await setToolbarIconPinned(context, extensionId, true);
-  await expect(pinHint).toHaveCount(0);
-  await expect(firstRunLines).toHaveText([/^No filters yet\./]);
+  await expect(pinTip).toBeHidden();
   await setToolbarIconPinned(context, extensionId, false);
-  await expect(pinHint).toBeVisible();
+  await expect(pinTip).toBeVisible();
 
   // It belongs to the first run, so it leaves with it even if the icon was never pinned.
   await seedStorage(
@@ -583,7 +586,7 @@ test('suggests pinning the toolbar icon until it is pinned or a filter exists', 
     })
   );
   await expect(page.locator('.filter-item')).toHaveCount(1);
-  await expect(pinHint).toHaveCount(0);
+  await expect(pinTip).toBeHidden();
 });
 
 test('opens filter, group, and exception modals from query params', async ({

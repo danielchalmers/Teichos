@@ -13,7 +13,8 @@
  * cool neutral ramp for surfaces and text, and an indigo accent. Light and dark only pick different
  * steps, so they share one design language. The accent stays calm (chroma 0.15 in light, 0.12 in
  * dark) and is reserved for one filled primary action per view, switches, selected chips and the
- * status chip while they are on, links, focus rings and the logo. Everything else is neutral.
+ * status chip while they are on, links, focus rings, the logo and, as a tint, a tip. Everything else
+ * is neutral.
  *
  * Accessibility contract (WCAG 2.2 AA), held by every value below in both themes:
  * - text tokens reach at least 4.5:1 on --bg, --surface, --surface-muted and --surface-hover;
@@ -83,6 +84,7 @@
   --accent: #4b50b0;
   --accent-hover: #3f439a;
   --accent-tint: #edf1ff;
+  --accent-tint-border: #c0c4e9;
   --link: var(--accent);
   --link-hover: var(--accent-hover);
   --focus-ring: var(--accent);
@@ -135,6 +137,7 @@
     --accent: #929def;
     --accent-hover: #afb9f8;
     --accent-tint: #1a1d34;
+    --accent-tint-border: #3c4168;
 
     --button-primary-bg: #494f9a;
     --button-primary-hover-bg: #535aa6;
@@ -735,6 +738,33 @@ input:checked + .slider::before {
 
 .notice .button.secondary:not(:disabled):hover {
   background: var(--surface-hover);
+}
+
+/* Tip: a notice that suggests something optional instead of reporting a state. It is tinted with
+   the accent, not a status color, with an icon where a state has its dot and a sentence in regular
+   weight after a bold "Tip:". It has no close button: a tip is shown only while it applies. */
+.notice.tip {
+  border-color: var(--accent-tint-border);
+  background: var(--accent-tint);
+}
+
+/* Centred on the first line of text (16px in a 14px × 1.4 line), however the text wraps. */
+.notice-icon {
+  flex: none;
+  align-self: flex-start;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+.notice-body {
+  margin: 0;
+  font: var(--text-md) / 1.4 var(--font-sans);
+}
+
+.notice-body strong {
+  font-weight: 600;
 }
 
 /*
