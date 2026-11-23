@@ -356,6 +356,15 @@ test('imports settings from global settings', async ({ extensionPage, page }) =>
     buffer: Buffer.from(JSON.stringify(importedData)),
   });
 
+  // An import replaces everything, so it names the file and what would be lost, and waits.
+  const importModal = page.locator('#import-modal.active');
+  await expect(importModal).toHaveAccessibleDescription(
+    "Import “teichos-settings.json”? It replaces your 1 group and 1 filter. This can't be undone."
+  );
+  expect((await readStorage(page))?.filters.map((filter) => filter.id)).toEqual(['old-filter']);
+  await importModal.getByRole('button', { name: 'Replace settings' }).click();
+  await expect(importModal).toHaveCount(0);
+
   const importedGroup = page.locator('.group-item').filter({ hasText: 'Imported Group' });
   await expect(importedGroup).toContainText('Imported Filter');
   await expect(importedGroup).toContainText('Imported Exception');
@@ -397,10 +406,105 @@ test('keeps existing settings when global settings import fails', async ({
     buffer: Buffer.from('{'),
   });
 
+  // A file that can't be imported says so at once, without asking to replace anything first.
   await expect(page.locator('#global-settings-status')).toHaveText(
     'Settings file is not valid JSON.'
   );
+  await expect(page.locator('#import-modal.active')).toHaveCount(0);
   expect(await readStorage(page)).toEqual(originalData);
+});
+
+test('asks before an import replaces settings, and keeps them when declined', async ({
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  const importedData = createStorageData({
+    filters: [
+      {
+        id: 'imported-filter',
+        pattern: 'imported.example.test',
+        groupId: defaultGroup.id,
+        enabled: true,
+        matchMode: 'domain',
+      },
+    ],
+  });
+  const chooseFile = (): Promise<void> =>
+    page.locator('#import-settings-input').setInputFiles({
+      name: 'backup.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(importedData)),
+    });
+  const importModal = page.locator('#import-modal.active');
+  const status = page.locator('#global-settings-status');
+
+  // With nothing to lose, as on a new install restoring a backup, there is nothing to ask.
+  await chooseFile();
+  await expect(status).toHaveText('Settings imported.');
+  await expect(importModal).toHaveCount(0);
+  await expect.poll(async () => (await readStorage(page))?.filters).toEqual(importedData.filters);
+
+  const originalData = createStorageData({
+    groups: [
+      defaultGroup,
+      { id: 'work', name: 'Work', is24x7: true, schedules: [] },
+      { id: 'evening', name: 'Evening', is24x7: true, schedules: [] },
+    ],
+    filters: [
+      {
+        id: 'kept-filter',
+        pattern: 'kept.example.test',
+        groupId: 'work',
+        enabled: true,
+        matchMode: 'domain',
+      },
+    ],
+    whitelist: [
+      {
+        id: 'kept-exception',
+        pattern: 'docs.kept.example.test',
+        groupId: 'work',
+        enabled: true,
+        matchMode: 'domain',
+      },
+    ],
+    rulesVersion: 4,
+  });
+  await seedStorage(page, originalData);
+  await expect(page.locator('.group-item').filter({ hasText: 'Evening' })).toHaveCount(1);
+
+  // The dialog opens on the safe choice, and every way out of it keeps the settings.
+  const importButton = page.getByRole('button', { name: 'Import settings' });
+  await importButton.focus();
+  await chooseFile();
+  await expect(importModal).toHaveAccessibleDescription(
+    "Import “backup.json”? It replaces your 3 groups, 1 filter and 1 exception. This can't be undone."
+  );
+  const keepButton = importModal.getByRole('button', { name: 'Keep settings' });
+  await expect(keepButton).toBeFocused();
+  await keepButton.click();
+  await expect(importModal).toHaveCount(0);
+  await expect(importButton).toBeFocused();
+
+  await chooseFile();
+  await expect(importModal).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(importModal).toHaveCount(0);
+
+  await chooseFile();
+  await expect(importModal).toBeVisible();
+  await importModal.getByRole('button', { name: 'Close import dialog' }).click();
+  await expect(importModal).toHaveCount(0);
+
+  await expect(status).toBeEmpty();
+  expect(await readStorage(page)).toEqual(originalData);
+
+  // The same file can be chosen again and confirmed.
+  await chooseFile();
+  await importModal.getByRole('button', { name: 'Replace settings' }).click();
+  await expect(status).toHaveText('Settings imported.');
+  await expect.poll(async () => (await readStorage(page))?.filters).toEqual(importedData.filters);
 });
 
 test('says where to start while there are no filters at all', async ({ extensionPage, page }) => {
@@ -1683,10 +1787,14 @@ test('existing site-name filters become domain filters after the update', async 
   await expect(page.locator('#filter-modal.active').getByLabel('Match mode')).toHaveValue('domain');
 });
 
-/** Import `count` filters, each taking about 170 bytes of sync storage. */
+/**
+ * Import `count` filters, each taking about 170 bytes of sync storage. An import over existing
+ * filters asks first; `replacing` answers it.
+ */
 async function importBulkFilters(
   page: Parameters<typeof waitForOptionsReady>[0],
-  count: number
+  count: number,
+  { replacing = false } = {}
 ): Promise<void> {
   const filters = Array.from({ length: count }, (_, index) => ({
     id: `bulk-filter-${String(index)}`,
@@ -1701,6 +1809,12 @@ async function importBulkFilters(
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(createStorageData({ filters }))),
   });
+  if (replacing) {
+    await page
+      .locator('#import-modal.active')
+      .getByRole('button', { name: 'Replace settings' })
+      .click();
+  }
   await expect.poll(async () => (await readStorage(page))?.filters.length).toBe(count);
 }
 
@@ -1733,7 +1847,7 @@ test('shrinks large settings even when sync storage is nearly full', async ({
   // 570 filters leave about 3 KB of the 100 KB Chrome allows the extension in sync storage.
   await importBulkFilters(page, 570);
   // 50 fit in one item again, but there's no room to write that item beside the larger copy.
-  await importBulkFilters(page, 50);
+  await importBulkFilters(page, 50, { replacing: true });
   await expect(page.locator('#global-settings-status')).toHaveText('Settings imported.');
 });
 
