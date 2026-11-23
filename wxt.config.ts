@@ -13,6 +13,10 @@ export default defineConfig({
     description:
       'Block distracting websites all day or on a schedule. Exceptions, snooze, and temporary blocks. No account, no tracking.',
     permissions: ['alarms', 'storage', 'tabs', 'webNavigation'],
+    // Incognito windows get their own instance of the extension, so a blocked site there can be
+    // sent to the block page: with the default (spanning) mode the single instance lives in the
+    // regular profile, and Chrome refuses to open its pages in an incognito tab.
+    incognito: 'split',
     action: {
       default_title: 'Teichos: Website Blocker',
     },

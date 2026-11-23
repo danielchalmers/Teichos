@@ -9,6 +9,7 @@ import {
   readStorage,
   seedStorage,
   showBlockPageDetails,
+  waitForOptionsReady,
 } from './helpers';
 import { PAGES } from '../../src/shared/constants';
 
@@ -91,6 +92,70 @@ test('keeps the block page out of reach of websites', async ({ extensionPage, pa
   const framed = page.frames().some((frame) => frame.url() === blockPageUrl);
 
   expect({ fetched, framed }).toEqual({ fetched: false, framed: false });
+});
+
+/** The part of chrome://extensions' private API that switches "Allow in Incognito" on. */
+interface DeveloperPrivate {
+  updateProfileConfiguration(update: { inDeveloperMode: boolean }): Promise<void>;
+  updateExtensionConfiguration(update: {
+    extensionId: string;
+    incognitoAccess: boolean;
+  }): Promise<void>;
+}
+
+test('shows the block page in an Incognito window', async ({
+  context,
+  extensionId,
+  extensionPage,
+  page,
+}) => {
+  // Switch on "Allow in Incognito" the way the browser's own extensions page does. An unpacked
+  // extension is disabled when it restarts for the change unless developer mode is on.
+  await page.goto(`chrome://extensions/?id=${extensionId}`);
+  await page.evaluate(async (id) => {
+    const { developerPrivate } = chrome as unknown as { developerPrivate: DeveloperPrivate };
+    await developerPrivate.updateProfileConfiguration({ inDeveloperMode: true });
+    await developerPrivate.updateExtensionConfiguration({ extensionId: id, incognitoAccess: true });
+  }, extensionId);
+  await expect(async () => {
+    await page.goto(extensionPage(PAGES.OPTIONS));
+    await waitForOptionsReady(page);
+    expect(await page.evaluate(() => chrome.extension.isAllowedIncognitoAccess())).toBe(true);
+  }).toPass();
+
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'incognito-filter',
+          pattern: 'incognito.example.invalid',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'domain',
+        },
+      ],
+    })
+  );
+  await page.evaluate(async (url) => {
+    await chrome.windows.create({ url, incognito: true });
+  }, 'https://incognito.example.invalid/focus');
+
+  // The Incognito window is outside this browser context, so its tab is found through the
+  // DevTools protocol. Only a block page that loaded has the block page's title: Chrome's error
+  // page for an extension page it refused to open keeps the address but not the title.
+  const devtools = await context.newCDPSession(page);
+  await expect
+    .poll(async () => {
+      const { targetInfos } = await devtools.send('Target.getTargets');
+      const ownContextId = targetInfos.find(
+        (target) => target.url === extensionPage(PAGES.OPTIONS)
+      )?.browserContextId;
+      return targetInfos
+        .filter((target) => target.type === 'page' && target.browserContextId !== ownContextId)
+        .map((target) => target.title);
+    })
+    .toEqual(['incognito.example.invalid blocked · Teichos']);
 });
 
 test('redirects matching top-level navigations to the blocked page', async ({
