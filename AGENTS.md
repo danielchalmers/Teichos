@@ -16,6 +16,7 @@ Read the real files before making assumptions:
 - Extension manifest, permissions, and build pipeline (Vite): `vite.config.ts`
 - E2E harness: `playwright.config.ts`, `test/e2e/fixtures.ts` (needs `npx playwright install chromium`)
 - Package scripts and validation commands: `package.json`
+- Dev loop (`npm run dev`): `scripts/dev.ts`, `scripts/dev-browser.ts`
 - TypeScript config: `tsconfig.json`, `tsconfig.test.json`
 - Formatting config: `.prettierrc`
 - VS Code workflow: `.vscode/extensions.json`, `.vscode/launch.json`, `.vscode/settings.json`, `.vscode/tasks.json`

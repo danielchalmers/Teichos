@@ -8,7 +8,7 @@
     "npm": ">=11.0.0"
   },
   "scripts": {
-    "dev": "vite build --watch",
+    "dev": "node scripts/dev.ts",
     "build": "vite build",
     "zip": "npm run build && cd .output/chrome-mv3 && zip -qrD -FS ../teichos-chrome.zip .",
     "format": "prettier . --write",
