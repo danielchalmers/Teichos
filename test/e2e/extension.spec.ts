@@ -69,6 +69,15 @@ test('loads the extension service worker and extension pages', async ({
   expect(await readStorage(page)).toBeUndefined();
 });
 
+test('names the extension in the toolbar button tooltip', async ({ extensionPage, page }) => {
+  await page.goto(extensionPage(PAGES.POPUP));
+
+  // The tooltip comes from the popup's title, which the build writes to the manifest.
+  const tooltip = await page.evaluate(() => chrome.action.getTitle({}));
+  expect(tooltip).toBe('Teichos: Website Blocker');
+  expect(tooltip).toBe(await page.evaluate(() => chrome.runtime.getManifest().name));
+});
+
 test('keeps the block page out of reach of websites', async ({ extensionPage, page }) => {
   const blockPageUrl = extensionPage(PAGES.BLOCKED);
   await page.goto('https://probe.example.test/');

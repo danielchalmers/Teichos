@@ -17,9 +17,6 @@ export default defineConfig({
     // sent to the block page: with the default (spanning) mode the single instance lives in the
     // regular profile, and Chrome refuses to open its pages in an incognito tab.
     incognito: 'split',
-    action: {
-      default_title: 'Teichos: Website Blocker',
-    },
     options_ui: {
       open_in_tab: true,
     },
