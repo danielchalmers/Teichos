@@ -154,8 +154,9 @@ body {
   margin-top: -4px;
 }
 
-/* Inset like the cards below, so its Resume button ends on the same edge as their switches. */
-#snooze-notice {
+/* Notices sit above a section's cards and are inset like them: the snooze notice's Resume button
+   ends on the same edge as the cards' switches, and a tip's icon is in their chevron column. */
+.settings-section > .notice {
   margin-bottom: var(--space-4);
   padding-inline: var(--inset);
 }

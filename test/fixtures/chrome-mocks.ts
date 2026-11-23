@@ -86,6 +86,13 @@ interface ChromeMock {
   extension: {
     inIncognitoContext: boolean;
   };
+  action: {
+    getUserSettings: ReturnType<typeof vi.fn>;
+    onUserSettingsChanged: {
+      addListener: ReturnType<typeof vi.fn>;
+      removeListener: ReturnType<typeof vi.fn>;
+    };
+  };
 }
 
 export function createMockTab(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
@@ -240,6 +247,13 @@ export function createChromeMock(): ChromeMock {
     },
     extension: {
       inIncognitoContext: false,
+    },
+    action: {
+      getUserSettings: vi.fn(() => Promise.resolve({ isOnToolbar: false })),
+      onUserSettingsChanged: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
     },
   };
 }

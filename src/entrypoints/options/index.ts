@@ -59,6 +59,7 @@ import {
   formatSnoozeEnd,
   formatTemporaryFilterLabel,
 } from '../../shared/utils/schedules';
+import { isToolbarIconPinned, onToolbarIconPinChange } from '../../shared/api/action';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { createTab } from '../../shared/api/tabs';
 import { DAY_FULL_NAMES, DAY_NAMES, DEFAULT_SCHEDULE, PAGES } from '../../shared/constants';
@@ -88,6 +89,7 @@ let timedRefreshTimer: number | null = null;
 async function init(): Promise<void> {
   setupEventListeners();
   setupStorageSync();
+  setupToolbarPinSync();
   populateInfoPanel();
   await renderGroups();
   openFilterFromQuery();
@@ -402,6 +404,15 @@ function setupStorageSync(): void {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'sync') return;
     if (!hasSettingsChange(changes)) return;
+    void renderGroups().catch((error: unknown) => {
+      console.error('Failed to refresh groups:', error);
+    });
+  });
+}
+
+/** The tip to pin the toolbar icon goes away as soon as it's pinned, and comes back if it isn't. */
+function setupToolbarPinSync(): void {
+  onToolbarIconPinChange(() => {
     void renderGroups().catch((error: unknown) => {
       console.error('Failed to refresh groups:', error);
     });
@@ -919,6 +930,11 @@ function deactivateModal(modal: HTMLElement): void {
 async function renderGroups(): Promise<void> {
   let data = await loadData();
   data = await purgeExpiredTemporaryFilters(data);
+  const hasAnyFilters = data.filters.length > 0;
+  // The tip to pin the icon is for a new install, so Chrome is only asked while there are no
+  // filters. Asked here, before any of the page's state is read: renders overlap, and one that
+  // waited between reading focus and redrawing would undo where another had since moved it.
+  const suggestPinning = !hasAnyFilters && !(await isToolbarIconPinned());
   renderGlobalSettings(data);
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
@@ -959,12 +975,13 @@ async function renderGroups(): Promise<void> {
     const filters = sortFiltersTemporaryFirst(filtersByGroup.get(group.id) ?? []);
     const whitelist = whitelistByGroup.get(group.id) ?? [];
     fragment.appendChild(
-      renderGroup(group, index, filters, whitelist, snoozeActive, data.filters.length > 0)
+      renderGroup(group, index, filters, whitelist, snoozeActive, hasAnyFilters)
     );
   }
 
   groupsList.replaceChildren(fragment);
   renderSnoozeNotice(data, snoozeActive);
+  renderPinTip(suggestPinning);
   scheduleTimedRefresh(data, snoozeActive);
 
   const groupElements = groupsList.querySelectorAll<HTMLElement>('.group-item');
@@ -1011,6 +1028,18 @@ function renderSnoozeNotice(data: StorageData, snoozeActive: boolean): void {
     const firstGroupId =
       document.querySelector<HTMLElement>('#groups-list .group-item')?.dataset['groupId'] ?? null;
     getGroupFocusFallback(firstGroupId)?.focus();
+  }
+}
+
+/**
+ * Show the tip to pin the toolbar icon. Until it's pinned the popup, which blocks the site you're
+ * on and snoozes, sits two clicks away behind Chrome's extensions menu. The tip has nothing to
+ * focus, so hiding it never strands the keyboard.
+ */
+function renderPinTip(suggestPinning: boolean): void {
+  const tip = getElementByIdOrNull('pin-tip');
+  if (tip) {
+    tip.hidden = !suggestPinning;
   }
 }
 
