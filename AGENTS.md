@@ -16,8 +16,8 @@ Read the real files before making assumptions:
 - Extension manifest, permissions, and build pipeline (Vite): `vite.config.ts`
 - E2E harness: `playwright.config.ts`, `test/e2e/fixtures.ts` (needs `npx playwright install chromium`)
 - Package scripts and validation commands: `package.json`
-- TypeScript config: `tsconfig.json`, `tsconfig.test.json`, `tsconfig.scripts.json`
-- Lint and formatting config: `eslint.config.mjs`, `.prettierrc`
+- TypeScript config: `tsconfig.json`, `tsconfig.test.json`
+- Formatting config: `.prettierrc`
 - VS Code workflow: `.vscode/extensions.json`, `.vscode/launch.json`, `.vscode/settings.json`, `.vscode/tasks.json`
 - CI expectations: `.github/workflows/ci.yml`
 - Browser behavior and regression coverage: `test/unit`, `test/e2e`

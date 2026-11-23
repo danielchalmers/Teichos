@@ -16,11 +16,9 @@
     "test": "vitest run",
     "test:e2e": "npm run build && playwright test",
     "test:watch": "vitest",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
-    "check:fast": "npm run format:check && npm run lint && npm run typecheck && npm run typecheck:test && npm run test",
+    "check:fast": "npm run format:check && npm run typecheck && npm run typecheck:test && npm run test",
     "check": "npm run check:fast && npm run test:e2e"
   },
   "keywords": [
@@ -33,15 +31,11 @@
   "author": "Daniel Chalmers",
   "license": "MIT",
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.65.1",
     "@types/chrome": "^0.3.7",
     "@types/node": "^26.6.6",
-    "eslint": "^10.15.0",
-    "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.10.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.73.0",
     "vite": "^8.3.8",
     "vitest": "^5.1.1"
   }
