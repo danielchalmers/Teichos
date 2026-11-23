@@ -558,7 +558,7 @@ test('shows a tip to pin the toolbar icon until it is pinned or a filter exists'
   // A new install: the icon isn't pinned, and the popup is two clicks away until it is.
   await gotoOptions(extensionPage, page);
   await expect(page.getByRole('note')).toHaveText(
-    "Tip: Pin Teichos to your toolbar to block the site you're on and to snooze."
+    'Tip: Pin Teichos to your toolbar to block sites and snooze from any tab.'
   );
   // The tip is a box of its own above the groups. The first-run line in the group is as it was.
   await expect(page.locator('#pin-tip + #groups-list')).toHaveCount(1);
