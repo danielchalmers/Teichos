@@ -1,7 +1,7 @@
 {
   "name": "teichos",
   "version": "0.0.0",
-  "description": "A web extension to block URLs based on configurable regex filters with time-based scheduling",
+  "description": "Block distracting websites all day or on a schedule. Exceptions, snooze, and temporary blocks. No account, no tracking.",
   "type": "module",
   "engines": {
     "node": ">=24.0.0",

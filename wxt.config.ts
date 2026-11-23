@@ -8,12 +8,12 @@ mkdirSync(chromiumProfile, { recursive: true });
 export default defineConfig({
   srcDir: 'src',
   manifest: {
-    name: 'Teichos: Page Blocker',
+    name: 'Teichos: Website Blocker',
     version: process.env['RELEASE_VERSION'] ?? '0.0.0',
-    description: 'Block URLs based on configurable regex filters with time-based scheduling',
+    description: 'Block distracting websites all day or on a schedule. Exceptions, snooze, and temporary blocks. No account, no tracking.',
     permissions: ['alarms', 'storage', 'tabs', 'webNavigation'],
     action: {
-      default_title: 'Teichos: Page Blocker',
+      default_title: 'Teichos: Website Blocker',
     },
     options_ui: {
       open_in_tab: true,
