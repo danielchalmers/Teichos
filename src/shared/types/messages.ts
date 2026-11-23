@@ -37,6 +37,11 @@ export interface ContinueActiveTabMessage {
 export interface GetBlockedPageStateMessage {
   readonly type: typeof MessageType.GET_BLOCKED_PAGE_STATE;
   readonly blockId?: string;
+  /**
+   * The address the block page remembers blocking, sent by a page that outlived its block state
+   * (a tab restored after a browser restart) so the block can be judged again and brought back.
+   */
+  readonly targetUrl?: string;
 }
 
 export type GetDataResponse =
@@ -133,7 +138,8 @@ export function isGetBlockedPageStateMessage(msg: unknown): msg is GetBlockedPag
     msg !== null &&
     'type' in msg &&
     msg.type === MessageType.GET_BLOCKED_PAGE_STATE &&
-    (!('blockId' in msg) || typeof msg.blockId === 'string')
+    (!('blockId' in msg) || typeof msg.blockId === 'string') &&
+    (!('targetUrl' in msg) || typeof msg.targetUrl === 'string')
   );
 }
 

@@ -191,17 +191,19 @@ async function getBlockedPageState(): Promise<BlockedPageViewModel> {
 
   try {
     const blockId = getBlockedPageBlockId();
-    const response = await sendExtensionMessage(
-      blockId
-        ? { type: MessageType.GET_BLOCKED_PAGE_STATE, blockId }
-        : { type: MessageType.GET_BLOCKED_PAGE_STATE }
-    );
+    const rememberedTargetUrl = getRememberedTargetUrl();
+    const response = await sendExtensionMessage({
+      type: MessageType.GET_BLOCKED_PAGE_STATE,
+      ...(blockId ? { blockId } : {}),
+      ...(rememberedTargetUrl ? { targetUrl: rememberedTargetUrl } : {}),
+    });
 
     if (!isBlockedPageStateResponse(response)) {
       return getUnavailableBlockedPageState();
     }
 
     if (response.status === 'blocked') {
+      rememberTargetUrl(response.state.targetUrl);
       return {
         targetUrl: response.state.targetUrl,
         state: response.state,
@@ -226,6 +228,29 @@ function getBlockedPageBlockId(): string | undefined {
   }
 
   return trimmedBlockId;
+}
+
+/**
+ * Keep the blocked address in this page's own history entry. The block itself lives in session
+ * storage, which is cleared when the browser closes, while a restored tab reopens this page; the
+ * entry's state comes back with it and lets the background bring the block back. It is kept here
+ * rather than in the page's address or in stored settings because history state stays on this
+ * device, is never synced, and goes when the tab does.
+ */
+function rememberTargetUrl(targetUrl: string): void {
+  if (getRememberedTargetUrl() !== targetUrl) {
+    window.history.replaceState({ targetUrl }, '');
+  }
+}
+
+function getRememberedTargetUrl(): string | undefined {
+  const state: unknown = window.history.state;
+  return typeof state === 'object' &&
+    state !== null &&
+    'targetUrl' in state &&
+    typeof state.targetUrl === 'string'
+    ? state.targetUrl
+    : undefined;
 }
 
 function getUnavailableBlockedPageState(): BlockedPageViewModel {
