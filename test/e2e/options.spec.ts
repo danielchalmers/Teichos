@@ -730,6 +730,34 @@ test('edits and deletes individual filters and exceptions from options', async (
     });
 });
 
+test('reports a failed read while saving an edited filter, as it does a failed write', async ({
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await createFilterViaOptions(page, { name: 'Read Fails', pattern: 'read-fails.example.test' });
+
+  await page
+    .locator('.filter-item')
+    .filter({ hasText: 'Read Fails' })
+    .getByRole('button', { name: 'Edit' })
+    .click();
+  const filterModal = page.locator('#filter-modal.active');
+  await expect(filterModal).toBeVisible();
+
+  // Saving an edit first reads the stored filter to keep its expiry, so a failed read has to land in the dialog too.
+  await page.evaluate(() => {
+    chrome.storage.sync.get = (): Promise<never> =>
+      Promise.reject(new Error('Storage read failed'));
+  });
+  await filterModal.locator('#filter-description').fill('Still Here');
+  await filterModal.getByRole('button', { name: 'Save' }).click();
+  await expect(filterModal.locator('#filter-error')).toHaveText(
+    "Couldn't save the filter. Try again."
+  );
+  await expect(filterModal).toBeVisible();
+});
+
 test('updates selected days and rejects schedules with no days in the group editor', async ({
   extensionPage,
   page,
