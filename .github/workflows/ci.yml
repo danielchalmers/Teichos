@@ -114,10 +114,11 @@ jobs:
       - name: Build zip
         run: npm run zip
 
+      # Uploaded as is, so the download is the zip the store takes, not a zip with that zip inside.
+      # The artifact takes the file's name.
       - name: Upload extension zip
         uses: actions/upload-artifact@v7
         with:
-          name: teichos-chrome-extension
-          path: .output/*-chrome.zip
+          path: .output/teichos-chrome.zip
+          archive: false
           if-no-files-found: error
-          include-hidden-files: true
