@@ -10,6 +10,7 @@
 
 import {
   handleBeforeNavigate,
+  handleInstalled,
   handleMessage,
   handleNavigationChange,
   type NavigationChangeDetails,
@@ -35,6 +36,7 @@ export function registerBackground(): void {
   chrome.webNavigation.onReferenceFragmentUpdated.addListener(logFailures(handleNavigationChange));
 
   chrome.runtime.onMessage.addListener(handleMessage);
+  chrome.runtime.onInstalled.addListener(handleInstalled);
   getTabController().register();
   registerSnoozeHandlers();
 }

@@ -1,13 +1,19 @@
 import { mkdtemp, rm } from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { chromium, test as base, type BrowserContext, type Page } from '@playwright/test';
+import { chromium, expect, test as base, type BrowserContext, type Page } from '@playwright/test';
+import { PAGES } from '../../src/shared/constants';
 
 interface ExtensionFixtures {
   context: BrowserContext;
   extensionId: string;
   extensionPage: (relativePath: string) => string;
   page: Page;
+}
+
+interface ExtensionOptions {
+  /** Leave the Settings tab a new install opens, for the test of that tab. */
+  keepInstallTab: boolean;
 }
 
 // Stub every otherwise-unmocked http(s) navigation/subresource with a local 200
@@ -47,8 +53,36 @@ async function installDeterministicNetwork(context: BrowserContext): Promise<voi
   });
 }
 
-export const test = base.extend<ExtensionFixtures>({
-  context: async ({ browserName: _browserName }, use) => {
+async function getExtensionId(context: BrowserContext): Promise<string> {
+  let [serviceWorker] = context.serviceWorkers();
+  serviceWorker ??= await context.waitForEvent('serviceworker');
+  return new URL(serviceWorker.url()).host;
+}
+
+// Teichos opens Settings when it's installed, and every test installs it into a new profile. Chrome
+// puts Settings in the blank tab the browser starts with. Waiting for it here keeps it from arriving
+// partway through a test, where it would collide with the test's own first navigation. The tab then
+// goes back to blank unless the test is about it: the routes to Settings show a tab that is already
+// open, and the tests of them wait for a new one.
+async function settleInstallTab(context: BrowserContext, keep: boolean): Promise<void> {
+  const settingsUrl = `chrome-extension://${await getExtensionId(context)}/${PAGES.OPTIONS}`;
+  const findInstallTab = (): Page | undefined =>
+    context.pages().find((page) => page.url().startsWith(settingsUrl));
+  await expect
+    .poll(() => findInstallTab() !== undefined, {
+      message: 'Settings should open when Teichos is installed',
+    })
+    .toBe(true);
+
+  if (!keep) {
+    await findInstallTab()?.goto('about:blank');
+  }
+}
+
+export const test = base.extend<ExtensionFixtures & ExtensionOptions>({
+  keepInstallTab: [false, { option: true }],
+
+  context: async ({ keepInstallTab }, use) => {
     const extensionPath = path.resolve('.output', 'chrome-mv3');
     const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'teichos-e2e-'));
     const context = await chromium.launchPersistentContext(userDataDir, {
@@ -79,6 +113,7 @@ export const test = base.extend<ExtensionFixtures>({
     }
 
     try {
+      await settleInstallTab(context, keepInstallTab);
       await use(context);
     } finally {
       if (captureTrace) {
@@ -101,9 +136,7 @@ export const test = base.extend<ExtensionFixtures>({
   },
 
   extensionId: async ({ context }, use) => {
-    let [serviceWorker] = context.serviceWorkers();
-    serviceWorker ??= await context.waitForEvent('serviceworker');
-    await use(new URL(serviceWorker.url()).host);
+    await use(await getExtensionId(context));
   },
 
   extensionPage: async ({ extensionId }, use) => {
@@ -117,4 +150,4 @@ export const test = base.extend<ExtensionFixtures>({
   },
 });
 
-export { expect } from '@playwright/test';
+export { expect };
