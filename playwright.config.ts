@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './test/e2e',
+  globalSetup: './test/e2e/global-setup.ts',
   fullyParallel: false,
   workers: 1,
   // Retry on CI only. The e2e suite drives a real MV3 service worker whose
