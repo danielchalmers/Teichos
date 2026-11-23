@@ -38,7 +38,7 @@ npm run build
 
 Then load the unpacked extension: open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select `.output/chrome-mv3`.
 
-To work on Teichos, `npm run dev` opens Chromium with it loaded and reloads it after each save.
+To work on Teichos, `npm run dev` opens Chrome with it loaded and reloads it after each save.
 
 ## Quick start
 
