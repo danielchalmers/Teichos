@@ -8,10 +8,9 @@
     "npm": ">=11.0.0"
   },
   "scripts": {
-    "dev": "wxt",
-    "build": "wxt build",
-    "zip": "wxt zip",
-    "postinstall": "wxt prepare",
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "zip": "npm run build && cd .output/chrome-mv3 && zip -qrD -FS ../teichos-chrome.zip .",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "test": "vitest run",
@@ -43,7 +42,7 @@
     "prettier": "^3.10.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.73.0",
-    "vitest": "^5.1.1",
-    "wxt": "^0.21.5"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
   }
 }

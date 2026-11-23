@@ -1,9 +1,10 @@
 {
-  "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "rootDir": "./src",
     "strict": true,
@@ -17,8 +18,9 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", ".output", ".wxt", "dist", "test"]
+  "exclude": ["node_modules", ".output", "dist", "test"]
 }

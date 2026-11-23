@@ -12,9 +12,9 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "types": ["node"],
+    "types": ["chrome", "node"],
     "noUncheckedIndexedAccess": true
   },
-  "include": ["scripts/**/*", "wxt.config.ts"],
+  "include": ["scripts/**/*", "vite.config.ts"],
   "exclude": ["node_modules"]
 }

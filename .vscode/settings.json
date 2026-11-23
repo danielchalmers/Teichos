@@ -10,8 +10,7 @@
     "node_modules": true,
     "dist": true,
     ".output": true,
-    ".vscode/chrome-debug-profile": true,
-    ".wxt": true
+    ".vscode/chrome-debug-profile": true
   },
   "files.associations": {
     "*.json": "jsonc"

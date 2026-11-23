@@ -72,7 +72,7 @@ test('loads the extension service worker and extension pages', async ({
 test('names the extension in the toolbar button tooltip', async ({ extensionPage, page }) => {
   await page.goto(extensionPage(PAGES.POPUP));
 
-  // The tooltip comes from the popup's title, which the build writes to the manifest.
+  // The manifest sets the tooltip to the extension's name.
   const tooltip = await page.evaluate(() => chrome.action.getTitle({}));
   expect(tooltip).toBe('Teichos: Website Blocker');
   expect(tooltip).toBe(await page.evaluate(() => chrome.runtime.getManifest().name));

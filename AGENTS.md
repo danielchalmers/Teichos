@@ -13,7 +13,7 @@ and avoid examples that can drift from the real files.
 Read the real files before making assumptions:
 
 - Product and user workflow: `README.md`
-- Extension manifest, permissions, and build pipeline (WXT): `wxt.config.ts`
+- Extension manifest, permissions, and build pipeline (Vite): `vite.config.ts`
 - E2E harness: `playwright.config.ts`, `test/e2e/fixtures.ts` (needs `npx playwright install chromium`)
 - Package scripts and validation commands: `package.json`
 - TypeScript config: `tsconfig.json`, `tsconfig.test.json`, `tsconfig.scripts.json`
