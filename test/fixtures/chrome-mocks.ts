@@ -82,6 +82,13 @@ interface ChromeMock {
       addListener: ReturnType<typeof vi.fn>;
       removeListener: ReturnType<typeof vi.fn>;
     };
+    onInstalled: {
+      addListener: ReturnType<typeof vi.fn>;
+      removeListener: ReturnType<typeof vi.fn>;
+    };
+  };
+  extension: {
+    inIncognitoContext: boolean;
   };
 }
 
@@ -234,6 +241,13 @@ export function createChromeMock(): ChromeMock {
         addListener: vi.fn(),
         removeListener: vi.fn(),
       },
+      onInstalled: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+    },
+    extension: {
+      inIncognitoContext: false,
     },
   };
 }

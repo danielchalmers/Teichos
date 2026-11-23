@@ -25,7 +25,7 @@ Teichos is a free, open-source website blocker for Chrome and other Chromium bro
 
 1. Install [Teichos from the Chrome Web Store](https://chromewebstore.google.com/detail/teichos-page-blocker/jgioiclbfmdjhonplpifidmmbadbadfa). On Edge or Brave, allow extensions from the Chrome Web Store when prompted.
 2. Pin the Teichos icon to your toolbar for quick access to blocking the site you're on and to snooze.
-3. Right-click the icon and choose **Options** to set up your filters and schedules.
+3. Set up your filters and schedules in **Settings**, which opens in a tab once Teichos is installed. To come back to it, click the gear in the popup.
 
 **Build from source:**
 

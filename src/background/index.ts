@@ -10,6 +10,7 @@
 
 import {
   handleBeforeNavigate,
+  handleInstalled,
   handleMessage,
   handleNavigationChange,
   handleNavigationError,
@@ -38,6 +39,7 @@ export function registerBackground(): void {
   chrome.webNavigation.onErrorOccurred.addListener(logFailures(handleNavigationError));
 
   chrome.runtime.onMessage.addListener(handleMessage);
+  chrome.runtime.onInstalled.addListener(handleInstalled);
   getTabController().register();
   registerSnoozeHandlers();
 }

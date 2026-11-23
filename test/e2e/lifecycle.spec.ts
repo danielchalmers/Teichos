@@ -1,5 +1,6 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import type { Page } from '@playwright/test';
 import { PAGES } from '../../src/shared/constants';
 import { test, expect } from './fixtures';
 import {
@@ -24,6 +25,7 @@ import {
   seedStorage,
   showBlockPageDetails,
   toggleFilterViaOptions,
+  waitForOptionsReady,
 } from './helpers';
 
 function formatTimeFromMinutes(totalMinutes: number): string {
@@ -62,6 +64,31 @@ function getScheduleWindows(now = new Date()): {
     inactiveEnd: formatTimeFromMinutes(inactiveEndMinutes),
   };
 }
+
+test.describe('a new install', () => {
+  test.use({ keepInstallTab: true });
+
+  test('opens Settings once, with no dialog and the place to start', async ({
+    context,
+    extensionPage,
+  }) => {
+    const settingsUrl = extensionPage(PAGES.OPTIONS);
+    const settingsPages = (): Page[] =>
+      context.pages().filter((page) => page.url().startsWith(settingsUrl));
+
+    expect(settingsPages()).toHaveLength(1);
+    const settings = settingsPages()[0]!;
+    await waitForOptionsReady(settings);
+
+    // Plain Settings: the empty state says where to start, and no dialog is pushed at a new user.
+    expect(settings.url()).toBe(settingsUrl);
+    await expect(settings.locator('.modal.active')).toHaveCount(0);
+    await expect(settings.getByText('No filters yet.')).toBeVisible();
+
+    // Nothing else opens Settings in this test, so a second tab could only be the install's.
+    expect(settingsPages()).toHaveLength(1);
+  });
+});
 
 test('options filter lifecycle blocks, restores, and blocks again after re-enable', async ({
   context,
