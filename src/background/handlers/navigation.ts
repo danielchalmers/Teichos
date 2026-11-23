@@ -26,6 +26,25 @@ export async function handleNavigationChange(details: NavigationChangeDetails): 
   await getTabController().evaluateNavigation(details.tabId, details.url);
 }
 
+export interface NavigationErrorDetails extends NavigationChangeDetails {
+  error: string;
+}
+
+/** The error of a request an extension's declarativeNetRequest rule refused. */
+const REFUSED_BY_EXTENSION = 'net::ERR_BLOCKED_BY_CLIENT';
+
+/**
+ * A page Chrome refused before its request left the browser. It fails where it would have
+ * committed, so this stands in for the commit: see `judgeRefusedNavigation`.
+ */
+export async function handleNavigationError(details: NavigationErrorDetails): Promise<void> {
+  if (details.frameId !== 0 || details.error !== REFUSED_BY_EXTENSION) {
+    return;
+  }
+
+  await getTabController().judgeRefusedNavigation(details.tabId, details.url);
+}
+
 /**
  * Judge a navigation as soon as it starts, to block it before the page loads. Only the URL first
  * requested is known here; a server redirect's destination appears when the navigation commits.

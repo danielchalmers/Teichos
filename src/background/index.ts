@@ -13,6 +13,7 @@ import {
   handleInstalled,
   handleMessage,
   handleNavigationChange,
+  handleNavigationError,
   type NavigationChangeDetails,
 } from './handlers';
 import { registerSnoozeHandlers } from './snooze';
@@ -22,8 +23,8 @@ export function registerBackground(): void {
   // Register all event listeners synchronously.
   // This is critical for MV3 service workers.
   const logFailures =
-    (handler: (details: NavigationChangeDetails) => Promise<void>) =>
-    (details: NavigationChangeDetails): void => {
+    <T extends NavigationChangeDetails>(handler: (details: T) => Promise<void>) =>
+    (details: T): void => {
       handler(details).catch((error: unknown) => {
         console.error('[Teichos] Error handling navigation:', error);
       });
@@ -34,6 +35,8 @@ export function registerBackground(): void {
   chrome.webNavigation.onCommitted.addListener(logFailures(handleNavigationChange));
   chrome.webNavigation.onHistoryStateUpdated.addListener(logFailures(handleNavigationChange));
   chrome.webNavigation.onReferenceFragmentUpdated.addListener(logFailures(handleNavigationChange));
+  // A page refused by an early-block rule never commits; it fails instead.
+  chrome.webNavigation.onErrorOccurred.addListener(logFailures(handleNavigationError));
 
   chrome.runtime.onMessage.addListener(handleMessage);
   chrome.runtime.onInstalled.addListener(handleInstalled);

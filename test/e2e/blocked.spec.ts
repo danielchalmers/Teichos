@@ -282,7 +282,10 @@ test('Continue anyway bypasses the filter for the rest of that tab only', async 
   // The bypass covers every page the filter blocks in this tab, but not other tabs.
   const otherUrl = 'https://bypass.example.test/bypass-other';
   await mockAllowedPage(page, otherUrl, 'Other bypassed page');
-  await expectAllowed(page, otherUrl);
+  // Not expectAllowed, which accepts a refusal: the tab's own early-block rule must let this
+  // request through the first time, and `goto` fails on a request Chrome refuses.
+  await page.goto(otherUrl);
+  await expect(page).toHaveURL(otherUrl);
   await expect(page.getByText('Other bypassed page')).toBeVisible();
   const otherTab = await context.newPage();
   await otherTab.goto('https://bypass.example.test/');
