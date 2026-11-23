@@ -11,6 +11,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
     "types": ["chrome", "node"],
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
@@ -20,6 +21,7 @@
     "playwright.config.ts",
     "vite.config.ts",
     "vitest.config.ts",
+    "scripts/**/*",
     "test/**/*",
     "src/**/*"
   ],
