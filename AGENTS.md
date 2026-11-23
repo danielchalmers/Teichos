@@ -42,6 +42,8 @@ Read the real files before making assumptions:
 
 ## Extension-specific reminders
 
+- The build is plain Vite, and the manifest is a static object in `vite.config.ts`. Do not bring back an extension
+  framework (WXT and the like) or web-ext for what a few lines of config do.
 - Manifest V3 service worker code must stay event-driven and should not rely on persistent in-memory state.
 - Prefer the shared logic in `src/shared` over duplicating types or storage behavior across entry points.
 - Treat tests as executable documentation: update or read the matching unit/e2e tests before changing behavior.
