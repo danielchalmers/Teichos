@@ -10,7 +10,8 @@ export default defineConfig({
   manifest: {
     name: 'Teichos: Website Blocker',
     version: process.env['RELEASE_VERSION'] ?? '0.0.0',
-    description: 'Block distracting websites all day or on a schedule. Exceptions, snooze, and temporary blocks. No account, no tracking.',
+    description:
+      'Block distracting websites all day or on a schedule. Exceptions, snooze, and temporary blocks. No account, no tracking.',
     permissions: ['alarms', 'storage', 'tabs', 'webNavigation'],
     action: {
       default_title: 'Teichos: Website Blocker',
