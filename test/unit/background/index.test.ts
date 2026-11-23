@@ -5,6 +5,7 @@ import { getChromeMock } from '../../fixtures/chrome-mocks';
 const mocks = vi.hoisted(() => ({
   handleBeforeNavigate: vi.fn(),
   handleNavigationChange: vi.fn(),
+  handleNavigationError: vi.fn(),
   handleMessage: vi.fn(),
   registerTabController: vi.fn(),
   registerSnoozeHandlers: vi.fn(),
@@ -13,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../src/background/handlers', () => ({
   handleBeforeNavigate: mocks.handleBeforeNavigate,
   handleNavigationChange: mocks.handleNavigationChange,
+  handleNavigationError: mocks.handleNavigationError,
   handleMessage: mocks.handleMessage,
 }));
 
@@ -33,6 +35,7 @@ describe('background entrypoint', () => {
     vi.resetModules();
     mocks.handleNavigationChange.mockReset().mockResolvedValue(undefined);
     mocks.handleBeforeNavigate.mockReset().mockResolvedValue(undefined);
+    mocks.handleNavigationError.mockReset().mockResolvedValue(undefined);
     mocks.handleMessage.mockReset();
     mocks.registerTabController.mockReset();
     mocks.registerSnoozeHandlers.mockReset();
@@ -70,6 +73,11 @@ describe('background entrypoint', () => {
     expect(mocks.handleNavigationChange).toHaveBeenCalledTimes(3);
     expect(mocks.handleNavigationChange).toHaveBeenCalledWith(details);
     expect(mocks.handleBeforeNavigate).toHaveBeenCalledTimes(1);
+
+    // A navigation Chrome refuses fails where it would have committed.
+    const refused = { ...details, error: 'net::ERR_BLOCKED_BY_CLIENT' };
+    listenerOf(webNavigation.onErrorOccurred)(refused);
+    expect(mocks.handleNavigationError).toHaveBeenCalledWith(refused);
   });
 
   it('logs a failed navigation evaluation instead of leaving the rejection unhandled', async () => {

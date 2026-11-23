@@ -25,6 +25,7 @@ import {
 } from '../shared/types';
 import { isInternalUrl } from '../shared/utils/helpers';
 import { hasSettingsChange } from '../shared/storage/syncLayout';
+import { allowUrlInTab, clearTabRules, syncEarlyBlockRules, syncTabBypass } from './earlyBlock';
 import { getRulesProvider, type CurrentRules, type RulesProvider } from './rulesProvider';
 
 interface ResolvedBlockedTarget {
@@ -65,6 +66,10 @@ const RULES_CHANGE_SLACK_MS = 1000;
 // event never came from applying to a later, unrelated navigation.
 const GO_BACK_STEP_TTL_MS = 3000;
 
+// A refused page is released once. Refused again this soon, the refusal is not ours to lift:
+// another extension blocked it.
+const RELEASE_RETRY_MS = 10_000;
+
 class TabController {
   private didRegister = false;
   private reconcileQueue: Promise<void> = Promise.resolve();
@@ -89,6 +94,15 @@ class TabController {
   private readonly startedNavigations = new Map<
     number,
     { readonly url: string; readonly judged: Promise<void> }
+  >();
+
+  /**
+   * The page last released in each tab after Chrome refused it, so one that is refused again is
+   * left alone. Losing this on worker restart only allows one more release.
+   */
+  private readonly releasedNavigations = new Map<
+    number,
+    { readonly url: string; readonly at: number }
   >();
 
   constructor(private readonly rulesProvider: RulesProvider) {}
@@ -252,9 +266,59 @@ class TabController {
     this.bumpNavigationSeq(tabId);
     this.goBackSteps.delete(tabId);
     this.startedNavigations.delete(tabId);
+    this.releasedNavigations.delete(tabId);
     clearTabSessionState(tabId).catch((error: unknown) => {
       console.error('[Teichos] Failed to clear state for closed tab:', error);
     });
+    clearTabRules(tabId).catch((error: unknown) => {
+      console.error('[Teichos] Failed to clear early-block rules for closed tab:', error);
+    });
+  }
+
+  /**
+   * Chrome refused a main-frame request with an extension's rule, so the navigation fails where
+   * it would have committed. Usually the rule mirrors a filter, and the address was judged when
+   * the navigation started. Two cases are left for here.
+   *
+   * A redirect's destination is first seen at the commit, which a refused navigation never
+   * reaches, so it is judged now or the tab would stay on Chrome's error page.
+   *
+   * And the rules are written when filters, schedules or snooze change, a moment after the
+   * engine's own answer changes, and can't express everything a filter or exception means. So a
+   * refused page the engine allows is let through.
+   */
+  async judgeRefusedNavigation(tabId: number, url: string): Promise<void> {
+    if (url.startsWith(getExtensionUrl(PAGES.BLOCKED)) || !isFilterableUrl(url)) {
+      return;
+    }
+
+    // Read before anything is awaited: the block page's own navigation may be next in line.
+    const seq = this.getNavigationSeq(tabId);
+    const started = this.startedNavigations.get(tabId);
+    const rules = await this.getRules();
+    const decision = await this.evaluateForTab(tabId, url, rules);
+    if (!this.isCurrentNavigation(tabId, seq)) {
+      return;
+    }
+
+    if (decision.action === 'block') {
+      if (started?.url !== url) {
+        await this.evaluateNavigation(tabId, url);
+      }
+      return;
+    }
+
+    const released = this.releasedNavigations.get(tabId);
+    if (released?.url === url && Date.now() - released.at < RELEASE_RETRY_MS) {
+      return;
+    }
+    this.releasedNavigations.set(tabId, { url, at: Date.now() });
+
+    await syncEarlyBlockRules(rules.data);
+    await allowUrlInTab(tabId, url);
+    if (this.isCurrentNavigation(tabId, seq)) {
+      await updateTabUrl(tabId, url);
+    }
   }
 
   async getUrlDecision(url: string): Promise<FilterDecision> {
@@ -472,11 +536,19 @@ class TabController {
     const newFilterIds = resolvedTarget.filterIds.filter(
       (filterId) => !bypassedFilterIds.includes(filterId)
     );
+    const allBypassedIds = [...bypassedFilterIds, ...newFilterIds];
     await Promise.all([
       newFilterIds.length === 0
         ? Promise.resolve()
-        : setBypassState(targetTabId, { filterIds: [...bypassedFilterIds, ...newFilterIds] }),
+        : setBypassState(targetTabId, { filterIds: allBypassedIds }),
       clearBlockedTabState(targetTabId),
+      // In place before the tab navigates, or Chrome would refuse the page it is continuing to.
+      syncTabBypass(
+        targetTabId,
+        rules.data.filters.filter((filter) => allBypassedIds.includes(filter.id))
+      ).catch((error: unknown) => {
+        console.error('[Teichos] Failed to mirror the bypass in early-block rules:', error);
+      }),
     ]);
     // The target becomes the page to return to once it commits, like any other page: it may
     // redirect somewhere another filter blocks.
@@ -662,6 +734,11 @@ class TabController {
     this.reconcileQueue = this.reconcileQueue
       .then(async () => {
         const rules = await this.getRules();
+        // Before the tabs are checked: a tab released from a block that just ended navigates to
+        // its page, which the old rules would still refuse.
+        await syncEarlyBlockRules(rules.data).catch((error: unknown) => {
+          console.error('[Teichos] Failed to sync early-block rules:', error);
+        });
         await this.reconcileAllOpenTabs();
         scheduleNextRulesChange(rules.data);
       })

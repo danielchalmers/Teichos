@@ -18,7 +18,9 @@ const manifest = {
     48: 'assets/icons/icon48.png',
     128: 'assets/icons/icon128.png',
   },
-  permissions: ['alarms', 'storage', 'tabs', 'webNavigation'],
+  // declarativeNetRequest carries the block rules that stop a blocked page's request (see
+  // src/background/earlyBlock.ts). On its own it grants no access to any site.
+  permissions: ['alarms', 'declarativeNetRequest', 'storage', 'tabs', 'webNavigation'],
   // Incognito windows get their own instance of the extension, so a blocked site there can be
   // sent to the block page: with the default (spanning) mode the single instance lives in the
   // regular profile, and Chrome refuses to open its pages in an incognito tab.

@@ -284,6 +284,61 @@ describe('TabController', () => {
     await expect(getLastAllowedUrl(9)).resolves.toBe('https://allowed.com/article');
   });
 
+  it('blocks where a redirect lands when Chrome refused the destination before it committed', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(9, 'https://short.link/abc', {
+      beforeCommit: true,
+    });
+    // An early-block rule refuses the destination, so the navigation fails and never commits.
+    await getTabController().judgeRefusedNavigation(9, 'https://news.com/story');
+
+    const state = await getBlockedTabState(9);
+    expect(state?.targetUrl).toBe('https://news.com/story');
+    expect(chromeMock.tabs.update).toHaveBeenCalledExactlyOnceWith(
+      9,
+      { url: blockedPageUrl(state!.blockId) },
+      expect.any(Function)
+    );
+  });
+
+  it('leaves a refused page to the block its start already made', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    const judged = getTabController().evaluateNavigation(9, 'https://news.com/story', {
+      beforeCommit: true,
+    });
+    // The refusal arrives while the start is still being judged.
+    await getTabController().judgeRefusedNavigation(9, 'https://news.com/story');
+    await judged;
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets through a refused page the filters allow, once', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(9, 'https://allowed.com/', { beforeCommit: true });
+    // A rule left over from a block that has ended, say, refuses a page the filters allow.
+    await getTabController().judgeRefusedNavigation(9, 'https://allowed.com/');
+    expect(chromeMock.tabs.update).toHaveBeenCalledExactlyOnceWith(
+      9,
+      { url: 'https://allowed.com/' },
+      expect.any(Function)
+    );
+
+    // Refused again straight away, the refusal is not this extension's to lift.
+    await getTabController().evaluateNavigation(9, 'https://allowed.com/', { beforeCommit: true });
+    await getTabController().judgeRefusedNavigation(9, 'https://allowed.com/');
+    expect(chromeMock.tabs.update).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the page before a continued shortener when it redirects somewhere else blocked', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(

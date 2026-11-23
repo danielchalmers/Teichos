@@ -67,6 +67,10 @@ interface ChromeMock {
       addListener: ReturnType<typeof vi.fn>;
       removeListener: ReturnType<typeof vi.fn>;
     };
+    onErrorOccurred: {
+      addListener: ReturnType<typeof vi.fn>;
+      removeListener: ReturnType<typeof vi.fn>;
+    };
   };
   runtime: {
     id: string;
@@ -210,6 +214,10 @@ export function createChromeMock(): ChromeMock {
         removeListener: vi.fn(),
       },
       onCommitted: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+      onErrorOccurred: {
         addListener: vi.fn(),
         removeListener: vi.fn(),
       },
