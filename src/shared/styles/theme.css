@@ -448,6 +448,16 @@ input[type='time'].input {
   font-variant-numeric: tabular-nums;
 }
 
+/* A field that does not apply right now steps back the way a disabled button does. Chrome also
+   fades a disabled select, so undo that to keep the two fields of a pair alike. */
+.input:disabled {
+  cursor: not-allowed;
+  background-color: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text-muted);
+  opacity: 1;
+}
+
 .input:focus-visible,
 select:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -601,6 +611,14 @@ input:checked + .slider::before {
 .chip:not(:disabled):hover {
   background: var(--surface-hover);
   border-color: var(--border-hover);
+}
+
+/* A chip that stays chosen is a toggle button, filled while it is pressed like a checked day. */
+.chip[aria-pressed='true'],
+.chip[aria-pressed='true']:not(:disabled):hover {
+  background: var(--selected-bg);
+  border-color: var(--selected-bg);
+  color: var(--selected-text);
 }
 
 .chip-grid {
@@ -859,6 +877,7 @@ input:checked + .slider::before {
   .slider,
   .slider::before,
   .day-checkbox,
+  .chip[aria-pressed='true'],
   .status-dot,
   .dialog-error::before,
   .global-settings-status.is-error::before {
@@ -867,7 +886,8 @@ input:checked + .slider::before {
 
   /* forced-color-adjust: none also stops outline forcing on these. */
   .toggle input:focus-visible + .slider,
-  .day-checkbox:has(input:focus-visible) {
+  .day-checkbox:has(input:focus-visible),
+  .chip[aria-pressed='true']:focus-visible {
     outline-color: Highlight;
   }
 
@@ -911,7 +931,9 @@ input:checked + .slider::before {
     border-color: Highlight;
   }
 
-  .day-checkbox:has(input:checked) {
+  .day-checkbox:has(input:checked),
+  .chip[aria-pressed='true'],
+  .chip[aria-pressed='true']:not(:disabled):hover {
     background: Highlight;
     color: HighlightText;
     border-color: Highlight;
