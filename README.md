@@ -14,7 +14,7 @@ Teichos is a free, open-source website blocker for Chrome and other Chromium bro
 - **Scheduled groups.** Sort filters into groups and give each one a schedule. Block social media during work hours, everything at bedtime, or a site around the clock.
 - **Flexible filters.** Block a whole site by its domain, subdomains included, or match text anywhere in the address, an exact URL, or a regular expression. Name each filter so your list stays readable.
 - **Exceptions.** Keep the pages you still need, like a specific playlist on an otherwise blocked YouTube.
-- **Temporary blocks.** One-off blocks that expire on their own, right from the popup.
+- **Blocks from the popup.** Block the site you're on without opening Settings: always, or as a temporary block that expires on its own.
 - **Snooze.** Pause all filtering for a set time when you genuinely need a break.
 - **A calm block page.** See which filter caught the page, and continue anyway when you really mean to. It's a speed bump, not a brick wall.
 - **Private & synced.** Settings sync through your browser profile. There's no account, no analytics, and no third-party servers ([privacy policy](PRIVACY_POLICY.md)).
@@ -24,7 +24,7 @@ Teichos is a free, open-source website blocker for Chrome and other Chromium bro
 **Chrome, Edge, Brave, and other Chromium browsers:**
 
 1. Install [Teichos from the Chrome Web Store](https://chromewebstore.google.com/detail/teichos-page-blocker/jgioiclbfmdjhonplpifidmmbadbadfa). On Edge or Brave, allow extensions from the Chrome Web Store when prompted.
-2. Pin the Teichos icon to your toolbar for quick access to temporary blocks and snooze.
+2. Pin the Teichos icon to your toolbar for quick access to blocking the site you're on and to snooze.
 3. Set up your filters and schedules in **Settings**, which opens in a tab once Teichos is installed. To come back to it, click the gear in the popup.
 
 **Build from source:**
@@ -41,6 +41,10 @@ Then load the unpacked extension: open `chrome://extensions`, enable **Developer
 To work on Teichos, `npm run dev` opens Chrome with it loaded and reloads it after each save.
 
 ## Quick start
+
+To block the site you're on, click the Teichos icon, then **+**. Pick how long, or **Always**, and click **Block**.
+
+For schedules, exceptions and other kinds of filter:
 
 1. Open **Settings** (the gear in the popup) and pick a group: the default **24/7 (Always Active)** group blocks around the clock, or click **New group** to create one like "Work Hours" with its own days and times.
 2. Click **New filter** in that group and enter a site, like `reddit.com`. That blocks the whole site, including `old.reddit.com`, without touching other sites that happen to mention it.

@@ -113,7 +113,7 @@ test('adds and deletes a temporary filter from the popup', async ({ extensionPag
   await openQuickAdd(page);
   await page.getByLabel('Site or pattern').fill('quick.example.invalid');
   await page.getByLabel('Block for').fill('45');
-  await page.getByRole('button', { name: 'Start block' }).click();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
 
   const temporaryItem = page.locator('.filter-item').filter({ hasText: 'quick.example.invalid' });
   await expect(temporaryItem).toContainText('Temporary · 45m left');
@@ -122,7 +122,7 @@ test('adds and deletes a temporary filter from the popup', async ({ extensionPag
     pattern: 'quick.example.invalid',
     matchMode: 'domain',
   });
-  // Results use the feature's name, as the dialog and its Start block button do.
+  // The dialog makes two kinds of block, so the result names the kind that was started.
   await expect(page.locator('#status-message')).toHaveText('Temporary block started for 45m.');
 
   await temporaryItem.getByRole('button', { name: 'Delete temporary block' }).click();
@@ -135,7 +135,7 @@ test('adds and deletes a temporary filter from the popup', async ({ extensionPag
   await openQuickAdd(page);
   await page.getByLabel('Site or pattern').fill('viewtopic.php');
   await page.getByLabel('Block for').fill('45');
-  await page.getByRole('button', { name: 'Start block' }).click();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
   await expect(page.locator('.filter-item').filter({ hasText: 'viewtopic.php' })).toBeVisible();
   expect((await readStorage(page))?.filters[0]).toMatchObject({
     pattern: 'viewtopic.php',
@@ -162,7 +162,7 @@ test('a temporary block works while the always-active group is turned off', asyn
   await openQuickAdd(page);
   await page.getByLabel('Site or pattern').fill('temporary-off.example.invalid');
   await page.getByLabel('Block for').fill('45');
-  await page.getByRole('button', { name: 'Start block' }).click();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
 
   // The block is listed, though the group it sits in is off and that group's own filter is not.
   const temporaryItem = page.locator('.filter-item').filter({
@@ -182,6 +182,132 @@ test('a temporary block works while the always-active group is turned off', asyn
   await temporaryItem.getByRole('button', { name: 'Delete temporary block' }).click();
   await expect(page.locator('#status-message')).toHaveText('Temporary block deleted.');
   await expect.poll(() => browsingPage.url()).toBe(temporaryUrl);
+});
+
+test('blocks the current site for good from the popup', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const lastingUrl = 'https://www.lasting.example.invalid/feed';
+  await stubActiveTabUrl(page, lastingUrl);
+  await gotoPopup(extensionPage, page);
+
+  const quickAdd = await openQuickAdd(page);
+  const always = quickAdd.getByRole('button', { name: 'Always' });
+  const duration = page.getByLabel('Block for');
+  const unit = quickAdd.locator('#quick-add-unit');
+  const blockButton = page.getByRole('button', { name: 'Block', exact: true });
+
+  // The dialog opens on a temporary block, which needs a duration.
+  await expect(page.getByLabel('Site or pattern')).toHaveValue('lasting.example.invalid');
+  await expect(always).toHaveAttribute('aria-pressed', 'false');
+  await duration.fill('0');
+  await blockButton.click();
+  await expect(quickAdd.locator('#quick-add-error')).toHaveText('Enter a valid duration.');
+
+  // Always has no duration: its fields step back, and what they hold no longer matters.
+  await always.click();
+  await expect(always).toHaveAttribute('aria-pressed', 'true');
+  await expect(duration).toBeDisabled();
+  await expect(unit).toBeDisabled();
+  await expect(quickAdd.locator('#quick-add-error')).toBeHidden();
+  await expect(duration).not.toHaveAttribute('aria-invalid');
+  await expect(quickAdd.locator('#quick-add-group-note')).toBeHidden();
+  await blockButton.click();
+
+  // The result is a regular filter for the site in the default group, with no end.
+  await expect(page.locator('#status-message')).toHaveText('Filter added.');
+  await expect(quickAdd).not.toHaveClass(/is-open/);
+  await expect(page.locator('#open-quick-add')).toBeFocused();
+  const filters = (await readStorage(page))?.filters ?? [];
+  expect(filters).toHaveLength(1);
+  expect(filters[0]).toMatchObject({
+    pattern: 'lasting.example.invalid',
+    matchMode: 'domain',
+    groupId: defaultGroup.id,
+    enabled: true,
+  });
+  expect(filters[0]).not.toHaveProperty('expiresAt');
+
+  // It is listed at once under its group, with the edit button and switch every filter has.
+  const item = page.locator('.filter-item').filter({ hasText: 'lasting.example.invalid' });
+  await expect(item.locator('.filter-group')).toHaveText(defaultGroup.name);
+  await expect(item.getByRole('button', { name: 'Edit filter' })).toBeVisible();
+  await expect(item.locator('button[data-action="delete-filter"]')).toBeHidden();
+  await expect(
+    item.getByRole('checkbox', { name: 'Toggle filter for lasting.example.invalid' })
+  ).toBeChecked();
+
+  // The next dialog starts on a temporary block again, and a preset leaves Always for its duration.
+  await openQuickAdd(page);
+  await expect(always).toHaveAttribute('aria-pressed', 'false');
+  await expect(duration).toBeEnabled();
+  await always.click();
+  await quickAdd.locator('button[data-duration="1"][data-unit="hours"]').click();
+  await expect(always).toHaveAttribute('aria-pressed', 'false');
+  await expect(duration).toBeEnabled();
+  await expect(duration).toHaveValue('1');
+  await expect(unit).toHaveValue('hours');
+
+  // Always is a toggle, so pressing it again also goes back.
+  await always.click();
+  await always.click();
+  await expect(always).toHaveAttribute('aria-pressed', 'false');
+  await expect(unit).toBeEnabled();
+
+  // The filter blocks its site, subdomains included. Checked last: a tab opened in front slows
+  // every later click in the popup.
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, lastingUrl);
+});
+
+test('says so when Always adds a filter to a default group that is turned off', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const groupOffMessage =
+    "24/7 (Always Active) is turned off, so this won't block until you turn it on in Settings.";
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(page, createStorageData({ groups: [{ ...defaultGroup, enabled: false }] }));
+  await gotoPopup(extensionPage, page);
+
+  const quickAdd = await openQuickAdd(page);
+  const always = quickAdd.getByRole('button', { name: 'Always' });
+  const note = quickAdd.locator('#quick-add-group-note');
+  await page.getByLabel('Site or pattern').fill('group-off.example.invalid');
+
+  // A temporary block ignores the group's switch, so there is nothing to say until Always. Then
+  // the dialog says it before anything is saved, to screen readers too.
+  await expect(note).toBeHidden();
+  await always.click();
+  await expect(note).toHaveText(groupOffMessage);
+  await expect(always).toHaveAccessibleDescription(groupOffMessage);
+  await expect(page.locator('#status-message')).toHaveText(groupOffMessage);
+  await quickAdd.locator('button[data-duration="15"][data-unit="minutes"]').click();
+  await expect(note).toBeHidden();
+  await expect(always).toHaveAccessibleDescription('');
+
+  await always.click();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
+  await expect(page.locator('#status-message')).toHaveText(`Filter added. ${groupOffMessage}`);
+
+  // The filter is saved in the group, which stays off: nothing else in it starts blocking.
+  const data = await readStorage(page);
+  expect(data?.filters).toHaveLength(1);
+  expect(data?.filters[0]).toMatchObject({
+    pattern: 'group-off.example.invalid',
+    groupId: defaultGroup.id,
+  });
+  expect(data?.filters[0]).not.toHaveProperty('expiresAt');
+  expect(data?.groups[0]?.enabled).toBe(false);
+  await expect(page.locator('.filter-item')).toHaveCount(0);
+  await expect(page.locator('#filter-list')).toContainText(
+    "1 filter is in a group that's turned off."
+  );
+  const browsingPage = await context.newPage();
+  await expectAllowed(browsingPage, 'https://group-off.example.invalid/');
 });
 
 test('opens the full filter editor from the popup empty state', async ({
@@ -303,16 +429,18 @@ test('supports quick-add suggestions, validation, duration units, and the settin
   const quickAdd = await openQuickAdd(page);
   await expect(page.getByLabel('Site or pattern')).toHaveValue(suggestedPattern);
   // The close button is named after the dialog, not an internal name.
-  await expect(
-    quickAdd.getByRole('button', { name: 'Close temporary block dialog' })
-  ).toHaveAttribute('title', 'Close temporary block dialog');
+  await expect(page.getByRole('dialog', { name: 'New block' })).toBeVisible();
+  await expect(quickAdd.getByRole('button', { name: 'Close block dialog' })).toHaveAttribute(
+    'title',
+    'Close block dialog'
+  );
   // The dialog is modal: the popup behind it is inert, so focus cannot land under the backdrop.
   await expect(page.locator('main.content')).toHaveAttribute('inert', '');
 
   // The form validates inline, so input errors show in the dialog instead of a native bubble.
   const patternInput = page.getByLabel('Site or pattern');
   await patternInput.fill('');
-  await page.getByRole('button', { name: 'Start block' }).click();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
   await expect(quickAdd.locator('#quick-add-error')).toHaveText(
     'Enter a site or pattern to block.'
   );
@@ -323,7 +451,7 @@ test('supports quick-add suggestions, validation, duration units, and the settin
   await expect(patternInput).not.toHaveAttribute('aria-invalid');
 
   await page.getByLabel('Block for').fill('0');
-  await page.getByRole('button', { name: 'Start block' }).click();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
   await expect(quickAdd.locator('#quick-add-error')).toHaveText('Enter a valid duration.');
   await expect(page.getByLabel('Block for')).toHaveAttribute('aria-invalid', 'true');
 
@@ -339,14 +467,14 @@ test('supports quick-add suggestions, validation, duration units, and the settin
       unitSelect.value = 'weeks';
     }
   });
-  await page.getByRole('button', { name: 'Start block' }).click();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
   await expect(page.locator('#status-message')).toHaveText('Enter a valid duration.');
   await expect(quickAdd.locator('#quick-add-error')).toHaveText('Enter a valid duration.');
   await expect(page.getByLabel('Block for')).toHaveAttribute('aria-invalid', 'true');
 
   await page.getByRole('combobox').selectOption('hours');
   await expect(quickAdd.locator('#quick-add-error')).toBeHidden();
-  await page.getByRole('button', { name: 'Start block' }).click();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
 
   const hoursFilter = page.locator('.filter-item').filter({ hasText: suggestedPattern });
   await expect(hoursFilter).toContainText('Temporary · 2h left');
@@ -358,7 +486,7 @@ test('supports quick-add suggestions, validation, duration units, and the settin
   await page.getByLabel('Site or pattern').fill('multi-day.example.invalid');
   await page.getByLabel('Block for').fill('3');
   await page.getByRole('combobox').selectOption('days');
-  await page.getByRole('button', { name: 'Start block' }).click();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
 
   const daysFilter = page.locator('.filter-item').filter({ hasText: 'multi-day.example.invalid' });
   await expect(daysFilter).toContainText('Temporary · 3d left');
@@ -402,12 +530,12 @@ test('snoozes and resumes filtering from the popup', async ({ extensionPage, pag
 
   const filterToggle = page.getByRole('checkbox', { name: 'Toggle filter Snooze Test' });
   const snoozeDialog = page.getByRole('dialog', { name: 'Snooze filtering' });
-  const quickAddButton = page.getByRole('button', { name: 'New temporary block' });
+  const quickAddButton = page.getByRole('button', { name: 'New block', exact: true });
 
-  // The header holds the snooze status beside New temporary block, an icon button whose tooltip
-  // repeats its name until snoozing disables it.
+  // The header holds the snooze status beside New block, an icon button whose tooltip repeats its
+  // name until snoozing disables it. The name covers both kinds of block its dialog makes.
   await expect(page.locator('header #open-quick-add')).toHaveCount(1);
-  await expect(quickAddButton).toHaveAttribute('title', 'New temporary block');
+  await expect(quickAddButton).toHaveAttribute('title', 'New block');
   await page.locator('#open-snooze').click();
   // With no snooze to describe, the dialog's title says it all.
   await expect(snoozeDialog).toHaveAccessibleDescription('');
@@ -431,10 +559,7 @@ test('snoozes and resumes filtering from the popup', async ({ extensionPage, pag
   // The chip counts down, so its tooltip says when the snooze ends instead.
   await expect(page.locator('#open-snooze')).toHaveAttribute('title', /^Snoozed until \S.*\.$/);
   await expect(quickAddButton).toBeDisabled();
-  await expect(quickAddButton).toHaveAttribute(
-    'title',
-    'Temporary blocks are unavailable while snoozed'
-  );
+  await expect(quickAddButton).toHaveAttribute('title', 'New blocks are unavailable while snoozed');
   // The status chip is the only notice: the dimmed, disabled rows show the list is read-only,
   // for keyboard users too, not only behind the pointer.
   await expect(filterToggle).toBeDisabled();
@@ -448,7 +573,7 @@ test('snoozes and resumes filtering from the popup', async ({ extensionPage, pag
   await page.getByRole('button', { name: 'Resume filtering' }).click();
   await expect(page.locator('#snooze-label')).toHaveText('Active');
   await expect(quickAddButton).toBeEnabled();
-  await expect(quickAddButton).toHaveAttribute('title', 'New temporary block');
+  await expect(quickAddButton).toHaveAttribute('title', 'New block');
   await expect(filterToggle).toBeEnabled();
 });
 
@@ -556,15 +681,24 @@ test('closes either dialog with a click outside it', async ({ extensionPage, pag
   await expect(quickAdd).toHaveClass(/is-open/);
 });
 
-test('shows a failed temporary block in its dialog', async ({ extensionPage, page }) => {
+test('shows a failed block in its dialog', async ({ extensionPage, page }) => {
   await gotoPopup(extensionPage, page);
 
   const quickAdd = await openQuickAdd(page);
   await page.getByLabel('Site or pattern').fill('quick.example.invalid');
   await failSettingsWrites(page);
-  await page.getByRole('button', { name: 'Start block' }).click();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
   await expect(quickAdd.locator('#quick-add-error')).toHaveText(
     "Couldn't start the temporary block. Try again."
+  );
+  await expect(quickAdd).toHaveClass(/is-open/);
+
+  // The error names what could not be made: with Always, that is a filter.
+  await quickAdd.getByRole('button', { name: 'Always' }).click();
+  await expect(quickAdd.locator('#quick-add-error')).toBeHidden();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
+  await expect(quickAdd.locator('#quick-add-error')).toHaveText(
+    "Couldn't save the filter. Try again."
   );
   await expect(quickAdd).toHaveClass(/is-open/);
 });
