@@ -271,6 +271,58 @@ test('lets through a page that a rule refuses but the filters allow', async ({
   await expect(browsingPage.getByRole('heading', { name: 'Article' })).toBeVisible();
 });
 
+test('lets through a page an exact exception allows, whatever its fragment', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  await context.route('https://fragments.example.test/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>Guide</title><h1>Guide</h1>',
+    });
+  });
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'fragment-site',
+          pattern: 'fragments.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'domain',
+        },
+      ],
+      whitelist: [
+        {
+          id: 'fragment-exception',
+          pattern: 'https://fragments.example.test/guide',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'exact',
+        },
+      ],
+    })
+  );
+  // One rule for the filter and two for the exception: with and without a fragment.
+  await expect
+    .poll(() =>
+      page.evaluate(async () => (await chrome.declarativeNetRequest.getDynamicRules()).length)
+    )
+    .toBe(3);
+
+  // Chrome matches a rule against the fragment too, and `goto` fails on a request it refuses, so
+  // the exception's rules must cover this address themselves.
+  const browsingPage = await context.newPage();
+  await browsingPage.goto('https://fragments.example.test/guide#install');
+  await expect(browsingPage.getByRole('heading', { name: 'Guide' })).toBeVisible();
+  await expectBlocked(browsingPage, 'https://fragments.example.test/other#guide');
+});
+
 for (const navigationMethod of ['push-state', 'replace-state'] as const) {
   test(`blocks matching same-tab ${navigationMethod} navigations and preserves go back`, async ({
     extensionPage,

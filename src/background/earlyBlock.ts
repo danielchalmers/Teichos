@@ -7,10 +7,12 @@
  * The filtering engine stays the authority. A rule may cover less than its filter: the page then
  * loads until the navigation handlers block it, as it always did. Covering more is what to avoid,
  * since a page Chrome refuses and the engine allows would be left on Chrome's own error page. So
- * a filter or exception that rules can't express is left out. Two differences remain: rules never
- * see an address's fragment, which an expression ending in `$` or an exception may depend on, and
- * they are rewritten a moment after a schedule or snooze changes the engine's answer. For those,
- * the tab controller lets through any refused page the engine allows (see `allowUrlInTab`).
+ * a filter or exception that rules can't express is left out. Chrome matches a rule against the
+ * whole address, fragment included, as the engine's contains and regex modes do.
+ *
+ * One difference remains: the rules are rewritten a moment after a settings change, a schedule or
+ * snooze changes the engine's answer. For that, and for anything this file gets wrong, the tab
+ * controller lets through any refused page the engine allows (see `allowUrlInTab`).
  */
 
 import {
@@ -63,67 +65,90 @@ const isRegexSupportedByChrome: RegexSupportCheck = async (regex, isCaseSensitiv
   return result.isSupported;
 };
 
-/** Text matched as written, case-insensitively: anywhere in the address, or as the whole of it. */
-function literalCondition(text: string, wholeAddress: boolean): RuleCondition | null {
-  // Rules never see the fragment, so text that needs one can't be matched here.
-  if (!PRINTABLE_ASCII.test(text) || text.includes('#')) {
+/** Text matched as written, case-insensitively, anywhere in the address. */
+function containsCondition(text: string): RuleCondition | null {
+  if (!PRINTABLE_ASCII.test(text)) {
     return null;
   }
-  if (!URL_FILTER_SYNTAX.test(text)) {
-    return { urlFilter: wholeAddress ? `|${text}|` : text, isUrlFilterCaseSensitive: false };
-  }
-  const escaped = escapeRegex(text);
-  return {
-    regexFilter: wholeAddress ? `^${escaped}$` : escaped,
-    isUrlFilterCaseSensitive: false,
-  };
+  return URL_FILTER_SYNTAX.test(text)
+    ? { regexFilter: escapeRegex(text), isUrlFilterCaseSensitive: false }
+    : { urlFilter: text, isUrlFilterCaseSensitive: false };
 }
 
-/** The condition for an entry's pattern, before Chrome is asked whether it accepts the regex. */
-function describePattern(entry: Filter | Whitelist): RuleCondition | null {
+/** An address without its fragment, or null for text that isn't an address. */
+function withoutFragment(address: string): string | null {
+  try {
+    const url = new URL(address);
+    url.hash = '';
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One address, whatever its fragment: the engine's exact match ignores the fragment, and Chrome
+ * matches a rule against it. `pattern` is the address without one.
+ */
+function anchoredConditions(pattern: string): RuleCondition[] {
+  return [
+    { urlFilter: `|${pattern}|`, isUrlFilterCaseSensitive: false },
+    { urlFilter: `|${pattern}#`, isUrlFilterCaseSensitive: false },
+  ];
+}
+
+/** The conditions for an entry's pattern, before Chrome is asked whether it accepts a regex. */
+function describePattern(entry: Filter | Whitelist): RuleCondition[] | null {
   if (entry.matchMode === 'domain') {
     const domain = preparePattern(entry.pattern, 'domain').patternLower ?? '';
-    return /^[a-z\d_-]+(?:\.[a-z\d_-]+)*$/.test(domain) ? { requestDomains: [domain] } : null;
+    return /^[a-z\d_-]+(?:\.[a-z\d_-]+)*$/.test(domain) ? [{ requestDomains: [domain] }] : null;
   }
 
   if (entry.matchMode === 'contains') {
-    return literalCondition(entry.pattern, false);
+    const condition = containsCondition(entry.pattern);
+    return condition && [condition];
   }
 
   if (entry.matchMode === 'exact') {
-    try {
-      const url = new URL(entry.pattern);
-      url.hash = '';
-      return literalCondition(url.href, true);
-    } catch {
-      // Not an address, so the engine compares it as typed and it matches no page.
+    // Text that isn't an address is compared as typed by the engine, and matches no page.
+    const address = withoutFragment(entry.pattern);
+    if (address === null || !PRINTABLE_ASCII.test(address)) {
       return null;
     }
+    // Anchored patterns need no regular expression, which Chrome caps at a size a long address
+    // would pass. Only an address holding pattern syntax is written as one.
+    return URL_FILTER_SYNTAX.test(address)
+      ? [{ regexFilter: `^${escapeRegex(address)}(?:#.*)?$`, isUrlFilterCaseSensitive: false }]
+      : anchoredConditions(address);
   }
 
   // The engine tests the expression as written, so the rule is case-sensitive too. An expression
   // JavaScript rejects matches nothing there, whatever RE2 would make of it.
   return ASCII_EXPRESSION.test(entry.pattern) && compileRegex(entry.pattern) !== null
-    ? { regexFilter: entry.pattern, isUrlFilterCaseSensitive: true }
+    ? [{ regexFilter: entry.pattern, isUrlFilterCaseSensitive: true }]
     : null;
 }
 
 /**
- * The rule condition that matches what the entry's pattern matches, or null when rules can't
- * express it: text outside ASCII, a regular expression RE2 rejects, an IPv6 host.
+ * The rule conditions that together match what the entry's pattern matches, or null when rules
+ * can't express it: text outside ASCII, a regular expression RE2 rejects, an IPv6 host.
  */
-async function toCondition(
+async function toConditions(
   entry: Filter | Whitelist,
   isRegexSupported: RegexSupportCheck
-): Promise<RuleCondition | null> {
-  const condition = describePattern(entry);
-  if (condition?.regexFilter === undefined) {
-    return condition;
+): Promise<RuleCondition[] | null> {
+  const conditions = describePattern(entry);
+  for (const condition of conditions ?? []) {
+    if (condition.regexFilter === undefined) {
+      continue;
+    }
+    // One rule Chrome rejects fails the whole update, so each expression is checked first.
+    const isCaseSensitive = condition.isUrlFilterCaseSensitive === true;
+    if (!(await isRegexSupported(condition.regexFilter, isCaseSensitive))) {
+      return null;
+    }
   }
-
-  // One rule Chrome rejects fails the whole update, so each expression is checked first.
-  const isCaseSensitive = condition.isUrlFilterCaseSensitive === true;
-  return (await isRegexSupported(condition.regexFilter, isCaseSensitive)) ? condition : null;
+  return conditions;
 }
 
 /**
@@ -164,11 +189,11 @@ export async function buildEarlyBlockRules(
     if (!entry.enabled) {
       continue;
     }
-    const condition = await toCondition(entry, isRegexSupported);
-    if (condition) {
+    const conditions = await toConditions(entry, isRegexSupported);
+    if (conditions) {
       exceptionsByGroup.set(entry.groupId, [
         ...(exceptionsByGroup.get(entry.groupId) ?? []),
-        condition,
+        ...conditions,
       ]);
     } else {
       unmirroredGroups.add(entry.groupId);
@@ -184,12 +209,14 @@ export async function buildEarlyBlockRules(
     if (!temporary && unmirroredGroups.has(filter.groupId)) {
       continue;
     }
-    const condition = await toCondition(filter, isRegexSupported);
-    if (!condition) {
+    const conditions = await toConditions(filter, isRegexSupported);
+    if (!conditions) {
       continue;
     }
     const tier = tierByGroup.get(filter.groupId) ?? 0;
-    addRule('block', temporary ? temporaryPriority : 2 * tier + 1, condition);
+    for (const condition of conditions) {
+      addRule('block', temporary ? temporaryPriority : 2 * tier + 1, condition);
+    }
     if (!temporary) {
       groupsWithFilters.add(filter.groupId);
     }
@@ -288,33 +315,28 @@ export function syncTabBypass(
   return enqueue(async () => {
     const conditions: RuleCondition[] = [];
     for (const filter of bypassedFilters) {
-      const condition = await toCondition(filter, isRegexSupported);
-      if (condition) {
-        conditions.push(condition);
-      }
+      conditions.push(...((await toConditions(filter, isRegexSupported)) ?? []));
     }
     await replaceTabRules(tabId, BYPASS_PRIORITY, conditions);
   });
 }
 
 /**
- * Let one address through in one tab. This is how a page Chrome refused but the engine allows is
- * released: whatever made the rules cover too much, the address the engine just allowed loads.
+ * Let one address through in one tab, whatever its fragment. This is how a page Chrome refused but
+ * the engine allows is released: whatever made the rules cover too much, the address the engine
+ * just allowed loads.
  */
 export function allowUrlInTab(tabId: number, url: string): Promise<void> {
   return enqueue(async () => {
-    let address: string;
-    try {
-      const parsed = new URL(url);
-      parsed.hash = '';
-      address = parsed.href;
-    } catch {
+    const address = withoutFragment(url);
+    if (address === null || !PRINTABLE_ASCII.test(address)) {
       return;
     }
-    const condition = literalCondition(address, true);
-    if (condition) {
-      await replaceTabRules(tabId, RELEASE_PRIORITY, [condition]);
-    }
+    // A wildcard stands in for what a pattern would read as syntax. An allow rule that covers more
+    // only leaves more to the navigation handlers, and this one must not depend on a regular
+    // expression Chrome may reject.
+    const pattern = address.replace(/[*^|]/g, '*');
+    await replaceTabRules(tabId, RELEASE_PRIORITY, anchoredConditions(pattern));
   });
 }
 
