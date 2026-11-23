@@ -41,10 +41,10 @@
           class="icon-button outlined"
           id="open-quick-add"
           type="button"
-          aria-label="New temporary block"
+          aria-label="New block"
           aria-expanded="false"
           aria-controls="quick-add-panel"
-          title="New temporary block"
+          title="New block"
         >
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path
@@ -135,7 +135,7 @@
         </div>
         <div class="dialog-section" role="group" aria-labelledby="snooze-custom-label">
           <div class="field-label" id="snooze-custom-label">Custom duration</div>
-          <!-- A form, so Enter in the field snoozes, as it does in the temporary block dialog. -->
+          <!-- A form, so Enter in the field snoozes, as it does in the new block dialog. -->
           <form class="snooze-custom" id="snooze-custom-form" novalidate>
             <input
               class="input"
@@ -169,14 +169,14 @@
       >
         <div class="dialog-header">
           <div class="dialog-heading">
-            <div class="dialog-title" id="quick-add-title">New temporary block</div>
+            <div class="dialog-title" id="quick-add-title">New block</div>
           </div>
           <button
             class="icon-button"
             type="button"
             data-action="close-quick-add"
-            aria-label="Close temporary block dialog"
-            title="Close temporary block dialog"
+            aria-label="Close block dialog"
+            title="Close block dialog"
           >
             <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
               <path
@@ -219,19 +219,25 @@
                 <option value="days">Days</option>
               </select>
             </div>
-            <div class="chip-grid" role="group" aria-label="Duration presets">
+            <div class="chip-grid quick-add-presets" role="group" aria-label="Duration presets">
               <button class="chip" type="button" data-duration="15" data-unit="minutes">15m</button>
               <button class="chip" type="button" data-duration="30" data-unit="minutes">30m</button>
               <button class="chip" type="button" data-duration="1" data-unit="hours">1h</button>
               <button class="chip" type="button" data-duration="2" data-unit="hours">2h</button>
+              <!-- No end: a regular filter in the default group instead of a temporary block. -->
+              <button class="chip" type="button" id="quick-add-always" aria-pressed="false">
+                Always
+              </button>
             </div>
+            <!-- Only for Always while the default group is off: the new filter will not block yet. -->
+            <p class="field-hint" id="quick-add-group-note" hidden></p>
           </div>
           <p class="dialog-error" id="quick-add-error" hidden></p>
           <div class="dialog-actions fill">
             <button class="button secondary" type="button" data-action="close-quick-add">
               Cancel
             </button>
-            <button class="button" type="submit">Start block</button>
+            <button class="button" type="submit">Block</button>
           </div>
           <p class="quick-add-more">
             Need a schedule or exception?
