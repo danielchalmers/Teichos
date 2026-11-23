@@ -1,4 +1,4 @@
-# <img src="public/assets/icons/icon.svg" width="32" height="32" align="absmiddle" alt="" /> Teichos: Page Blocker
+# <img src="public/assets/icons/icon.svg" width="32" height="32" align="absmiddle" alt="" /> Teichos: Website Blocker
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/jgioiclbfmdjhonplpifidmmbadbadfa)](https://chromewebstore.google.com/detail/teichos-page-blocker/jgioiclbfmdjhonplpifidmmbadbadfa)
 [![Privacy Policy](https://img.shields.io/badge/privacy-policy-blue.svg)](PRIVACY_POLICY.md)
@@ -23,7 +23,7 @@ Teichos is a free, open-source website blocker for Chrome and other Chromium bro
 
 **Chrome, Edge, Brave, and other Chromium browsers:**
 
-1. Install [Teichos: Page Blocker from the Chrome Web Store](https://chromewebstore.google.com/detail/teichos-page-blocker/jgioiclbfmdjhonplpifidmmbadbadfa). On Edge or Brave, allow extensions from the Chrome Web Store when prompted.
+1. Install [Teichos from the Chrome Web Store](https://chromewebstore.google.com/detail/teichos-page-blocker/jgioiclbfmdjhonplpifidmmbadbadfa). On Edge or Brave, allow extensions from the Chrome Web Store when prompted.
 2. Pin the Teichos icon to your toolbar for quick access to temporary blocks and snooze.
 3. Right-click the icon and choose **Options** to set up your filters and schedules.
 
@@ -43,3 +43,7 @@ Then load the unpacked extension: open `chrome://extensions`, enable **Developer
 1. Open **Settings** (the gear in the popup) and pick a group: the default **24/7 (Always Active)** group blocks around the clock, or click **New group** to create one like "Work Hours" with its own days and times.
 2. Click **New filter** in that group and enter a site, like `reddit.com`. That blocks the whole site, including `old.reddit.com`, without touching other sites that happen to mention it.
 3. Browse as usual. Matching pages are blocked before they load.
+
+## Related
+
+[Dayboard](https://github.com/danielchalmers/Dayboard) replaces the new tab page with a board of small widgets: clocks, countdowns, notes, todos, and habits.
