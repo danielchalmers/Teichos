@@ -1530,61 +1530,76 @@ function setDialogSubtitle(
 // Filter Modal
 // ============================================================================
 
+let dialogRequest = 0;
+
+/**
+ * Read the settings a dialog shows, then open it with them. A dialog that opened first and filled
+ * itself when the read came back put the stored values over anything typed in the meantime. When
+ * the read fails the dialog still opens, without them. A newer request supersedes one still
+ * reading, so a second click opens one dialog, not two in turn.
+ */
+function openWithSettings(open: (data: StorageData | null) => void): void {
+  const request = ++dialogRequest;
+  void loadData()
+    .catch((error: unknown) => {
+      console.error('Failed to load settings for a dialog:', error);
+      return null;
+    })
+    .then((data) => {
+      if (request === dialogRequest) {
+        open(data);
+      }
+    });
+}
+
 function openFilterModal(
   filterId?: string,
   groupId?: string,
   fallbackTrigger: HTMLElement | null = null
 ): void {
-  currentEditingFilterId = filterId ?? null;
-  currentFilterGroupId = groupId ?? DEFAULT_GROUP_ID;
-  const modal = getElementByIdOrNull('filter-modal');
-  const title = getElementByIdOrNull('filter-modal-title');
-  const form = getElementByIdOrNull<HTMLFormElement>('filter-form');
-  const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-filter');
+  openWithSettings((data) => {
+    currentEditingFilterId = filterId ?? null;
+    const modal = getElementByIdOrNull('filter-modal');
+    const title = getElementByIdOrNull('filter-modal-title');
+    const form = getElementByIdOrNull<HTMLFormElement>('filter-form');
+    const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-filter');
 
-  if (!modal || !title || !form) return;
+    if (!modal || !title || !form) return;
 
-  form.reset();
-  clearDialogError('filter-error');
-  hideDeleteConfirm('filter');
-  updateMatchModeHint('filter');
-  title.textContent = filterId ? 'Edit filter' : 'New filter';
-  setDialogSubtitle('filter');
-  if (deleteButton) {
-    deleteButton.hidden = !filterId;
-    deleteButton.disabled = !filterId;
-  }
+    form.reset();
+    clearDialogError('filter-error');
+    hideDeleteConfirm('filter');
+    title.textContent = filterId ? 'Edit filter' : 'New filter';
+    if (deleteButton) {
+      deleteButton.hidden = !filterId;
+      deleteButton.disabled = !filterId;
+    }
 
-  loadData()
-    .then((data) => {
-      const filter = filterId ? data.filters.find((f) => f.id === filterId) : undefined;
-      const selectedGroupId = filter?.groupId ?? groupId ?? DEFAULT_GROUP_ID;
-      currentFilterGroupId = selectedGroupId;
-      setDialogSubtitle(
-        'filter',
-        data.groups.find((entry) => entry.id === selectedGroupId),
-        filter && isTemporaryFilter(filter) ? filter.expiresAt : undefined
-      );
+    const filter = filterId ? data?.filters.find((f) => f.id === filterId) : undefined;
+    const selectedGroupId = filter?.groupId ?? groupId ?? DEFAULT_GROUP_ID;
+    currentFilterGroupId = selectedGroupId;
+    setDialogSubtitle(
+      'filter',
+      data?.groups.find((entry) => entry.id === selectedGroupId),
+      filter && isTemporaryFilter(filter) ? filter.expiresAt : undefined
+    );
 
-      if (filter) {
-        const patternInput = getElementByIdOrNull<HTMLInputElement>('filter-pattern');
-        const descInput = getElementByIdOrNull<HTMLInputElement>('filter-description');
-        const enabledInput = getElementByIdOrNull<HTMLInputElement>('filter-enabled');
-        const matchModeSelect = getElementByIdOrNull<HTMLSelectElement>('filter-match-mode');
+    if (filter) {
+      const patternInput = getElementByIdOrNull<HTMLInputElement>('filter-pattern');
+      const descInput = getElementByIdOrNull<HTMLInputElement>('filter-description');
+      const enabledInput = getElementByIdOrNull<HTMLInputElement>('filter-enabled');
+      const matchModeSelect = getElementByIdOrNull<HTMLSelectElement>('filter-match-mode');
 
-        if (patternInput) patternInput.value = filter.pattern;
-        if (descInput) descInput.value = filter.description ?? '';
-        if (enabledInput) enabledInput.checked = filter.enabled;
-        if (matchModeSelect) matchModeSelect.value = filter.matchMode ?? 'contains';
-        updateMatchModeHint('filter');
-      }
-    })
-    .catch((error: unknown) => {
-      console.error('Failed to load data for filter modal:', error);
-    });
+      if (patternInput) patternInput.value = filter.pattern;
+      if (descInput) descInput.value = filter.description ?? '';
+      if (enabledInput) enabledInput.checked = filter.enabled;
+      if (matchModeSelect) matchModeSelect.value = filter.matchMode ?? 'contains';
+    }
+    updateMatchModeHint('filter');
 
-  modal.classList.add('active');
-  activateModal(modal, '#filter-pattern', fallbackTrigger);
+    modal.classList.add('active');
+    activateModal(modal, '#filter-pattern', fallbackTrigger);
+  });
 }
 
 function closeFilterModal(): void {
@@ -1668,55 +1683,49 @@ async function handleFilterDelete(): Promise<void> {
 // ============================================================================
 
 function openGroupModal(groupId?: string, fallbackTrigger: HTMLElement | null = null): void {
-  currentEditingGroupId = groupId ?? null;
-  temporarySchedules = [];
+  openWithSettings((data) => {
+    currentEditingGroupId = groupId ?? null;
+    temporarySchedules = [];
 
-  const modal = getElementByIdOrNull('group-modal');
-  const title = getElementByIdOrNull('group-modal-title');
-  const form = getElementByIdOrNull<HTMLFormElement>('group-form');
-  const schedulesContainer = getElementByIdOrNull('schedules-container');
-  const is24x7Checkbox = getElementByIdOrNull<HTMLInputElement>('group-24x7');
-  const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-group');
+    const modal = getElementByIdOrNull('group-modal');
+    const title = getElementByIdOrNull('group-modal-title');
+    const form = getElementByIdOrNull<HTMLFormElement>('group-form');
+    const schedulesContainer = getElementByIdOrNull('schedules-container');
+    const is24x7Checkbox = getElementByIdOrNull<HTMLInputElement>('group-24x7');
+    const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-group');
 
-  if (!modal || !title || !form || !schedulesContainer || !is24x7Checkbox) return;
+    if (!modal || !title || !form || !schedulesContainer || !is24x7Checkbox) return;
 
-  form.reset();
-  clearDialogError('group-error');
-  hideDeleteConfirm('group');
-  title.textContent = groupId ? 'Edit group' : 'New group';
-  if (deleteButton) {
-    const allowDelete = Boolean(groupId && groupId !== DEFAULT_GROUP_ID);
-    deleteButton.hidden = !allowDelete;
-    deleteButton.disabled = !allowDelete;
-  }
+    form.reset();
+    clearDialogError('group-error');
+    hideDeleteConfirm('group');
+    title.textContent = groupId ? 'Edit group' : 'New group';
+    if (deleteButton) {
+      const allowDelete = Boolean(groupId && groupId !== DEFAULT_GROUP_ID);
+      deleteButton.hidden = !allowDelete;
+      deleteButton.disabled = !allowDelete;
+    }
 
-  if (groupId && groupId !== DEFAULT_GROUP_ID) {
-    loadData()
-      .then((data) => {
-        const group = data.groups.find((g) => g.id === groupId);
-        if (group) {
-          const nameInput = getElementByIdOrNull<HTMLInputElement>('group-name');
-          if (nameInput) nameInput.value = group.name;
-          is24x7Checkbox.checked = group.is24x7;
-          temporarySchedules = group.schedules.map((s) => ({
-            daysOfWeek: [...s.daysOfWeek],
-            startTime: s.startTime,
-            endTime: s.endTime,
-          }));
-          schedulesContainer.hidden = group.is24x7;
-          renderSchedules();
-        }
-      })
-      .catch((error: unknown) => {
-        console.error('Failed to load group data:', error);
-      });
-  } else {
-    schedulesContainer.hidden = false;
+    const group =
+      groupId && groupId !== DEFAULT_GROUP_ID
+        ? data?.groups.find((g) => g.id === groupId)
+        : undefined;
+    if (group) {
+      const nameInput = getElementByIdOrNull<HTMLInputElement>('group-name');
+      if (nameInput) nameInput.value = group.name;
+      is24x7Checkbox.checked = group.is24x7;
+      temporarySchedules = group.schedules.map((s) => ({
+        daysOfWeek: [...s.daysOfWeek],
+        startTime: s.startTime,
+        endTime: s.endTime,
+      }));
+    }
+    schedulesContainer.hidden = group?.is24x7 ?? false;
     renderSchedules();
-  }
 
-  modal.classList.add('active');
-  activateModal(modal, '#group-name', fallbackTrigger);
+    modal.classList.add('active');
+    activateModal(modal, '#group-name', fallbackTrigger);
+  });
 }
 
 function closeGroupModal(): void {
@@ -1831,55 +1840,48 @@ function openWhitelistModal(
   groupId?: string,
   fallbackTrigger: HTMLElement | null = null
 ): void {
-  currentEditingWhitelistId = whitelistId ?? null;
-  currentWhitelistGroupId = groupId ?? DEFAULT_GROUP_ID;
-  const modal = getElementByIdOrNull('whitelist-modal');
-  const title = getElementByIdOrNull('whitelist-modal-title');
-  const form = getElementByIdOrNull<HTMLFormElement>('whitelist-form');
-  const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-whitelist');
+  openWithSettings((data) => {
+    currentEditingWhitelistId = whitelistId ?? null;
+    const modal = getElementByIdOrNull('whitelist-modal');
+    const title = getElementByIdOrNull('whitelist-modal-title');
+    const form = getElementByIdOrNull<HTMLFormElement>('whitelist-form');
+    const deleteButton = getElementByIdOrNull<HTMLButtonElement>('delete-whitelist');
 
-  if (!modal || !title || !form) return;
+    if (!modal || !title || !form) return;
 
-  form.reset();
-  clearDialogError('whitelist-error');
-  hideDeleteConfirm('whitelist');
-  updateMatchModeHint('whitelist');
-  title.textContent = whitelistId ? 'Edit exception' : 'New exception';
-  setDialogSubtitle('whitelist');
-  if (deleteButton) {
-    deleteButton.hidden = !whitelistId;
-    deleteButton.disabled = !whitelistId;
-  }
+    form.reset();
+    clearDialogError('whitelist-error');
+    hideDeleteConfirm('whitelist');
+    title.textContent = whitelistId ? 'Edit exception' : 'New exception';
+    if (deleteButton) {
+      deleteButton.hidden = !whitelistId;
+      deleteButton.disabled = !whitelistId;
+    }
 
-  loadData()
-    .then((data) => {
-      const entry = whitelistId ? data.whitelist.find((w) => w.id === whitelistId) : undefined;
-      const selectedGroupId = entry?.groupId ?? groupId ?? DEFAULT_GROUP_ID;
-      currentWhitelistGroupId = selectedGroupId;
-      setDialogSubtitle(
-        'whitelist',
-        data.groups.find((group) => group.id === selectedGroupId)
-      );
+    const entry = whitelistId ? data?.whitelist.find((w) => w.id === whitelistId) : undefined;
+    const selectedGroupId = entry?.groupId ?? groupId ?? DEFAULT_GROUP_ID;
+    currentWhitelistGroupId = selectedGroupId;
+    setDialogSubtitle(
+      'whitelist',
+      data?.groups.find((group) => group.id === selectedGroupId)
+    );
 
-      if (entry) {
-        const patternInput = getElementByIdOrNull<HTMLInputElement>('whitelist-pattern');
-        const descInput = getElementByIdOrNull<HTMLInputElement>('whitelist-description');
-        const enabledInput = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled');
-        const matchModeSelect = getElementByIdOrNull<HTMLSelectElement>('whitelist-match-mode');
+    if (entry) {
+      const patternInput = getElementByIdOrNull<HTMLInputElement>('whitelist-pattern');
+      const descInput = getElementByIdOrNull<HTMLInputElement>('whitelist-description');
+      const enabledInput = getElementByIdOrNull<HTMLInputElement>('whitelist-enabled');
+      const matchModeSelect = getElementByIdOrNull<HTMLSelectElement>('whitelist-match-mode');
 
-        if (patternInput) patternInput.value = entry.pattern;
-        if (descInput) descInput.value = entry.description ?? '';
-        if (enabledInput) enabledInput.checked = entry.enabled;
-        if (matchModeSelect) matchModeSelect.value = entry.matchMode ?? 'contains';
-        updateMatchModeHint('whitelist');
-      }
-    })
-    .catch((error: unknown) => {
-      console.error('Failed to load exception data:', error);
-    });
+      if (patternInput) patternInput.value = entry.pattern;
+      if (descInput) descInput.value = entry.description ?? '';
+      if (enabledInput) enabledInput.checked = entry.enabled;
+      if (matchModeSelect) matchModeSelect.value = entry.matchMode ?? 'contains';
+    }
+    updateMatchModeHint('whitelist');
 
-  modal.classList.add('active');
-  activateModal(modal, '#whitelist-pattern', fallbackTrigger);
+    modal.classList.add('active');
+    activateModal(modal, '#whitelist-pattern', fallbackTrigger);
+  });
 }
 
 function closeWhitelistModal(): void {

@@ -773,6 +773,46 @@ test('edits and deletes individual filters and exceptions from options', async (
     });
 });
 
+test('opens an edit dialog only once its settings are read, so nothing typed is overwritten', async ({
+  extensionPage,
+  page,
+}) => {
+  await gotoOptions(extensionPage, page);
+  await createFilterViaOptions(page, { name: 'Slow Filter', pattern: 'slow-filter.example.test' });
+
+  // Hold every settings read until the test lets go, so the dialog's own read comes back late.
+  await page.evaluate(() => {
+    const area = chrome.storage.sync;
+    const get = area.get.bind(area) as (keys?: unknown) => Promise<unknown>;
+    let release = (): void => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    Object.assign(window, { releaseSettingsReads: release });
+    area.get = ((keys?: unknown) => released.then(() => get(keys))) as typeof area.get;
+  });
+
+  const groupCard = page.locator('.group-item').filter({ hasText: '24/7 (Always Active)' });
+  await groupCard
+    .locator('.filter-item')
+    .filter({ hasText: 'Slow Filter' })
+    .getByRole('button', { name: 'Edit' })
+    .click();
+  const filterModal = page.locator('#filter-modal.active');
+  // A dialog open before its read lets someone type, and the read then puts the stored values
+  // back over what they typed. So it stays shut until it has them.
+  await expect(filterModal).toBeHidden();
+  await page.evaluate(() => {
+    (window as unknown as { releaseSettingsReads: () => void }).releaseSettingsReads();
+  });
+  await expect(filterModal.locator('#filter-description')).toHaveValue('Slow Filter');
+  await expect(filterModal.locator('#filter-pattern')).toBeFocused();
+
+  await filterModal.locator('#filter-description').fill('Renamed Filter');
+  await filterModal.getByRole('button', { name: 'Save' }).click();
+  await expect(groupCard).toContainText('Renamed Filter');
+});
+
 test('reports a failed read while saving an edited filter, as it does a failed write', async ({
   extensionPage,
   page,
