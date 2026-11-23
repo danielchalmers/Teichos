@@ -174,6 +174,58 @@ describe('filteringEngine', () => {
     expect(decision).toEqual({ action: 'allow', reason: 'group-inactive' });
   });
 
+  it('blocks with a temporary filter even when its group is disabled', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-01-15T10:00:00Z'));
+
+    const data = createStorageData({
+      groups: [
+        {
+          id: DEFAULT_GROUP_ID,
+          name: '24/7',
+          is24x7: true,
+          schedules: [],
+          enabled: false,
+        },
+      ],
+      filters: [
+        {
+          id: 'regular-filter',
+          pattern: 'blocked.com',
+          groupId: DEFAULT_GROUP_ID,
+          enabled: true,
+          matchMode: 'contains',
+        },
+        {
+          id: 'temporary-filter',
+          pattern: 'temporary.com',
+          groupId: DEFAULT_GROUP_ID,
+          enabled: true,
+          matchMode: 'contains',
+          expiresAt: Date.now() + 60_000,
+        },
+      ],
+    });
+
+    expect(
+      evaluateFilterDecision('https://temporary.com', data, { context: activeContext })
+    ).toEqual({
+      action: 'block',
+      filterId: 'temporary-filter',
+      groupId: DEFAULT_GROUP_ID,
+      filterIds: ['temporary-filter'],
+      reason: 'matched-filter',
+    });
+    // The group's own filters stay off, and the temporary one still ends when its time is up.
+    expect(evaluateFilterDecision('https://blocked.com', data, { context: activeContext })).toEqual(
+      { action: 'allow', reason: 'group-inactive' }
+    );
+    vi.setSystemTime(Date.now() + 60_000);
+    expect(
+      evaluateFilterDecision('https://temporary.com', data, { context: activeContext })
+    ).toEqual({ action: 'allow', reason: 'temporary-expired' });
+  });
+
   it('allows matching urls when a temporary filter has expired', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-01-15T10:00:00Z'));

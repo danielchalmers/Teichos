@@ -473,6 +473,25 @@ describe('isFilterActive', () => {
     ];
     expect(isFilterActive(filter, groups)).toBe(true);
   });
+
+  it('should keep a temporary filter active when its group is disabled', () => {
+    const filter: Filter = {
+      id: 'filter-1',
+      pattern: 'example',
+      groupId: 'group-1',
+      enabled: true,
+      matchMode: 'contains',
+      expiresAt: mockDate.getTime() + 60_000,
+    };
+    const groups: FilterGroup[] = [
+      { id: 'group-1', name: 'Test Group', schedules: [], is24x7: true, enabled: false },
+    ];
+    expect(isFilterActive(filter, groups)).toBe(true);
+    // Its own switch still turns it off, and a regular filter still follows the group's.
+    expect(isFilterActive({ ...filter, enabled: false }, groups)).toBe(false);
+    const { expiresAt: _expiresAt, ...regularFilter } = filter;
+    expect(isFilterActive(regularFilter, groups)).toBe(false);
+  });
 });
 
 describe('sortFiltersTemporaryFirst', () => {
