@@ -194,6 +194,83 @@ test('redirects matching top-level navigations to the blocked page', async ({
   await expect(page.getByLabel('Responsible filter')).toContainText('E2E Block');
 });
 
+test("refuses a blocked page's request before it reaches the site", async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  let requests = 0;
+  await context.route('https://early-block.example.test/**', async (route) => {
+    requests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>Site</title><main>Site</main>',
+    });
+  });
+
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'early-block-filter',
+          pattern: 'early-block.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'domain',
+        },
+      ],
+    })
+  );
+  // The rules Chrome applies follow a settings change by a moment.
+  await expect
+    .poll(() =>
+      page.evaluate(async () => (await chrome.declarativeNetRequest.getDynamicRules()).length)
+    )
+    .toBe(1);
+
+  const browsingPage = await context.newPage();
+  await expectBlocked(browsingPage, 'https://early-block.example.test/feed');
+  expect(requests).toBe(0);
+});
+
+test('lets through a page that a rule refuses but the filters allow', async ({
+  context,
+  extensionPage,
+  page,
+}) => {
+  const targetUrl = 'https://stale-rule.example.test/article';
+  await context.route('https://stale-rule.example.test/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>Article</title><h1>Article</h1>',
+    });
+  });
+
+  // A rule left behind by a block that has ended, with no filter to match it.
+  await page.goto(extensionPage(PAGES.OPTIONS));
+  await page.evaluate(async () => {
+    await chrome.declarativeNetRequest.updateSessionRules({
+      addRules: [
+        {
+          id: 9001,
+          priority: 5,
+          action: { type: 'block' },
+          condition: { requestDomains: ['stale-rule.example.test'], resourceTypes: ['main_frame'] },
+        },
+      ],
+    });
+  });
+
+  const browsingPage = await context.newPage();
+  await browsingPage.goto(targetUrl).catch(() => undefined);
+  await expect(browsingPage).toHaveURL(targetUrl);
+  await expect(browsingPage.getByRole('heading', { name: 'Article' })).toBeVisible();
+});
+
 for (const navigationMethod of ['push-state', 'replace-state'] as const) {
   test(`blocks matching same-tab ${navigationMethod} navigations and preserves go back`, async ({
     extensionPage,
