@@ -16,5 +16,5 @@
     "noUncheckedIndexedAccess": true
   },
   "include": ["playwright.config.ts", "vitest.config.ts", "test/**/*", "src/**/*"],
-  "exclude": ["node_modules", ".output", ".wxt", "dist"]
+  "exclude": ["node_modules", ".output", "dist"]
 }
