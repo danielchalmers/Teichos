@@ -142,7 +142,9 @@ function setupEventListeners(): void {
   getElementByIdOrNull('close-filter-modal')?.addEventListener('click', closeFilterModal);
   getElementByIdOrNull('cancel-filter')?.addEventListener('click', closeFilterModal);
   closeOnBackdropClick('filter-modal', closeFilterModal);
-  getElementByIdOrNull('filter-form')?.addEventListener('submit', handleFilterSubmit);
+  getElementByIdOrNull('filter-form')?.addEventListener('submit', (event) => {
+    void handleFilterSubmit(event);
+  });
   clearDialogErrorOnEdit('filter-form', 'filter-error');
   setupDeleteConfirm('filter', describeFilterDelete, handleFilterDelete);
   setupMatchModeHint('filter');
@@ -151,7 +153,9 @@ function setupEventListeners(): void {
   getElementByIdOrNull('close-group-modal')?.addEventListener('click', closeGroupModal);
   getElementByIdOrNull('cancel-group')?.addEventListener('click', closeGroupModal);
   closeOnBackdropClick('group-modal', closeGroupModal);
-  getElementByIdOrNull('group-form')?.addEventListener('submit', handleGroupSubmit);
+  getElementByIdOrNull('group-form')?.addEventListener('submit', (event) => {
+    void handleGroupSubmit(event);
+  });
   clearDialogErrorOnEdit('group-form', 'group-error');
   setupDeleteConfirm('group', describeGroupDelete, handleGroupDelete);
   getElementByIdOrNull('add-schedule-btn')?.addEventListener('click', addScheduleToModal);
@@ -167,7 +171,9 @@ function setupEventListeners(): void {
   getElementByIdOrNull('close-whitelist-modal')?.addEventListener('click', closeWhitelistModal);
   getElementByIdOrNull('cancel-whitelist')?.addEventListener('click', closeWhitelistModal);
   closeOnBackdropClick('whitelist-modal', closeWhitelistModal);
-  getElementByIdOrNull('whitelist-form')?.addEventListener('submit', handleWhitelistSubmit);
+  getElementByIdOrNull('whitelist-form')?.addEventListener('submit', (event) => {
+    void handleWhitelistSubmit(event);
+  });
   clearDialogErrorOnEdit('whitelist-form', 'whitelist-error');
   setupDeleteConfirm('whitelist', describeWhitelistDelete, handleWhitelistDelete);
   setupMatchModeHint('whitelist');

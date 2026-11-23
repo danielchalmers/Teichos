@@ -13,12 +13,13 @@
     "zip": "npm run build && cd .output/chrome-mv3 && zip -qrD -FS ../teichos-chrome.zip .",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
+    "lint": "oxlint --type-aware",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
-    "check:fast": "npm run format:check && npm run typecheck && npm run typecheck:test && npm run test",
+    "check:fast": "npm run format:check && npm run lint && npm run typecheck && npm run typecheck:test && npm run test",
     "check": "npm run check:fast && npm run test:e2e"
   },
   "keywords": [
@@ -34,6 +35,8 @@
     "@playwright/test": "^1.65.1",
     "@types/chrome": "^0.3.7",
     "@types/node": "^26.6.6",
+    "oxlint": "^1.95.0",
+    "oxlint-tsgolint": "^7.0.2008",
     "prettier": "^3.10.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",

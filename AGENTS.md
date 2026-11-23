@@ -18,7 +18,9 @@ Read the real files before making assumptions:
 - Package scripts and validation commands: `package.json`
 - Dev loop (`npm run dev`): `scripts/dev.ts`, `scripts/dev-browser.ts`
 - TypeScript config: `tsconfig.json`, `tsconfig.test.json`
-- Formatting config: `.prettierrc`
+- Formatting config: `.prettierrc` (`npm run format` fixes it)
+- Lint config: `.oxlintrc.json`. Type-aware Oxlint checks only that promises are awaited or handled; `tsc` does
+  the rest. Mark a promise you mean to drop with `void`.
 - VS Code workflow: `.vscode/extensions.json`, `.vscode/launch.json`, `.vscode/settings.json`, `.vscode/tasks.json`
 - CI expectations: `.github/workflows/ci.yml`
 - Browser behavior and regression coverage: `test/unit`, `test/e2e`
