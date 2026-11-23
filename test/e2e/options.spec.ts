@@ -12,6 +12,7 @@ import {
   openPopup,
   readStorage,
   seedStorage,
+  setToolbarIconPinned,
   waitForOptionsReady,
 } from './helpers';
 
@@ -544,6 +545,45 @@ test('says where to start while there are no filters at all', async ({ extension
     })
   );
   await expect(emptyStates).toHaveText(['No filters in this group.']);
+});
+
+test('suggests pinning the toolbar icon until it is pinned or a filter exists', async ({
+  context,
+  extensionId,
+  extensionPage,
+  page,
+}) => {
+  const firstRunLines = page.locator('[data-role="filter-list"] > *');
+  const pinHint = page.getByText('Pin Teichos to your toolbar for temporary blocks and snooze.');
+
+  // A new install: the icon isn't pinned, and the popup has temporary blocks and snooze.
+  await gotoOptions(extensionPage, page);
+  await expect(firstRunLines).toHaveText([/^No filters yet\./, /^Pin Teichos to your toolbar/]);
+
+  // Pinning it is the end of the hint, with no reload. Unpinning brings it back.
+  await setToolbarIconPinned(context, extensionId, true);
+  await expect(pinHint).toHaveCount(0);
+  await expect(firstRunLines).toHaveText([/^No filters yet\./]);
+  await setToolbarIconPinned(context, extensionId, false);
+  await expect(pinHint).toBeVisible();
+
+  // It belongs to the first run, so it leaves with it even if the icon was never pinned.
+  await seedStorage(
+    page,
+    createStorageData({
+      filters: [
+        {
+          id: 'focus-block',
+          pattern: 'focus.example.test',
+          groupId: defaultGroup.id,
+          enabled: true,
+          matchMode: 'domain',
+        },
+      ],
+    })
+  );
+  await expect(page.locator('.filter-item')).toHaveCount(1);
+  await expect(pinHint).toHaveCount(0);
 });
 
 test('opens filter, group, and exception modals from query params', async ({

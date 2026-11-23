@@ -350,6 +350,15 @@ body {
   color: var(--text-muted);
 }
 
+/* A second line of the first-run empty state, so it closes half of the gap that line leaves. */
+.pin-hint {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  padding: 0 var(--inset) var(--space-4) var(--indent);
+  font-size: var(--text-md);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 /* Filter / exception rows */
 .filter-item {
   position: relative;

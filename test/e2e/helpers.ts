@@ -1,4 +1,4 @@
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { DAY_NAMES, PAGES } from '../../src/shared/constants';
 import { decodeSettings } from '../../src/shared/storage/syncLayout';
 import type { BlockedTabState, StorageData } from '../../src/shared/types';
@@ -126,6 +126,32 @@ export async function openPopup(
 
 export async function waitForPopupReady(page: Page): Promise<void> {
   await expect(page.locator('html[data-popup-ready="true"]')).toHaveCount(1);
+}
+
+/** Pin or unpin the toolbar icon, with the call behind chrome://extensions' "Pin to toolbar" switch. */
+export async function setToolbarIconPinned(
+  context: BrowserContext,
+  extensionId: string,
+  pinned: boolean
+): Promise<void> {
+  const extensionsPage = await context.newPage();
+  await extensionsPage.goto(`chrome://extensions/?id=${extensionId}`);
+  await extensionsPage.evaluate(
+    async (update) => {
+      // @types/chrome doesn't describe the page's private API.
+      const { developerPrivate } = chrome as unknown as {
+        developerPrivate: {
+          updateExtensionConfiguration(update: {
+            extensionId: string;
+            pinnedToToolbar: boolean;
+          }): Promise<void>;
+        };
+      };
+      await developerPrivate.updateExtensionConfiguration(update);
+    },
+    { extensionId, pinnedToToolbar: pinned }
+  );
+  await extensionsPage.close();
 }
 
 async function openGroupIfNeeded(optionsPage: Page, groupName: string): Promise<void> {

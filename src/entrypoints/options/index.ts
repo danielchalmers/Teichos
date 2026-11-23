@@ -59,6 +59,7 @@ import {
   formatSnoozeEnd,
   formatTemporaryFilterLabel,
 } from '../../shared/utils/schedules';
+import { isToolbarIconPinned, onToolbarIconPinChange } from '../../shared/api/action';
 import { getExtensionUrl } from '../../shared/api/runtime';
 import { createTab } from '../../shared/api/tabs';
 import { DAY_FULL_NAMES, DAY_NAMES, DEFAULT_SCHEDULE, PAGES } from '../../shared/constants';
@@ -88,6 +89,7 @@ let timedRefreshTimer: number | null = null;
 async function init(): Promise<void> {
   setupEventListeners();
   setupStorageSync();
+  setupToolbarPinSync();
   populateInfoPanel();
   await renderGroups();
   openFilterFromQuery();
@@ -402,6 +404,15 @@ function setupStorageSync(): void {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'sync') return;
     if (!hasSettingsChange(changes)) return;
+    void renderGroups().catch((error: unknown) => {
+      console.error('Failed to refresh groups:', error);
+    });
+  });
+}
+
+/** The hint to pin the toolbar icon goes away as soon as it's pinned, and comes back if it isn't. */
+function setupToolbarPinSync(): void {
+  onToolbarIconPinChange(() => {
     void renderGroups().catch((error: unknown) => {
       console.error('Failed to refresh groups:', error);
     });
@@ -919,6 +930,11 @@ function deactivateModal(modal: HTMLElement): void {
 async function renderGroups(): Promise<void> {
   let data = await loadData();
   data = await purgeExpiredTemporaryFilters(data);
+  const hasAnyFilters = data.filters.length > 0;
+  // Only the first-run hint mentions pinning, so Chrome is only asked while that shows. Asked here,
+  // before any of the page's state is read: renders overlap, and one that waited between reading
+  // focus and redrawing would undo where another had since moved it.
+  const suggestPinning = !hasAnyFilters && !(await isToolbarIconPinned());
   renderGlobalSettings(data);
   const groupsList = getElementByIdOrNull('groups-list');
   if (!groupsList) return;
@@ -959,7 +975,7 @@ async function renderGroups(): Promise<void> {
     const filters = sortFiltersTemporaryFirst(filtersByGroup.get(group.id) ?? []);
     const whitelist = whitelistByGroup.get(group.id) ?? [];
     fragment.appendChild(
-      renderGroup(group, index, filters, whitelist, snoozeActive, data.filters.length > 0)
+      renderGroup(group, index, filters, whitelist, snoozeActive, hasAnyFilters, suggestPinning)
     );
   }
 
@@ -1103,7 +1119,8 @@ function renderGroup(
   filters: readonly Filter[],
   whitelist: readonly Whitelist[],
   snoozeActive: boolean,
-  hasAnyFilters: boolean
+  hasAnyFilters: boolean,
+  suggestPinning: boolean
 ): HTMLElement {
   const isDefault = group.id === DEFAULT_GROUP_ID;
   const groupEnabled = isGroupEnabled(group);
@@ -1173,6 +1190,9 @@ function renderGroup(
         isDefault && !hasAnyFilters ? FIRST_FILTER_HINT : 'No filters in this group.'
       )
     );
+    if (isDefault && suggestPinning) {
+      filterList.appendChild(createPinHint());
+    }
   } else {
     const filterFragment = document.createDocumentFragment();
     for (const filter of filters) {
@@ -1264,6 +1284,17 @@ function createEmptyState(message: string): HTMLParagraphElement {
   const element = document.createElement('p');
   element.className = 'empty-state';
   element.textContent = message;
+  return element;
+}
+
+/**
+ * A second line for a new install whose toolbar icon isn't pinned: temporary blocks and snooze are
+ * only in the popup, which is two clicks away until it is.
+ */
+function createPinHint(): HTMLParagraphElement {
+  const element = document.createElement('p');
+  element.className = 'pin-hint';
+  element.textContent = 'Pin Teichos to your toolbar for temporary blocks and snooze.';
   return element;
 }
 
