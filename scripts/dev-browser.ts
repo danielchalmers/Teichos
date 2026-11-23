@@ -8,10 +8,11 @@ export interface DevBrowser {
   extensionOrigin: string;
 }
 
-// chrome://extensions has the private API behind its developer mode switch, which @types/chrome
-// doesn't describe.
+// chrome://extensions has the private API behind its developer mode switch and its "Extension
+// options" button, which @types/chrome doesn't describe.
 interface DeveloperPrivate {
   updateProfileConfiguration(update: { inDeveloperMode: boolean }): Promise<void>;
+  showOptions(extensionId: string): Promise<void>;
 }
 
 // Opens the installed Chrome with the unpacked extension loaded and Settings showing, for
@@ -40,9 +41,6 @@ export async function openDevBrowser(extensionPath: string): Promise<DevBrowser>
   if (!browser) {
     throw new Error('Playwright gave no browser to load the extension through.');
   }
-  const session = await browser.newBrowserCDPSession();
-  const { id } = await session.send('Extensions.loadUnpacked', { path: extensionPath });
-  const extensionOrigin = `chrome-extension://${id}`;
 
   const page = context.pages()[0] ?? (await context.newPage());
   // Chrome reloads an unpacked extension into a disabled state unless developer mode is on, and the
@@ -53,7 +51,24 @@ export async function openDevBrowser(extensionPath: string): Promise<DevBrowser>
       chrome as unknown as { developerPrivate: DeveloperPrivate }
     ).developerPrivate.updateProfileConfiguration({ inDeveloperMode: true })
   );
-  await page.goto(`${extensionOrigin}/options.html`);
+
+  // Teichos opens Settings when it's installed, which every launch here is, and Chrome puts it in
+  // the current tab when that tab is blank. So the extension is loaded only now that this tab has
+  // left its blank page, or the two navigations could collide.
+  const session = await browser.newBrowserCDPSession();
+  const { id } = await session.send('Extensions.loadUnpacked', { path: extensionPath });
+  const extensionOrigin = `chrome-extension://${id}`;
+
+  // Asking for Settings the way this page's "Extension options" button does shows the tab Teichos
+  // opened, where going to its address would add a second. It opens one if Teichos hasn't.
+  await page.evaluate(
+    (extensionId) =>
+      (chrome as unknown as { developerPrivate: DeveloperPrivate }).developerPrivate.showOptions(
+        extensionId
+      ),
+    id
+  );
+  await page.close();
 
   return { context, extensionOrigin };
 }

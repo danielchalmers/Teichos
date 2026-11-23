@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   handleBeforeNavigate: vi.fn(),
   handleNavigationChange: vi.fn(),
   handleMessage: vi.fn(),
+  handleInstalled: vi.fn(),
   registerTabController: vi.fn(),
   registerSnoozeHandlers: vi.fn(),
 }));
@@ -14,6 +15,7 @@ vi.mock('../../../src/background/handlers', () => ({
   handleBeforeNavigate: mocks.handleBeforeNavigate,
   handleNavigationChange: mocks.handleNavigationChange,
   handleMessage: mocks.handleMessage,
+  handleInstalled: mocks.handleInstalled,
 }));
 
 vi.mock('../../../src/background/tabController', () => ({
@@ -34,6 +36,7 @@ describe('background entrypoint', () => {
     mocks.handleNavigationChange.mockReset().mockResolvedValue(undefined);
     mocks.handleBeforeNavigate.mockReset().mockResolvedValue(undefined);
     mocks.handleMessage.mockReset();
+    mocks.handleInstalled.mockReset();
     mocks.registerTabController.mockReset();
     mocks.registerSnoozeHandlers.mockReset();
   });
@@ -45,6 +48,7 @@ describe('background entrypoint', () => {
     registerBackground();
 
     expect(chromeMock.runtime.onMessage.addListener).toHaveBeenCalledWith(mocks.handleMessage);
+    expect(chromeMock.runtime.onInstalled.addListener).toHaveBeenCalledWith(mocks.handleInstalled);
     expect(mocks.registerTabController).toHaveBeenCalledTimes(1);
     expect(mocks.registerSnoozeHandlers).toHaveBeenCalledTimes(1);
 
