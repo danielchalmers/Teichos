@@ -319,6 +319,51 @@ describe('TabController', () => {
     expect(chromeMock.tabs.update).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves a refused page alone once its start has moved the tab on', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+    await seedBlock(43, 'block-43', 'https://news.com/story');
+    await setLastAllowedUrl(43, 'https://allowed.com/page');
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    // Go back lands on the blocked address, which Chrome refuses, and its start steps past it.
+    await getTabController().goBackFromTab(43);
+    await getTabController().evaluateNavigation(43, 'https://news.com/story', {
+      beforeCommit: true,
+    });
+    expect(chromeMock.tabs.goBack).toHaveBeenCalledTimes(2);
+    await getTabController().evaluateNavigation(43, 'https://allowed.com/page', {
+      beforeCommit: true,
+    });
+    await getTabController().evaluateNavigation(43, 'https://allowed.com/page');
+
+    // The refusal arrives only now, after the page before has started and committed. Judging the
+    // address again would pull the tab back to the block page.
+    await getTabController().judgeRefusedNavigation(43, 'https://news.com/story');
+    expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+    expect(chromeMock.tabs.goBack).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks a redirect that lands where an earlier navigation in the tab started', async () => {
+    const chromeMock = getChromeMock();
+    chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
+
+    const { getTabController } = await import('../../../src/background/tabController');
+    await getTabController().evaluateNavigation(9, 'https://news.com/story', {
+      beforeCommit: true,
+    });
+    await getTabController().judgeRefusedNavigation(9, 'https://news.com/story');
+    expect(chromeMock.tabs.update).toHaveBeenCalledTimes(1);
+
+    // That start answered for its own refusal only. A shortener redirecting to the same address
+    // moments later is a navigation nobody has judged.
+    await getTabController().evaluateNavigation(9, 'https://short.link/abc', {
+      beforeCommit: true,
+    });
+    await getTabController().judgeRefusedNavigation(9, 'https://news.com/story');
+    expect(chromeMock.tabs.update).toHaveBeenCalledTimes(2);
+  });
+
   it('lets through a refused page the filters allow, once', async () => {
     const chromeMock = getChromeMock();
     chromeMock.storage.sync._data.set(STORAGE_KEY, createStorageData({ filters: [newsFilter] }));
