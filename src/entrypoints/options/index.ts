@@ -1583,23 +1583,25 @@ async function handleFilterSubmit(e: Event): Promise<void> {
     return;
   }
 
-  let expiresAt: number | undefined;
-  if (currentEditingFilterId) {
-    const data = await loadData();
-    expiresAt = data.filters.find((filter) => filter.id === currentEditingFilterId)?.expiresAt;
-  }
-
-  const baseFilter: Filter = {
-    id: currentEditingFilterId ?? generateId(),
-    pattern,
-    description,
-    groupId,
-    enabled,
-    matchMode,
-  };
-  const filter: Filter = typeof expiresAt === 'number' ? { ...baseFilter, expiresAt } : baseFilter;
-
+  // The read that keeps an edited filter's expiry is part of saving, so a failed one is reported the same way.
   try {
+    let expiresAt: number | undefined;
+    if (currentEditingFilterId) {
+      const data = await loadData();
+      expiresAt = data.filters.find((filter) => filter.id === currentEditingFilterId)?.expiresAt;
+    }
+
+    const baseFilter: Filter = {
+      id: currentEditingFilterId ?? generateId(),
+      pattern,
+      description,
+      groupId,
+      enabled,
+      matchMode,
+    };
+    const filter: Filter =
+      typeof expiresAt === 'number' ? { ...baseFilter, expiresAt } : baseFilter;
+
     if (isEdit) {
       await updateFilter(filter);
     } else {
