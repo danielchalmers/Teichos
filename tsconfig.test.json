@@ -11,7 +11,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "ignoreDeprecations": "6.0",
     "types": ["chrome", "node"],
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
