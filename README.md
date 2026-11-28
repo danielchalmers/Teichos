@@ -14,7 +14,7 @@ Teichos is a free, open-source website blocker for Chrome and other Chromium bro
 - **Scheduled groups.** Sort filters into groups and give each one a schedule. Block social media during work hours, everything at bedtime, or a site around the clock.
 - **Flexible filters.** Block a whole site by its domain, subdomains included, or match text anywhere in the address, an exact URL, or a regular expression. Name each filter so your list stays readable.
 - **Exceptions.** Keep the pages you still need, like a specific playlist on an otherwise blocked YouTube.
-- **Blocks from the popup.** Block the site you're on without opening Settings: always, or as a temporary block that expires on its own.
+- **Blocks from the popup.** Block the site you're on without opening Settings: with no end, in the group of your choice, or as a temporary block that expires on its own.
 - **Snooze.** Pause all filtering for a set time when you genuinely need a break.
 - **A calm block page.** See which filter caught the page, and continue anyway when you really mean to. It's a speed bump, not a brick wall.
 - **Private & synced.** Settings sync through your browser profile. There's no account, no analytics, and no third-party servers ([privacy policy](PRIVACY_POLICY.md)).
