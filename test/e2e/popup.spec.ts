@@ -129,7 +129,9 @@ test('adds and deletes a temporary filter from the popup', async ({ extensionPag
   await expect(page.getByText('No filters yet')).toBeVisible();
   await expect(page.locator('#status-message')).toHaveText('Temporary block deleted.');
   // The deleted row's button is gone, so focus moves to what replaced it instead of the body.
-  await expect(page.getByRole('button', { name: 'New filter' })).toBeFocused();
+  await expect(
+    page.getByRole('listitem').filter({ hasText: 'No filters yet' }).getByRole('button')
+  ).toBeFocused();
 
   // A file name looks like a site name, but as a domain it would never match its own page.
   await openQuickAdd(page);
@@ -310,28 +312,48 @@ test('says so when Always adds a filter to a default group that is turned off', 
   await expectAllowed(browsingPage, 'https://group-off.example.invalid/');
 });
 
-test('opens the full filter editor from the popup empty state', async ({
-  context,
+test('starts a first filter with no end from the popup empty state', async ({
   extensionPage,
   page,
 }) => {
+  await stubActiveTabUrl(page, 'https://www.first.example.invalid/feed');
   await gotoPopup(extensionPage, page);
 
   const emptyState = page.getByRole('listitem').filter({ hasText: 'No filters yet' });
   // The title and its one button say what to do, with no paragraph to read.
   await expect(emptyState.locator('.empty-state-text')).toHaveCount(0);
+  const newBlock = emptyState.getByRole('button', { name: 'New block' });
 
-  const optionsPagePromise = context.waitForEvent('page');
-  await emptyState.getByRole('button', { name: 'New filter' }).click();
-  const optionsPage = await optionsPagePromise;
-  await optionsPage.waitForLoadState();
+  // The header's dialog, with the current site filled in, but on Always: a first filter is
+  // usually meant to last, and a temporary one would leave the popup empty again.
+  await newBlock.click();
+  const quickAdd = page.getByRole('dialog', { name: 'New block' });
+  await expect(quickAdd).toBeVisible();
+  await expect(page.getByLabel('Site or pattern')).toHaveValue('first.example.invalid');
+  await expect(quickAdd.getByRole('button', { name: 'Always' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expect(page.getByLabel('Block for')).toBeDisabled();
 
-  const filterModal = optionsPage.locator('#filter-modal.active');
-  await expect(filterModal).toBeVisible();
-  await expect(filterModal.getByRole('heading', { name: 'New filter' })).toBeVisible();
-  await expect.poll(() => new URL(optionsPage.url()).pathname).toBe(`/${PAGES.OPTIONS}`);
-  // Like every other route to Settings, the popup closes itself once Settings is open.
-  await expect.poll(() => page.isClosed()).toBe(true);
+  // Closing the dialog gives focus back to the button that opened it.
+  await quickAdd.getByRole('button', { name: 'Cancel' }).click();
+  await expect(newBlock).toBeFocused();
+
+  await newBlock.click();
+  await page.getByRole('button', { name: 'Block', exact: true }).click();
+  await expect(
+    page.locator('.filter-item').filter({ hasText: 'first.example.invalid' })
+  ).toBeVisible();
+  const [filter] = (await readStorage(page))?.filters ?? [];
+  expect(filter).toMatchObject({
+    pattern: 'first.example.invalid',
+    matchMode: 'domain',
+    groupId: defaultGroup.id,
+  });
+  expect(filter).not.toHaveProperty('expiresAt');
+  // The empty state went with its button, so focus moves to the header's New block instead.
+  await expect(page.locator('#open-quick-add')).toBeFocused();
 });
 
 test('shows the URL pattern when a filter name is blank', async ({ extensionPage, page }) => {
