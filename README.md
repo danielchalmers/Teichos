@@ -42,7 +42,7 @@ To work on Teichos, `npm run dev` opens Chrome with it loaded and reloads it aft
 
 ## Quick start
 
-To block the site you're on, click the Teichos icon, then **+**. Pick how long, or **Always**, and click **Block**.
+To block the site you're on, click the Teichos icon, then **+**. Pick how long, or **No end**, and click **Block**.
 
 For schedules, exceptions and other kinds of filter:
 

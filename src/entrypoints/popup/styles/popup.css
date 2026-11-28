@@ -220,9 +220,20 @@ body {
   width: 8rem;
 }
 
-/* Always sits with the durations: they share the row evenly and it takes what its word needs. */
+/* No end sits with the durations: they share the row evenly and it takes what its words need. */
 .quick-add-presets {
   grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+}
+
+/* Its own column, so the label sits as close to the picker as every other field's. */
+.quick-add-group-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.quick-add-group-field[hidden] {
+  display: none;
 }
 
 .quick-add-more {

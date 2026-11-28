@@ -224,12 +224,19 @@
               <button class="chip" type="button" data-duration="30" data-unit="minutes">30m</button>
               <button class="chip" type="button" data-duration="1" data-unit="hours">1h</button>
               <button class="chip" type="button" data-duration="2" data-unit="hours">2h</button>
-              <!-- No end: a regular filter in the default group instead of a temporary block. -->
-              <button class="chip" type="button" id="quick-add-always" aria-pressed="false">
-                Always
+              <!-- A regular filter, which follows its group, instead of a temporary block. -->
+              <button class="chip" type="button" id="quick-add-no-end" aria-pressed="false">
+                No end
               </button>
             </div>
-            <!-- Only for Always while the default group is off: the new filter will not block yet. -->
+          </div>
+          <!-- Only for No end: the group the filter joins, when there is more than one, and why it
+               won't block right away when it won't. A temporary block ignores groups. -->
+          <div class="dialog-section" id="quick-add-group-section" hidden>
+            <div class="quick-add-group-field" id="quick-add-group-field" hidden>
+              <label class="field-label" for="quick-add-group">Group</label>
+              <select class="input" id="quick-add-group" name="group"></select>
+            </div>
             <p class="field-hint" id="quick-add-group-note" hidden></p>
           </div>
           <p class="dialog-error" id="quick-add-error" hidden></p>

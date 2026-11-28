@@ -185,7 +185,11 @@ function getGroupFromLookup(groupId: string, groups: GroupLookup): FilterGroup |
   return (groups as GroupById).get(groupId);
 }
 
-function isGroupScheduleActive(group: FilterGroup, context: ScheduleContext): boolean {
+/** Whether the group's schedule covers the moment, whatever its switch says. */
+export function isGroupScheduleActive(
+  group: FilterGroup,
+  context: ScheduleContext = getScheduleContext()
+): boolean {
   if (group.is24x7) {
     return true;
   }

@@ -28,6 +28,7 @@ import {
   getSnoozeRemainingMs,
   getTemporaryFilterRemainingMs,
   isGroupEnabled,
+  isGroupScheduleActive,
   isSnoozeActive,
   isTemporaryFilter,
   sortFiltersTemporaryFirst,
@@ -44,7 +45,11 @@ import {
   showDialogError,
 } from '../../shared/utils/dom';
 import { formatDuration, generateId, isInternalUrl } from '../../shared/utils/helpers';
-import { formatSnoozeEnd, formatTemporaryFilterLabel } from '../../shared/utils/schedules';
+import {
+  formatGroupScheduleSummary,
+  formatSnoozeEnd,
+  formatTemporaryFilterLabel,
+} from '../../shared/utils/schedules';
 import type { Filter, FilterGroup, SnoozeState, StorageData } from '../../shared/types';
 
 let cachedData: StorageData | null = null;
@@ -55,12 +60,15 @@ let closeQuickAddDialog: (() => void) | null = null;
 let openQuickAddDialogFrom: ((opener: HTMLElement, options: QuickAddOptions) => void) | null = null;
 
 interface QuickAddOptions {
-  /** Open on Always, a filter with no end, instead of a temporary block. */
-  readonly always: boolean;
+  /** Open on No end, a regular filter, instead of a temporary block. */
+  readonly noEnd: boolean;
 }
 
-/** The new block dialog's Always chip, a toggle button: pressed means a filter with no end. */
-const QUICK_ADD_ALWAYS_ID = 'quick-add-always';
+/** The new block dialog's No end chip, a toggle button: pressed means a filter with no end. */
+const QUICK_ADD_NO_END_ID = 'quick-add-no-end';
+
+/** The new block dialog's group picker, for a filter with no end. */
+const QUICK_ADD_GROUP_ID = 'quick-add-group';
 
 /** Controls in the filter list that can take focus, skipping the per-row buttons that are hidden. */
 const FILTER_LIST_FOCUSABLE = 'button:not([hidden]):not(:disabled), input:not(:disabled)';
@@ -504,10 +512,10 @@ function setupFilterListEvents(): void {
       return;
     }
 
-    // A first filter is usually meant to last, so the dialog opens on Always rather than the
+    // A first filter is usually meant to last, so the dialog opens on No end rather than the
     // temporary block the header's + starts with.
     if (action === 'add-first-filter') {
-      openQuickAddDialogFrom?.(button, { always: true });
+      openQuickAddDialogFrom?.(button, { noEnd: true });
       return;
     }
 
@@ -531,7 +539,8 @@ function setupQuickAdd(): void {
   const patternInput = getElementByIdOrNull<HTMLInputElement>('quick-add-pattern');
   const durationInput = getElementByIdOrNull<HTMLInputElement>('quick-add-duration');
   const unitSelect = getElementByIdOrNull<HTMLSelectElement>('quick-add-unit');
-  const alwaysChip = getElementByIdOrNull<HTMLButtonElement>(QUICK_ADD_ALWAYS_ID);
+  const noEndChip = getElementByIdOrNull<HTMLButtonElement>(QUICK_ADD_NO_END_ID);
+  const groupSelect = getElementByIdOrNull<HTMLSelectElement>(QUICK_ADD_GROUP_ID);
 
   if (
     !openButton ||
@@ -540,18 +549,19 @@ function setupQuickAdd(): void {
     !patternInput ||
     !durationInput ||
     !unitSelect ||
-    !alwaysChip
+    !noEndChip ||
+    !groupSelect
   ) {
     return;
   }
 
-  // Always makes a regular filter with no end, so the duration does not apply and its fields step
-  // back. A preset, or Always again, returns to a temporary block.
-  const setAlways = (isAlways: boolean): void => {
-    alwaysChip.setAttribute('aria-pressed', String(isAlways));
-    durationInput.disabled = isAlways;
-    unitSelect.disabled = isAlways;
-    updateQuickAddGroupNote();
+  // No end makes a regular filter, so the duration does not apply and its fields step back, and
+  // the filter's group comes forward. A preset, or No end again, returns to a temporary block.
+  const setNoEnd = (isNoEnd: boolean): void => {
+    noEndChip.setAttribute('aria-pressed', String(isNoEnd));
+    durationInput.disabled = isNoEnd;
+    unitSelect.disabled = isNoEnd;
+    updateQuickAddGroupField();
   };
 
   // Where focus goes back to when the dialog closes. The empty state's button is gone once a filter
@@ -593,8 +603,10 @@ function setupQuickAdd(): void {
   const openQuickAdd = async (from: HTMLElement, options: QuickAddOptions): Promise<void> => {
     opener = from;
     setOpen(true);
-    // The dialog opens on what its opener asks for, whatever was chosen last time.
-    setAlways(options.always);
+    // The dialog opens on what its opener asks for, in the default group, whatever was chosen
+    // last time.
+    groupSelect.value = DEFAULT_GROUP_ID;
+    setNoEnd(options.noEnd);
     ensureDefaults();
     const suggestion = await getSuggestedPattern();
     if (suggestion) {
@@ -605,7 +617,7 @@ function setupQuickAdd(): void {
   };
 
   openButton.addEventListener('click', () => {
-    void openQuickAdd(openButton, { always: false });
+    void openQuickAdd(openButton, { noEnd: false });
   });
   openQuickAddDialogFrom = (from, options): void => {
     void openQuickAdd(from, options);
@@ -624,21 +636,19 @@ function setupQuickAdd(): void {
       return;
     }
 
-    if (target.closest('button') === alwaysChip) {
-      const isAlways = !isQuickAddAlways();
-      setAlways(isAlways);
+    if (target.closest('button') === noEndChip) {
+      const isNoEnd = !isQuickAddNoEnd();
+      setNoEnd(isNoEnd);
       clearDialogError('quick-add-error');
-      // The pressed state announces itself; the note about a group that is off would go unheard.
-      const offGroup = isAlways ? getSwitchedOffDefaultGroup(cachedData) : undefined;
-      if (offGroup) {
-        announceStatus(describeGroupOff(offGroup));
+      if (isNoEnd) {
+        announceQuickAddGroupWarning();
       }
       return;
     }
 
     const presetButton = target.closest<HTMLButtonElement>('button[data-duration][data-unit]');
     if (presetButton) {
-      setAlways(false);
+      setNoEnd(false);
       durationInput.value = presetButton.dataset['duration'] ?? durationInput.value;
       unitSelect.value = presetButton.dataset['unit'] ?? unitSelect.value;
       clearDialogError('quick-add-error');
@@ -652,6 +662,11 @@ function setupQuickAdd(): void {
     clearDialogError('quick-add-error');
   });
 
+  groupSelect.addEventListener('change', () => {
+    updateQuickAddGroupField();
+    announceQuickAddGroupWarning();
+  });
+
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && popover.classList.contains('is-open')) {
       setOpen(false, true);
@@ -660,45 +675,109 @@ function setupQuickAdd(): void {
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    void handleQuickAddSubmit(patternInput, durationInput, unitSelect, isQuickAddAlways(), () => {
+    void handleQuickAddSubmit(patternInput, durationInput, unitSelect, isQuickAddNoEnd(), () => {
       setOpen(false, true);
     });
   });
 }
 
-/** Whether the new block dialog is set to Always, a regular filter, instead of a duration. */
-function isQuickAddAlways(): boolean {
-  return getElementByIdOrNull(QUICK_ADD_ALWAYS_ID)?.getAttribute('aria-pressed') === 'true';
-}
-
-/** The default group, where a filter made in the popup goes, if its switch is off. */
-function getSwitchedOffDefaultGroup(data: StorageData | null): FilterGroup | undefined {
-  const group = data?.groups.find((entry) => entry.id === DEFAULT_GROUP_ID);
-  return group && !isGroupEnabled(group) ? group : undefined;
-}
-
-function describeGroupOff(group: FilterGroup): string {
-  return `${group.name} is turned off, so this won't block until you turn it on in Settings.`;
+/** Whether the new block dialog is set to No end, a regular filter, instead of a duration. */
+function isQuickAddNoEnd(): boolean {
+  return getElementByIdOrNull(QUICK_ADD_NO_END_ID)?.getAttribute('aria-pressed') === 'true';
 }
 
 /**
- * A regular filter follows its group's switch, which a temporary block ignores. So while Always is
- * chosen and the default group is off, the dialog says that the new filter will not block yet.
+ * The group a filter with no end joins: the one picked, or the default group when the picked one
+ * has since been deleted in Settings.
  */
-function updateQuickAddGroupNote(): void {
+function getQuickAddGroup(data: StorageData | null): FilterGroup | undefined {
+  const groups = data?.groups ?? [];
+  const pickedId = getElementByIdOrNull<HTMLSelectElement>(QUICK_ADD_GROUP_ID)?.value;
+  return (
+    groups.find((group) => group.id === pickedId) ??
+    groups.find((group) => group.id === DEFAULT_GROUP_ID) ??
+    groups[0]
+  );
+}
+
+/**
+ * Why a filter with no end won't block right away in the group it joins, or null when it will. It
+ * follows the group's switch and schedule, which a temporary block ignores.
+ */
+function describeQuickAddGroup(group: FilterGroup): string | null {
+  if (!isGroupEnabled(group)) {
+    return `${group.name} is turned off, so this won't block until you turn it on in Settings.`;
+  }
+  if (group.is24x7 || isGroupScheduleActive(group)) {
+    return null;
+  }
+  if (group.schedules.length === 0) {
+    return `${group.name} has no schedule, so this won't block until you give it one in Settings.`;
+  }
+  return `${group.name} is outside its schedule (${formatGroupScheduleSummary(group)}), so this won't block right now.`;
+}
+
+/**
+ * Keep the group picker's options in step with the stored groups, in their order: Settings can
+ * change them while the dialog is open. The picked group stays picked while it exists.
+ */
+function syncQuickAddGroupOptions(select: HTMLSelectElement, groups: readonly FilterGroup[]): void {
+  const isCurrent =
+    select.options.length === groups.length &&
+    groups.every(
+      (group, index) =>
+        select.options[index]?.value === group.id && select.options[index]?.text === group.name
+    );
+  if (!isCurrent) {
+    const picked = select.value;
+    select.replaceChildren(...groups.map((group) => new Option(group.name, group.id)));
+    select.value = picked;
+  }
+  if (!groups.some((group) => group.id === select.value)) {
+    select.value = DEFAULT_GROUP_ID;
+  }
+}
+
+/**
+ * While No end is chosen, the dialog offers the groups when there is more than one, and says when
+ * the chosen group won't let the new filter block right away.
+ */
+function updateQuickAddGroupField(): void {
+  const section = getElementByIdOrNull('quick-add-group-section');
+  const field = getElementByIdOrNull('quick-add-group-field');
+  const select = getElementByIdOrNull<HTMLSelectElement>(QUICK_ADD_GROUP_ID);
   const note = getElementByIdOrNull('quick-add-group-note');
-  const alwaysChip = getElementByIdOrNull(QUICK_ADD_ALWAYS_ID);
-  if (!note || !alwaysChip) {
+  const noEndChip = getElementByIdOrNull(QUICK_ADD_NO_END_ID);
+  if (!section || !field || !select || !note || !noEndChip) {
     return;
   }
 
-  const offGroup = isQuickAddAlways() ? getSwitchedOffDefaultGroup(cachedData) : undefined;
-  setTextIfChanged(note, offGroup ? describeGroupOff(offGroup) : '');
-  note.hidden = !offGroup;
-  if (offGroup) {
-    alwaysChip.setAttribute('aria-describedby', note.id);
-  } else {
-    alwaysChip.removeAttribute('aria-describedby');
+  const groups = cachedData?.groups ?? [];
+  syncQuickAddGroupOptions(select, groups);
+  const isNoEnd = isQuickAddNoEnd();
+  const group = isNoEnd ? getQuickAddGroup(cachedData) : undefined;
+  const description = group ? describeQuickAddGroup(group) : null;
+  const hasChoice = groups.length > 1;
+
+  field.hidden = !hasChoice;
+  setTextIfChanged(note, description ?? '');
+  note.hidden = description === null;
+  section.hidden = !isNoEnd || (!hasChoice && description === null);
+  for (const control of [noEndChip, select]) {
+    if (description) {
+      control.setAttribute('aria-describedby', note.id);
+    } else {
+      control.removeAttribute('aria-describedby');
+    }
+  }
+}
+
+/** Say the group's note aloud: the pressed chip or picked group announces itself, the note not. */
+function announceQuickAddGroupWarning(): void {
+  const group = getQuickAddGroup(cachedData);
+  const description = group ? describeQuickAddGroup(group) : null;
+  if (description) {
+    announceStatus(description);
   }
 }
 
@@ -725,7 +804,7 @@ async function handleQuickAddSubmit(
   patternInput: HTMLInputElement,
   durationInput: HTMLInputElement,
   unitSelect: HTMLSelectElement,
-  isAlways: boolean,
+  isNoEnd: boolean,
   onClose: () => void
 ): Promise<void> {
   const pattern = patternInput.value.trim();
@@ -736,8 +815,8 @@ async function handleQuickAddSubmit(
   }
 
   // Only a temporary block has a duration to read.
-  const durationMs = isAlways ? null : readQuickAddDurationMs(durationInput, unitSelect);
-  if (!isAlways && durationMs === null) {
+  const durationMs = isNoEnd ? null : readQuickAddDurationMs(durationInput, unitSelect);
+  if (!isNoEnd && durationMs === null) {
     showDialogError('quick-add-error', 'Enter a valid duration.', durationInput);
     durationInput.focus();
     return;
@@ -747,22 +826,24 @@ async function handleQuickAddSubmit(
   // subdomains, and anything else (a path, a file name, or a word like "reddit") matches as text.
   const normalized = normalizeDomainPattern(pattern);
   const domain = normalized !== null && isSiteNamePattern(normalized) ? normalized : null;
+  // A temporary block ignores groups, and sits in the default group only to be listed.
+  const group = durationMs === null ? getQuickAddGroup(cachedData) : undefined;
   const lastingFilter: Filter = {
     id: generateId(),
     pattern: domain ?? pattern,
-    groupId: DEFAULT_GROUP_ID,
+    groupId: group?.id ?? DEFAULT_GROUP_ID,
     enabled: true,
     matchMode: domain ? 'domain' : 'contains',
   };
   // An end time is all that makes a block temporary; without one this is a regular filter.
   const filter: Filter =
     durationMs === null ? lastingFilter : { ...lastingFilter, expiresAt: Date.now() + durationMs };
-  // What the dialog showed while Always was chosen, so the result is described the same way.
-  const offGroup = durationMs === null ? getSwitchedOffDefaultGroup(cachedData) : undefined;
+  // What the dialog showed for the group, so the result is described the same way.
+  const groupNote = group ? describeQuickAddGroup(group) : null;
   try {
     await addFilter(filter);
     if (durationMs === null) {
-      announceStatus(offGroup ? `Filter added. ${describeGroupOff(offGroup)}` : 'Filter added.');
+      announceStatus(groupNote ? `Filter added. ${groupNote}` : 'Filter added.');
     } else {
       announceStatus(`Temporary block started for ${formatDuration(durationMs)}.`);
     }
@@ -917,8 +998,8 @@ async function renderFilters(): Promise<void> {
   cachedData = data;
   lastSnoozeActive = isSnoozeActive(data.snooze);
   applySnoozeVisualState(data.snooze);
-  // The default group's switch may have changed in Settings while the dialog is open.
-  updateQuickAddGroupNote();
+  // Groups, their switches and schedules may have changed in Settings while the dialog is open.
+  updateQuickAddGroupField();
   const filterList = getElementByIdOrNull('filter-list');
 
   if (!filterList) {
