@@ -51,6 +51,13 @@ let cachedData: StorageData | null = null;
 let snoozeTickerId: number | null = null;
 let lastSnoozeActive = false;
 let closeQuickAddDialog: (() => void) | null = null;
+/** Open the new block dialog from another button, which gets focus back when it closes. */
+let openQuickAddDialogFrom: ((opener: HTMLElement, options: QuickAddOptions) => void) | null = null;
+
+interface QuickAddOptions {
+  /** Open on Always, a filter with no end, instead of a temporary block. */
+  readonly always: boolean;
+}
 
 /** The new block dialog's Always chip, a toggle button: pressed means a filter with no end. */
 const QUICK_ADD_ALWAYS_ID = 'quick-add-always';
@@ -497,14 +504,10 @@ function setupFilterListEvents(): void {
       return;
     }
 
+    // A first filter is usually meant to last, so the dialog opens on Always rather than the
+    // temporary block the header's + starts with.
     if (action === 'add-first-filter') {
-      openOptionsPageWithParams({ modal: 'filter' })
-        .catch((error: unknown) => {
-          console.error('Failed to open options page:', error);
-        })
-        .finally(() => {
-          window.close();
-        });
+      openQuickAddDialogFrom?.(button, { always: true });
       return;
     }
 
@@ -551,6 +554,10 @@ function setupQuickAdd(): void {
     updateQuickAddGroupNote();
   };
 
+  // Where focus goes back to when the dialog closes. The empty state's button is gone once a filter
+  // is added, so the header's button stands in for it then.
+  let opener: HTMLElement = openButton;
+
   const setOpen = (isOpen: boolean, returnFocus = false): void => {
     const wasOpen = popover.classList.contains('is-open');
     popover.classList.toggle('is-open', isOpen);
@@ -566,7 +573,7 @@ function setupQuickAdd(): void {
         setBackgroundInert(false);
       }
       if (returnFocus) {
-        openButton.focus();
+        (opener.isConnected ? opener : openButton).focus();
       }
     }
   };
@@ -583,10 +590,11 @@ function setupQuickAdd(): void {
     }
   };
 
-  const openQuickAdd = async (): Promise<void> => {
+  const openQuickAdd = async (from: HTMLElement, options: QuickAddOptions): Promise<void> => {
+    opener = from;
     setOpen(true);
-    // The dialog always opens on a temporary block, whatever was chosen last time.
-    setAlways(false);
+    // The dialog opens on what its opener asks for, whatever was chosen last time.
+    setAlways(options.always);
     ensureDefaults();
     const suggestion = await getSuggestedPattern();
     if (suggestion) {
@@ -597,8 +605,11 @@ function setupQuickAdd(): void {
   };
 
   openButton.addEventListener('click', () => {
-    void openQuickAdd();
+    void openQuickAdd(openButton, { always: false });
   });
+  openQuickAddDialogFrom = (from, options): void => {
+    void openQuickAdd(from, options);
+  };
 
   popover.addEventListener('click', (event) => {
     const target = event.target as HTMLElement;
