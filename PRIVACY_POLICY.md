@@ -10,7 +10,6 @@ This extension requests only the permissions required to block pages based on yo
 - `alarms` — Schedule snooze expiration so filtering can automatically resume at the time you set.
 - `tabs` — Read active and open tab URLs where Chrome exposes them, redirect blocked tabs, restore the last allowed URL, and focus or reuse the options tab.
 - `webNavigation` — Detect navigations as early as possible to block matching pages before they fully load.
-- `declarativeNetRequest` — Give Chrome rules built from your filters, so Chrome refuses a blocked page's request before anything is sent to the site. Chrome applies the rules itself. This permission gives the extension no access to any site or to the content of any page.
 
 ## Data We Store
 
@@ -25,7 +24,7 @@ This data is saved in `chrome.storage.sync` to allow your settings to follow you
 
 ## Data We Access
 
-To block pages, the extension evaluates navigation event URLs and tab URLs exposed by the retained Chrome permissions against your filters. These checks happen locally in the extension and are not transmitted off your device. The rules Chrome applies are built from your filters and stay in your browser.
+To block pages, the extension evaluates navigation event URLs and tab URLs exposed by the retained Chrome permissions against your filters. These checks happen locally in the extension and are not transmitted off your device.
 
 ## Data We Share
 

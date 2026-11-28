@@ -90,22 +90,10 @@ export async function showBlockPageDetails(page: Page): Promise<void> {
  * Navigate and require the page to load. A block redirects the tab while the navigation is still in
  * flight, which aborts `goto`; checking the URL right after commit instead would pass before the
  * background had decided anything.
- *
- * A page allowed only a moment ago may be refused once on the way: Chrome's early-block rules are
- * rewritten just after the settings change, and until then still refuse it. The background lets
- * such a page through, so it must load all the same.
  */
 export async function expectAllowed(page: Page, targetUrl: string): Promise<void> {
-  await page
-    .goto(targetUrl, { waitUntil: 'load', timeout: EXTENSION_NAVIGATION_TIMEOUT_MS })
-    .catch((error: unknown) => {
-      if (!String(error).includes('net::ERR_BLOCKED_BY_CLIENT')) {
-        throw error;
-      }
-    });
-  // Chrome's own page for a refused request has another address, so this waits for the real one.
+  await page.goto(targetUrl, { waitUntil: 'load', timeout: EXTENSION_NAVIGATION_TIMEOUT_MS });
   await expect(page).toHaveURL(targetUrl);
-  await page.waitForLoadState('load');
 }
 
 export async function openOptions(
