@@ -47,6 +47,8 @@ Read the real files before making assumptions:
 
 - The build is plain Vite, and the manifest is a static object in `vite.config.ts`. Do not bring back an extension
   framework (WXT and the like) or web-ext for what a few lines of config do.
+- Do not add `declarativeNetRequest` back. It was tried in 1.0.0 and removed; the comment on `permissions` in
+  `vite.config.ts` says why. Every added permission disables Teichos for all users until they accept it.
 - The release job can write to the repository, so it attaches the zip with the runner's `gh` CLI. Keep
   third-party actions out of it.
 - Manifest V3 service worker code must stay event-driven and should not rely on persistent in-memory state.

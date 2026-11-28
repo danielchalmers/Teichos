@@ -18,9 +18,12 @@ const manifest = {
     48: 'assets/icons/icon48.png',
     128: 'assets/icons/icon128.png',
   },
-  // declarativeNetRequest carries the block rules that stop a blocked page's request (see
-  // src/background/earlyBlock.ts). On its own it grants no access to any site.
-  permissions: ['alarms', 'declarativeNetRequest', 'storage', 'tabs', 'webNavigation'],
+  // Never add declarativeNetRequest back. 1.0.0 used its `block` rules to stop a blocked page's
+  // request before it was sent (#187), and Chrome showed its own "blocked by an extension" error
+  // page before every block page. Without host permissions, `block` is the only rule that stops a
+  // page, and Chrome always shows that error page for it. Adding any permission also disables
+  // Teichos for every user until they accept it, so permissions are not tried out and dropped.
+  permissions: ['alarms', 'storage', 'tabs', 'webNavigation'],
   // Incognito windows get their own instance of the extension, so a blocked site there can be
   // sent to the block page: with the default (spanning) mode the single instance lives in the
   // regular profile, and Chrome refuses to open its pages in an incognito tab.

@@ -194,29 +194,19 @@ test('redirects matching top-level navigations to the blocked page', async ({
   await expect(page.getByLabel('Responsible filter')).toContainText('E2E Block');
 });
 
-test("refuses a blocked page's request before it reaches the site", async ({
+test("opens the block page without Chrome's error page first", async ({
   context,
   extensionPage,
   page,
 }) => {
-  let requests = 0;
-  await context.route('https://early-block.example.test/**', async (route) => {
-    requests += 1;
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<!doctype html><title>Site</title><main>Site</main>',
-    });
-  });
-
   await page.goto(extensionPage(PAGES.OPTIONS));
   await seedStorage(
     page,
     createStorageData({
       filters: [
         {
-          id: 'early-block-filter',
-          pattern: 'early-block.example.test',
+          id: 'direct-filter',
+          pattern: 'direct.example.test',
           groupId: defaultGroup.id,
           enabled: true,
           matchMode: 'domain',
@@ -224,103 +214,19 @@ test("refuses a blocked page's request before it reaches the site", async ({
       ],
     })
   );
-  // The rules Chrome applies follow a settings change by a moment.
-  await expect
-    .poll(() =>
-      page.evaluate(async () => (await chrome.declarativeNetRequest.getDynamicRules()).length)
-    )
-    .toBe(1);
 
   const browsingPage = await context.newPage();
-  await expectBlocked(browsingPage, 'https://early-block.example.test/feed');
-  expect(requests).toBe(0);
-});
-
-test('lets through a page that a rule refuses but the filters allow', async ({
-  context,
-  extensionPage,
-  page,
-}) => {
-  const targetUrl = 'https://stale-rule.example.test/article';
-  await context.route('https://stale-rule.example.test/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<!doctype html><title>Article</title><h1>Article</h1>',
-    });
+  const committed: string[] = [];
+  browsingPage.on('framenavigated', (frame) => {
+    if (frame === browsingPage.mainFrame()) {
+      committed.push(frame.url());
+    }
   });
+  await expectBlocked(browsingPage, 'https://direct.example.test/feed');
 
-  // A rule left behind by a block that has ended, with no filter to match it.
-  await page.goto(extensionPage(PAGES.OPTIONS));
-  await page.evaluate(async () => {
-    await chrome.declarativeNetRequest.updateSessionRules({
-      addRules: [
-        {
-          id: 9001,
-          priority: 5,
-          action: { type: 'block' },
-          condition: { requestDomains: ['stale-rule.example.test'], resourceTypes: ['main_frame'] },
-        },
-      ],
-    });
-  });
-
-  const browsingPage = await context.newPage();
-  await browsingPage.goto(targetUrl).catch(() => undefined);
-  await expect(browsingPage).toHaveURL(targetUrl);
-  await expect(browsingPage.getByRole('heading', { name: 'Article' })).toBeVisible();
-});
-
-test('lets through a page an exact exception allows, whatever its fragment', async ({
-  context,
-  extensionPage,
-  page,
-}) => {
-  await context.route('https://fragments.example.test/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<!doctype html><title>Guide</title><h1>Guide</h1>',
-    });
-  });
-
-  await page.goto(extensionPage(PAGES.OPTIONS));
-  await seedStorage(
-    page,
-    createStorageData({
-      filters: [
-        {
-          id: 'fragment-site',
-          pattern: 'fragments.example.test',
-          groupId: defaultGroup.id,
-          enabled: true,
-          matchMode: 'domain',
-        },
-      ],
-      whitelist: [
-        {
-          id: 'fragment-exception',
-          pattern: 'https://fragments.example.test/guide',
-          groupId: defaultGroup.id,
-          enabled: true,
-          matchMode: 'exact',
-        },
-      ],
-    })
-  );
-  // One rule for the filter and two for the exception: with and without a fragment.
-  await expect
-    .poll(() =>
-      page.evaluate(async () => (await chrome.declarativeNetRequest.getDynamicRules()).length)
-    )
-    .toBe(3);
-
-  // Chrome matches a rule against the fragment too, and `goto` fails on a request it refuses, so
-  // the exception's rules must cover this address themselves.
-  const browsingPage = await context.newPage();
-  await browsingPage.goto('https://fragments.example.test/guide#install');
-  await expect(browsingPage.getByRole('heading', { name: 'Guide' })).toBeVisible();
-  await expectBlocked(browsingPage, 'https://fragments.example.test/other#guide');
+  // A request Chrome refuses commits its own error page, which stays on screen until the block
+  // page replaces it. The tab should go from the page it was on straight to the block page.
+  expect(committed.filter((url) => url.startsWith('chrome-error:'))).toEqual([]);
 });
 
 for (const navigationMethod of ['push-state', 'replace-state'] as const) {
